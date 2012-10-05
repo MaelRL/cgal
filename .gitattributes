@@ -355,10 +355,10 @@ Anisotropic_mesh_3/examples/Anisotropic_mesh_3/CMakeLists.txt -text
 Anisotropic_mesh_3/examples/Anisotropic_mesh_3/chair_example.cpp -text
 Anisotropic_mesh_3/examples/Anisotropic_mesh_3/comparisons_example.cpp -text
 Anisotropic_mesh_3/examples/Anisotropic_mesh_3/debug_example.cpp -text
-Anisotropic_mesh_3/examples/Anisotropic_mesh_3/implicit_surface_with_curvature_based_metric_field.cpp -text
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/implicit_surface_with_curvature_mf.cpp -text
 Anisotropic_mesh_3/examples/Anisotropic_mesh_3/implicit_surface_with_specified_metric_field.cpp -text
 Anisotropic_mesh_3/examples/Anisotropic_mesh_3/metric_field_experiment.cpp -text
-Anisotropic_mesh_3/examples/Anisotropic_mesh_3/polyhedral_surface_with_curvature_based_metric_field.cpp -text
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/polyhedral_surface_with_curvature_mf.cpp -text
 Anisotropic_mesh_3/examples/Anisotropic_mesh_3/torus_example.cpp -text
 Anisotropic_mesh_3/include/CGAL/Anisotropic_surface_mesher_3.h -text
 Anisotropic_mesh_3/include/CGAL/Anisotropic_tet_mesher_3.h -text

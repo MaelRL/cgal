@@ -5,12 +5,7 @@ project(Anisotropic_mesh_3_examples)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4.5)
 
-if(WIN32)
-  add_definitions(-DNOMINMAX)
-endif()
-
-
-set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
+include_directories(../../include)
  
 # Add macros
 add_definitions(
@@ -20,22 +15,13 @@ add_definitions(
     -DANISO_APPROXIMATE_SPHERE_BBOX 
 	-DANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR)
 
-
-if ( COMMAND cmake_policy )
-  cmake_policy( SET CMP0003 NEW )  
-endif()
  
 # Find CGAL 
 find_package(CGAL COMPONENTS)
 
 
 if ( CGAL_FOUND )
-
   include( ${CGAL_USE_FILE} )
-
-  include_directories(BEFORE ../Intersections_3/include)
-#  include_directories(BEFORE ../include)
-#  include_directories(../..) #experimental-packages
 
   include( CGAL_CreateSingleSourceCGALProgram )
 
@@ -53,8 +39,8 @@ if ( CGAL_FOUND )
     include( ${LAPACK_USE_FILE} )
 	
 #    create_single_source_cgal_program("implicit_surface_with_specified_metric_field.cpp")
-#    create_single_source_cgal_program("implicit_surface_with_curvature_based_metric_field.cpp")
-    create_single_source_cgal_program("polyhedral_surface_with_curvature_based_metric_field.cpp")
+#    create_single_source_cgal_program("implicit_surface_with_curvature_mf.cpp")
+    create_single_source_cgal_program("polyhedral_surface_with_curvature_mf.cpp")
 #    create_single_source_cgal_program("torus_example.cpp")	
 #	create_single_source_cgal_program("chair_example.cpp")
 #   create_single_source_cgal_program("debug_example.cpp")	
@@ -67,8 +53,6 @@ if ( CGAL_FOUND )
 
   endif(LAPACK_FOUND)
   
-else()
-  
+else()  
     message(STATUS "This program requires the CGAL library, and will not be compiled.")
-  
 endif()
