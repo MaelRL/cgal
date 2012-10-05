@@ -34,8 +34,8 @@ if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
 
   include_directories(BEFORE ../Intersections_3/include)
-  include_directories(BEFORE ../include)
-  include_directories(../..) #experimental-packages
+#  include_directories(BEFORE ../include)
+#  include_directories(../..) #experimental-packages
 
   include( CGAL_CreateSingleSourceCGALProgram )
 
@@ -58,7 +58,7 @@ if ( CGAL_FOUND )
 #    create_single_source_cgal_program("torus_example.cpp")	
 #	create_single_source_cgal_program("chair_example.cpp")
 #   create_single_source_cgal_program("debug_example.cpp")	
-	create_single_source_cgal_program("comparisons_example.cpp")	
+#	create_single_source_cgal_program("comparisons_example.cpp")	
 #	create_single_source_cgal_program("metric_field_experiment.cpp")	
 		
   else(LAPACK_FOUND)
