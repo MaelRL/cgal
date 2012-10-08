@@ -1014,7 +1014,7 @@ public:
       int simulate_insert_to_stars(const Point_3& p,
                                    Index_set& modified_stars) const
       {
-        Index this_id = m_stars.size();
+        Index this_id = static_cast<Index>(m_stars.size());
         
         // find conflicted stars
         Star_set stars;
@@ -1547,8 +1547,7 @@ public:
         typename Star::Bbox bbox = star->bbox(); // volume bbox when star is not a topo_disk
         Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
         Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());          
-        Kd_Box_query query(typename Kd_traits::Base::Construct_iso_box_d()(pmin,pmax),
-                           3/*dim*/, 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
+        Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
         std::set<Kd_point_info> indices;
         m_kd_tree.search(std::inserter(indices, indices.end()), query);
                

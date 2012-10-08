@@ -147,8 +147,8 @@ namespace CGAL
         return;
       
       // first traverse the buffer
-      unsigned int N = m_insertion_buffer.size();
-      unsigned int i = 0;
+      std::size_t N = m_insertion_buffer.size();
+      std::size_t i = 0;
       while(traits.go_further() && i < N)
       {
         CGAL_PROFILER("[intersections Bbox-Pt in buffer]");

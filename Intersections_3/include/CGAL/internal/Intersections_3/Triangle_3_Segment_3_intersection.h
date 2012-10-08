@@ -3,8 +3,8 @@
 //
 // This file is part of CGAL (www.cgal.org); you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License as
-// published by the Free Software Foundation; either version 3 of the License,
-// or (at your option) any later version.
+// published by the Free Software Foundation; version 2.1 of the License.
+// See the file LICENSE.LGPL distributed with CGAL.
 //
 // Licensees holding a valid commercial license may use this file in
 // accordance with the commercial license agreement provided with the software.
@@ -42,6 +42,7 @@ t3s3_intersection_coplanar_aux(const typename K::Point_3& p,
   // preconditions:
   //   + p,q,a,b are coplanar
 
+  typedef typename K::Point_3 Point_3;
   typedef typename K::Vector_3 Vector_3;
   typedef typename K::FT FT;
 
@@ -155,36 +156,26 @@ t3s3_intersection_collinear_aux(const typename K::Point_3& a,
 
   typename K::Equal_3 equals = k.equal_3_object();
  
-  // possible orders: [p,a,b,q], [p,a,q,b], [p,q,a,b], [a,p,b,q], [a,p,q,b], [a,b,p,q]
-  if ( collinear_ordered(p,a,b) )
+  // possible orders: [p,a,b,q], [p,a,q,b], [a,p,b,q], [a,p,q,b]
+  if ( collinear_ordered(p,a,q) )
   {
     // p is before a
-    //possible orders: [p,a,b,q], [p,a,q,b], [p,q,a,b]
-    if ( collinear_ordered(a,b,q) )
-      return make_object(segment(a,b)); //[p,a,b,q]
-    else{
-      if ( collinear_ordered(q,a,b) )
-        return equals(a,q)? //[p,q,a,b]
-            make_object(a):
-            Object(); 
-      return make_object(segment(a,q)); //[p,a,q,b]
-    }
+    if ( collinear_ordered(p,b,q) )
+      return make_object(segment(a,b));
+    else
+      return equals(a,q)?
+             make_object(a):
+             make_object(segment(a,q));
   }
   else
   {
     // p is after a
-    //possible orders: [a,p,b,q], [a,p,q,b], [a,b,p,q]
     if ( collinear_ordered(p,b,q) )
-      return equals(p,b)? // [a,p,b,q]
+      return equals(p,b)?
              make_object(p):
              make_object(segment(p,b));
-    else{
-      if ( collinear_ordered(a,b,p) )
-        return equals(p,b)? // [a,b,p,q]
-                make_object(p):
-                Object();
-      return make_object(segment(p,q)); // [a,p,q,b]
-    }
+    else
+      return make_object(segment(p,q));
   }
 }
 

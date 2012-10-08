@@ -240,11 +240,6 @@ Alpha_shapes_3/test/Alpha_shapes_3/test_fixed_alpha_shape_3.cmd -text
 Alpha_shapes_3/test/Alpha_shapes_3/test_fixed_alpha_shape_3.cpp -text
 Anisotropic_mesh_3/Data/fertility.off -text
 Anisotropic_mesh_3/Data/torus.off -text
-Anisotropic_mesh_3/Intersections_3/include/CGAL/Triangle_3_Triangle_3_intersection.h -text
-Anisotropic_mesh_3/Intersections_3/include/CGAL/internal/Intersections_3/Bbox_3_Point_3_do_intersect.h -text
-Anisotropic_mesh_3/Intersections_3/include/CGAL/internal/Intersections_3/Triangle_3_Line_3_intersection.h -text
-Anisotropic_mesh_3/Intersections_3/test/Intersections_3/segment_segment.cpp -text
-Anisotropic_mesh_3/Intersections_3/test/Intersections_3/triangle_3_triangle_3_intersection.cpp -text
 Anisotropic_mesh_3/demo/Anisotropic_mesh_function.h -text
 Anisotropic_mesh_3/demo/Anisotropic_meshing_thread.cpp -text
 Anisotropic_mesh_3/demo/Anisotropic_meshing_thread.h -text
@@ -2083,6 +2078,7 @@ Interpolation/doc_tex/Interpolation/nn_coords.pdf -text svneol=unset#application
 Interpolation/doc_tex/Interpolation/nn_coords.xml svneol=native#text/xml
 Intersections_2/include/CGAL/Circle_2_Line_2_intersection.h -text
 Intersections_3/include/CGAL/Triangle_3_Triangle_3_intersection.h -text
+Intersections_3/include/CGAL/internal/Intersections_3/Bbox_3_Point_3_do_intersect.h -text
 Intersections_3/include/CGAL/internal/Intersections_3/Triangle_3_Line_3_intersection.h -text
 Intersections_3/test/Intersections_3/segment_segment.cpp -text
 Intersections_3/test/Intersections_3/triangle_3_triangle_3_intersection.cpp -text

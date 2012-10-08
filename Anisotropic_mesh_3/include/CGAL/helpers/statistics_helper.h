@@ -10,14 +10,14 @@ void histogram_vertices_per_star(StarSet& stars)
   typedef typename StarSet::Star_handle Star_handle;
   typedef typename StarSet::Star_iterator Star_iterator;
 
-  std::map<unsigned int/*nb of vertices*/, unsigned int/*nb of stars for this number*/> countmap;
-  unsigned int maxnb = 0;
+  std::map<std::size_t/*nb of vertices*/, std::size_t/*nb of stars for this number*/> countmap;
+  std::size_t maxnb = 0;
   Star_iterator si = stars.m_stars.begin();
   Star_iterator siend = stars.m_stars.end();
   for (; si != siend; si++) 
   {
     Star_handle star = *si;
-    unsigned int nb = star->number_of_vertices(); 
+    std::size_t nb = star->number_of_vertices(); 
     maxnb = (std::max)(maxnb, nb);
 
     if(countmap.find(nb) == countmap.end())
@@ -27,8 +27,8 @@ void histogram_vertices_per_star(StarSet& stars)
   }
 
   typename std::ofstream fx("vertices_per_star.cgal.txt");
-  typename std::map<unsigned int, unsigned int>::iterator it = countmap.begin();
-  unsigned int i;
+  typename std::map<std::size_t, std::size_t>::iterator it = countmap.begin();
+  std::size_t i;
   for(i = 0; i < maxnb; i++)
   {
 //    CGAL_HISTOGRAM_PROFILER("[nbv / star]", it->first);

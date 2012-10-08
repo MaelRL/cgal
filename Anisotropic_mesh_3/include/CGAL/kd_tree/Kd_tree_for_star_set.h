@@ -5,7 +5,7 @@
 #include <CGAL/Search_traits_3.h>
 #include <CGAL/Search_traits_adapter.h>
 
-#include <CGAL/kd_tree/Fuzzy_iso_box.h>
+#include <CGAL/Fuzzy_iso_box.h>
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <vector>
@@ -132,8 +132,8 @@ public:
   OutputIterator
   search(OutputIterator oit, const FuzzyQueryItem& q) const
   {
-    unsigned int N = m_insertion_buffer.size();
-    for(unsigned int i = 0; i < N; i++)
+    std::size_t N = m_insertion_buffer.size();
+    for(std::size_t i = 0; i < N; i++)
       if(q.contains(m_insertion_buffer[i]))
         *oit++ = m_insertion_buffer[i];
 
