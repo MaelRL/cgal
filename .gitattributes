@@ -385,7 +385,6 @@ Anisotropic_mesh_3/include/CGAL/helpers/combinatorics_helper.h -text
 Anisotropic_mesh_3/include/CGAL/helpers/statistics_helper.h -text
 Anisotropic_mesh_3/include/CGAL/helpers/timer_helper.h -text
 Anisotropic_mesh_3/include/CGAL/helpers/triangulation_helper.h -text
-Anisotropic_mesh_3/include/CGAL/kd_tree/Fuzzy_iso_box.h -text
 Anisotropic_mesh_3/include/CGAL/kd_tree/Kd_tree_for_star_set.h -text
 Anisotropic_mesh_3/include/Domain/Constrain_surface_3_chair.h -text
 Anisotropic_mesh_3/include/Domain/Constrain_surface_3_clebsch.h -text
