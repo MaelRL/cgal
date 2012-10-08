@@ -2,10 +2,10 @@
 #include <CGAL/Default_configuration.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <Anisotropic_mesh_3/include/Domain/Constrain_surface_3_ellipse.h>
-#include <Anisotropic_mesh_3/include/Domain/Constrain_surface_3_cylinder.h>
+#include <Domain/Constrain_surface_3_ellipse.h>
+#include <Domain/Constrain_surface_3_cylinder.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
-#include <Anisotropic_mesh_3/include/Metric_field/Arctan_metric_field.h>
+#include <Metric_field/Arctan_metric_field.h>
 #include <CGAL/Anisotropic_surface_mesher_3.h>
 
 
