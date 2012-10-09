@@ -77,9 +77,6 @@ int main(int argc, char* argv[])
            << deltas[j] << "\t" 
            << starset.number_of_stars() << "\t" 
            <<  timer.time() << std::endl;
-      fout << "\t" 
-           << starset.number_of_stars() << "\t" 
-           <<  timer.time() << std::endl;
     }
   }
 
