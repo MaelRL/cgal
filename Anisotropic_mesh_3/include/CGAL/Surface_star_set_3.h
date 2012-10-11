@@ -2020,6 +2020,26 @@ private:
         for(std::size_t i = 0; i < m_stars.size(); i++)
           m_stars[i]->clean();
       }
+
+public:
+      void ouput_sq_radius_edge_ratios(const std::string& filename) const
+      {
+        std::ofstream fout(filename.c_str());
+        for(std::size_t i = 0; i < m_stars.size(); i++)
+        {
+          Star_handle s = m_stars[i];
+          if(!s->is_surface_star() || !s->is_topological_disk())
+            continue;
+          typename Star::Facet_set_iterator fi = s->begin_boundary_facets();
+          typename Star::Facet_set_iterator fend = s->end_boundary_facets();
+          for(; fi != fend; fi++)
+          {
+            FT rer = s->compute_squared_radius_edge_ratio(*fi);
+            fout << rer << std::endl;
+          }
+        }
+        fout.close();
+      }
       
 public:
       void refine_all(std::ofstream& fx, 

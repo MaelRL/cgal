@@ -388,6 +388,13 @@ public:
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
+      inline FT compute_squared_radius_edge_ratio(const Facet& facet) {
+        return m_criteria.compute_squared_radius_edge_ratio(
+          facet.first->vertex((facet.second + 1) % 4)->point(),
+          facet.first->vertex((facet.second + 2) % 4)->point(),
+          facet.first->vertex((facet.second + 3) % 4)->point());
+      }
+            
       inline FT compute_circumradius_overflow(const Cell_handle &cell) {
         return m_criteria.circumradius_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
