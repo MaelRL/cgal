@@ -3,8 +3,8 @@
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Exact_spherical_kernel_3.h>
 #include <CGAL/Regular_triangulation_euclidean_traits_3.h>
-#include <CGAL/Regular_triangulation_sphere_traits_2.h>
-#include <CGAL/Regular_triangulation_on_sphere_2.h>
+#include <CGAL/Delaunay_triangulation_sphere_traits_2.h>
+#include <CGAL/Delaunay_triangulation_sphere_2.h>
 #include <CGAL/utility.h>
 
 #include <CGAL/Qt/DemosMainWindow.h>
@@ -48,7 +48,7 @@ public:
 typedef CGAL::Real_regular_triangulation_sphere_traits_2<Traits,Point_with_id<Weighted_point_3> >       Gt;
 typedef  CGAL::Triangulation_data_structure_2 <CGAL::Regular_triangulation_vertex_base_2<Gt>,
                                                CGAL::Regular_triangulation_face_base_with_bool_on_sphere_2<Gt> > TDS;
-typedef CGAL::Regular_triangulation_on_sphere_2<Gt,TDS>                                     RTOS;
+typedef CGAL::Delaunay_triangulation_sphere_2<Gt,TDS>                                     RTOS;
 
 
 void read_polygons(const char* file_path,std::list<std::vector<Point_3> >& polygons){
@@ -171,9 +171,9 @@ public slots:
   
     tr.insert(tr_pts.begin(),tr_pts.end());
 
-    for (RTOS::Faces_iterator it=tr.faces_begin();it!=tr.faces_end();++it)
+    for (RTOS::All_faces_iterator it=tr.all_faces_begin();it!=tr.all_faces_end();++it)
     {
-      if ( it->is_negative() ) it->is_inside=false;
+      if ( it->is_ghost() ) it->is_inside=false;
       else it->is_inside=is_an_inside_face(*it);
     }
   
@@ -197,7 +197,7 @@ public slots:
     {
       double max=0;
       RTOS::Face_handle f;
-      for (RTOS::Faces_iterator it=tr.faces_begin();it!=tr.faces_end();++it)
+      for (RTOS::All_faces_iterator it=tr.all_faces_begin();it!=tr.all_faces_end();++it)
       {
         if (!it->is_inside) continue;
       

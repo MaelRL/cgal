@@ -6,7 +6,8 @@
 #include <CGAL/number_utils_classes.h>
 #include <CGAL/triangulation_assertions.h>
 #include <CGAL/Kernel_traits.h>
-#include <CGAL/Triangulation_sphere_traits_2.h>
+#include <CGAL/Delaunay_triangulation_sphere_traits_2.h>
+
 
 namespace CGAL { 
 
@@ -67,7 +68,7 @@ class Real_regular_triangulation_sphere_traits_2
   : public R
 {
 public:
-  typedef Triangulation_sphere_traits_2<R>                     Base;
+  typedef Delaunay_triangulation_sphere_traits_2<R>                     Base;
   typedef Wpoint                                               Point_2; 
   typedef Wpoint                                               Weighted_point_2;
                       
@@ -80,7 +81,10 @@ public:
   typedef CGAL::Orientation_sphere_1<Self>    Orientation_1;
 
   Real_regular_triangulation_sphere_traits_2(const Point_2& sphere=typename Point_2::Point(0,0,0));
-
+  
+	void set_radius(double radius){}
+	typedef boost::true_type requires_test;
+	
   Orientation_2
   orientation_2_object()const
   {return Orientation_2(_sphere);}

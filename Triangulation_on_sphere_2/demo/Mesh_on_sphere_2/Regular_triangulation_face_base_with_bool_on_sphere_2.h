@@ -3,12 +3,12 @@
 
 #include <list>
 #include <CGAL/triangulation_assertions.h>
-#include <CGAL/Triangulation_face_base_on_sphere_2.h>
+#include <CGAL/Triangulation_face_base_sphere_2.h>
 
 namespace CGAL {
 
 
-template <class Gt, class Fb = Triangulation_face_base_on_sphere_2<Gt> >
+template <class Gt, class Fb = Triangulation_face_base_sphere_2<Gt> >
 class Regular_triangulation_face_base_with_bool_on_sphere_2
   :  public Fb
 {
