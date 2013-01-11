@@ -162,7 +162,7 @@ contains the following subdirectories:\index{directories!structure}
   \gdef\lcTabularBorder{2}
   \begin{tabular}{|l|l|} \hline
     \textbf{directory}     & \textbf{contents}\\\hline\hline
-    \texttt{auxiliary}     & precompiled \gmp, \mpfr\ and \taucs\ for Windows\\\hline
+    \texttt{auxiliary}     & precompiled \gmp and \mpfr\ for Windows\\\hline
     \texttt{cmake/modules} & modules for finding and using libraries\\\hline
     \texttt{config}        & configuration files for install script\\\hline
     \texttt{demo}          & demo programs (most of them need \qt, geomview or other third-party products)\\\hline
@@ -516,9 +516,11 @@ your own demos you might need these \cgal-libraries.
 
 \section{Optional Third Party Libraries\label{sec:optional3rdpartysoftware}}
 
-Optional 3rd party software is only required to build examples and
-demos shipped with \cgal\ or to build your own project using \cgal. In order
-to simplify these builds, various libraries can be \emph{prepared to be
+Optional 3rd party software can be used by \cgal\ for various reasons:
+Usually certain optional libraries are required to build examples and
+demos shipped with \cgal\ or to build your own project using \cgal. 
+Another reason is to speed up basic tasks. 
+In order to support these goals, all optional libraries can be \emph{prepared to be
 used with \cgal} while configuring \cgal, just in the same way as
 essential libraries are configured. Whenever building an example or a
 demo (or your own executable), these \emph{preconfigured} libraries
@@ -581,9 +583,9 @@ Mainly parts in \cgal's algebraic kernel require \rs3.
 
 \ntl\ provides data structures and algorithms for signed, arbitrary
 length integers, and for vectors, matrices, and polynomials over the 
-integers and over finite fields. In \cgal\ \ntl\ is used to speed up
-polynomial operations such as GCDs. It is recommended to install \ntl\
-with support from \gmp.
+integers and over finite fields. The optional library \ntl\ is used by
+\cgal\ to speed up operations of the Polynomial package, such as GCDs.
+It is recommended to install \ntl\ with support from \gmp.
 
 \ntl\ can be downloaded from \ntlpage. Version 5.1 or higher is recommended.
 
@@ -605,14 +607,10 @@ with support from \gmp.
  
  In \cgal, \eigen\ provides sparse linear solvers in the \ccRef[Surface Reconstruction from Point Sets]{Pkg:SurfaceReconstructionFromPointSets}
  and the \ccRef[Planar Parameterization of Triangulated Surface Meshes]{Pkg:SurfaceParameterization} packages. 
- Since \cgal\ version 4.0, \eigen\ is recommended over \taucs\ that is not longer maintained.
- 
+  
  In addition, \eigen\ also provides singular value decomposition for the \ccRef[Estimation of Local Differential Properties]{Pkg:Jet_fitting_3}
  and the \ccRef[Approximation of Ridges and Umbilics]{Pkg:Ridges_3} packages.
  
- The usage of \eigen\ allows to remove \lapack, \blas\ and \taucs\ from the list of third party libraries
- required by some \cgal\ packages. Note that the version 3.1 (or greater) of \eigen\ is required.
-
  The \eigen\ web site is \eigenpage.
 
 % \subsection{\taucs \label{thirdparty:Taucs}}
@@ -684,7 +682,7 @@ In \cgal\ some 3D demos are based on libQGLViewer.
 
 It can be downloaded from \libqglviewerpage.
 
-\subsection{\coin \label{thirdparty:Coin}}
+\subsection{\coin \label{thirdparty:Coin3D}}
 
 \coin\ is an implementation of Open Inventor.  
 
