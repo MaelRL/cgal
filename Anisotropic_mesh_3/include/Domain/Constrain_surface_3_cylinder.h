@@ -16,7 +16,10 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CYLINDER_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CYLINDER_H
 
+#include <vector>
+#include <CGAL/Bbox_3.h>
 #include <CGAL/Constrain_surface_3_ex.h>
+#include <CGAL/Constrain_surface_3_implicit.h>
 
 using namespace CGAL::Anisotropic_mesh_3;
 

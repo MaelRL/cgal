@@ -1,8 +1,8 @@
 
 #include <QObject>
 #include "Constrained_surface_implicit_interface.h"
-#include <Anisotropic_mesh_3/include/Domain/Constrain_surface_3_sphere.h>
-#include <Anisotropic_mesh_3/demo/Implicit_surface_type.h>
+#include <Domain/Constrain_surface_3_sphere.h>
+#include "../Implicit_surface_type.h"
 
 class Sphere_function :
   public QObject,

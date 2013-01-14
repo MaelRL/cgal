@@ -28,6 +28,7 @@ public:
   typedef typename Base::FT      FT;
   typedef typename Base::Metric  Metric;
   typedef typename Base::Point_3 Point_3;
+  typedef typename Base::Vector_3 Vector_3;
 
 public:
   FT lambda;
