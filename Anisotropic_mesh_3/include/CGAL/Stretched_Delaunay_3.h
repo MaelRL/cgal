@@ -1009,7 +1009,8 @@ public:
         backup.push_back(PPoint(m_center->point(), index_in_star_set()));
         //other vertices
         for(; vit != vend; vit++)
-          backup.push_back(PPoint((*vit)->point(), (*vit)->info()));
+          if(!is_infinite_vertex(*vit))
+            backup.push_back(PPoint((*vit)->point(), (*vit)->info()));
 
         std::size_t nbv = this->number_of_vertices();        
         this->clear();
