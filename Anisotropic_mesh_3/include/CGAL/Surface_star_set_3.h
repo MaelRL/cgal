@@ -1632,10 +1632,10 @@ public:
               std::cout << "!";              
               new_star = new Star(m_criteria, m_pConstrain);
               modified_stars.clear();
+              pop_back_star();
               steiner_point = compute_exact_steiner_point(bad_facet.star, ff,
                 need_picking_valid, new_star, modified_stars);
-              pop_back_star();
-
+              
               if(need_picking_valid && new_star->is_valid())// != NULL)
                 pid = insert(steiner_point, modified_stars, new_star, true/*conditional*/);
               else
