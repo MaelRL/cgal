@@ -2089,17 +2089,20 @@ public:
           if(nbv == 4) //dimension 3 reached
             update_bboxes();
           
-#ifdef ANISO_VERBOSE
-          if(nbv % 500 == 0)
+          if(nbv % 100 == 0)
           { 
+            clean_stars();//remove useless vertices
+#ifdef ANISO_VERBOSE
             std::cerr << " " << nbv << " vertices, ";
             std::cerr << duration(start_time) << " sec.,\t";
             m_refine_queue.print();
-          }
 #endif
-
-          if(nbv % 100 == 0)
-            clean_stars();//remove useless vertices
+#ifdef ANISO_DEBUG
+            std::ostringstream oss;
+            oss << "out_" << nbv << ".off";
+            output(oss.str().c_str(), false/*consistent_only*/);
+#endif
+          }
           
           if(!refine())
           {
