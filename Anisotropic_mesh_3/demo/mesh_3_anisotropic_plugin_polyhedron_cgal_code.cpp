@@ -40,7 +40,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
 
   if( NULL == p_poly ) { return NULL; }
   
-  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly);   
+  double epsilon = 0.1;
+  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly,epsilon);   
   Metric_field* metric_field = new Metric_field(*p_domain);
 
   Anisotropic_mesh_parameters param;

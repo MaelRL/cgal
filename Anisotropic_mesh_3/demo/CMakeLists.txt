@@ -42,6 +42,7 @@ find_package(Qt4)
 
 # Find OpenGL
 find_package(OpenGL)
+link_libraries(${OPENGL_LIBRARIES})
 
 # Find GLEW (for OpenGL-1.5 and OpenGL extensions)
 find_package(GLEW)
@@ -49,6 +50,7 @@ find_package(GLEW)
 # Find QGLViewer
 if(QT4_FOUND)
   include(${QT_USE_FILE})
+  link_libraries(${QT_LIBRARIES})
   find_package(QGLViewer )
 endif(QT4_FOUND)
 

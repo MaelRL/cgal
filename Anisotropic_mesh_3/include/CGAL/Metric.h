@@ -209,9 +209,9 @@ public:
                    const double& vpmin, //curvature min
                    const FT& epsilon) 
     {
-      e_n = std::max(epsilon, std::abs(vpn));
-      e_max = std::max(epsilon, std::abs(vpmax)); //vpmax
-      e_min = std::max(epsilon, std::abs(vpmin)); //vpmin
+      e_n = (std::max)(epsilon, std::abs(vpn));
+      e_max = (std::max)(epsilon, std::abs(vpmax)); //vpmax
+      e_min = (std::max)(epsilon, std::abs(vpmin)); //vpmin
             
       v_n = axis_x;
       v_max = axis_y;

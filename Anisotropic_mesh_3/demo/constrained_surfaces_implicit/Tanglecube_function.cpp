@@ -1,8 +1,8 @@
 
 #include <QObject>
 #include "Constrained_surface_implicit_interface.h"
-#include <Anisotropic_mesh_3/include/Domain/Constrain_surface_3_tanglecube.h>
-#include <Anisotropic_mesh_3/demo/Implicit_surface_type.h>
+#include <Domain/Constrain_surface_3_tanglecube.h>
+#include "Implicit_surface_type.h"
 
 class Tanglecube_function :
   public QObject,
