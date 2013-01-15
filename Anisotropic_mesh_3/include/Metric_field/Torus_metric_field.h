@@ -33,43 +33,44 @@ public:
 	typedef typename Base::Vector_3 Vector_3;
 
 public:
-	FT lambda;
+	FT epsilon;
 	FT R, r;
+
 public:
-	virtual void report(typename std::ofstream &fx) const {
+	virtual void report(typename std::ofstream &fx) const 
+  {
 		fx << "type:   torus" << std::endl;
-		fx << "lambda: " << lambda << std::endl;
+		fx << "eps:    " << epsilon << std::endl;
 		fx << "R:      " << R << std::endl;
 		fx << "r:      " << r << std::endl;
 	}
 
 	virtual Metric compute_metric(const Point_3 &p) const 
-        {
-          FT x = p.x(), y = p.y(), z = p.z();
-          FT ll = sqrt(x * x + y * y);
-          FT l = R / ll;
-          FT x0 = x * l, y0 = y * l;
+  {
+    FT x = p.x(), y = p.y(), z = p.z();
+    FT ll = sqrt(x * x + y * y);
+    FT l = R / ll;
+    FT x0 = x * l, y0 = y * l;
 
-          FT dx = x - x0, dy = y - y0, dz = z;
-          FT dl = sqrt(dx * dx + dy * dy + dz * dz);
-          Vector_3 g(dx / dl, dy / dl, dz / dl);
+    FT dx = x - x0, dy = y - y0, dz = z;
+    FT dl = sqrt(dx * dx + dy * dy + dz * dz);
+    Vector_3 g(dx / dl, dy / dl, dz / dl);
           
-          Vector_3 px(-y / ll, x / ll, 0);
-          Vector_3 t = CGAL::cross_product(g, px);
+    Vector_3 px(-y / ll, x / ll, 0);
+    Vector_3 t = CGAL::cross_product(g, px);
 
-          //return Metric(g, 
-          //  Vector_3(px.x() / ll, px.y() / ll, px.z() / ll), 
-          //  Vector_3(t.x() / r,   t.y() / r,   t.z() / r));
+    //return Metric(g, 
+    //  Vector_3(px.x() / ll, px.y() / ll, px.z() / ll), 
+    //  Vector_3(t.x() / r,   t.y() / r,   t.z() / r));
 
-          Vector_3 n = g;
-          Vector_3 v1 = (1./std::sqrt(px*px)) * px;
-          Vector_3 v2 = (1./std::sqrt(t*t)) * t;
-          return Metric(n, v2, v1, 1., (1./r), (1./R), lambda);
-        }
+    Vector_3 n = g;
+    Vector_3 v1 = (1./std::sqrt(px*px)) * px;
+    Vector_3 v2 = (1./std::sqrt(t*t)) * t;
+    return Metric(n, v2, v1, 1., (1./r), (1./R), epsilon);
+  }
 	
-        Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT lambda_ = 1.0) : 
-		R(R_), r(r_), lambda(lambda_) { }
+  Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT epsilon_ = 1.0) 
+    : R(R_), r(r_), epsilon(epsilon_) { }
 };
 
-
-#endif
+#endif //CGAL_ANISOTROPIC_MESH_3_TORUS_METRIC_FIELD
