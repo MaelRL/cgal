@@ -32,11 +32,7 @@
 #include <CGAL/Polyhedral_mesh_domain_3.h>
 #include <CGAL/IO/Polyhedron_iostream.h>
 
-#ifdef ANISO_USE_EIGEN
 #include <Eigen/Dense>
-#else 
-#include <Klein/matrix3x3.h>
-#endif
 
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
@@ -52,9 +48,6 @@ namespace CGAL
 {
   namespace Anisotropic_mesh_3
   {
-#ifndef ANISO_USE_EIGEN
-    using namespace Klein::Kernel::Maths;
-#endif
 
 #ifdef  CGAL_ANISOTROPIC_MESH_3_DEBUG_INFO
 #define DEBUG_OUTPUT(x)	std::cout << x
@@ -188,14 +181,10 @@ class Constrain_surface_3_polyhedral :
       FT           minx, miny, minz, maxx, maxy, maxz;
       FT           nearest_start_try_radius;
       int          point_count;
-#ifndef ANISO_USE_EIGEN
-      FT           *pointxyz;
-      Matrix3x3    *metrics;
-#else
+
       std::vector<Vertex_handle> m_vertices;
       std::vector<typename Eigen::Matrix3d> m_metrics;
       std::vector<Vector_3> m_normals;
-#endif
 
     protected:
       mutable std::set<Point_3> m_poles;
@@ -239,7 +228,8 @@ class Constrain_surface_3_polyhedral :
 
       virtual void tensor_frame_on_point(const Point_3 &p, 
         Vector_3 &e0/*n*/, Vector_3 &e1/*vmax*/, Vector_3 &e2/*vmin*/,//unit vectors
-        FT& c1/*cmax*/, FT& c2/*cmin*/) 
+        FT& c1/*cmax*/, FT& c2/*cmin*/,
+        const FT& epsilon) 
       {
         std::vector<Point_3> points;
         find_nearest_vertices(p, points, 36);
@@ -251,24 +241,12 @@ class Constrain_surface_3_polyhedral :
 
         FT maxc = monge_form.principal_curvatures(0);
         FT minc = monge_form.principal_curvatures(1);
-#ifdef ANISO_USE_EIGEN
         e0 = monge_form.normal_direction();
-#else
-        e0 = monge_form.normal_direction() * 50.0;
-#endif
-        if (fabs(maxc) > fabs(minc)) 
-        {
-          c1 = fabs(maxc);
-          c2 = fabs(minc);
-          e1 = monge_form.maximal_principal_direction();
-          e2 = monge_form.minimal_principal_direction();
-        } else 
-        {
-          c2 = fabs(maxc);
-          c1 = fabs(minc);
-          e2 = monge_form.maximal_principal_direction();
-          e1 = monge_form.minimal_principal_direction();
-        }
+
+        c1 = std::max(epsilon, fabs(maxc));
+        c2 = std::max(epsilon, fabs(minc));
+        e1 = monge_form.maximal_principal_direction();
+        e2 = monge_form.minimal_principal_direction();
       }
 
       //useless and expensive!
@@ -285,15 +263,9 @@ class Constrain_surface_3_polyhedral :
                         double& v1,       //eigenvalue corresponding to e1
                         double& v2) const //eigenvalue corresponding to e2
       {
-#ifdef ANISO_USE_EIGEN
          tensor_frame_eigen(p, e0, e1, e2, v0, v1, v2);
-#else 
-         tensor_frame_klein(p, e0, e1, e2);
-#endif
       }
 
-
-#ifdef ANISO_USE_EIGEN
       void tensor_frame_eigen(const Point_3 &p, 
                               Vector_3 &e0, //unit eigenvector
                               Vector_3 &e1, //unit eigenvector
@@ -384,46 +356,7 @@ class Constrain_surface_3_polyhedral :
       {
         return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
       }
-
-#else
-      void tensor_frame_klein(const Point_3 &p, 
-                              Vector_3 &e0, //unit normal 
-                              Vector_3 &e1, //unit eigenvector
-                              Vector_3 &e2) const //unit eigenvector
-      {
-        FT px = p.x(), py = p.y(), pz = p.z();
-        double m[9];
-        for (int k = 0; k < 9; k++)
-          m[k] = 0.0;
-
-        FT wpp = nearest_start_try_radius * nearest_start_try_radius;
-        FT wsum = 0.0;
-        for (int i = 0; i < point_count; i++) 
-        {
-          FT w = (px - pointxyz[3*i])   * (px - pointxyz[3*i])   
-               + (py - pointxyz[3*i+1]) * (py - pointxyz[3*i+1])  
-               + (pz - pointxyz[3*i+2]) * (pz - pointxyz[3*i+2]);
-          w = std::exp(-w / wpp); //Todo : limiter le nb de ces exponentielles, cher...
-          for (int k = 0; k < 9; k++)
-            m[k] += w * metrics[i].data_[k];//mp->data_[k];
-          wsum += w;
-        }
-        //std::cout << wsum << "\t";
-
-        Matrix3x3 M, V, d;
-        for (int k = 0; k < 9; k++)
-          M.data_[k] = m[k] / wsum;
-        Klein::Kernel::Maths::eigenValue(M, V, d);
-        Real lambda0 = (d.data_[0] >= 0.) ? std::sqrt(d.data_[0]) : 0.;
-        Real lambda1 = (d.data_[4] >= 0.) ? std::sqrt(d.data_[4]) : 0.;
-        Real lambda2 = (d.data_[8] >= 0.) ? std::sqrt(d.data_[8]) : 0.;
-        
-        e0 = Vector_3(V.data_[0] * lambda0, V.data_[1] * lambda0, V.data_[2] * lambda0);
-        e1 = Vector_3(V.data_[3] * lambda1, V.data_[4] * lambda1, V.data_[5] * lambda1);
-        e2 = Vector_3(V.data_[6] * lambda2, V.data_[7] * lambda2, V.data_[8] * lambda2);
-      }
-#endif
-            
+           
       virtual Point_container initial_points(const int nb) const 
       {
         typedef typename std::vector<std::pair<
@@ -580,15 +513,13 @@ class Constrain_surface_3_polyhedral :
           sqrt((4 * bounding_radius * bounding_radius) / ((FT)m_vertices.size() * 2.0));
       }
 
-      void compute_local_metric(/*const std::vector<Vertex_handle>& vertices*/)
+      void compute_local_metric(const FT& epsilon/*const std::vector<Vertex_handle>& vertices*/)
       {
         DEBUG_OUTPUT("\nComputing local metric...");
         m_max_curvature = 0.;
         m_min_curvature = DBL_MAX;
-#ifndef ANISO_USE_EIGEN
-        metrics = new Matrix3x3[m_vertices.size()];
-        pointxyz = new FT[m_vertices.size() * 3];
-#endif
+        std::vector<typename Eigen::Vector3d> vectors;
+
         for (std::size_t i = 0; i < m_vertices.size(); ++i) 
         {
           if (i % 100 == 0)
@@ -597,12 +528,11 @@ class Constrain_surface_3_polyhedral :
           FT v1, v2;
           Point_3 pi = m_vertices[i]->point();
           tensor_frame_on_point(pi/*points[i]*/, e0/*normal*/, e1/*vmax*/, e2/*vmin*/,
-                                v1/*cmax*/, v2/*cmin*/);
+                                v1/*cmax*/, v2/*cmin*/, epsilon);
 
           m_max_curvature = (std::max)(m_max_curvature, v1);
           m_min_curvature = (std::min)(m_min_curvature, v2);
 
-#ifdef ANISO_USE_EIGEN
           int index = m_vertices[i]->tag();
           if(i != index) 
             std::cerr << "Error1 in indices in compute_local_metric!" << std::endl;
@@ -611,27 +541,29 @@ class Constrain_surface_3_polyhedral :
           if(m_normals.size() != i+1 )
             std::cerr << "Error2 in indices in compute_local_metric!" << std::endl;
 
-          Eigen::Matrix3d p;
-          p.col(0) = Eigen::Vector3d(e0.x(), e0.y(), e0.z());
-          p.col(1) = v1 * Eigen::Vector3d(e1.x(), e1.y(), e1.z());
-          p.col(2) = v2 * Eigen::Vector3d(e2.x(), e2.y(), e2.z());
-          m_metrics.push_back(p * p.transpose());//[i] = p * p.transpose();
-          if(m_metrics.size() != i+1 )
-            std::cerr << "Error3 in indices in compute_local_metric!" << std::endl;
-#else
-          pointxyz[3*i]     = pi.x();
-          pointxyz[3*i + 1] = pi.y();
-          pointxyz[3*i + 2] = pi.z();
-          Matrix3x3 P, Pt;
-          P.data_[0] = e0.x();     P.data_[3] = v1*e1.x();  P.data_[6] = v2*e2.x();
-          P.data_[1] = e0.y();     P.data_[4] = v1*e1.y();  P.data_[7] = v2*e2.y();
-          P.data_[2] = e0.z();     P.data_[5] = v1*e1.z();  P.data_[8] = v2*e2.z();
-          Pt.data_[0] = e0.x();    Pt.data_[3] = e0.y();    Pt.data_[6] = e0.z();
-          Pt.data_[1] = v1*e1.x(); Pt.data_[4] = v1*e1.y(); Pt.data_[7] = v1*e1.z();
-          Pt.data_[2] = v2*e2.x(); Pt.data_[5] = v2*e2.y(); Pt.data_[8] = v2*e2.z();
-          metrics[i] = P * Pt;
-#endif
+          vectors.push_back(Eigen::Vector3d(e0.x(), e0.y(), e0.z()));
+          vectors.push_back(v1 * Eigen::Vector3d(e1.x(), e1.y(), e1.z()));
+          vectors.push_back(v2 * Eigen::Vector3d(e2.x(), e2.y(), e2.z()));
+
+          //Eigen::Matrix3d p;
+          //p.col(0) = Eigen::Vector3d(e0.x(), e0.y(), e0.z());
+          //p.col(1) = v1 * Eigen::Vector3d(e1.x(), e1.y(), e1.z());
+          //p.col(2) = v2 * Eigen::Vector3d(e2.x(), e2.y(), e2.z());
+
+          //m_metrics.push_back(p * p.transpose());//[i] = p * p.transpose();
+          //if(m_metrics.size() != i+1 )
+          //  std::cerr << "Error3 in indices in compute_local_metric!" << std::endl;
         }
+
+        for(std::size_t i = 0; i < vectors.size(); i = i + 3)
+        {
+          Eigen::Matrix3d p;
+          p.col(0) = m_max_curvature * vectors[i];
+          p.col(1) = vectors[i+1];
+          p.col(2) = vectors[i+2];
+          m_metrics.push_back(p * p.transpose());//[i] = p * p.transpose();
+        }
+
         m_cache_max_curvature = true;
         m_cache_min_curvature = true;
         std::cout << "done." << std::endl;
@@ -715,7 +647,7 @@ class Constrain_surface_3_polyhedral :
         maxc = (std::max)(v0, (std::max)(v1, v2));
       }
 
-      void initialize()
+      void initialize(const FT& epsilon)
       {
         set_aabb_tree();        
         
@@ -724,43 +656,38 @@ class Constrain_surface_3_polyhedral :
         //point_count = (int)points.size();
 
         point_count = (int)m_polyhedron.size_of_vertices();
-#ifdef ANISO_USE_EIGEN
         m_vertices.reserve(point_count);
         m_metrics.reserve(point_count);
         m_normals.reserve(point_count);
-#endif
+
         compute_bounding_box();
-        compute_local_metric();
+        compute_local_metric(epsilon);
       }
 
 
-      Constrain_surface_3_polyhedral(char *filename) 
+      Constrain_surface_3_polyhedral(char *filename, const FT& epsilon) 
         : m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
-#ifdef ANISO_USE_EIGEN
         , m_vertices()
         , m_metrics()
         , m_normals()
-#endif
       { 
         set_domain_and_polyhedron(filename);
-        initialize(); 
+        initialize(epsilon); 
       }
 
 
-      Constrain_surface_3_polyhedral(const Polyhedron& p) 
+      Constrain_surface_3_polyhedral(const Polyhedron& p, const FT& epsilon) 
         : m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
-#ifdef ANISO_USE_EIGEN
         , m_vertices()
         , m_metrics()
         , m_normals()
-#endif
       { 
         set_domain_and_polyhedron(p);
-        initialize();
+        initialize(epsilon);
       }
 
       Constrain_surface_3_polyhedral* clone() const
@@ -771,10 +698,6 @@ class Constrain_surface_3_polyhedral :
       ~Constrain_surface_3_polyhedral() 
       { 
         delete domain;
-#ifndef ANISO_USE_EIGEN
-        delete [] metrics;
-        delete [] pointxyz;
-#endif
       };
     }; //Constrain_surface_3_polyhedral
   } //Anisotropic_mesh_3

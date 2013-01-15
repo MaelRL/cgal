@@ -20,9 +20,7 @@
 #include <fstream>
 #include <utility>
 
-//#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-
-#include "Metric.h"
+#include <CGAL/Metric.h>
 
 namespace CGAL
 {

@@ -77,72 +77,10 @@ namespace CGAL
         Vector_3 e0, e1, e2;
         double vp0, vp1, vp2;
         ((Constrain_surface *)(m_pConstrain))->tensor_frame(p, e0, e1, e2, vp0, vp1, vp2);
-#ifdef ANISO_USE_EIGEN
+      
+        double epsilon = lambda; // to get it from command-line 'main'
 
-        //double en = ((Constrain_surface *)(m_pConstrain))->global_max_curvature();
-        
-        double tmp_epsilon = lambda; // to get it from command-line 'main'
-
-        return Metric(e0, e1, e2, vp0, vp1, vp2, tmp_epsilon);
-#else
-        FT e0len = sqrt(e0.x() * e0.x() + e0.y() * e0.y() + e0.z() * e0.z());
-        FT e1len = sqrt(e1.x() * e1.x() + e1.y() * e1.y() + e1.z() * e1.z());
-        FT e2len = sqrt(e2.x() * e2.x() + e2.y() * e2.y() + e2.z() * e2.z());
-        e0len = e0len * lambda;
-        e1len = e1len * lambda;
-        e2len = e2len * lambda;
-        FT ub = 500.0;
-        if (e0len > ub) e0len = ub;
-        if (e1len > ub) e1len = ub;
-        if (e2len > ub) e2len = ub;
-        if (e0len < 1e-8) {
-          if (e1len < 1e-8) {
-            if (e2len < 1e-8) {
-              e0 = Vector_3(1, 0, 0);
-              e1 = Vector_3(0, 1, 0);
-              e2 = Vector_3(0, 0, 1);
-            } else {
-              e0 = get_orthogonal(e2);
-              e1 = get_unit(CGAL::cross_product(e2, e0));
-              e2 = get_unit(e2) * (e2len + 1.0);
-            }
-          } else {
-            if (e2len < 1e-8) {
-              e0 = get_orthogonal(e1);
-              e2 = get_unit(CGAL::cross_product(e0, e1));
-              e1 = get_unit(e1) * (e1len + 1.0);
-            } else {
-              e0 = get_unit(CGAL::cross_product(e1, e2));
-              e1 = get_unit(e1) * (e1len + 1.0);
-              e2 = get_unit(e2) * (e2len + 1.0);
-            }
-          }
-        } else {
-          if (e1len < 1e-8) {
-            if (e2len < 1e-8) {
-              e1 = get_orthogonal(e0);
-              e2 = get_unit(CGAL::cross_product(e0, e1));
-              e0 = get_unit(e0) * (e0len + 1.0);
-            } else {
-              e1 = get_unit(CGAL::cross_product(e2, e0));
-              e0 = get_unit(e0) * (e0len + 1.0);
-              e2 = get_unit(e2) * (e2len + 1.0);
-            }
-          } else {
-            if (e2len < 1e-8) {
-              e2 = get_unit(CGAL::cross_product(e0, e1));
-              e0 = get_unit(e0) * (e0len + 1.0);
-              e1 = get_unit(e1) * (e1len + 1.0);
-            } else {
-              e0 = get_unit(e0) * (e0len + 1.0);
-              e1 = get_unit(e1) * (e1len + 1.0);
-              e2 = get_unit(e2) * (e2len + 1.0);
-            }
-          }
-        }
-        double epsilon = 0.;
-        return Metric(e0, e1, e2, 1., 1., 1., epsilon);
-#endif
+        return Metric(e0, e1, e2, vp0, vp1, vp2, epsilon);
       }
 
       Polyhedral_curvature_metric_field(const Constrain_surface& surface_, 

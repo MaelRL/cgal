@@ -18,12 +18,7 @@
 
 #include <CGAL/Constrain_surface_3_ex.h>
 
-#ifdef ANISO_USE_EIGEN
 #include <Eigen/Dense>
-#else 
-#include <Klein/vector3d.h>
-#include <Klein/matrix3x3.h>
-#endif
 
 // for Mesh_3
 #include <CGAL/Mesh_triangulation_3.h>
@@ -37,11 +32,6 @@
 
 namespace CGAL{
   namespace Anisotropic_mesh_3{
-
-#ifndef ANISO_USE_EIGEN
-    using namespace Klein::Kernel::Geometry;
-    using namespace Klein::Kernel::Maths;
-#endif
 
     template<typename PointerToMemberFunction, typename PointerToObject, typename FT, typename Point>
     class Member_function_pointer_to_function_wrapper
@@ -161,8 +151,6 @@ public:
         }
       }
 
-
-#ifdef ANISO_USE_EIGEN
       Eigen::Matrix3d hessian(const Point_3 &p, const FT delta = 1e-5) const
       {
         Vector_3 xp = gradient(Point_3(p.x() + delta, p.y(), p.z()), delta);
@@ -178,27 +166,6 @@ public:
         m(2,0) = dd*(xp.z() - xn.z()); m(2,1) = dd*(yp.z() - yn.z()); m(2,2) = dd*(zp.z() - zn.z());
         return m;
       }
-#else
-      Matrix3x3 hessian(const Point_3 &p, const FT delta = 1e-5) const 
-      {
-        Vector_3 xp = gradient(Point_3(p.x() + delta, p.y(), p.z()), delta);
-        Vector_3 xn = gradient(Point_3(p.x() - delta, p.y(), p.z()), delta);
-        Vector_3 yp = gradient(Point_3(p.x(), p.y() + delta, p.z()), delta);
-        Vector_3 yn = gradient(Point_3(p.x(), p.y() - delta, p.z()), delta);
-        Vector_3 zp = gradient(Point_3(p.x(), p.y(), p.z() + delta), delta);
-        Vector_3 zn = gradient(Point_3(p.x(), p.y(), p.z() - delta), delta);
-        return Matrix3x3((xp.x() - xn.x()) / (2.0 * delta),
-                         (xp.y() - xn.y()) / (2.0 * delta),
-                         (xp.z() - xn.z()) / (2.0 * delta),
-                         (yp.x() - yn.x()) / (2.0 * delta),
-                         (yp.y() - yn.y()) / (2.0 * delta),
-                         (yp.z() - yn.z()) / (2.0 * delta),
-                         (zp.x() - zn.x()) / (2.0 * delta),
-                         (zp.y() - zn.y()) / (2.0 * delta),
-                         (zp.z() - zn.z()) / (2.0 * delta));
-      }
-#endif
-
 
       int are_zero(const double& d1, const double& d2, const double& d3) const
       {
@@ -227,14 +194,9 @@ public:
                         double& v2, //eigenvalue corresponding to e2
                         const FT delta = 1e-5) const 
       {
-#ifdef ANISO_USE_EIGEN
          tensor_frame_eigen(p, e0, e1, e2, v1, v2, delta);
-#else 
-         tensor_frame_klein(p, e0, e1, e2, v1, v2, delta);
-#endif
       }
 
-#ifdef ANISO_USE_EIGEN
       void tensor_frame_eigen(const Point_3 &p, 
                               Vector_3 &e0, //unit normal 
                               Vector_3 &e1, //unit eigenvector
@@ -342,63 +304,13 @@ public:
           else //zeros == 0
             std::cerr << "Error : see tensor_frame, zeros==0\n";
       }          
-#else
-        void tensor_frame_klein(const Point_3 &p, 
-                                Vector_3 &e0, //unit normal 
-                                Vector_3 &e1, //unit eigenvector
-                                Vector_3 &e2, //unit eigenvector
-                                double& v1, //eigenvalue corresponding to e1
-                                double& v2, //eigenvalue corresponding to e2
-                                const FT delta = 1e-5) const 
-        {
-          Vector_3 gx = gradient(p, delta);
-          Vector3D g(gx.x(), gx.y(), gx.z());
-          Real gl = g.getLength();
-          Vector3D N = g / (-gl);
-          Matrix3x3 Identity(1, 0, 0, 0, 1, 0, 0, 0, 1);
-          Matrix3x3 NNt(N.x * N.x, N.x * N.y, N.x * N.z, 
-            N.y * N.x, N.y * N.y, N.y * N.z, 
-            N.z * N.x, N.z * N.y, N.z * N.z);
-          Matrix3x3 PN = Identity - NNt;
-          Matrix3x3 m = (PN * hessian(p, delta) * PN);
-          for (int i = 0; i < 9; i++)
-            m.data_[i] /= gl;
-          Vector3D eigens[3];
-          Matrix3x3 vs, diag;
-          Klein::Kernel::Maths::eigenValue(m, vs, diag);
-          eigens[0] = Vector3D(vs.data_[0], vs.data_[1], vs.data_[2]) * diag.data_[0];
-          eigens[1] = Vector3D(vs.data_[3], vs.data_[4], vs.data_[5]) * diag.data_[4];
-          eigens[2] = Vector3D(vs.data_[6], vs.data_[7], vs.data_[8]) * diag.data_[8];
-          Real eigenvals[3];
-          eigenvals[0] = diag.data_[0];
-          eigenvals[1] = diag.data_[4];
-          eigenvals[2] = diag.data_[8];
-          FT min_abs_value = DBL_MAX;
-          int min_id = 0;
-          for (int i = 0; i < 3; i++) {
-            if (fabs(eigenvals[i]) < min_abs_value) {
-              min_abs_value = fabs(eigenvals[i]);
-              min_id = i;
-            }
-          }
-          eigens[min_id] = N;
-          e0 = Vector_3(N.x, N.y, N.z);
-          Vector3D e1x = eigens[(min_id + 1) % 3];
-          e1 = Vector_3(e1x.x, e1x.y, e1x.z);
-          Vector3D e2x = eigens[(min_id + 2) % 3];
-          e2 = Vector_3(e2x.x, e2x.y, e2x.z);
-
-          v1 = std::abs(eigenvals[(min_id + 1) % 3]);
-          v2 = std::abs(eigenvals[(min_id + 2) % 3]);
-        }
-#endif
 
         bool are_equal(const Vector_3& v1,        //unit vector
                        const Vector_3& v2) const  //unit vector
         {
           return (std::abs(std::abs(v1*v2) - 1.) < 1e-10);
         }
-#ifdef ANISO_USE_EIGEN
+
         Vector_3 get_vector(const Eigen::Vector3d& v) const
         {
           return Vector_3(v[0], v[1], v[2]);
@@ -420,8 +332,6 @@ public:
           v = p.base1();
           w = p.base2();
         }
-#endif
-
 
       virtual std::set<Point_3>& compute_poles() const
       {

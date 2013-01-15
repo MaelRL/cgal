@@ -33,12 +33,7 @@
 #include <fstream>
 #include <utility>
 
-
-#ifdef ANISO_USE_EIGEN
 #include <Eigen/Dense>
-#else 
-#include <Klein/matrix3x3.h>
-#endif
 
 namespace CGAL{
 namespace Anisotropic_mesh_3{
@@ -48,32 +43,14 @@ class Metric_base {
 public:
     typedef typename K::FT                      FT;
     typedef typename K::Vector_3                Vector_3;
-#ifndef ANISO_USE_EIGEN
-    typedef typename K::Aff_transformation_3    Aff_transformation_3;
-    typedef typename KExact::Aff_transformation_3 Aff_transformation_exact_3;
-#endif
 
 private:
-#ifndef ANISO_USE_EIGEN
-    Aff_transformation_3 transformation;
-    Aff_transformation_exact_3 transformation_exact;
-    Aff_transformation_3 inverse_transformation;
-    Aff_transformation_exact_3 inverse_transformation_exact;
-    typename Klein::Kernel::Maths::Matrix3x3 transformation_matrix;
-    typename Klein::Kernel::Maths::Matrix3x3 inverse_transformation_matrix;
-#else 
   Eigen::Matrix3d eigen_transformation, eigen_inverse_transformation;
   double e_max, e_min, e_n;
-#endif
   Vector_3 v_max, v_min, v_n;
 
-
 public:
-#ifndef ANISO_USE_EIGEN
-  const Aff_transformation_3& get_transformation() const { return transformation; }
-#else
   const Eigen::Matrix3d& get_transformation() const { return eigen_transformation; }
-#endif
 
   const Vector_3& get_vmin() const { return v_min; }
   const Vector_3& get_vmax() const { return v_max; }
@@ -87,16 +64,12 @@ public:
     }
 
     template<typename Object>
-    Object transform(const Object &p, K k_) const {
-#ifdef ANISO_USE_EIGEN
+    Object transform(const Object &p, K k_) const 
+    {
       Eigen::Vector3d ep(p.x(),p.y(),p.z());
       ep = eigen_transformation * ep;
       Object result(ep[0],ep[1],ep[2]);
       return result;
-#else
-      Object r =  p.transform(transformation);
-      return r;
-#endif
     }
 
 #ifdef ANISO_USE_EXACT
@@ -113,10 +86,9 @@ public:
     }
 
 
-#ifdef ANISO_USE_EIGEN
   template <typename Kernel>
-  Triangle_3<Kernel> inverse_transform(const Triangle_3<Kernel>& t) const {
-    
+  Triangle_3<Kernel> inverse_transform(const Triangle_3<Kernel>& t) const 
+  {  
     typename Kernel::Point_3 p = t.vertex(0);
     typename Kernel::Point_3 q = t.vertex(1);
     typename Kernel::Point_3 r = t.vertex(2);
@@ -186,35 +158,25 @@ public:
     return Bbox<Kernel>(*(xmm.first), *(ymm.first), *(zmm.first),
                    *(xmm.second), *(ymm.second), *(zmm.second));
   }
-#endif
 
     template<typename Object, typename K_obj>
-    Object inverse_transform(const Object &p, K_obj k_obj) const {
-      
-#ifdef ANISO_USE_EIGEN
+    Object inverse_transform(const Object &p, K_obj k_obj) const 
+    {
       Eigen::Vector3d ep(p.x(),p.y(),p.z());
       ep = eigen_inverse_transformation * ep;
       
       Object result(ep[0],ep[1],ep[2]);
       return result;
-#else
-      Object r = p.transform(inverse_transformation);
-      return r;
-#endif 
     }
 
     template<typename Object>
-    Object inverse_transform(const Object &p, K k_) const {
-#ifdef ANISO_USE_EIGEN      
+    Object inverse_transform(const Object &p, K k_) const
+    {
       Eigen::Vector3d ep(p.x(),p.y(),p.z());
       ep = eigen_inverse_transformation * ep;
       
       Object result(ep[0],ep[1],ep[2]);
       return result;
-#else
-      Object r = p.transform(inverse_transformation);
-      return r;
-#endif
     }
 
 #ifdef ANISO_USE_EXACT
@@ -224,41 +186,20 @@ public:
     }
 #endif
 
-    Metric_base &operator=(const Metric_base &m) {
-#ifndef ANISO_USE_EIGEN
-        transformation = m.transformation;
-        inverse_transformation = m.inverse_transformation;
-        transformation_matrix = m.transformation_matrix;
-        inverse_transformation_matrix = m.inverse_transformation_matrix;
-#ifdef ANISO_USE_EXACT
-        transformation_exact = m.transformation_exact;
-        inverse_transformation_exact = m.inverse_transformation_exact;
-#endif
-#else
-        eigen_transformation = m.eigen_transformation;
-        eigen_inverse_transformation = m.eigen_inverse_transformation;
-#endif
-        return *this;
+    Metric_base &operator=(const Metric_base &m) 
+    {
+      eigen_transformation = m.eigen_transformation;
+      eigen_inverse_transformation = m.eigen_inverse_transformation;
+      return *this;
     }
     
 
   FT compute_distortion(const Metric_base &m) 
   {
-#ifdef ANISO_USE_EIGEN
     double eigen_dis1 = (m.eigen_transformation * eigen_inverse_transformation).operatorNorm();
     double eigen_dis2 = (eigen_transformation * m.eigen_inverse_transformation).operatorNorm();
     return max(eigen_dis1, eigen_dis2);
-#else       
-    Klein::Kernel::Maths::Matrix3x3 u, d;
-    Klein::Kernel::Maths::eigenValue(inverse_transformation_matrix * m.transformation_matrix, u, d);
-    FT dis1 = max(max(fabs(d.data_[0]), fabs(d.data_[4])), fabs(d.data_[8]));
-
-    Klein::Kernel::Maths::eigenValue(transformation_matrix * m.inverse_transformation_matrix, u, d);
-    FT dis2 = max(max(fabs(d.data_[0]), fabs(d.data_[4])), fabs(d.data_[8]));
-
-    return max(dis1, dis2);
-#endif
-    }
+  }
 
     void construct(const Vector_3 &axis_x, //normal
                    const Vector_3 &axis_y, 
@@ -268,7 +209,6 @@ public:
                    const double& vpmin, //curvature min
                    const FT& epsilon) 
     {
-#ifdef ANISO_USE_EIGEN      
       e_n = std::max(epsilon, std::abs(vpn));
       e_max = std::max(epsilon, std::abs(vpmax)); //vpmax
       e_min = std::max(epsilon, std::abs(vpmin)); //vpmin
@@ -294,72 +234,6 @@ public:
       eigen_diag(1,1) = 1.0/eigen_diag(1,1);
       eigen_diag(2,2) = 1.0/eigen_diag(2,2);       
       eigen_inverse_transformation = eigen_m * eigen_diag * eigen_mtransp;
-      
-#else      
-        v_max = (1./std::sqrt(axis_y*axis_y))*axis_y;
-        v_min = (1./std::sqrt(axis_z*axis_z))*axis_z;
-
-        Klein::Kernel::Maths::Matrix3x3 m(
-            axis_x.x(), axis_x.y(), axis_x.z(),
-            axis_y.x(), axis_y.y(), axis_y.z(),
-            axis_z.x(), axis_z.y(), axis_z.z());
-        Klein::Kernel::Maths::Matrix3x3 minv;
-        m.inverse(minv);
-
-        Klein::Kernel::Maths::Matrix3x3 diag(
-            sqrt(axis_x.squared_length()), 0, 0,
-            0, sqrt(axis_y.squared_length()), 0,
-            0, 0, sqrt(axis_z.squared_length()));
-        transformation_matrix = m * diag * minv;
-
-        diag.data_[0] = 1.0 / diag.data_[0];
-        diag.data_[4] = 1.0 / diag.data_[4];
-        diag.data_[8] = 1.0 / diag.data_[8];
-        inverse_transformation_matrix = m * diag * minv;
-
-        build_transforms();
-
-      //Klein::Kernel::Maths::Matrix3x3 test1 = transformation_matrix * inverse_transformation_matrix;
-      //std::cout << "\nIdentity?(No Eigen)\n";
-      //print_klein_matrix(test1);
-      //Klein::Kernel::Maths::Matrix3x3 test2 = inverse_transformation_matrix * transformation_matrix;
-      //std::cout << "  reverse :\n";
-      //print_klein_matrix(test2);
-#endif
-    }
-
-#ifndef ANISO_USE_EIGEN
-    void print_klein_matrix(const Klein::Kernel::Maths::Matrix3x3& m) const
-    {
-      std::cout << m.data_[0] << "\t" << m.data_[3] << "\t" << m.data_[6] << std::endl;
-      std::cout << m.data_[1] << "\t" << m.data_[4] << "\t" << m.data_[7] << std::endl;
-      std::cout << m.data_[2] << "\t" << m.data_[5] << "\t" << m.data_[8] << std::endl;
-    }
-#endif
-
-
-    void build_transforms() {
-#ifndef ANISO_USE_EIGEN        
-        transformation = Aff_transformation_3(
-            *(transformation_matrix[0]), *(transformation_matrix[1]), *(transformation_matrix[2]),
-            *(transformation_matrix[0] + 1), *(transformation_matrix[1] + 1), *(transformation_matrix[2] + 1),
-            *(transformation_matrix[0] + 2), *(transformation_matrix[1] + 2), *(transformation_matrix[2] + 2));
-        inverse_transformation = Aff_transformation_3(
-            *(inverse_transformation_matrix[0]), *(inverse_transformation_matrix[1]), *(inverse_transformation_matrix[2]),
-            *(inverse_transformation_matrix[0] + 1), *(inverse_transformation_matrix[1] + 1), *(inverse_transformation_matrix[2] + 1),
-            *(inverse_transformation_matrix[0] + 2), *(inverse_transformation_matrix[1] + 2), *(inverse_transformation_matrix[2] + 2));
-
-#ifdef ANISO_USE_EXACT
-        transformation_exact = Aff_transformation_exact_3(
-            *(transformation_matrix[0]), *(transformation_matrix[1]), *(transformation_matrix[2]),
-            *(transformation_matrix[0] + 1), *(transformation_matrix[1] + 1), *(transformation_matrix[2] + 1),
-            *(transformation_matrix[0] + 2), *(transformation_matrix[1] + 2), *(transformation_matrix[2] + 2));
-        inverse_transformation_exact = Aff_transformation_exact_3(
-            *(inverse_transformation_matrix[0]), *(inverse_transformation_matrix[1]), *(inverse_transformation_matrix[2]),
-            *(inverse_transformation_matrix[0] + 1), *(inverse_transformation_matrix[1] + 1), *(inverse_transformation_matrix[2] + 1),
-            *(inverse_transformation_matrix[0] + 2), *(inverse_transformation_matrix[1] + 2), *(inverse_transformation_matrix[2] + 2));
-#endif
-#endif
     }
 
     void get_min_eigenvector(Vector_3& v) const
@@ -375,7 +249,7 @@ public:
     {
       v = v_n;
     }
-#ifdef ANISO_USE_EIGEN
+
     double get_min_eigenvalue() const
     {
       return e_min;
@@ -384,10 +258,8 @@ public:
     {
       return e_max;
     }
-#endif
 
 public:
-#ifdef ANISO_USE_EIGEN
     Metric_base(const Metric_base &m) :
       eigen_transformation(m.eigen_transformation),
       eigen_inverse_transformation(m.eigen_inverse_transformation),
@@ -398,27 +270,12 @@ public:
       v_min(m.v_min),
       v_n(m.v_n)
       {}
-#else
-    Metric_base(const Metric_base &m) :
-        transformation_matrix(m.transformation_matrix),
-        inverse_transformation_matrix(m.inverse_transformation_matrix)
-    {
-      v_max = m.v_max;
-      v_min = m.v_min;
-      v_n = m.v_n;
-      build_transforms(); 
-    }
-#endif
 
 public:
     friend 
     std::ostream& operator<<(std::ostream& out, const Metric_base& x)
     {
-#ifdef ANISO_USE_EIGEN
       out << "M  = " << x.m_eigen_transformation << std::endl;
-#else
-      out << "M  = " << x.transformation_matrix << std::endl;
-#endif
       return out;
     }
 
