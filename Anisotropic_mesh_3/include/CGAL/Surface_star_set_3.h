@@ -191,7 +191,7 @@ private:
       {
 //        std::vector<int> histogram(100, 0);
         FT sq_approx = 0.;
-        Star_vector::const_iterator it;
+        typename Star_vector::const_iterator it;
         for(it = m_stars.begin(); it != m_stars.end(); ++it)
         {
           Star_handle s = get_star(it);

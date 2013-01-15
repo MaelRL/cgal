@@ -411,12 +411,13 @@ public:
 #endif
 
 public:
-    std::ostream& operator<<(const Metric_base& x)
+    friend 
+    std::ostream& operator<<(std::ostream& out, const Metric_base& x)
     {
 #ifdef ANISO_USE_EIGEN
-      out << "M  = " << m_eigen_transformation << std::endl;
+      out << "M  = " << x.m_eigen_transformation << std::endl;
 #else
-      out << "M  = " << transformation_matrix << std::endl;
+      out << "M  = " << x.transformation_matrix << std::endl;
 #endif
       return out;
     }
