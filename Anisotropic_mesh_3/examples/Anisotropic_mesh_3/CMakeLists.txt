@@ -9,7 +9,6 @@ include_directories(../../include)
  
 # Add macros
 add_definitions(
-	-DANISO_USE_EIGEN
 #	-DANISO_VERBOSE
 #	-DANISO_DEBUG
     -DANISO_APPROXIMATE_SPHERE_BBOX 
