@@ -29,12 +29,6 @@
 
 #include <CGAL/helpers/statistics_helper.h>
 
-#ifdef  CGAL_ANISOTROPIC_MESH_3_DEBUG_INFO
-#define DEBUG_OUTPUT(x)	std::cout << x
-#else
-#define DEBUG_OUTPUT(x)
-#endif
-
 namespace CGAL{
   namespace Anisotropic_mesh_3{
 
@@ -115,7 +109,7 @@ namespace CGAL{
           if (star->is_infinite(*nsi))
             continue;
           if (m_stars[(*nsi)->info()]->can_form_sliver(p, radius_bound)) {
-            DEBUG_OUTPUT("S");
+            std::cout << ("S");
             delete star;
             star = NULL;
             return false;
@@ -189,7 +183,7 @@ namespace CGAL{
         }
         if (is_cospherical) {
           delete star;
-          DEBUG_OUTPUT("C");
+          std::cout << ("C");
           star = NULL;
           return false;
         }
@@ -216,7 +210,7 @@ namespace CGAL{
           if (is_valid_point(p, radius_bound, retstar))
             return p;
           if ((tried_times++) > criteria.max_times_to_try_in_picking_region) {
-            DEBUG_OUTPUT("X\n");
+            std::cout << ("X\n");
             retstar = NULL;
             return circumcenter;
           }
@@ -244,7 +238,7 @@ namespace CGAL{
           if (is_valid_point(p, radius_bound, retstar))
             return p;
           if ((tried_times++) > criteria.max_times_to_try_in_picking_region) {
-            DEBUG_OUTPUT("X\n");
+            std::cout << ("X\n");
             retstar = NULL;
             return compute_insert_or_snap_point(star, facet);
           }
@@ -577,13 +571,13 @@ next_cell:	;
 
       void initialize_stars() 
       {
-        DEBUG_OUTPUT("Initializing stars...");
+        std::cout << ("Initializing stars...");
         Constrain_surface::Pointset initial_points = m_pConstrain->initial_points();
         Constrain_surface::Pointset::iterator pi = initial_points.begin();
         Constrain_surface::Pointset::iterator pend = initial_points.end();
         for (int i = 0; pi != pend; pi++, i++) 
         {
-          DEBUG_OUTPUT(".");
+          std::cout << (".");
           Point_3 p = *pi;
           Global_triangulation_vertex_handle h = global_triangulation.insert(p);
           if (h == Global_triangulation_vertex_handle())
@@ -602,9 +596,9 @@ next_cell:	;
           point_rounds.push_back(0);
 
         }
-        DEBUG_OUTPUT("\nInitializing conflicts...\n");
+        std::cout << ("\nInitializing conflicts...\n");
         check_conflicts(m_stars);
-        DEBUG_OUTPUT(" [ok]" << std::endl);
+        std::cout << (" [ok]" << std::endl);
       }
 
       bool next_refine_cell(Refine_cell &refine_cell, Cell_handle &cell, bool &need_picking_valid, int &queue_type)
@@ -686,7 +680,7 @@ repick_cell:
                 break;
               }
               if (!cell.star->has_facet(Facet(c, tag))) {
-                DEBUG_OUTPUT("[repick]");
+                std::cout << ("[repick]");
                 goto repick_cell;
               }
               p = compute_insert_or_snap_point(cell.star, Facet(c, tag));
@@ -717,7 +711,7 @@ repick_cell:
           }
 #endif
 
-          DEBUG_OUTPUT(this_id << " refine: " << p << " [" << 
+          std::cout << (this_id << " refine: " << p << " [" << 
             c->vertex(0)->info() << "-" <<
             c->vertex(1)->info() << "-" <<
             c->vertex(2)->info() << "-" <<
@@ -730,7 +724,7 @@ repick_cell:
         Global_triangulation_vertex_handle global_handle;
         int pid = insert(p, affected_stars, global_handle);
         if (pid < 0) {
-          DEBUG_OUTPUT("[Already exists!]");
+          std::cout << ("[Already exists!]");
           return true;
         }
 
@@ -783,7 +777,7 @@ repick_cell:
         m_points.clear();
 
         typename std::ifstream fx("dump.txt");
-        DEBUG_OUTPUT("Loading...");
+        std::cout << ("Loading...");
         int dimension;
         fx >> dimension;
         int point_count;
@@ -813,9 +807,9 @@ repick_cell:
           m_stars.push_back(star);
           std::cout << ".";
         }
-        DEBUG_OUTPUT("\nInitializing conflicts...");
+        std::cout << ("\nInitializing conflicts...");
         check_conflicts(m_stars);
-        DEBUG_OUTPUT("\n\n");
+        std::cout << ("\n\n");
       }
       */
       void report() 
@@ -1022,7 +1016,5 @@ repick_cell:
 
   }
 }
-
-#undef DEBUG_OUTPUT
 
 #endif // CGAL_ANISOTROPIC_MESH_3_STAR_SET_3_H

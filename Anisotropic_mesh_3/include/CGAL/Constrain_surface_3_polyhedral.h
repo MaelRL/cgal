@@ -49,12 +49,6 @@ namespace CGAL
   namespace Anisotropic_mesh_3
   {
 
-#ifdef  CGAL_ANISOTROPIC_MESH_3_DEBUG_INFO
-#define DEBUG_OUTPUT(x)	std::cout << x
-#else
-#define DEBUG_OUTPUT(x)
-#endif
-
 // a refined facet with a tag
 template <class Refs, class T>
 class Enriched_facet : public CGAL::HalfedgeDS_face_base<Refs, T>
