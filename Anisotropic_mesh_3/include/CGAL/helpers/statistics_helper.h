@@ -21,7 +21,7 @@ void histogram_vertices_per_star(StarSet& stars)
     maxnb = (std::max)(maxnb, nb);
 
     if(countmap.find(nb) == countmap.end())
-      countmap.insert(std::pair<int,int>(nb, 1));
+      countmap.insert(std::pair<std::size_t,std::size_t>(nb, 1));
     else
       countmap[nb]++;
   }
