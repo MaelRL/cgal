@@ -24,8 +24,6 @@
 #ifndef CGAL_DEMO_MESH_3_MESH_FUNCTION_H
 #define CGAL_DEMO_MESH_3_MESH_FUNCTION_H
 
-#define CGAL_MESH_3_MESHER_STATUS_ACTIVATED 1
-
 #include <QStringList>
 #include <QString>
 
@@ -83,7 +81,7 @@ private:
   typedef Mesh_criteria::Cell_criteria              Cell_criteria;
   
   typedef CGAL::Mesh_3::Mesher_3<C3t3, Mesh_criteria, Domain>   Mesher;
-  
+
 private:
   C3t3& c3t3_;
   Domain* domain_;
@@ -209,7 +207,7 @@ status(double time_period) const
   
   // Get status and return a string corresponding to it
   typename Mesher::Mesher_status s = mesher_->status();
-  
+
   QString result = QString("Vertices: %1 \n"
                            "Vertices inserted last %2s: %3 \n\n"
                            "Bad facets: %4 \n"

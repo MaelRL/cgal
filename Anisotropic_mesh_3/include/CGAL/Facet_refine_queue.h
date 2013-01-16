@@ -187,14 +187,14 @@ namespace CGAL {
       }
 
     public:
-      Facet_refine_queue() : 
+      Facet_refine_queue() :
+        edge_encroachments(),
         encroachments(Refine_facet_comparer()),
         over_distortions(Refine_facet_comparer()),
         over_circumradii(Refine_facet_comparer()),
         over_approximation(Refine_facet_comparer()),
         bad_shapes(Refine_facet_comparer()),
-        inconsistents(Refine_facet_comparer()),
-        edge_encroachments() 
+        inconsistents(Refine_facet_comparer())
       {
         queues[encroachment_queue] = &encroachments;
         queues[over_distortion_queue] = &over_distortions;

@@ -33,6 +33,10 @@ namespace CGAL {
              class Alloc
              >
   class Polyhedron_3;
+
+  namespace Anisotropic_mesh_3 {
+    struct Enriched_items;
+  }
   
 } // end namespace CGAL
 
@@ -42,7 +46,7 @@ typedef CGAL::Epick Kernel;
 
 // surface mesh
 typedef CGAL::Polyhedron_3<Kernel,
-                           CGAL::Polyhedron_items_3,
+                           CGAL::Anisotropic_mesh_3::Enriched_items,
                            CGAL::HalfedgeDS_default,
                            std::allocator<int> > Polyhedron;
 

@@ -70,7 +70,7 @@ public:
   }
 	
   Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT epsilon_ = 1.0) 
-    : R(R_), r(r_), epsilon(epsilon_) { }
+    : epsilon(epsilon_), R(R_), r(r_) { }
 };
 
 #endif //CGAL_ANISOTROPIC_MESH_3_TORUS_METRIC_FIELD

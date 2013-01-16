@@ -66,7 +66,10 @@ public:
              const FT beta_ = 2.5,
              const FT delta_ = 0.3,
              const int max_times_to_try_in_picking_region_ = 60,
-             const FT approximation_ = 0.1) :
+             const FT approximation_ = 0.1)
+              :
+        approximation(approximation_),
+        squared_approximation(approximation_*approximation_),
         radius_edge_ratio(radius_edge_ratio_),
         squared_radius_edge_radio(radius_edge_ratio_ * radius_edge_ratio_),
         sliverity(sliverity_), 
@@ -75,9 +78,8 @@ public:
         distortion(distortion_), 
         beta(beta_), 
         delta(delta_),
-        max_times_to_try_in_picking_region(max_times_to_try_in_picking_region_),
-        approximation(approximation_),
-        squared_approximation(approximation_*approximation_) { }
+        max_times_to_try_in_picking_region(max_times_to_try_in_picking_region_)
+        { }
 };
 
 template<typename K, typename KExact = K>
@@ -91,8 +93,8 @@ public:
     typedef Criteria_base<K>      Criteria;
 
 public:
-    const Criteria &criteria;
     const Traits &traits;
+    const Criteria &criteria;
 
 public:
     FT compute_squared_shortest_edge(FOUR_POINTS(Point_3)) const {

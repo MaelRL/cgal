@@ -62,11 +62,11 @@ public:
   virtual std::set<Point_3>& compute_poles() const
   {
     // warning : the sphere is a degenerate case
-    m_poles.clear();
-    m_poles.insert(CGAL::ORIGIN); 
-    m_poles.insert(Point_3(0., 0.1, 0.1)); //not a pole : to avoid degeneracies
-    m_poles.insert(Point_3(0.1, -0.15, -0.05)); //not a pole : to avoid degeneracies
-    return m_poles;
+    this->m_poles.clear();
+    this->m_poles.insert(CGAL::ORIGIN);
+    this->m_poles.insert(Point_3(0., 0.1, 0.1)); //not a pole : to avoid degeneracies
+    this->m_poles.insert(Point_3(0.1, -0.15, -0.05)); //not a pole : to avoid degeneracies
+    return this->m_poles;
   }
 
   Constrain_surface_3_sphere* clone() const // Covariant Return Types

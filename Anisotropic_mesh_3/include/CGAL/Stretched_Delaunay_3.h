@@ -1852,25 +1852,25 @@ public:
 
         invalidate_cache();
       }
-      
+
     public:
       Stretched_Delaunay_3(const Criteria &criteria_, 
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
         m_center_point(CGAL::ORIGIN),
-        m_metric(), 
         Base(*(m_traits = new Traits())),
+        m_metric(),
         m_pConstrain(pconstrain_surface),
-        boundary_facets_cache(), 
-        neighboring_cells_cache(), 
-        neighboring_finite_cells_cache(), 
         m_criteria(*m_traits, criteria_),
-        is_cache_dirty(true),
-        m_is_valid_bbox(false),
+        m_is_surface_star(is_surface_star),
         m_is_topological_disk(false),
         m_is_valid_topo_disk(false),
-        m_is_surface_star(is_surface_star)
-      { 
+        m_is_valid_bbox(false),
+        is_cache_dirty(true),
+        boundary_facets_cache(), 
+        neighboring_cells_cache(), 
+        neighboring_finite_cells_cache()
+      {
         m_center = Vertex_handle();
         m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
         this->infinite_vertex()->info() = index_of_infinite_vertex;
@@ -1883,18 +1883,18 @@ public:
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) : 
         m_center_point(centerpoint),
-        m_metric(metric_), 
         Base(*(m_traits = new Traits())),
+        m_metric(metric_),
         m_pConstrain(pconstrain_surface),
-        boundary_facets_cache(), 
-        neighboring_cells_cache(), 
-        neighboring_finite_cells_cache(), 
         m_criteria(*m_traits, criteria_),
-        is_cache_dirty(true),
-        m_is_valid_bbox(false),
+        m_is_surface_star(is_surface_star),
         m_is_topological_disk(false),
         m_is_valid_topo_disk(false),
-        m_is_surface_star(is_surface_star)
+        m_is_valid_bbox(false),
+        is_cache_dirty(true),
+        boundary_facets_cache(), 
+        neighboring_cells_cache(), 
+        neighboring_finite_cells_cache()
       { 
         m_center = Base::insert(m_metric.transform(centerpoint));
         m_center->info() = index;

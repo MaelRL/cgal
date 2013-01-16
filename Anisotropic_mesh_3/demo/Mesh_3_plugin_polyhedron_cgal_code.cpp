@@ -1,8 +1,8 @@
 #include "C3t3_type.h"
+#include "Mesh_function.h"
 #include "Scene_c3t3_item.h"
 #include "Polyhedron_type.h"
 #include "Meshing_thread.h"
-#include "Mesh_function.h"
 
 #include <CGAL/Bbox_3.h>
 

@@ -48,9 +48,10 @@ namespace CGAL
 
       Polyhedral_curvature_metric_field(const Constrain_surface& surface_, 
                                         const FT lambda_ = 1.0) 
-        : Metric_field<K>(),  
-          m_pConstrain(&surface_), 
-          lambda(lambda_) { }
+        : Metric_field<K>(),
+          lambda(lambda_),
+          m_pConstrain(&surface_)
+        { }
     };
 
   }

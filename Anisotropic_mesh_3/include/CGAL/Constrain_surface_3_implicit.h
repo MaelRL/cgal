@@ -41,7 +41,7 @@ namespace CGAL{
 
       /// Constructor
       Member_function_pointer_to_function_wrapper(PointerToObject po, PointerToMemberFunction pf)
-      : po_(po), pf_(pf) {}
+      : pf_(pf) , po_(po) {}
     
       // Default copy constructor and assignment operator are ok
       /// Destructor
@@ -264,7 +264,7 @@ public:
           }
           else if(zeros == 2)
           {
-            int id; // the id of the non-zero eigenvalue
+            int id = -1; // the id of the non-zero eigenvalue
             if(z0 && z1)      id = ((min_id + 2) % 3); //d2
             else if(z0 && z2) id = ((min_id + 1) % 3); //d1
             else if(z1 && z2) id = min_id;//d0

@@ -27,6 +27,7 @@
 #include <set>
 //#include <boost/tuple/tuple.hpp>
 
+#include <CGAL/Timer.h>
 #include <CGAL/Bbox_3.h>
 #include <CGAL/iterator.h>
 #include <CGAL/Stretched_Delaunay_3.h>
@@ -831,9 +832,9 @@ private:
       {
         Point_3 p;
 #ifdef ANISO_USE_EXACT
-        bool b = star->compute_exact_dual_intersection(facet, p);
+        star->compute_exact_dual_intersection(facet, p);
 #else
-        bool b = star->compute_dual_intersection(facet, p);
+        star->compute_dual_intersection(facet, p);
 #endif
         // test encroachment
 #ifdef CHECK_EDGE_ENCROACHMENT
@@ -1586,7 +1587,6 @@ public:
 
       bool refine() 
       {
-        int this_id = (int)m_stars.size();
         Point_3 steiner_point;
         int queue_type = 0;
         Refine_facet bad_facet;
@@ -2306,16 +2306,16 @@ public:
         const int nb_initial_points = 10,
         const RefinementCondition& rc_ = RefinementCondition())
         :
+        m_pConstrain(pconstrain_),
         m_metric_field(metric_field_), 
-        m_pConstrain(pconstrain_), 
         m_criteria(criteria_), 
         m_stars(), 
         m_refine_queue(),
-        m_aabb_tree(100/*insertion buffer size*/),
-        m_kd_tree(m_stars),
         m_ch_triangulation(),
-        m_refinement_condition(rc_)
-      {                
+        m_refinement_condition(rc_),
+        m_aabb_tree(100/*insertion buffer size*/),
+        m_kd_tree(m_stars)
+      {
         initialize_medial_axis();
 
         initialize_stars(nb_initial_points); // initial points on surface         

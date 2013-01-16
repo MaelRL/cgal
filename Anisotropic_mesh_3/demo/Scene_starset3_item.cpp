@@ -71,16 +71,16 @@ Scene_starset3_item(const Criteria& criteria,
                     const Metric& metric,
                     const Constrain_surface* const surface,
                     const int nb_initial_points)
-  : d(new Scene_starset3_item_priv(criteria, metric, surface, nb_initial_points))
-  , frame(new ManipulatedFrame())
-//  , histogram_()
-  , data_item_(NULL)
-  , indices_()
-  , m_draw_dual(false)
-  , m_draw_surface_delaunay_balls(false)
-  , m_draw_inconsistent_facets(false)
-  , m_draw_metric_field(false)
-  , m_draw_star_id(-1)
+  : d(new Scene_starset3_item_priv(criteria, metric, surface, nb_initial_points)),
+  frame(new ManipulatedFrame()),
+  //histogram_(),
+  data_item_(NULL),
+  indices_(),
+  m_draw_dual(false),
+  m_draw_surface_delaunay_balls(false),
+  m_draw_star_id(-1),
+  m_draw_inconsistent_facets(false),
+  m_draw_metric_field(false)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));
   starset_changed();
@@ -134,7 +134,7 @@ Scene_starset3_item::bbox() const
 QString 
 Scene_starset3_item::toolTip() const 
 {
-  int number_of_tets = 0;
+  //int number_of_tets = 0;
   //for(Tr::Finite_cells_iterator
   //      cit = c3t3().triangulation().finite_cells_begin(),
   //      end = c3t3().triangulation().finite_cells_end();

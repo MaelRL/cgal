@@ -25,8 +25,9 @@ class Constrain_surface_3_tanglecube : public Constrain_surface_3_implicit<K>
 {
 public:
   typedef Constrain_surface_3_implicit<K> Base;
-  typedef typename Base::FT               FT;
-  typedef Base::Point_container           Point_container;
+  typedef typename Base::FT                     FT;
+  typedef typename Base::Point_container        Point_container;
+  typedef typename Base::Point_3                Point_3;
 
 public:
   FT stretch;

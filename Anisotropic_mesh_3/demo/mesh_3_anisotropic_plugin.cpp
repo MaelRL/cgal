@@ -235,7 +235,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double beta = ui.beta->value();
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
-  int dim;
+  int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
     dim = 2;
   else if(ui.dimension->currentText().compare(QString("Volume")) == 0)

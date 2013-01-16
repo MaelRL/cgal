@@ -447,10 +447,10 @@ class Constrain_surface_3_polyhedral :
 
       void set_domain_and_polyhedron(char* filename)
       {
-        DEBUG_OUTPUT("Loading polyhedron...");
+        std::cout << "Loading polyhedron..." << std::endl;
         std::ifstream input(filename);
         if(!input)
-          DEBUG_OUTPUT("\nWarning : file does not exist");
+          std::cout << "\nWarning : file does not exist" << std::endl;
         Polyhedron p;
         input >> p;
         set_domain_and_polyhedron(p);
@@ -459,23 +459,22 @@ class Constrain_surface_3_polyhedral :
       void set_domain_and_polyhedron(const Polyhedron& p)
       {
         m_polyhedron = p;
-        DEBUG_OUTPUT("[" << m_polyhedron.size_of_vertices() << "]");
-
-        DEBUG_OUTPUT("\nCreating domain...");
+        std::cout << "[" << m_polyhedron.size_of_vertices() << "]" << std::endl;
+        std::cout << "\nCreating domain..." << std::endl;
         domain = new Mesh_domain(m_polyhedron);
       }
 
       void set_aabb_tree()
       {
-        DEBUG_OUTPUT("\nCreating AABB tree...");
+        std::cout << "\nCreating AABB tree..." << std::endl;
         tree = new Tree(m_polyhedron.facets_begin(), m_polyhedron.facets_end());
-        DEBUG_OUTPUT("\nAccelerating distance queries...");
+        std::cout << "\nAccelerating distance queries..." << std::endl;
         tree->accelerate_distance_queries();
       }
 
       void compute_bounding_box(/*std::vector<Point_3>& points*/)
       {
-        DEBUG_OUTPUT("\nComputing bounding box...");
+        std::cout << "\nComputing bounding box..." << std::endl;
 
         /*typename Polyhedron::Vertex_iterator vi = m_polyhedron.vertices_begin();
         typename Polyhedron::Vertex_iterator viend = m_polyhedron.vertices_end();
@@ -509,7 +508,7 @@ class Constrain_surface_3_polyhedral :
 
       void compute_local_metric(const FT& epsilon/*const std::vector<Vertex_handle>& vertices*/)
       {
-        DEBUG_OUTPUT("\nComputing local metric...");
+        std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
         m_min_curvature = DBL_MAX;
         std::vector<typename Eigen::Vector3d> vectors;
@@ -658,31 +657,29 @@ class Constrain_surface_3_polyhedral :
         compute_local_metric(epsilon);
       }
 
-
       Constrain_surface_3_polyhedral(char *filename, const FT& epsilon) 
-        : m_poles(),
+        : m_vertices(),
+          m_metrics(),
+          m_normals(),
+          m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
-        , m_vertices()
-        , m_metrics()
-        , m_normals()
-      { 
-        set_domain_and_polyhedron(filename);
-        initialize(epsilon); 
-      }
-
+        {
+          set_domain_and_polyhedron(filename);
+          initialize(epsilon);
+        }
 
       Constrain_surface_3_polyhedral(const Polyhedron& p, const FT& epsilon) 
-        : m_poles(),
+        : m_vertices(),
+          m_metrics(),
+          m_normals(),
+          m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
-        , m_vertices()
-        , m_metrics()
-        , m_normals()
-      { 
-        set_domain_and_polyhedron(p);
-        initialize(epsilon);
-      }
+        {
+          set_domain_and_polyhedron(p);
+          initialize(epsilon);
+        }
 
       Constrain_surface_3_polyhedral* clone() const
       {
