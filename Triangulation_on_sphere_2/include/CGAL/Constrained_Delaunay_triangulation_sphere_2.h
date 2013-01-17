@@ -35,6 +35,8 @@ public:
 	typedef typename DTS::Locate_type Locate_type;
 	typedef typename DTS::All_faces_iterator All_faces_iterator;
 	typedef typename DTS::Solid_faces_iterator Solid_faces_iterator;
+	typedef typename DTS::Solid_edges_iterator Solid_edges_iterator;
+	typedef typename DTS::All_vertices_iterator   All_vertices_iterator;
 	typedef typename DTS::Face_circulator Face_circulator;
 	typedef typename DTS::Edge_circulator Edge_circulator;
 	typedef typename DTS::Vertex_circulator Vertex_circulator;
@@ -46,6 +48,45 @@ public:
 	typedef std::list<Face_handle>             List_faces;
 	typedef std::list<Vertex_handle>           List_vertices;
 
+	//for meshing
+	typedef typename DTS::Solid_edges_iterator  Finite_edges_iterator;
+	typedef typename DTS::Solid_faces_iterator Finite_faces_iterator;
+	typedef typename DTS::All_vertices_iterator   Finite_vertices_iterator;
+	 typedef Tag_false                           Constraint_hierarchy_tag;
+	Face_handle locate(const Point & p, Face_handle start = Face_handle()) const
+	{
+		Locate_type lt;
+		int li;
+		return DTS::locate(p, lt, li, start);
+	}
+	
+	Solid_edges_iterator finite_edges_begin()const{
+		return DTS::solid_edges_begin();
+	}
+	
+	Solid_edges_iterator finite_edges_end(){
+		return DTS::solid_edges_end();
+	}
+	
+	Solid_faces_iterator finite_faces_begin(){
+		return DTS::solid_faces_begin();
+	}
+	
+	Solid_faces_iterator finite_faces_end(){
+		return DTS::solid_edges_end();
+	}
+	
+	All_vertices_iterator finite_vertices_end(){
+		return vertices_end();
+	}
+	All_vertices_iterator finite_vertices_begin(){
+		return vertices_begin();
+	}
+	
+	bool is_infinite(Vertex_handle v){
+		return false;
+	}
+	
 	
 	
 #ifndef CGAL_CFG_USING_BASE_MEMBER_BUG_2
@@ -85,6 +126,7 @@ public:
 	using DTS::OUTSIDE_CONVEX_HULL;
 	using DTS::OUTSIDE_AFFINE_HULL;
 	using DTS::TOO_CLOSE;
+	
 	
 #endif
 	class Less_edge;
@@ -1021,7 +1063,12 @@ flip (Face_handle& f, int i)
 									 f4->is_constrained(i4));
 	return;
 }
-									 
+
+	
+	
+	
+	
+	
  
  }//end namespace
 #endif
