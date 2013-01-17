@@ -1680,9 +1680,9 @@ public:
       void gl_draw(const typename K::Plane_3& plane,
                    const bool draw_edges = true) const
       {
+        gl_draw_center();
         if(! this->is_surface_star())
           return;
-        gl_draw_center();
         Facet_set_iterator fit = begin_boundary_facets();
         Facet_set_iterator fend = end_boundary_facets();
         for(; fit != fend; fit++)
@@ -1818,7 +1818,9 @@ public:
 #else
           this->compute_dual_intersection(f, c);
 #endif
-          Point_3 p2 = f.first->vertex((f.second+1) % 4)->point();
+          TPoint_3 tp2 = f.first->vertex((f.second+1) % 4)->point();
+          Point_3 p2 = m_metric.inverse_transform(tp2);
+
           FT sqr = CGAL::squared_distance(c, p2);
           gl_draw_sphere<K>(typename K::Sphere_3(c, sqr));
         }
