@@ -1307,11 +1307,14 @@ public:
             }
 
             // bad approx : 4
-            FT over_approx = std::sqrt(sq_distance_to_surface(*fi, star)) - m_criteria.approximation;
-            if(over_approx > 0.)
+            if(m_criteria.approximation > 0.)
             {
-              m_refine_queue.push_bad_approximation(star, *fi, over_approx);
-              continue;
+              FT over_approx = std::sqrt(sq_distance_to_surface(*fi, star)) - m_criteria.approximation;
+              if(over_approx > 0.)
+              {
+                m_refine_queue.push_bad_approximation(star, *fi, over_approx);
+                continue;
+              }
             }
 
             // inconsistency : 5
