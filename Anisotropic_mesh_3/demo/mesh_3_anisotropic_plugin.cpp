@@ -200,6 +200,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
           ui.circumradius,        SLOT(setEnabled(bool)));
   connect(ui.noDistortion,        SIGNAL(toggled(bool)),
           ui.distortion,          SLOT(setEnabled(bool)));
+  connect(ui.noApproximation,     SIGNAL(toggled(bool)),
+          ui.approximation,       SLOT(setEnabled(bool)));
 
    // Set default parameters
   Scene_interface::Bbox bbox = item->bbox();
@@ -208,10 +210,12 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
                              .arg(bbox.width(),0,'g',3)
                              .arg(bbox.height(),0,'g',3)
                              .arg(bbox.depth(),0,'g',3) );  
+  double max_size = (std::max)((std::max)(bbox.width(),bbox.height()),bbox.depth());
   ui.radius_edge_ratio->setValue(3.0);
   ui.sliverity->setValue(0.3);
   ui.circumradius->setValue(1.0);
   ui.distortion->setValue(1.8);
+  ui.approximation->setValue(0.01*max_size);
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
  
@@ -232,6 +236,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double sliverity = !ui.noSliverity->isChecked() ? 0 : ui.sliverity->value(); 
   const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value(); 
   const double distortion = !ui.noDistortion->isChecked() ? 0 : ui.distortion->value();
+  const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
   const double beta = ui.beta->value();
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
