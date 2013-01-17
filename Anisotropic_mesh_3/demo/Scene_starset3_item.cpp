@@ -116,7 +116,7 @@ Scene_starset3_item::plane() const
 Scene_item::Bbox 
 Scene_starset3_item::bbox() const
 {
-  if(isEmpty())
+  if(star_set().empty())
     return Bbox();
   else 
   {
@@ -174,7 +174,9 @@ Scene_starset3_item::direct_draw() const
   if(!lighting)
     ::glDisable(GL_LIGHTING);
 
-  star_set().gl_draw(this->plane(), true/*draw_edges*/, m_draw_star_id-1);
+  const Kernel::Plane_3& plane = this->plane();
+
+  star_set().gl_draw(plane, true/*draw_edges*/, m_draw_star_id-1);
   if(m_draw_dual)
     star_set().gl_draw_dual(m_draw_star_id-1);
   if(m_draw_surface_delaunay_balls)
@@ -182,7 +184,7 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_inconsistent_facets)
     star_set().gl_draw_inconsistent_facets(m_draw_star_id-1);
   if(m_draw_metric_field)
-    star_set().gl_draw_metric(this->plane(), m_draw_star_id-1);
+    star_set().gl_draw_metric(plane, m_draw_star_id-1);
 
   if(!two_side) ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
   if(lighting)  ::glEnable(GL_LIGHTING);
