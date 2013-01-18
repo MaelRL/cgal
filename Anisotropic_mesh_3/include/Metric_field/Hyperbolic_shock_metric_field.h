@@ -31,13 +31,11 @@ public:
 
 public:	
 	FT delta;
-  FT sigma;
 	FT lambda;
 
 public:
 	virtual void report(typename std::ofstream &fx) const {
 		fx << "type:   hyperbolic shock" << std::endl;
-		fx << "sigma:  " << sigma << std::endl;
 		fx << "lambda: " << lambda << std::endl;
 	}
 
@@ -49,9 +47,11 @@ public:
 		tanhder = (1.0 - tanhder * tanhder) * 2.0 / delta;
 		FT x1 = tanhder + 3.0 * x * x + y * y;
 		FT y1 = -tanhder * cos(5.0 * y) * 5.0 + 2.0 * x * y;
-		x1 = (x1 * lambda) + 1.0;
-		y1 = (y1 * lambda) + 1.0;
-		FT r = sqrt(x1 * x1 + y1 * y1);
+
+		//x1 = (x1 * lambda) + 1.0;
+		//y1 = (y1 * lambda) + 1.0;
+		
+    FT r = sqrt(x1 * x1 + y1 * y1);
 		FT x2 = -y1 / r;
 		FT y2 = x1 / r;
     FT l1 = std::sqrt(x1*x1 + y1*y1);
@@ -66,9 +66,8 @@ public:
                   l1, l2, 1., 0.001/*epsilon*/);
 	}
 	
-  Hyperbolic_shock_metric_field(FT delta_, FT sigma_, FT lambda_ = 0.125) : 
+  Hyperbolic_shock_metric_field(FT delta_, FT lambda_ = 0.125) : 
     delta(delta_), 
-    sigma(sigma_),
     lambda(lambda_) { }
 };
 
