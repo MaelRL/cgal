@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>437</width>
-    <height>618</height>
+    <width>455</width>
+    <height>538</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -96,7 +96,7 @@
      <property name="title">
       <string>Parameters</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0,0,0,0,0,0,0" columnstretch="2,0,0">
+     <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0,0,0,0,0,0" columnstretch="2,0,0">
       <item row="0" column="2">
        <widget class="QCheckBox" name="noRadiusEdgeRatio">
         <property name="toolTip">
@@ -278,6 +278,9 @@
       </item>
       <item row="4" column="1">
        <widget class="QDoubleSpinBox" name="approximation">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="singleStep">
          <double>0.100000000000000</double>
         </property>
