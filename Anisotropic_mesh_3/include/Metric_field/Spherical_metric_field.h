@@ -28,33 +28,42 @@ public:
 	typedef typename Base::FT      FT;
 	typedef typename Base::Metric  Metric;
 	typedef typename Base::Point_3 Point_3;
+  typedef typename Base::Vector_3 Vector_3;
 
 public:
-	FT lambda;
+	FT epsilon;
 
 public:
-	virtual void report(typename std::ofstream &fx) const {
+	virtual void report(typename std::ofstream &fx) const 
+  {
 		fx << "type:   spherical" << std::endl;
-		fx << "lambda: " << lambda << std::endl;
+		fx << "epsilon: " << epsilon << std::endl;
 	}
 
-	virtual Metric compute_metric(const Point_3 &p) const {
+	virtual Metric compute_metric(const Point_3 &p) const 
+  {
 		FT x = p.x(), y = p.y(), z = p.z();
 		FT r = x * x + y * y;
 		FT R = r + z * z;
-		r = sqrt(r);
-		FT l = 1.0 + (lambda - 1.0)	* R;
-		R = sqrt(R);
-		if (r == 0)
-			return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, (z >= 0) ? l : (-l)));
-		else
-			return Metric(
-				Vector_3(x * (l / R), y * (l / R), z * (l / R)),
-				Vector_3(- y / r, x / r, 0),
-				Vector_3(- x * z / r / R, - y * z / r / R, r / R));
+		r = std::sqrt(r);	
+    R = std::sqrt(R);
+
+		if (r == 0.)
+			return Metric(Vector_3(1, 0, 0), 
+                    Vector_3(0, 1, 0), 
+                    Vector_3(0, 0, (z >= 0.) ? R : (-R)),
+                    1., 1., 1., epsilon);
+    Vector_3 n(x,y,z);
+    n = (1./R) * n;
+    Vector_3 v1(-y/r, x/r, 0);
+    Vector_3 v2 = CGAL::cross_product(n,v1);
+    v2 = (1./std::sqrt(v2*v2)) * v2;
+
+  	return Metric(n, v1, v2, 1., 1., 1., epsilon);
 	}
 
-	Spherical_metric_field(FT lambda_) : lambda(lambda_) { }
+	Spherical_metric_field(const FT& epsilon_) 
+    : epsilon(epsilon_) { }
 };
 
 
