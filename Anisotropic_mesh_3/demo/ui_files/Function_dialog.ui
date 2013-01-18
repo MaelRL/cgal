@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>399</width>
+    <width>372</width>
     <height>223</height>
    </rect>
   </property>
@@ -22,8 +22,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>170</y>
+     <x>10</x>
+     <y>180</y>
      <width>341</width>
      <height>32</height>
     </rect>
@@ -40,7 +40,7 @@
     <rect>
      <x>20</x>
      <y>40</y>
-     <width>261</width>
+     <width>331</width>
      <height>26</height>
     </rect>
    </property>
@@ -50,7 +50,7 @@
     <rect>
      <x>20</x>
      <y>20</y>
-     <width>251</width>
+     <width>311</width>
      <height>16</height>
     </rect>
    </property>
@@ -61,14 +61,14 @@
   <widget class="QLabel" name="label_2">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>130</y>
-     <width>261</width>
-     <height>31</height>
+     <x>20</x>
+     <y>110</y>
+     <width>341</width>
+     <height>91</height>
     </rect>
    </property>
    <property name="text">
-    <string>please format parameters as follows : &quot;1.1, 0.4, 2.1&quot;  (note spaces, dots and comas)</string>
+    <string>Please format parameters as follows : &quot;1.1, 0.4, 2.1&quot;  (note spaces, dots and comas)</string>
    </property>
    <property name="wordWrap">
     <bool>true</bool>
@@ -77,9 +77,9 @@
   <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>90</y>
-     <width>281</width>
+     <x>20</x>
+     <y>80</y>
+     <width>331</width>
      <height>31</height>
     </rect>
    </property>
@@ -90,7 +90,7 @@
        <enum>Qt::LeftToRight</enum>
       </property>
       <property name="text">
-       <string>Parameters list   </string>
+       <string>Parameters list :   </string>
       </property>
       <property name="alignment">
        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
