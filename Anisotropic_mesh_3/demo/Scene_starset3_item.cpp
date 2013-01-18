@@ -120,12 +120,19 @@ Scene_starset3_item::bbox() const
     return Bbox();
   else 
   {
-    CGAL::Bbox_3 result = star_set().m_stars[0]->center_point().bbox();
+    bool initialized = false;
+    CGAL::Bbox_3 result;
     unsigned int N = star_set().m_stars.size();
     for(unsigned int i = 1; i < N; i++)
-      if(star_set().m_stars[i]->is_topological_disk())
-        result = result + star_set().m_stars[i]->center_point().bbox();
-    
+    {
+      if(star_set().m_stars[i]->is_surface_star())
+      {
+        if(!initialized)
+          result = star_set().m_stars[i]->center_point().bbox();
+        else
+          result = result + star_set().m_stars[i]->center_point().bbox();
+      }
+    }
     return Bbox(result.xmin(), result.ymin(), result.zmin(),
                 result.xmax(), result.ymax(), result.zmax());
   }
