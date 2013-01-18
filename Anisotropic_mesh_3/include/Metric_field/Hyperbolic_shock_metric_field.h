@@ -31,12 +31,12 @@ public:
 
 public:	
 	FT delta;
-	FT lambda;
+	FT epsilon;
 
 public:
 	virtual void report(typename std::ofstream &fx) const {
 		fx << "type:   hyperbolic shock" << std::endl;
-		fx << "lambda: " << lambda << std::endl;
+		fx << "epsilon: " << epsilon << std::endl;
 	}
 
 	virtual Metric compute_metric(const Point_3 &p) const 
@@ -44,13 +44,10 @@ public:
 		FT x = p.x();
     FT y = p.y();
 		FT tanhder = tanh((2.0 * x - sin(5.0 * y)) / delta);
-		tanhder = (1.0 - tanhder * tanhder) * 2.0 / delta;
-		FT x1 = tanhder + 3.0 * x * x + y * y;
+		tanhder = (1.0 - tanhder * tanhder) / delta;
+		FT x1 = 2. * tanhder + 3.0 * x * x + y * y;
 		FT y1 = -tanhder * cos(5.0 * y) * 5.0 + 2.0 * x * y;
 
-		//x1 = (x1 * lambda) + 1.0;
-		//y1 = (y1 * lambda) + 1.0;
-		
     FT r = sqrt(x1 * x1 + y1 * y1);
 		FT x2 = -y1 / r;
 		FT y2 = x1 / r;
@@ -60,15 +57,12 @@ public:
     Vector_3 v1 = (1./l1) * Vector_3(x1, y1, 0);
     Vector_3 v2 = (1./l2) * Vector_3(x2, y2, 0);
     Vector_3 v3(0, 0, 1.);
-    return Metric(v1, 
-                  v2, 
-                  v3,
-                  l1, l2, 1., 0.001/*epsilon*/);
+    return Metric(v1, v2, v3, l1, l2, 1., epsilon);
 	}
 	
-  Hyperbolic_shock_metric_field(FT delta_, FT lambda_ = 0.125) : 
+  Hyperbolic_shock_metric_field(FT delta_, FT epsilon_ = 0.125) : 
     delta(delta_), 
-    lambda(lambda_) { }
+    epsilon(epsilon_) { }
 };
 
 #endif
