@@ -21,8 +21,6 @@
 namespace CGAL {
   namespace Anisotropic_mesh_3 {
 
-//#define CROSS(a,b)	Vector_3(b.y() * a.z() - b.z() * a.y(),b.z() * a.x() - b.x() * a.z(),b.x() * a.y() - b.y() * a.x())
-
 template<typename K>
 class Arctan_metric_field : public Metric_field<K> {
 public:
@@ -35,7 +33,7 @@ public:
 public:
 	FT sigma;
 	FT lambda;
-        FT alpha;
+  FT alpha;
 
 public:
 	virtual void report(typename std::ofstream &fx) const {
@@ -45,11 +43,11 @@ public:
 	}
 
 	virtual Metric compute_metric(const Point_3 &p) const 
-        {
-          double epsilon = 1e-6;
-          double d = ((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda);
-          return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 
-                        1., alpha*d, 1., epsilon);
+  {
+    double epsilon = 1e-6;
+    double d = ((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda);
+    return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 
+                  1., alpha*d, 1., epsilon);
 		//return Metric(Vector_3(1, 0, 0), Vector_3(0, 
 		//	((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda), 0), 
 		//	Vector_3(0, 0, 1));
