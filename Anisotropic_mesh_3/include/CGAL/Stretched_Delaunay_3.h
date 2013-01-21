@@ -88,15 +88,15 @@ namespace CGAL{
       typedef Criteria_base<K>          Criteria;
       typedef CGAL::Bbox<K>             Bbox;
 
-      typedef std::vector<Facet>			Facet_vector;
+      typedef std::vector<Facet>                        Facet_vector;
       typedef std::set<Facet>                           Facet_set;
-      typedef std::vector<Cell_handle>			Cell_handle_vector;
-      typedef std::vector<Vertex_handle>		Vertex_handle_vector;
+      typedef std::vector<Cell_handle>                  Cell_handle_vector;
+      typedef std::vector<Vertex_handle>                Vertex_handle_vector;
       typedef std::vector<Point_3>                      Point_vector;
       typedef typename Facet_set::iterator              Facet_set_iterator;
-      typedef typename Facet_vector::iterator		Facet_handle;
-      typedef typename Cell_handle_vector::iterator	Cell_handle_handle;
-      typedef typename Vertex_handle_vector::iterator	Vertex_handle_handle;   
+      typedef typename Facet_vector::iterator           Facet_handle;
+      typedef typename Cell_handle_vector::iterator     Cell_handle_handle;
+      typedef typename Vertex_handle_vector::iterator   Vertex_handle_handle;
       
     private:
       typedef typename KExact::Point_3                      Exact_Point_3;
@@ -1680,9 +1680,9 @@ public:
       void gl_draw(const typename K::Plane_3& plane,
                    const bool draw_edges = true) const
       {
-        gl_draw_center();
         if(! this->is_surface_star())
           return;
+        gl_draw_center();
         Facet_set_iterator fit = begin_boundary_facets();
         Facet_set_iterator fend = end_boundary_facets();
         for(; fit != fend; fit++)
@@ -1706,15 +1706,18 @@ public:
           return;
 
         Point_3 p = this->center_point();
-        Vector_3 v = CGAL::NULL_VECTOR;
-        
-        m_metric.get_min_eigenvector(v); //should it be inverse_transform'ed? i'd say no
+        Vector_3 vec = CGAL::NULL_VECTOR;
+        double val = 0.;
+
+        val = m_metric.get_min_eigenvalue();
+        m_metric.get_min_eigenvector(vec);
         ::glColor3f(0.,0.,250.);
-        gl_draw_arrow<K>(p, p+0.02*v);
+        gl_draw_arrow<K>(p, p+0.02*val*vec);
         
-        m_metric.get_max_eigenvector(v); //should it be inverse_transform'ed? i'd say no
+        val = m_metric.get_max_eigenvalue();
+        m_metric.get_max_eigenvector(vec);
         ::glColor3f(250.,0.,0.);
-        gl_draw_arrow<K>(p, p+0.02*v);
+        gl_draw_arrow<K>(p, p+0.02*val*vec);
       }
 
       bool is_above_plane(const typename K::Plane_3& plane,
@@ -1782,7 +1785,7 @@ public:
           if(CGAL::assign(s, o))
             gl_draw_segment<K>(s.source(), s.target());
           else if(CGAL::assign(r, o))
-            gl_draw_segment<K>(r.source(), r.source() + r.to_vector() 
+            gl_draw_segment<K>(r.source(), r.source() + r.to_vector()
                 * (m_pConstrain->get_bounding_radius() * 10.0 / std::sqrt(r.to_vector() * r.to_vector())));
           else if(CGAL::assign(l, o))
             std::cout << "gl_draw_dual : line dual\n";

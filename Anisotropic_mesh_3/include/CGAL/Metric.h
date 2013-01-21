@@ -186,14 +186,6 @@ public:
     }
 #endif
 
-    Metric_base &operator=(const Metric_base &m) 
-    {
-      eigen_transformation = m.eigen_transformation;
-      eigen_inverse_transformation = m.eigen_inverse_transformation;
-      return *this;
-    }
-    
-
   FT compute_distortion(const Metric_base &m) 
   {
     double eigen_dis1 = (m.eigen_transformation * eigen_inverse_transformation).operatorNorm();
@@ -258,18 +250,6 @@ public:
     {
       return e_max;
     }
-
-public:
-    Metric_base(const Metric_base &m) :
-      eigen_transformation(m.eigen_transformation),
-      eigen_inverse_transformation(m.eigen_inverse_transformation),
-      e_max(m.e_max),
-      e_min(m.e_min),
-      e_n(m.e_n),
-      v_max(m.v_max),
-      v_min(m.v_min),
-      v_n(m.v_n)
-      {}
 
 public:
     friend 
