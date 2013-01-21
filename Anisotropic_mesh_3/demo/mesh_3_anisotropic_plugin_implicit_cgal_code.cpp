@@ -35,7 +35,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
   typedef Torus_metric_field<Kernel> Metric_field;
   
 
-  Metric_field* metric_field = new Metric_field(0.7, 0.1, 3.);//*p_domain);;
+  Metric_field* metric_field = new Metric_field(0.7, 0.3, 1.);//*p_domain);;
   
   typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
  
