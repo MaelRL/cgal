@@ -15,6 +15,8 @@
 
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_poly,
+                                 const double epsilon,
+                                 const double approximation,
                                  const double radius_edge_ratio,
                                  const double sliverity,
                                  const double circumradius,
@@ -40,11 +42,11 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
 
   if( NULL == p_poly ) { return NULL; }
   
-  double epsilon = 0.1;
   const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly,epsilon);   
   Metric_field* metric_field = new Metric_field(*p_domain);
 
   Anisotropic_mesh_parameters param;
+  param.approximation = approximation;
   param.radius_edge_ratio = radius_edge_ratio;
   param.sliverity = sliverity;
   param.circumradius = circumradius;
@@ -59,7 +61,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
   // cannot be destroyed before the life end of the meshing thread.
   Criteria* criteria = new Criteria(param.radius_edge_ratio, param.sliverity, param.circumradius, 
                                     param.distortion, param.beta, param.delta, 
-                                    param.max_times_to_try_in_picking_region);
+                                    param.max_times_to_try_in_picking_region, param.approximation);
 
   Scene_starset3_item* p_new_item 
     = new Scene_starset3_item(*criteria, *metric_field, p_domain, nb_initial_points);

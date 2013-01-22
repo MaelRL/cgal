@@ -29,6 +29,7 @@
 
 struct Anisotropic_mesh_parameters
 {
+  double approximation;
   double radius_edge_ratio;
   double sliverity;
   double circumradius;
@@ -100,6 +101,7 @@ Anisotropic_mesh_parameters::
 log() const
 {
   return QStringList()
+  << QString("approximation: %1").arg(approximation)
   << QString("radius edge ratio: %1").arg(radius_edge_ratio)
   << QString("sliverity: %1").arg(sliverity)
   << QString("circumradius: %1").arg(circumradius)

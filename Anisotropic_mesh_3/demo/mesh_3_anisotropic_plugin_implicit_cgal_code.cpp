@@ -12,6 +12,8 @@
 
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface* p_surface,
+                                 const double epsilon,
+                                 const double approximation,
                                  const double radius_edge_ratio,
                                  const double sliverity,
                                  const double circumradius,
@@ -26,21 +28,21 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
     
   const Implicit_surface* p_domain = p_surface->clone();
   
-//  typedef CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel> Metric_field;
-//  std::cout << "(Euclidean)." << std::endl;
+  //typedef CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel> Metric_field;
+  //std::cout << "(Euclidean)." << std::endl;
 
-//  typedef CGAL::Anisotropic_mesh_3::Implicit_curvature_metric_field<Kernel> Metric_field;
-//  std::cout << "(Curvature metric field)." << std::endl;
-  
-  typedef Torus_metric_field<Kernel> Metric_field;
-  
+  //typedef Torus_metric_field<Kernel> Metric_field;
+  //std::cout << "(Torus)" << std::endl;
 
-  Metric_field* metric_field = new Metric_field(0.7, 0.3, 1.);//*p_domain);;
+  typedef CGAL::Anisotropic_mesh_3::Implicit_curvature_metric_field<Kernel> Metric_field;
+  std::cout << "(Curvature metric field)." << std::endl;
+
+  Metric_field* metric_field = new Metric_field(*p_domain, epsilon);
   
   typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
- 
-     
+
   Anisotropic_mesh_parameters param;
+  param.approximation = approximation;
   param.radius_edge_ratio = radius_edge_ratio;
   param.sliverity = sliverity;
   param.circumradius = circumradius;
@@ -55,7 +57,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
   // cannot be destroyed before the life end of the meshing thread.
   Criteria* criteria = new Criteria(param.radius_edge_ratio, param.sliverity, param.circumradius, 
                                     param.distortion, param.beta, param.delta, 
-                                    param.max_times_to_try_in_picking_region);
+                                    param.max_times_to_try_in_picking_region, param.approximation);
 
   Scene_starset3_item* p_new_item 
     = new Scene_starset3_item(*criteria, *metric_field, p_domain, nb_initial_points);

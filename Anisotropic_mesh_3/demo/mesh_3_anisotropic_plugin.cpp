@@ -36,6 +36,8 @@ const QColor default_mesh_color(45,169,70);
 
 // declare the CGAL function
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
+                                 const double epsilon,
+                                 const double approximation,
                                  const double radius_edge_ratio,
                                  const double sliverity,
                                  const double circumradius,
@@ -47,6 +49,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const int nb_initial_points);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
+                                 const double epsilon,
+                                 const double approximation,
                                  const double radius_edge_ratio,
                                  const double sliverity,
                                  const double circumradius,
@@ -216,6 +220,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.circumradius->setValue(1.0);
   ui.distortion->setValue(1.8);
   ui.approximation->setValue(0.01*max_size);
+  ui.epsilon->setValue(1.000);
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
  
@@ -237,6 +242,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value(); 
   const double distortion = !ui.noDistortion->isChecked() ? 0 : ui.distortion->value();
   const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
+  const double epsilon = ui.epsilon->value();
   const double beta = ui.beta->value();
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
@@ -263,8 +269,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    thread = cgal_code_anisotropic_mesh_3(pMesh,
-      radius_edge_ratio, sliverity, circumradius,
+    thread = cgal_code_anisotropic_mesh_3(pMesh, epsilon,
+      approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points);
   }
@@ -278,8 +284,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       return;
     }
     std::cout << "Let's mesh " << pFunction->name() << "...";
-    thread = cgal_code_anisotropic_mesh_3(pFunction,
-      radius_edge_ratio, sliverity, circumradius,
+    thread = cgal_code_anisotropic_mesh_3(pFunction, epsilon,
+      approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points);
   }
