@@ -73,7 +73,7 @@ public:
 	}
 	
 	Solid_faces_iterator finite_faces_end(){
-		return DTS::solid_edges_end();
+		return DTS::solid_faces_end();
 	}
 	
 	All_vertices_iterator finite_vertices_end(){
@@ -83,10 +83,17 @@ public:
 		return vertices_begin();
 	}
 	
-	bool is_infinite(Vertex_handle v){
+	bool is_infinite(Vertex_handle v)const{
 		return false;
 	}
 	
+	bool is_infinite(Face_handle f) const{
+		//return this->is_ghost(f);
+		return f->is_ghost();
+	}
+	
+	Face_handle infinite_face()const{
+		return DTS::_ghost;}
 	
 	
 #ifndef CGAL_CFG_USING_BASE_MEMBER_BUG_2
@@ -201,7 +208,7 @@ protected:
 							   List_edges & new_edges);
 	
 	//CONSTRAINED
-	
+public:	
 	void mark_constraint(Face_handle fr, int i);
 	void update_constraints_opposite(Vertex_handle va);
 	void update_constraints_incident(Vertex_handle v, Vertex_handle v1, Vertex_handle v2);
