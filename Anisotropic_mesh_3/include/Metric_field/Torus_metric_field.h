@@ -66,9 +66,20 @@ public:
     Vector_3 n = g;
     Vector_3 v1 = (1./std::sqrt(px*px)) * px;
     Vector_3 v2 = (1./std::sqrt(t*t)) * t;
-    return Metric(n, v2, v1, 1., (1./r), (1./R), epsilon);
+
+    bool is_closer = (ll < R);
+    FT Phi = std::abs(std::asin(z/r));
+    if(is_closer)
+      Phi = M_PI - Phi;
+
+    FT e1 = std::cos(Phi)/(R+r*std::cos(Phi));
+    if(std::abs(e1) < epsilon)
+      e1 = CGAL::sign(e1)*epsilon;
+    FT e2 = std::max(1./r, epsilon);
+
+    return Metric(n, v2, v1, e2, e2, e1, epsilon);
   }
-	
+
   Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT epsilon_ = 1.0) 
     : epsilon(epsilon_), R(R_), r(r_) { }
 };
