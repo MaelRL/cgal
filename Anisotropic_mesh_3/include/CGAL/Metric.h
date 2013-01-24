@@ -250,6 +250,10 @@ public:
     {
       return e_max;
     }
+    double get_third_eigenvalue() const
+    {
+      return e_n;
+    }
 
 public:
     friend 

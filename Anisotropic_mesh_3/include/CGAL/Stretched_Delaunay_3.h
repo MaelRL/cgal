@@ -1698,7 +1698,8 @@ public:
         }
       }
 
-      void gl_draw_metric(const typename K::Plane_3& plane) const
+      void gl_draw_metric(const typename K::Plane_3& plane,
+                          double coeff) const
       {
         if(!this->is_surface_star())
           return;
@@ -1709,15 +1710,18 @@ public:
         Vector_3 vec = CGAL::NULL_VECTOR;
         double val = 0.;
 
+        val = m_metric.get_third_eigenvalue();
+        coeff /= val;
+
         val = m_metric.get_min_eigenvalue();
         m_metric.get_min_eigenvector(vec);
         ::glColor3f(0.,0.,250.);
-        gl_draw_arrow<K>(p, p+0.02*val*vec);
+        gl_draw_arrow<K>(p, p+val*coeff*vec);
         
         val = m_metric.get_max_eigenvalue();
         m_metric.get_max_eigenvector(vec);
         ::glColor3f(250.,0.,0.);
-        gl_draw_arrow<K>(p, p+0.02*val*vec);
+        gl_draw_arrow<K>(p, p+val*coeff*vec);
       }
 
       bool is_above_plane(const typename K::Plane_3& plane,

@@ -2017,7 +2017,7 @@ public:
         return count;
       }
 
-private:
+public:
       void clean_stars() //remove useless vertices
       {
         for(std::size_t i = 0; i < m_stars.size(); i++)
@@ -2176,7 +2176,7 @@ public:
       }
 
 
-private:
+public:
     double duration(const time_t& start) const
     {
       return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
@@ -2218,13 +2218,16 @@ public:
       }
 
       void gl_draw_metric(const typename K::Plane_3& plane,
+                          double bbox_min,
                           const int star_id = -1/*only this one*/) const 
       {
+        double coeff = bbox_min/20;
+
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
-            m_stars[i]->gl_draw_metric(plane);
+            m_stars[i]->gl_draw_metric(plane, coeff);
         else
-          m_stars[star_id]->gl_draw_metric(plane);
+          m_stars[star_id]->gl_draw_metric(plane, coeff);
       }
 
       void gl_draw_dual(const int star_id = -1) const
