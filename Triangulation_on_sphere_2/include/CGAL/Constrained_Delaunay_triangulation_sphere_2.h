@@ -53,6 +53,15 @@ public:
 	typedef typename DTS::Solid_faces_iterator Finite_faces_iterator;
 	typedef typename DTS::All_vertices_iterator   Finite_vertices_iterator;
 	 typedef Tag_false                           Constraint_hierarchy_tag;
+	
+	
+	//-----Constructions
+	Point circumcenter(Face_handle  f) const; 
+	Point circumcenter(const Point& p0, 
+					   const Point& p1, 
+					   const Point& p2) const;
+	
+	
 	Face_handle locate(const Point & p, Face_handle start = Face_handle()) const
 	{
 		Locate_type lt;
@@ -192,6 +201,8 @@ public:
 			return( (&(*e1.first) < &(*e2.first))
 				   || ( (&(*e1.first) == &(*e2.first)) && (ind1 < ind2)));
 		} 
+		
+		
 	};
 	
 protected:
@@ -217,20 +228,28 @@ public:
 	template <class OutputItFaces, class OutputItBoundaryEdges> 
 	std::pair<OutputItFaces,OutputItBoundaryEdges>
 	get_conflicts_and_boundary(const Point  &p, OutputItFaces fit, OutputItBoundaryEdges eit, 
-							   Face_handle fh ) const
+							   Face_handle start = Face_handle() ) const
 	{
-		CGAL_triangulation_precondition( dimension() == 2);
-		CGAL_triangulation_precondition(test_conflict(p,fh));  
+		
+			CGAL_triangulation_precondition( dimension() == 2);
+			int li;
+			Locate_type lt;
+			Face_handle fh = locate(p,lt,li, start);
+			
+		//CGAL_triangulation_precondition(fh !=Face_handle());
+		//CGAL_triangulation_precondition(test_conflict(p,fh)); 
+		
 		
 		*fit++ = fh; 
-		fh->set_in_conflict_flag(1);
+		//fh->set_in_conflict_flag(1);
 		std::pair<OutputItFaces,OutputItBoundaryEdges>
 		pit = std::make_pair(fit,eit);
 		pit = propagate_conflicts(p,fh,0,pit);
 		pit = propagate_conflicts(p,fh,1,pit);
 		pit = propagate_conflicts(p,fh,2,pit);
 		
-		return std::make_pair(fit,eit);
+		//return std::make_pair(fit,eit);
+		return pit;
 	} 
 	
 	
@@ -241,17 +260,22 @@ public:
 						 int i,
 						 std::pair<OutputItFaces,OutputItBoundaryEdges>  pit)  const {
 		Face_handle fn = fh->neighbor(i);
-				
+		//if (fn->get_in_conflict_flag() ==1)
+			//return pit;		
 		if ( fh->is_constrained(i) || ! test_conflict(p,fn)) {
 			*(pit.second)++ = Edge(fn, fn->index(fh));
 		} else {
 			*(pit.first)++ = fn;
+			//fn->set_in_conflict_flag(1);
 			int j = fn->index(fh);
 			pit = propagate_conflicts(p,fn,ccw(j),pit);
 			pit = propagate_conflicts(p,fn,cw(j), pit);
 		}
 		return pit;
 	}
+	
+	
+	
 	
 	
 	template <class OutputItFaces>
@@ -341,11 +365,10 @@ public:
 	
 	
 	
-		template<class EdgeIt>
+	template<class EdgeIt>
 	Vertex_handle star_hole( const Point& p, EdgeIt edge_begin, EdgeIt edge_end) {
 		std::list<Face_handle> empty_list;
-		return star_hole(p, edge_begin, edge_end, 
-						 empty_list.begin(), empty_list.end());
+		return star_hole(p, edge_begin, edge_end, empty_list.begin(), empty_list.end());
 	}
 	
 	template<class EdgeIt, class FaceIt>
@@ -353,7 +376,8 @@ public:
 							FaceIt face_begin, FaceIt face_end)
 	{
 		Vertex_handle v =  this->_tds.star_hole( edge_begin, edge_end, 
-									      face_begin, face_end);
+												face_begin, face_end);
+		v->set_point(p);
 		// restore constraint status for new faces.
 		int vindex;
 		Face_handle fh;
@@ -367,6 +391,8 @@ public:
 			ih = this->mirror_index(fc,vindex);
 			fc->set_constraint(vindex, fh->is_constrained(ih));
 		} while (++fc != done);
+		
+		DTS::update_ghost_faces(v);
 		return v;
 	}
 	
@@ -392,11 +418,6 @@ public:
 		
 		return number_of_vertices() - n;
 	}
-	
-	
-	
-	
-	
 	
 };	//end class
 	
@@ -1071,6 +1092,27 @@ flip (Face_handle& f, int i)
 	return;
 }
 
+	//---------Construction-------------
+	template<class Gt, class Tds>
+	inline
+	typename Constrained_Delaunay_triangulation_sphere_2<Gt,Tds>::Point
+	Constrained_Delaunay_triangulation_sphere_2<Gt,Tds>::
+	circumcenter (const Point& p0, const Point& p1, const Point&  p2) const
+	{
+		return 
+		DTS::geom_traits().construct_circumcenter_2_object()(p0,p1,p2);
+	}
+	
+	
+	template <class Gt, class Tds >
+	typename Constrained_Delaunay_triangulation_sphere_2<Gt, Tds>::Point
+	Constrained_Delaunay_triangulation_sphere_2<Gt, Tds>::
+	circumcenter(Face_handle  f) const
+	{
+		return circumcenter((f->vertex(0))->point(), 
+							(f->vertex(1))->point(), 
+							(f->vertex(2))->point());
+	}
 	
 	
 	
