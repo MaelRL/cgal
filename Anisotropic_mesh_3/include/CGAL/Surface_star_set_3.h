@@ -2049,6 +2049,7 @@ public:
                       const double& starttime,
                       const int max_count = INT_MAX) 
       {
+        //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
         t.start();
         fill_refinement_queue();         
@@ -2075,6 +2076,7 @@ public:
 public:
       void refine_all(const int max_count = INT_MAX) 
       {
+        //if you modify this, do not forget to also modify the demo
 #ifdef ANISO_VERBOSE
         std::cout << "\nRefine all...";
         std::clock_t start_time = clock();
