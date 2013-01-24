@@ -28,12 +28,6 @@ std::string output_filename(const double& a,
 
 int main(int argc, char* argv[])
 {
-#ifdef ANISO_USE_EIGEN
-  std::cout << "Use Eigen" << std::endl;
-#else
-  std::cout << "Don't use Eigen" << std::endl;
-#endif
-
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 

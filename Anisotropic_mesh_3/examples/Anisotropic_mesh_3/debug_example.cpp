@@ -119,7 +119,6 @@ int main()
   file_poly_max.close();
   file_poly_third.close();
 
-//#ifdef ANISO_USE_EIGEN
 //  std::cout << "\nEigenvalues :\n";
 //  Point_3 pn = point_on_torus(R, r, 0.1, 0.5*CGAL_PI);
 //  Point_3 ps = point_on_torus(R, r, 0.1, 1.5*CGAL_PI);
@@ -149,7 +148,6 @@ int main()
 //  std::cout << "West : \n";
 //  std::cout << "   c_min = " <<  ((mfd.get_min_eigenvalue() - 1.) / lambda) << std::endl;
 //  std::cout << "   c_max = " <<  ((mfd.get_max_eigenvalue() - 1.) / lambda) << std::endl;
-//#endif
 
   return 0;
 }
