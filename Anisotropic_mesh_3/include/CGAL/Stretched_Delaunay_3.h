@@ -1722,6 +1722,11 @@ public:
         m_metric.get_max_eigenvector(vec);
         ::glColor3f(250.,0.,0.);
         gl_draw_arrow<K>(p, p+val*coeff*vec);
+
+        val = m_metric.get_third_eigenvalue();
+        m_metric.get_third_eigenvector(vec);
+        ::glColor3f(0.,250.,0.);
+        gl_draw_arrow<K>(p, p+val*coeff*vec);
       }
 
       bool is_above_plane(const typename K::Plane_3& plane,
@@ -1812,14 +1817,21 @@ public:
         return false;
       }
 
-      void gl_draw_surface_delaunay_balls() const
+      void gl_draw_surface_delaunay_balls(const typename K::Plane_3& plane) const
       {
+        if(!is_above_plane(plane, this->center_point()))
+          return;
+
         Facet_set_iterator fit = begin_boundary_facets();
         Facet_set_iterator fend = end_boundary_facets();
         for(; fit != fend; fit++)
         {
           Facet f = *fit;
           Point_3 c;
+          if(!is_above_plane(plane, f.first->vertex((f.second+1) % 4)->point(),
+                                   f.first->vertex((f.second+2) % 4)->point(),
+                                   f.first->vertex((f.second+3) % 4)->point()))
+            continue;
 #ifdef ANISO_USE_EXACT
           this->compute_exact_dual_intersection(f, c);
 #else

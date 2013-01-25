@@ -2241,14 +2241,15 @@ public:
           m_stars[star_id]->gl_draw_dual();
       }
 
-      void gl_draw_surface_delaunay_balls(const int star_id = -1) const
+      void gl_draw_surface_delaunay_balls(const typename K::Plane_3& plane,
+                                          const int star_id = -1) const
       {
         std::cout << star_id << " ";
         if(star_id < 0)
           for(std::size_t i = 0; i < m_stars.size(); i++)
-            m_stars[i]->gl_draw_surface_delaunay_balls();
+            m_stars[i]->gl_draw_surface_delaunay_balls(plane);
         else
-          m_stars[star_id]->gl_draw_surface_delaunay_balls();
+          m_stars[star_id]->gl_draw_surface_delaunay_balls(plane);
       }
 
       void gl_draw_inconsistent_facets(const int star_id = -1) const

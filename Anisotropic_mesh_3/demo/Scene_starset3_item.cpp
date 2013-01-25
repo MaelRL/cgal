@@ -189,7 +189,7 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_dual)
     star_set().gl_draw_dual(m_draw_star_id-1);
   if(m_draw_surface_delaunay_balls)
-    star_set().gl_draw_surface_delaunay_balls(m_draw_star_id-1);
+    star_set().gl_draw_surface_delaunay_balls(plane, m_draw_star_id-1);
   if(m_draw_inconsistent_facets)
     star_set().gl_draw_inconsistent_facets(m_draw_star_id-1);
   if(m_draw_metric_field){

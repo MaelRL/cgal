@@ -2,6 +2,7 @@
 #define DRAWING_HELPER_H
 
 #include <CGAL/gl.h>
+#include <CGAL/glu.h>
 #include <cmath>
 //#include <QColor>
 
@@ -76,17 +77,19 @@ void gl_draw_sphere(const typename Kernel::Sphere_3& s)
   const GLdouble r = std::sqrt(s.squared_radius());
 
   GLint polygon_mode[2];
-  ::glGetIntegerv(GL_POLYGON_MODE, &polygon_mode[0]);
-  ::glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
-
-  //  CGALglcolor(Qt::red);
-  ::glPolygonMode(GL_FRONT_AND_BACK, polygon_mode[0]);
   ::glPushMatrix();
 
+  ::glGetIntegerv(GL_POLYGON_MODE, &polygon_mode[0]);
+  ::glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
   ::glTranslated(CGAL::to_double(c.x()), CGAL::to_double(c.y()), CGAL::to_double(c.z()));
-  ::glScaled(r, r, r);
-  ::glPopMatrix();
 
+  GLUquadric *quad = gluNewQuadric();
+  ::gluQuadricDrawStyle(quad, GLU_FILL);
+  ::glColor3f(1.0f, 1.0f, 0.0f);
+  ::gluSphere(quad, r, 40, 40);
+  ::gluDeleteQuadric(quad);
+
+  ::glPopMatrix();
 }
 
 template<typename Kernel>
