@@ -136,6 +136,7 @@ public:
 	using DTS::insert_cocircular;
 	using DTS::update_ghost_faces;
 	using DTS::test_conflict;
+	using DTS::geom_traits;
 	using DTS::FACE;
 	using DTS::VERTEX;
 	using DTS::NOT_ON_SPHERE;
@@ -190,6 +191,9 @@ public:
 								List_edges & list_ba,
 								Vertex_handle & vi) ;
 	
+	
+	Face_handle locate(const Point& p,Locate_type& lt,int& li, Face_handle start) const;
+	
 	class Less_edge 
 	:  public std::binary_function<Edge, Edge, bool>
 	{
@@ -235,21 +239,20 @@ public:
 			int li;
 			Locate_type lt;
 			Face_handle fh = locate(p,lt,li, start);
-			
-		//CGAL_triangulation_precondition(fh !=Face_handle());
-		//CGAL_triangulation_precondition(test_conflict(p,fh)); 
 		
-		
+					
 		*fit++ = fh; 
-		//fh->set_in_conflict_flag(1);
 		std::pair<OutputItFaces,OutputItBoundaryEdges>
 		pit = std::make_pair(fit,eit);
+		if (lt ==TOO_CLOSE || lt == VERTEX) 
+			return pit;
+		
 		pit = propagate_conflicts(p,fh,0,pit);
 		pit = propagate_conflicts(p,fh,1,pit);
 		pit = propagate_conflicts(p,fh,2,pit);
 		
-		//return std::make_pair(fit,eit);
-		return pit;
+		return std::make_pair(fit,eit);
+		
 	} 
 	
 	
@@ -260,13 +263,10 @@ public:
 						 int i,
 						 std::pair<OutputItFaces,OutputItBoundaryEdges>  pit)  const {
 		Face_handle fn = fh->neighbor(i);
-		//if (fn->get_in_conflict_flag() ==1)
-			//return pit;		
 		if ( fh->is_constrained(i) || ! test_conflict(p,fn)) {
 			*(pit.second)++ = Edge(fn, fn->index(fh));
 		} else {
 			*(pit.first)++ = fn;
-			//fn->set_in_conflict_flag(1);
 			int j = fn->index(fh);
 			pit = propagate_conflicts(p,fn,ccw(j),pit);
 			pit = propagate_conflicts(p,fn,cw(j), pit);
@@ -375,15 +375,18 @@ public:
 	Vertex_handle star_hole( const Point& p, EdgeIt edge_begin, EdgeIt edge_end,
 							FaceIt face_begin, FaceIt face_end)
 	{
+		//Vertex_handle v = this->_tds.star_hole(edge_begin, edge_end);
 		Vertex_handle v =  this->_tds.star_hole( edge_begin, edge_end, 
 												face_begin, face_end);
 		v->set_point(p);
 		// restore constraint status for new faces.
+		
 		int vindex;
 		Face_handle fh;
 		int ih;
 		Face_circulator fc = incident_faces(v), done(fc);
 		do {
+			fc->set_in_conflict_flag(0);
 			vindex = fc->index(v);
 			fc->set_constraint(cw(vindex), false);
 			fc->set_constraint(ccw(vindex), false);
@@ -391,8 +394,9 @@ public:
 			ih = this->mirror_index(fc,vindex);
 			fc->set_constraint(vindex, fh->is_constrained(ih));
 		} while (++fc != done);
-		
+		//DTS::delete_faces(face_begin, face_end);
 		DTS::update_ghost_faces(v);
+		
 		return v;
 	}
 	
@@ -1115,8 +1119,17 @@ flip (Face_handle& f, int i)
 	}
 	
 	
-	
-	
+	//--------
+	template <class Gt, class Tds >
+	typename Constrained_Delaunay_triangulation_sphere_2<Gt, Tds>::Face_handle
+	Constrained_Delaunay_triangulation_sphere_2<Gt,Tds>::
+	locate(const Point& p,Locate_type& lt,int& li, Face_handle start) const{
+		Face_handle fh= DTS::locate(p,lt,li,start);
+		
+		if(lt == TOO_CLOSE)
+			lt = VERTEX;
+		return fh;
+	}	
 	
  
  }//end namespace
