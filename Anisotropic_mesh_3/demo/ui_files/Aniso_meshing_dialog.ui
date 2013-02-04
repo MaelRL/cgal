@@ -281,6 +281,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="decimals">
+         <number>3</number>
+        </property>
         <property name="singleStep">
          <double>0.100000000000000</double>
         </property>

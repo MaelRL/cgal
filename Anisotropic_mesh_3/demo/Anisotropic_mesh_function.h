@@ -197,7 +197,7 @@ launch()
 #ifdef ANISO_DEBUG
         std::ostringstream oss;
         oss << "out_" << nbv << ".off";
-        output(oss.str().c_str(), false/*consistent_only*/);
+        smesher_->star_set.output(oss.str().c_str(), false/*consistent_only*/);
 #endif
        }
 
