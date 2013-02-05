@@ -99,9 +99,8 @@ public:
   }
   virtual double global_min_curvature() const
   {
-    return 1./(R+r);
+    return 0.; //in theory -1/(R-r), but positive values taken only
   }
-
 
   Point_3 point_on_surface(const FT& u/*small circle*/, 
                            const FT& v/*big circle*/) const

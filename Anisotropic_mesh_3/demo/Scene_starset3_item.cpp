@@ -57,8 +57,8 @@ struct Scene_starset3_item_priv
   Scene_starset3_item_priv(const Criteria& criteria,
                            const Metric& metric,
                            const Constrain_surface* const surface,
-                           const int nb_initial_points) 
-    : star_set(criteria, metric, surface, nb_initial_points) 
+                           const int nb_initial_points)
+    : star_set(criteria, metric, surface, nb_initial_points)
   {}
 
   Surface_star_set star_set;
@@ -80,12 +80,12 @@ Scene_starset3_item(const Criteria& criteria,
   m_draw_surface_delaunay_balls(false),
   m_draw_star_id(-1),
   m_draw_inconsistent_facets(false),
-  m_draw_metric_field(false)
+  m_draw_metric_field(false),
+  m_draw_metric_eps(metric.epsilon)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));
   starset_changed();
 }
-
 
 Scene_starset3_item::~Scene_starset3_item()
 {
@@ -123,12 +123,14 @@ Scene_starset3_item::bbox() const
     bool initialized = false;
     CGAL::Bbox_3 result;
     unsigned int N = star_set().m_stars.size();
-    for(unsigned int i = 1; i < N; i++)
+    for(unsigned int i = 0; i < N; i++)
     {
       if(star_set().m_stars[i]->is_surface_star())
       {
-        if(!initialized)
+        if(!initialized){
           result = star_set().m_stars[i]->center_point().bbox();
+          initialized = true;
+        }
         else
           result = result + star_set().m_stars[i]->center_point().bbox();
       }
@@ -187,11 +189,15 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_dual)
     star_set().gl_draw_dual(m_draw_star_id-1);
   if(m_draw_surface_delaunay_balls)
-    star_set().gl_draw_surface_delaunay_balls(m_draw_star_id-1);
+    star_set().gl_draw_surface_delaunay_balls(plane, m_draw_star_id-1);
   if(m_draw_inconsistent_facets)
     star_set().gl_draw_inconsistent_facets(m_draw_star_id-1);
-  if(m_draw_metric_field)
-    star_set().gl_draw_metric(plane, m_draw_star_id-1);
+  if(m_draw_metric_field){
+    Scene_item::Bbox mf_bbox = this->bbox();
+    double bbox_min = std::min(mf_bbox.depth(), mf_bbox.height());
+    bbox_min = std::min(bbox_min, mf_bbox.width());
+    star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id-1);
+  }
 
   if(!two_side) ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
   if(lighting)  ::glEnable(GL_LIGHTING);

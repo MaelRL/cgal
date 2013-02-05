@@ -14,12 +14,6 @@ int main(int argc, char* argv[])
 {
   std::ofstream fx("experiment.txt");
 
-#ifdef ANISO_USE_EIGEN
-  std::cout << "Use Eigen" << std::endl;
-#else
-  std::cout << "Don't use Eigen" << std::endl;
-#endif
-
   CGAL::default_random = CGAL::Random(0);
 
   K::FT R = (argc > 1) ? atof(argv[1]) : 10.;

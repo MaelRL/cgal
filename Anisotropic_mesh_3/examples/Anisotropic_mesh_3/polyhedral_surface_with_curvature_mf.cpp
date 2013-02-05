@@ -56,11 +56,13 @@ int main(int argc, char *argv[])
                             2.5, //beta_
                             0.3);//delta_
 
-  Constrain_surface_3_polyhedral<K>* pdomain
-    = new Constrain_surface_3_polyhedral<K>(argv[1]);  
+  double epsilon = (argc > 4) ? atof(argv[4]) : (0.1);
+  // * pdomain->global_max_curvature());
 
-  double lambda = (argc > 4) ? atof(argv[4]) : (0.1 * pdomain->global_max_curvature());
-  Polyhedral_curvature_metric_field<K> metric_field(*pdomain, lambda);	
+  Constrain_surface_3_polyhedral<K>* pdomain
+    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);  
+
+  Polyhedral_curvature_metric_field<K> metric_field(*pdomain, epsilon);	
   
   //Criteria_base<K> criteria(3.0, 0.2, 0.1, 1.8, 2.5, 0.3);
   //Euclidean_metric_field<K> metric_field;

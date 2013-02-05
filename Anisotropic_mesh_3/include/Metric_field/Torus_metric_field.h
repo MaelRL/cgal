@@ -26,26 +26,25 @@ template<typename K>
 class Torus_metric_field : public Metric_field<K> 
 {
 public:
-	typedef Metric_field<K>        Base;
-	typedef typename Base::FT      FT;
-	typedef typename Base::Metric  Metric;
-	typedef typename Base::Point_3 Point_3;
-	typedef typename Base::Vector_3 Vector_3;
+    typedef Metric_field<K>        Base;
+    typedef typename Base::FT      FT;
+    typedef typename Base::Metric  Metric;
+    typedef typename Base::Point_3 Point_3;
+    typedef typename Base::Vector_3 Vector_3;
 
 public:
-	FT epsilon;
-	FT R, r;
+    FT R, r;
 
 public:
-	virtual void report(typename std::ofstream &fx) const 
+    virtual void report(typename std::ofstream &fx) const
   {
-		fx << "type:   torus" << std::endl;
-		fx << "eps:    " << epsilon << std::endl;
-		fx << "R:      " << R << std::endl;
-		fx << "r:      " << r << std::endl;
-	}
+    fx << "type:   torus" << std::endl;
+    fx << "eps:    " << this->epsilon << std::endl;
+    fx << "R:      " << R << std::endl;
+    fx << "r:      " << r << std::endl;
+  }
 
-	virtual Metric compute_metric(const Point_3 &p) const 
+    virtual Metric compute_metric(const Point_3 &p) const
   {
     FT x = p.x(), y = p.y(), z = p.z();
     FT ll = sqrt(x * x + y * y);
@@ -66,11 +65,29 @@ public:
     Vector_3 n = g;
     Vector_3 v1 = (1./std::sqrt(px*px)) * px;
     Vector_3 v2 = (1./std::sqrt(t*t)) * t;
-    return Metric(n, v2, v1, 1., (1./r), (1./R), epsilon);
+
+    bool is_closer = (ll < R);
+    FT Phi = std::abs(std::asin(z/r));
+    if(is_closer)
+      Phi = M_PI - Phi;
+
+      //correct curvature
+    //FT e1 = std::max(std::abs(std::cos(Phi)/(R+r*std::cos(Phi))), this->epsilon );
+    //FT e2 = std::max(1./r, this->epsilon);
+
+      //naive curvature
+    FT e1 = std::max(1./R, this->epsilon);
+    FT e2 = std::max(1./r, this->epsilon);
+
+      //good looking curvature
+    //FT e1 = std::max(1./(R-r*std::cos(Phi)), this->epsilon);
+    //FT e2 = std::max(1./r, this->epsilon);
+
+    return Metric(n, v2, v1, e2, e2, e1, this->epsilon);
   }
-	
+
   Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT epsilon_ = 1.0) 
-    : epsilon(epsilon_), R(R_), r(r_) { }
+   : Metric_field<K>(epsilon_), R(R_), r(r_) { }
 };
 
 #endif //CGAL_ANISOTROPIC_MESH_3_TORUS_METRIC_FIELD

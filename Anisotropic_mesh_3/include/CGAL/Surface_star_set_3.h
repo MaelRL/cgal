@@ -1273,7 +1273,7 @@ public:
             {
               int index_1 = (offset + i + 1) % 4;
               int index_2 = (offset + (i + 1) % 3 + 1) % 4;
-              FT over_distortion = 					
+              FT over_distortion =
                 m_stars[cell->vertex(index_1)->info()]->metric().compute_distortion(
                 m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria.distortion;
               if (over_distortion > 0) 
@@ -1542,7 +1542,7 @@ public:
           star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false);
             //no condition because they should be there for consistency
         }
-        
+
         typename Star::Bbox bbox = star->bbox(); // volume bbox when star is not a topo_disk
         Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
         Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());          
@@ -1562,6 +1562,40 @@ public:
             star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
           }
         }
+
+
+#ifdef ANISO_DEBUG
+        typename Star::Facet_set_iterator it = star->begin_boundary_facets();
+        typename Star::Facet_set_iterator itend = star->end_boundary_facets();
+        for(; it != itend; it++)
+        {
+          Facet f = *it;
+          Vertex_handle v1 = f.first->vertex((f.second+1)%4);
+          Vertex_handle v2 = f.first->vertex((f.second+2)%4);
+          Vertex_handle v3 = f.first->vertex((f.second+3)%4);
+
+          double deg_value = 1e-4;
+          bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value ||
+                                std::abs(v1->point().y()-v2->point().y()) < deg_value ||
+                                std::abs(v1->point().z()-v2->point().z()) < deg_value ) ||
+                               (std::abs(v2->point().x()-v3->point().x()) < deg_value ||
+                                std::abs(v2->point().y()-v3->point().y()) < deg_value ||
+                                std::abs(v2->point().z()-v3->point().z()) < deg_value ) ||
+                               (std::abs(v1->point().x()-v3->point().x()) < deg_value ||
+                                std::abs(v1->point().y()-v3->point().y()) < deg_value ||
+                                std::abs(v1->point().z()-v3->point().z()) < deg_value ) );
+
+          if(degenerated){
+              std::cout.precision(15);
+              std::cout << "building bad facet : " << pid << std::endl;
+              std::cout << v1->point() << std::endl;
+              std::cout << v2->point() << std::endl;
+              std::cout << v3->point() << std::endl;
+              std::cout << "p was : " << p << std::endl;
+          }
+        }
+#endif
+
 #ifdef USE_ANISO_TIMERS
         m_create_star_timer += duration(start_time);
 #endif
@@ -1591,23 +1625,40 @@ public:
         if (!next_refine_cell(bad_facet, f, need_picking_valid, queue_type))
           return false;
 
-        if(queue_type == 0) // encroachment
-        { 
-          std::cerr << "Error : encroachment is not implemented.\n";
-          vertex_without_picking_count++;
-          return true;
-        } 
- 
         Vertex_handle v1 = f.first->vertex((f.second+1)%4);
         Vertex_handle v2 = f.first->vertex((f.second+2)%4);
         Vertex_handle v3 = f.first->vertex((f.second+3)%4);
-        
+
+#ifdef ANISO_DEBUG
+        double deg_value = 1e-4;
+        bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value ||
+                              std::abs(v1->point().y()-v2->point().y()) < deg_value ||
+                              std::abs(v1->point().z()-v2->point().z()) < deg_value ) ||
+                             (std::abs(v2->point().x()-v3->point().x()) < deg_value ||
+                              std::abs(v2->point().y()-v3->point().y()) < deg_value ||
+                              std::abs(v2->point().z()-v3->point().z()) < deg_value ) ||
+                             (std::abs(v1->point().x()-v3->point().x()) < deg_value ||
+                              std::abs(v1->point().y()-v3->point().y()) < deg_value ||
+                              std::abs(v1->point().z()-v3->point().z()) < deg_value) );
+
+        if(degenerated){
+            std::cout << "trying to refine a degenerated facet" << std::endl;
+        }
+#endif
+
+        Index_set modified_stars;// the ones that would be modified by p's insertion
+        if (queue_type == 0) // encroachment
+        { 
+          std::cerr << "Error : encroachment is not implemented.\n";
+          vertex_without_picking_count++;
+          return true; //note false would stop refinement
+        } 
+         
         Point_3 steiner_point = compute_steiner_point(bad_facet.star, f, need_picking_valid);
 
         if(!m_refinement_condition(steiner_point))
-          return true;
+          return true; //note false would stop refinement
 
-        Index_set modified_stars;
         int pid = insert(steiner_point, modified_stars, true/*conditional*/);
         
         //check if f has been destroyed
@@ -1636,7 +1687,13 @@ public:
               int index2 = 6 - i - j - k;
               if(bad_facet.star->is_restricted(bad_facet.star->make_canonical(Facet(c,index2))))
               {
-                std::cerr << " dim = " << bad_facet.star->dimension();
+                std::cout.precision(15);
+                std::cout << "Bad facet still in : " << bad_facet.star << std::endl;
+                std::cout << "\tp1 : " << v1->point() << std::endl;
+                std::cout << "\tp2 : " << v2->point() << std::endl;
+                std::cout << "\tp3 : " << v3->point() << std::endl;
+             
+                std::cerr << ", dim = " << bad_facet.star->dimension();
                 std::cerr << ", nbv = " << bad_facet.star->number_of_vertices();
                 std::cerr << ", pid = " << pid;
                 std::cerr << ", p = " << steiner_point;
@@ -1997,7 +2054,7 @@ public:
         return count;
       }
 
-private:
+public:
       void clean_stars() //remove useless vertices
       {
         for(std::size_t i = 0; i < m_stars.size(); i++)
@@ -2029,6 +2086,7 @@ public:
                       const double& starttime,
                       const int max_count = INT_MAX) 
       {
+        //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
         t.start();
         fill_refinement_queue();         
@@ -2055,6 +2113,7 @@ public:
 public:
       void refine_all(const int max_count = INT_MAX) 
       {
+        //if you modify this, do not forget to also modify the demo
 #ifdef ANISO_VERBOSE
         std::cout << "\nRefine all...";
         std::clock_t start_time = clock();
@@ -2139,7 +2198,7 @@ public:
               {
                 int index_1 = (f.second + i + 1) % 4;
                 int index_2 = (f.second + (i + 1) % 3 + 1) % 4;
-                FT distortion = 					
+                FT distortion =
                   m_stars[f.first->vertex(index_1)->info()]->metric().compute_distortion(
                   m_stars[f.first->vertex(index_2)->info()]->metric());
 
@@ -2157,7 +2216,7 @@ public:
       }
 
 
-private:
+public:
     double duration(const time_t& start) const
     {
       return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
@@ -2199,13 +2258,18 @@ public:
       }
 
       void gl_draw_metric(const typename K::Plane_3& plane,
+                          double bbox_min, double eps,
                           const int star_id = -1/*only this one*/) const 
       {
+        double coeff = bbox_min/20;
+        double glob_min = std::max(eps, m_pConstrain->global_min_curvature());
+        coeff *= glob_min;
+
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
-            m_stars[i]->gl_draw_metric(plane);
+            m_stars[i]->gl_draw_metric(plane, coeff);
         else
-          m_stars[star_id]->gl_draw_metric(plane);
+          m_stars[star_id]->gl_draw_metric(plane, coeff);
       }
 
       void gl_draw_dual(const int star_id = -1) const
@@ -2217,14 +2281,15 @@ public:
           m_stars[star_id]->gl_draw_dual();
       }
 
-      void gl_draw_surface_delaunay_balls(const int star_id = -1) const
+      void gl_draw_surface_delaunay_balls(const typename K::Plane_3& plane,
+                                          const int star_id = -1) const
       {
         std::cout << star_id << " ";
         if(star_id < 0)
           for(std::size_t i = 0; i < m_stars.size(); i++)
-            m_stars[i]->gl_draw_surface_delaunay_balls();
+            m_stars[i]->gl_draw_surface_delaunay_balls(plane);
         else
-          m_stars[star_id]->gl_draw_surface_delaunay_balls();
+          m_stars[star_id]->gl_draw_surface_delaunay_balls(plane);
       }
 
       void gl_draw_inconsistent_facets(const int star_id = -1) const

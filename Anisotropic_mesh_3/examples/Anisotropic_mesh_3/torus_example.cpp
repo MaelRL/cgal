@@ -48,11 +48,6 @@ int main(int argc, char* argv[])
 {
   std::ofstream fx("torus_timings.txt");
 
-#ifdef ANISO_USE_EIGEN
-  std::cout << "Use Eigen" << std::endl;
-#else
-  std::cout << "Don't use Eigen" << std::endl;
-#endif
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 
@@ -103,7 +98,7 @@ int main(int argc, char* argv[])
   typedef Is_between<K::Plane_3, K::Point_3> RCondition;
 
   RCondition condition(plane1, plane2, (xcondition == 1));
-//  Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, condition);
+  //Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, condition);
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
   timer.stop();
@@ -112,9 +107,8 @@ int main(int argc, char* argv[])
   starset.refine_all();
 
   //starset.refine_all(fx, starttime);
-
-  timer.stop();
-  std::cerr << timer.time() << " seconds" << std::endl;
+  //timer.stop();
+  //std::cerr << timer.time() << " seconds" << std::endl;
 
   std::string file = output_filename(R, r);
   starset.output(file.c_str());
