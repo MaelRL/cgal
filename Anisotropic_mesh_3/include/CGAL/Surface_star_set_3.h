@@ -1641,7 +1641,7 @@ public:
                               std::abs(v1->point().z()-v3->point().z()) < deg_value) );
 
         if(degenerated){
-            std::cout << "trying to refine a degenerated facet" << std::endl;
+            std::cout << "trying to refine a degenerate facet" << std::endl;
         }
 #endif
 
@@ -1670,27 +1670,29 @@ public:
           Facet ff = bad_facet.star->make_canonical(Facet(c,index));
           if(bad_facet.star->is_restricted(ff))
           {
-            std::cerr << "Error: facet(" << v1->info() << " " << v2->info();
-            std::cerr << " " << v3->info() << ") not destroyed" << std::endl;
-            std::cerr << " by ("<< steiner_point <<")" << std::endl;              
-        
-            steiner_point = compute_exact_steiner_point(bad_facet.star, ff, need_picking_valid);
-              
             modified_stars.clear();
             pop_back_star();
-            pid = insert(steiner_point, modified_stars, true/*conditional*/);
-
-#ifdef ANISO_DEBUG
             if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
             {
-              int index2 = 6 - i - j - k;
-              if(bad_facet.star->is_restricted(bad_facet.star->make_canonical(Facet(c,index2))))
+              index = 6 - i - j - k;
+              ff = bad_facet.star->make_canonical(Facet(c,index));
+
+              steiner_point = compute_exact_steiner_point(bad_facet.star, ff, need_picking_valid);
+              pid = insert(steiner_point, modified_stars, true/*conditional*/);
+            }
+
+#ifdef ANISO_DEBUG_REFINEMENT
+            if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
+            {
+              index = 6 - i - j - k;
+              ff = bad_facet.star->make_canonical(Facet(c,index));
+              if(bad_facet.star->is_restricted(ff))
               {
                 std::cout.precision(15);
                 std::cout << "Bad facet still in : " << bad_facet.star << std::endl;
-                std::cout << "\tp1 : " << v1->point() << std::endl;
-                std::cout << "\tp2 : " << v2->point() << std::endl;
-                std::cout << "\tp3 : " << v3->point() << std::endl;
+                std::cout << "\tp"<< v1->info() <<" : " << v1->point() << std::endl;
+                std::cout << "\tp"<< v2->info() <<" : " << v2->point() << std::endl;
+                std::cout << "\tp"<< v3->info() <<" : " << v3->point() << std::endl;
              
                 std::cerr << ", dim = " << bad_facet.star->dimension();
                 std::cerr << ", nbv = " << bad_facet.star->number_of_vertices();
@@ -1698,8 +1700,11 @@ public:
                 std::cerr << ", p = " << steiner_point;
                 std::cerr << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
                 std::cerr << std::endl;
+                bad_facet.star->debug_steiner_point(steiner_point, ff);
               }
             }
+            else
+              std::cerr << "Switching to exact succeeded" << std::endl;
 #endif
           }
         }

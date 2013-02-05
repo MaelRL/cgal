@@ -1642,6 +1642,21 @@ public:
         return p;
       }
 
+      void debug_steiner_point(const Point_3& steiner_point, 
+                               const Facet& f)
+      {
+        Point_3 p;
+        compute_exact_dual_intersection(f,p);
+
+        const TPoint_3& pf = f.first->vertex((f.second+1)&3)->point();
+        const TPoint_3& center = m_metric.transform(p);
+        const TPoint_3& steiner = m_metric.transform(steiner_point);
+
+        Sphere s(center, CGAL::squared_distance(center, pf));
+        if(s.has_on_unbounded_side(steiner))
+          std::cerr << "Error : Steiner point is outside surface Delaunay ball" << std::endl;
+      }
+
       //not used yet
       //bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet) 
       //{
