@@ -6,7 +6,7 @@
 #include <Domain/Constrain_surface_3_sphere.h>
 //#include <Domain/Constrain_surface_3_ellipse.h>
 
-#include <Metric_field/Arctan_metric_field.h>
+//#include <Metric_field/Arctan_metric_field.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
 //#include <CGAL/Euclidean_metric_field.h>
 
@@ -20,8 +20,6 @@ typedef Anisotropic_surface_mesher_3<K> Mesher;
 int main(int argc, char* argv[])
 {
     CGAL::default_random = CGAL::Random(0);
-
-    //Criteria_base<K> criteria(3.0, 0.2, 0.5, 1.3, 2.5, 0.3);
 
     K::FT r0 = (argc > 1) ? atof(argv[1]) : 1.0/*default*/;
     K::FT gamma0 = (argc > 2) ? atof(argv[2]) : 1.3;
@@ -40,7 +38,7 @@ int main(int argc, char* argv[])
       = new Constrain_surface_3_ellipse<K>(2., 2., 1.);
 */
 //    Arctan_metric_field<K> metric_field(5.0, 0.2, 0.1);
-    Hyperbolic_shock_metric_field<K> metric_field(0.6, 0.4, epsilon);
+    Hyperbolic_shock_metric_field<K> metric_field(0.6, epsilon);
     /*Euclidean_metric_field<K> metric_field;
     if(argc > 1)
     {
@@ -52,7 +50,8 @@ int main(int argc, char* argv[])
     Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
     Mesher mesher(starset);
     mesher.refine_all();
-    mesher.output(std::string("sphere_arctan.off"));
+    //mesher.output(std::string("sphere_arctan.off"));
+    mesher.output(std::string("sphere_shock.off"));
         
     delete pdomain;
     return 0;
