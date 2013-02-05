@@ -252,11 +252,9 @@ private:
       bool is_valid_point(const Point_3 &p, 
                           const FT& sq_radius_bound, // in M_{star to_be_refined}
                           Star_handle to_be_refined,
-                          Star_handle& new_star, 
-                          Index_set& modified_stars) const
+                          Star_handle& new_star) const
       {
-        modified_stars.clear();
-        
+        Index_set modified_stars;
         int id = simulate_insert_to_stars(p, modified_stars);        
         if(id < 0) 
           return false;
@@ -741,8 +739,7 @@ private:
       }
       
       Point_3 pick_valid(const Star_handle star, //to be refined
-                         const Facet &facet, //belongs to star and should be refined
-                         Index_set& modified_stars) const
+                         const Facet &facet) const //belongs to star and should be refined
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -780,14 +777,13 @@ private:
           TPoint_3 random_point = random(tccf, tcccell, circumradius);          
           p = star->compute_steiner_dual_intersection(random_point, facet);
           
-          if(is_valid_point(p, sq_radiusbound, star, retstar, modified_stars))
+          if(is_valid_point(p, sq_radiusbound, star, retstar))
           {            
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             break;
           }
           if((tried_times++) > m_criteria.max_times_to_try_in_picking_region) 
           {
-            modified_stars.clear();
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             break;
@@ -851,10 +847,9 @@ private:
       }
 
       Point_3 compute_insert_or_snap_valid_point(const Star_handle star, 
-                                                 const Facet &facet, 
-                                                 Index_set& modified_stars) const
+                                                 const Facet &facet) const
       {
-        Point_3 p = pick_valid(star, facet, modified_stars);
+        Point_3 p = pick_valid(star, facet);
         
         // test encroachment
 #ifdef CHECK_EDGE_ENCROACHMENT
@@ -912,34 +907,34 @@ private:
         return id;
       }
 
-      Index insert(const Point_3& p,  
-                   Index_set& modified_stars, // should not be empty
-                   Star_handle new_star,
-                   const bool conditional)
-      {
-#ifdef USE_ANISO_TIMERS
-        std::clock_t start_time = clock();
-#endif
-        Star_set target_stars = get_stars(modified_stars.begin(), modified_stars.end());
-        Index id = perform_insertions(p, new_star->index_in_star_set(),
-                                      target_stars, modified_stars, conditional);
-        if(id != new_star->index_in_star_set())
-          return id;
-        
-        if(new_star->index_in_star_set() != m_stars.size())
-          std::cout << "WARNING in insert..." << std::endl;
-
-        m_stars.push_back(new_star);             
-        modified_stars.insert(new_star->index_in_star_set());
-        m_kd_tree.insert(new_star->index_in_star_set());
-#ifndef NO_USE_AABB_TREE_OF_BBOXES
-        m_aabb_tree.insert(AABB_primitive(new_star));
-#endif
-#ifdef USE_ANISO_TIMERS
-        m_insert_timer += duration(start_time);
-#endif
-        return id;
-      }
+//      Index insert(const Point_3& p,  
+//                   Index_set& modified_stars, // should not be empty
+//                   Star_handle new_star,
+//                   const bool conditional)
+//      {
+//#ifdef USE_ANISO_TIMERS
+//        std::clock_t start_time = clock();
+//#endif
+//        Star_set target_stars = get_stars(modified_stars.begin(), modified_stars.end());
+//        Index id = perform_insertions(p, new_star->index_in_star_set(),
+//                                      target_stars, modified_stars, conditional);
+//        if(id != new_star->index_in_star_set())
+//          return id;
+//        
+//        if(new_star->index_in_star_set() != m_stars.size())
+//          std::cout << "WARNING in insert..." << std::endl;
+//
+//        m_stars.push_back(new_star);             
+//        modified_stars.insert(new_star->index_in_star_set());
+//        m_kd_tree.insert(new_star->index_in_star_set());
+//#ifndef NO_USE_AABB_TREE_OF_BBOXES
+//        m_aabb_tree.insert(AABB_primitive(new_star));
+//#endif
+//#ifdef USE_ANISO_TIMERS
+//        m_insert_timer += duration(start_time);
+//#endif
+//        return id;
+//      }
 
       Index insert_in_domain(const Point_3& p, const bool conditional)
       {
@@ -1589,7 +1584,6 @@ public:
 
       bool refine() 
       {
-        Point_3 steiner_point;
         int queue_type = 0;
         Refine_facet bad_facet;
         bool need_picking_valid;
@@ -1608,13 +1602,12 @@ public:
         Vertex_handle v2 = f.first->vertex((f.second+2)%4);
         Vertex_handle v3 = f.first->vertex((f.second+3)%4);
         
-        Index_set modified_stars;// the ones that would be modified by p's insertion
-        steiner_point = compute_steiner_point(bad_facet.star, f, 
-          need_picking_valid, modified_stars);
+        Point_3 steiner_point = compute_steiner_point(bad_facet.star, f, need_picking_valid);
 
         if(!m_refinement_condition(steiner_point))
           return true;
 
+        Index_set modified_stars;
         int pid = insert(steiner_point, modified_stars, true/*conditional*/);
         
         //check if f has been destroyed
@@ -1633,8 +1626,7 @@ public:
         
             modified_stars.clear();
             pop_back_star();
-            steiner_point = compute_exact_steiner_point(bad_facet.star, ff,
-              need_picking_valid, modified_stars);
+            steiner_point = compute_exact_steiner_point(bad_facet.star, ff, need_picking_valid);
               
             pid = insert(steiner_point, modified_stars, true/*conditional*/);
 
@@ -1676,8 +1668,7 @@ public:
 
       Point_3 compute_steiner_point(Star_handle to_be_refined,
                                     const Facet& f, //facet to be refined
-                                    const bool need_picking_valid,
-                                    Index_set& modified_stars) const
+                                    const bool need_picking_valid) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -1686,7 +1677,7 @@ public:
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          p = compute_insert_or_snap_valid_point(to_be_refined, f, modified_stars);
+          p = compute_insert_or_snap_valid_point(to_be_refined, f);
         } 
         else 
         {
@@ -1701,8 +1692,7 @@ public:
 
       Point_3 compute_exact_steiner_point(Star_handle to_be_refined,
                                     const Facet& f, //facet to be refined
-                                    const bool need_picking_valid,
-                                    Index_set& modified_stars) const
+                                    const bool need_picking_valid) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -1711,7 +1701,7 @@ public:
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          p = compute_insert_or_snap_valid_point(to_be_refined, f, modified_stars);
+          p = compute_insert_or_snap_valid_point(to_be_refined, f);
         } 
         else 
         {
