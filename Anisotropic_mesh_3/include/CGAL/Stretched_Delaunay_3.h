@@ -140,6 +140,12 @@ namespace CGAL{
       {
         if(this->is_infinite(cell))
           return false;
+#ifdef ANISO_DEBUG //added to see coordinates in debugger
+        const Point_3& p0 = cell->vertex(0)->point();
+        const Point_3& p1 = cell->vertex(1)->point();
+        const Point_3& p2 = cell->vertex(2)->point();
+        const Point_3& p3 = cell->vertex(3)->point();
+#endif
         return cell->template is_inside<Self>(*this, *constrain(), *traits());
       }
 #ifdef ANISO_USE_INSIDE_EXACT
@@ -283,10 +289,13 @@ public:
           return f;
 
         Facet f2 = this->mirror_facet(f);
-        if(f.first->vertex(f.second)->info() > f2.first->vertex(f2.second)->info())
-          return f;
-        else
-          return f2;
+        Index i_f = f.first->vertex(f.second)->info();
+        Index i_f2 = f2.first->vertex(f2.second)->info();
+#ifdef ANISO_DEBUG
+        if(i_f == -10)
+          std::cerr << "Warning : index i_f is " << i_f << std::endl;
+#endif
+        return (i_f > i_f2) ? f : f2;
         // note : infinite vertex has index -10
         // we choose the one with the greatest index to get the facet on the finite side
       }
