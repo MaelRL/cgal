@@ -1527,7 +1527,6 @@ public:
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
 #endif
-        //Star_handle star;
         if(surface_star)
           star->reset(p, pid, m_metric_field.compute_metric(p), surface_star);
         else
@@ -1575,23 +1574,23 @@ public:
           Vertex_handle v3 = f.first->vertex((f.second+3)%4);
 
           double deg_value = 1e-4;
-          bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value ||
-                                std::abs(v1->point().y()-v2->point().y()) < deg_value ||
+          bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value &&
+                                std::abs(v1->point().y()-v2->point().y()) < deg_value &&
                                 std::abs(v1->point().z()-v2->point().z()) < deg_value ) ||
-                               (std::abs(v2->point().x()-v3->point().x()) < deg_value ||
-                                std::abs(v2->point().y()-v3->point().y()) < deg_value ||
+                               (std::abs(v2->point().x()-v3->point().x()) < deg_value &&
+                                std::abs(v2->point().y()-v3->point().y()) < deg_value &&
                                 std::abs(v2->point().z()-v3->point().z()) < deg_value ) ||
-                               (std::abs(v1->point().x()-v3->point().x()) < deg_value ||
-                                std::abs(v1->point().y()-v3->point().y()) < deg_value ||
+                               (std::abs(v1->point().x()-v3->point().x()) < deg_value &&
+                                std::abs(v1->point().y()-v3->point().y()) < deg_value &&
                                 std::abs(v1->point().z()-v3->point().z()) < deg_value ) );
 
           if(degenerated){
               std::cout.precision(15);
-              std::cout << "building bad facet : " << pid << std::endl;
-              std::cout << v1->point() << std::endl;
-              std::cout << v2->point() << std::endl;
-              std::cout << v3->point() << std::endl;
-              std::cout << "p was : " << p << std::endl;
+              std::cout << "Building bad facet : " << pid << std::endl;
+              std::cout << "\tp1 : " << v1->point() << std::endl;
+              std::cout << "\tp2 : " << v2->point() << std::endl;
+              std::cout << "\tp3 : " << v3->point() << std::endl;
+              std::cout << "\tp was : " << p << std::endl;
           }
         }
 #endif
@@ -1631,14 +1630,14 @@ public:
 
 #ifdef ANISO_DEBUG
         double deg_value = 1e-4;
-        bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value ||
-                              std::abs(v1->point().y()-v2->point().y()) < deg_value ||
+        bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value &&
+                              std::abs(v1->point().y()-v2->point().y()) < deg_value &&
                               std::abs(v1->point().z()-v2->point().z()) < deg_value ) ||
-                             (std::abs(v2->point().x()-v3->point().x()) < deg_value ||
-                              std::abs(v2->point().y()-v3->point().y()) < deg_value ||
+                             (std::abs(v2->point().x()-v3->point().x()) < deg_value &&
+                              std::abs(v2->point().y()-v3->point().y()) < deg_value &&
                               std::abs(v2->point().z()-v3->point().z()) < deg_value ) ||
-                             (std::abs(v1->point().x()-v3->point().x()) < deg_value ||
-                              std::abs(v1->point().y()-v3->point().y()) < deg_value ||
+                             (std::abs(v1->point().x()-v3->point().x()) < deg_value &&
+                              std::abs(v1->point().y()-v3->point().y()) < deg_value &&
                               std::abs(v1->point().z()-v3->point().z()) < deg_value) );
 
         if(degenerated){
