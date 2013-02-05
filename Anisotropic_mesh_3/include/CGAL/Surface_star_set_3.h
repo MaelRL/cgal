@@ -1278,7 +1278,7 @@ public:
             {
               int index_1 = (offset + i + 1) % 4;
               int index_2 = (offset + (i + 1) % 3 + 1) % 4;
-              FT over_distortion = 					
+              FT over_distortion =
                 m_stars[cell->vertex(index_1)->info()]->metric().compute_distortion(
                 m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria.distortion;
               if (over_distortion > 0) 
@@ -1547,7 +1547,7 @@ public:
           star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false);
             //no condition because they should be there for consistency
         }
-        
+
         typename Star::Bbox bbox = star->bbox(); // volume bbox when star is not a topo_disk
         Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
         Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());          
@@ -1567,6 +1567,40 @@ public:
             star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
           }
         }
+
+
+#ifdef ANISO_DEBUG
+        typename Star::Facet_set_iterator it = star->begin_boundary_facets();
+        typename Star::Facet_set_iterator itend = star->end_boundary_facets();
+        for(; it != itend; it++)
+        {
+          Facet f = *it;
+          Vertex_handle v1 = f.first->vertex((f.second+1)%4);
+          Vertex_handle v2 = f.first->vertex((f.second+2)%4);
+          Vertex_handle v3 = f.first->vertex((f.second+3)%4);
+
+          double deg_value = 1e-4;
+          bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value ||
+                                std::abs(v1->point().y()-v2->point().y()) < deg_value ||
+                                std::abs(v1->point().z()-v2->point().z()) < deg_value ) ||
+                               (std::abs(v2->point().x()-v3->point().x()) < deg_value ||
+                                std::abs(v2->point().y()-v3->point().y()) < deg_value ||
+                                std::abs(v2->point().z()-v3->point().z()) < deg_value ) ||
+                               (std::abs(v1->point().x()-v3->point().x()) < deg_value ||
+                                std::abs(v1->point().y()-v3->point().y()) < deg_value ||
+                                std::abs(v1->point().z()-v3->point().z()) < deg_value ) );
+
+          if(degenerated){
+              std::cout.precision(15);
+              std::cout << "building bad facet : " << pid << std::endl;
+              std::cout << v1->point() << std::endl;
+              std::cout << v2->point() << std::endl;
+              std::cout << v3->point() << std::endl;
+              std::cout << "p was : " << p << std::endl;
+          }
+        }
+#endif
+
 #ifdef USE_ANISO_TIMERS
         m_create_star_timer += duration(start_time);
 #endif
@@ -1597,10 +1631,28 @@ public:
         Facet f; // to be refined
         if (!next_refine_cell(bad_facet, f, need_picking_valid, queue_type))
           return false;
-       
+
         Vertex_handle v1 = f.first->vertex((f.second+1)%4);
         Vertex_handle v2 = f.first->vertex((f.second+2)%4);
         Vertex_handle v3 = f.first->vertex((f.second+3)%4);
+
+#ifdef ANISO_DEBUG
+        double deg_value = 1e-4;
+        bool degenerated = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value ||
+                              std::abs(v1->point().y()-v2->point().y()) < deg_value ||
+                              std::abs(v1->point().z()-v2->point().z()) < deg_value ) ||
+                             (std::abs(v2->point().x()-v3->point().x()) < deg_value ||
+                              std::abs(v2->point().y()-v3->point().y()) < deg_value ||
+                              std::abs(v2->point().z()-v3->point().z()) < deg_value ) ||
+                             (std::abs(v1->point().x()-v3->point().x()) < deg_value ||
+                              std::abs(v1->point().y()-v3->point().y()) < deg_value ||
+                              std::abs(v1->point().z()-v3->point().z()) < deg_value) );
+
+        if(degenerated){
+            std::cout << "trying to refine a bad facet" << std::endl;
+           //return true;
+        }
+#endif
 
         Star_handle new_star = new Star(m_criteria, m_pConstrain);
         Index_set modified_stars;// the ones that would be modified by p's insertion
@@ -1632,7 +1684,15 @@ public:
             Facet ff = bad_facet.star->make_canonical(Facet(c,index));
             if(bad_facet.star->is_restricted(ff))
             {
-              std::cout << "!";              
+              std::cout << "!";
+#ifdef ANISO_DEBUG
+              std::cout.precision(15);
+              std::cout << "Bad facet still in : " << bad_facet.star << std::endl;
+              std::cout << v1->point() << std::endl;
+              std::cout << v2->point()  << std::endl;
+              std::cout << v3->point() << std::endl;
+#endif
+
               new_star = new Star(m_criteria, m_pConstrain);
               modified_stars.clear();
               pop_back_star();
@@ -2160,7 +2220,7 @@ public:
               {
                 int index_1 = (f.second + i + 1) % 4;
                 int index_2 = (f.second + (i + 1) % 3 + 1) % 4;
-                FT distortion = 					
+                FT distortion =
                   m_stars[f.first->vertex(index_1)->info()]->metric().compute_distortion(
                   m_stars[f.first->vertex(index_2)->info()]->metric());
 
@@ -2220,10 +2280,12 @@ public:
       }
 
       void gl_draw_metric(const typename K::Plane_3& plane,
-                          double bbox_min,
+                          double bbox_min, double eps,
                           const int star_id = -1/*only this one*/) const 
       {
         double coeff = bbox_min/20;
+        double glob_min = std::max(eps, m_pConstrain->global_min_curvature());
+        coeff *= glob_min;
 
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)

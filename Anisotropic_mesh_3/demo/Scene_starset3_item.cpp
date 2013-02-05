@@ -57,8 +57,8 @@ struct Scene_starset3_item_priv
   Scene_starset3_item_priv(const Criteria& criteria,
                            const Metric& metric,
                            const Constrain_surface* const surface,
-                           const int nb_initial_points) 
-    : star_set(criteria, metric, surface, nb_initial_points) 
+                           const int nb_initial_points)
+    : star_set(criteria, metric, surface, nb_initial_points)
   {}
 
   Surface_star_set star_set;
@@ -80,12 +80,12 @@ Scene_starset3_item(const Criteria& criteria,
   m_draw_surface_delaunay_balls(false),
   m_draw_star_id(-1),
   m_draw_inconsistent_facets(false),
-  m_draw_metric_field(false)
+  m_draw_metric_field(false),
+  m_draw_metric_eps(metric.epsilon)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));
   starset_changed();
 }
-
 
 Scene_starset3_item::~Scene_starset3_item()
 {
@@ -196,7 +196,7 @@ Scene_starset3_item::direct_draw() const
     Scene_item::Bbox mf_bbox = this->bbox();
     double bbox_min = std::min(mf_bbox.depth(), mf_bbox.height());
     bbox_min = std::min(bbox_min, mf_bbox.width());
-    star_set().gl_draw_metric(plane, bbox_min, m_draw_star_id-1);
+    star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id-1);
   }
 
   if(!two_side) ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);

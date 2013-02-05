@@ -98,6 +98,7 @@ public:
   bool& draw_surface_delaunay_balls() { return m_draw_surface_delaunay_balls; }
   bool& draw_inconsistent_facets() { return m_draw_inconsistent_facets; }
   bool& draw_metric_field()        { return m_draw_metric_field; }
+  double draw_metric_eps() const { return m_draw_metric_eps; }
 
 protected:
   Scene_starset3_item_priv* d;
@@ -116,6 +117,7 @@ private:
   int m_draw_star_id;
   bool m_draw_inconsistent_facets;
   bool m_draw_metric_field;
+  double m_draw_metric_eps;
 };
 
 inline
