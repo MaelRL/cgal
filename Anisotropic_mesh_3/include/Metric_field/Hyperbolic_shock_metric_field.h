@@ -27,6 +27,7 @@ public:
   typedef typename Base::FT                  FT;
   typedef typename Base::Metric              Metric;
   typedef typename Base::Point_3             Point_3;
+  typedef typename Base::Vector_3            Vector_3;
   typedef typename std::vector<std::pair<Point_3, FT> > ParticleList;
 
 public:
