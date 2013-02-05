@@ -1674,10 +1674,10 @@ public:
             std::cerr << " " << v3->info() << ") not destroyed" << std::endl;
             std::cerr << " by ("<< steiner_point <<")" << std::endl;              
         
-            modified_stars.clear();
-            pop_back_star();
             steiner_point = compute_exact_steiner_point(bad_facet.star, ff, need_picking_valid);
               
+            modified_stars.clear();
+            pop_back_star();
             pid = insert(steiner_point, modified_stars, true/*conditional*/);
 
 #ifdef ANISO_DEBUG
