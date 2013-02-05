@@ -742,7 +742,6 @@ private:
       
       Point_3 pick_valid(const Star_handle star, //to be refined
                          const Facet &facet, //belongs to star and should be refined
-                         Star_handle &retstar,
                          Index_set& modified_stars) const
       {
 #ifdef USE_ANISO_TIMERS
@@ -775,7 +774,8 @@ private:
 
         int tried_times = 0;
         Point_3 p;
-        while (true) 
+        Star_handle retstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
+        while(true)
         {
           TPoint_3 random_point = random(tccf, tcccell, circumradius);          
           p = star->compute_steiner_dual_intersection(random_point, facet);
@@ -785,7 +785,7 @@ private:
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             break;
           }
-          if ((tried_times++) > m_criteria.max_times_to_try_in_picking_region) 
+          if((tried_times++) > m_criteria.max_times_to_try_in_picking_region) 
           {
             modified_stars.clear();
             p = compute_insert_or_snap_point(star, facet);
@@ -793,6 +793,7 @@ private:
             break;
           }
         }
+        delete retstar;
 #ifdef USE_ANISO_TIMERS
         m_pick_valid_timer += duration(start_time);
 #endif
@@ -851,10 +852,9 @@ private:
 
       Point_3 compute_insert_or_snap_valid_point(const Star_handle star, 
                                                  const Facet &facet, 
-                                                 Star_handle &retstar,
                                                  Index_set& modified_stars) const
       {
-        Point_3 p = pick_valid(star, facet, retstar, modified_stars);
+        Point_3 p = pick_valid(star, facet, modified_stars);
         
         // test encroachment
 #ifdef CHECK_EDGE_ENCROACHMENT
@@ -1570,7 +1570,6 @@ public:
 #ifdef USE_ANISO_TIMERS
         m_create_star_timer += duration(start_time);
 #endif
-        //return star;
       }
 
 
@@ -1597,76 +1596,66 @@ public:
         Facet f; // to be refined
         if (!next_refine_cell(bad_facet, f, need_picking_valid, queue_type))
           return false;
-       
-        Vertex_handle v1 = f.first->vertex((f.second+1)%4);
-        Vertex_handle v2 = f.first->vertex((f.second+2)%4);
-        Vertex_handle v3 = f.first->vertex((f.second+3)%4);
 
-        Star_handle new_star = new Star(m_criteria, m_pConstrain);
-        Index_set modified_stars;// the ones that would be modified by p's insertion
-        if (queue_type == 0) // encroachment
+        if(queue_type == 0) // encroachment
         { 
           std::cerr << "Error : encroachment is not implemented.\n";
           vertex_without_picking_count++;
+          return true;
         } 
-        else 
-          steiner_point = compute_steiner_point(bad_facet.star, f, 
-                                                need_picking_valid, new_star, modified_stars);
-        int pid; 
-        if(m_refinement_condition(steiner_point))
+ 
+        Vertex_handle v1 = f.first->vertex((f.second+1)%4);
+        Vertex_handle v2 = f.first->vertex((f.second+2)%4);
+        Vertex_handle v3 = f.first->vertex((f.second+3)%4);
+        
+        Index_set modified_stars;// the ones that would be modified by p's insertion
+        steiner_point = compute_steiner_point(bad_facet.star, f, 
+          need_picking_valid, modified_stars);
+
+        if(!m_refinement_condition(steiner_point))
+          return true;
+
+        int pid = insert(steiner_point, modified_stars, true/*conditional*/);
+        
+        //check if f has been destroyed
+        // begin debug
+        Cell_handle c;
+        int i,j,k;
+        if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
         {
-          if(need_picking_valid && new_star->is_valid())// != NULL)
-            pid = insert(steiner_point, modified_stars, new_star, true/*conditional*/);
-          else
+          int index = 6 - i - j - k;
+          Facet ff = bad_facet.star->make_canonical(Facet(c,index));
+          if(bad_facet.star->is_restricted(ff))
           {
-            delete new_star;
-            pid = insert(steiner_point, modified_stars, true/*conditional*/);
-          }
-          //check if f has been destroyed
-          // begin debug
-          Cell_handle c;
-          int i,j,k;
-          if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
-          {
-            int index = 6 - i - j - k;
-            Facet ff = bad_facet.star->make_canonical(Facet(c,index));
-            if(bad_facet.star->is_restricted(ff))
-            {
-              std::cout << "!";              
-              new_star = new Star(m_criteria, m_pConstrain);
-              modified_stars.clear();
-              pop_back_star();
-              steiner_point = compute_exact_steiner_point(bad_facet.star, ff,
-                need_picking_valid, new_star, modified_stars);
+            std::cerr << "Error: facet(" << v1->info() << " " << v2->info();
+            std::cerr << " " << v3->info() << ") not destroyed" << std::endl;
+            std::cerr << " by ("<< steiner_point <<")" << std::endl;              
+        
+            modified_stars.clear();
+            pop_back_star();
+            steiner_point = compute_exact_steiner_point(bad_facet.star, ff,
+              need_picking_valid, modified_stars);
               
-              if(need_picking_valid && new_star->is_valid())// != NULL)
-                pid = insert(steiner_point, modified_stars, new_star, true/*conditional*/);
-              else
-              {
-                delete new_star;
-                pid = insert(steiner_point, modified_stars, true/*conditional*/);
-              }
+            pid = insert(steiner_point, modified_stars, true/*conditional*/);
+
 #ifdef ANISO_DEBUG
-              if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
+            if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
+            {
+              int index2 = 6 - i - j - k;
+              if(bad_facet.star->is_restricted(bad_facet.star->make_canonical(Facet(c,index2))))
               {
-                int index2 = 6 - i - j - k;
-                if(bad_facet.star->is_restricted(bad_facet.star->make_canonical(Facet(c,index2))))
-                {
-                  std::cerr << "Error: facet(" << v1->info() << " " << v2->info();
-                  std::cerr << " " << v3->info() << ") has not been destroyed" << std::endl;
-                  std::cerr << " dim = " << bad_facet.star->dimension();
-                  std::cerr << ", nbv = " << bad_facet.star->number_of_vertices();
-                  std::cerr << ", pid = " << pid;
-                  std::cerr << ", p = " << steiner_point;
-                  std::cerr << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
-                  std::cerr << std::endl;
-                }
+                std::cerr << " dim = " << bad_facet.star->dimension();
+                std::cerr << ", nbv = " << bad_facet.star->number_of_vertices();
+                std::cerr << ", pid = " << pid;
+                std::cerr << ", p = " << steiner_point;
+                std::cerr << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
+                std::cerr << std::endl;
               }
-#endif
             }
+#endif
           }
-          //end debug
         }
+        //end debug
 
         if(!modified_stars.empty())
           fill_refinement_queue(modified_stars, pid);
@@ -1675,6 +1664,9 @@ public:
 
       void pop_back_star()
       {
+        Star_handle last = m_stars.back();
+        delete last;
+
         m_stars.pop_back();
         Index id = static_cast<Index>(m_stars.size());
         remove_from_stars(id, m_stars.begin(), m_stars.end());
@@ -1685,7 +1677,6 @@ public:
       Point_3 compute_steiner_point(Star_handle to_be_refined,
                                     const Facet& f, //facet to be refined
                                     const bool need_picking_valid,
-                                    Star_handle& new_star,
                                     Index_set& modified_stars) const
       {
 #ifdef USE_ANISO_TIMERS
@@ -1695,7 +1686,7 @@ public:
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          p = compute_insert_or_snap_valid_point(to_be_refined, f, new_star, modified_stars);
+          p = compute_insert_or_snap_valid_point(to_be_refined, f, modified_stars);
         } 
         else 
         {
@@ -1711,7 +1702,6 @@ public:
       Point_3 compute_exact_steiner_point(Star_handle to_be_refined,
                                     const Facet& f, //facet to be refined
                                     const bool need_picking_valid,
-                                    Star_handle& new_star,
                                     Index_set& modified_stars) const
       {
 #ifdef USE_ANISO_TIMERS
@@ -1721,7 +1711,7 @@ public:
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          p = compute_insert_or_snap_valid_point(to_be_refined, f, new_star, modified_stars);
+          p = compute_insert_or_snap_valid_point(to_be_refined, f, modified_stars);
         } 
         else 
         {
@@ -2132,6 +2122,7 @@ public:
         
         report();
         histogram_vertices_per_star<Self>(*this);
+        output();
 #endif
 #ifdef USE_ANISO_TIMERS
         report_timers();
