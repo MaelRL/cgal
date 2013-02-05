@@ -35,7 +35,7 @@ class Criteria_base
 public:
     typedef typename K::FT	FT;
 public:
-    const FT approximation;
+    const FT approximation;//if 0. : this criterion is not used
     const FT squared_approximation;
     const FT radius_edge_ratio;
     const FT squared_radius_edge_radio;
@@ -66,7 +66,7 @@ public:
              const FT beta_ = 2.5,
              const FT delta_ = 0.3,
              const int max_times_to_try_in_picking_region_ = 60,
-             const FT approximation_ = 0.1)
+             const FT approximation_ = 0.)
               :
         approximation(approximation_),
         squared_approximation(approximation_*approximation_),
