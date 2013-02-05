@@ -23,29 +23,33 @@ using namespace CGAL::Anisotropic_mesh_3;
 template<typename K>
 class Shock_metric_field : public Metric_field<K> {
 public:
-	typedef Metric_field<K>        Base;
-	typedef typename Base::FT      FT;
-	typedef typename Base::Metric  Metric;
-	typedef typename Base::Point_3 Point_3;
+  typedef Metric_field<K>        Base;
+  typedef typename Base::FT      FT;
+  typedef typename Base::Metric  Metric;
+  typedef typename Base::Point_3 Point_3;
 
 public:
-	FT sigma;
-	FT lambda;
+  FT sigma;
+  FT lambda;
 
 public:
-	virtual void report(typename std::ofstream &fx) const {
-		fx << "type:   shock" << std::endl;
-		fx << "sigma:  " << sigma << std::endl;
-		fx << "lambda: " << lambda << std::endl;
-	}
-	virtual Metric compute_metric(const Point_3 &p) const {
-		return Metric(
-                    Vector_3(1, 0, 0), 
-                    Vector_3(0, ((1.0 / lambda) + (1.0 - 1.0 / lambda) * (1.0 - exp(-(p.x() * p.x() / sigma / sigma)))),
-			0), 
-                    Vector_3(0, 0, 1));
-	}
-	Shock_metric_field(const FT &sigma_ = 0.5, const FT &lambda_ = 3.0) : sigma(sigma_), lambda(lambda_) { }
+  virtual void report(typename std::ofstream &fx) const
+  {
+    fx << "type:   shock" << std::endl;
+    fx << "sigma:  " << sigma << std::endl;
+    fx << "lambda: " << lambda << std::endl;
+  }
+
+  virtual Metric compute_metric(const Point_3 &p) const
+  {
+    return Metric(Vector_3(1, 0, 0),
+                  Vector_3(0, ((1.0 / lambda) + (1.0 - 1.0 / lambda) * (1.0 - exp(-(p.x() * p.x() / sigma / sigma)))),
+                  0),
+                  Vector_3(0, 0, 1));
+  }
+
+  Shock_metric_field(const FT &sigma_ = 0.5, const FT &lambda_ = 3.0) : sigma(sigma_), lambda(lambda_)
+  { }
 };
 
 

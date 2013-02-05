@@ -37,14 +37,16 @@ namespace CGAL
       typedef typename K::Vector_3    Vector_3;
 
     public:
+      FT epsilon;
+
       virtual Metric compute_metric(const Point_3 &p) const 
       {
-        return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., 1e-6);
+        return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., epsilon);
       }
 
       Metric uniform_metric(const Point_3& p) const
       {
-        return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., 1e-3);
+        return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., epsilon);
       }
 
       // this function is used to report the setting of the metric
@@ -53,7 +55,8 @@ namespace CGAL
         fx << "type: default" << std::endl;
       }
 
-      Metric_field() { }
+      Metric_field(FT epsilon_ = 1.0):epsilon(epsilon_) { }
+
     };
   }
 }

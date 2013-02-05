@@ -24,38 +24,44 @@ namespace CGAL {
 template<typename K>
 class Arctan_metric_field : public Metric_field<K> {
 public:
-	typedef Metric_field<K>         Base;
-	typedef typename Base::FT       FT;
-	typedef typename Base::Metric   Metric;
-	typedef typename Base::Point_3  Point_3;
-	typedef typename Base::Vector_3 Vector_3;
+  typedef Metric_field<K>         Base;
+  typedef typename Base::FT       FT;
+  typedef typename Base::Metric   Metric;
+  typedef typename Base::Point_3  Point_3;
+  typedef typename Base::Vector_3 Vector_3;
 
 public:
-	FT sigma;
-	FT lambda;
+  FT sigma;
+  FT lambda;
   FT alpha;
 
 public:
-	virtual void report(typename std::ofstream &fx) const {
-		fx << "type:   arctan" << std::endl;
-		fx << "sigma:  " << sigma << std::endl;
-		fx << "lambda: " << lambda << std::endl;
-	}
-
-	virtual Metric compute_metric(const Point_3 &p) const 
+  virtual void report(typename std::ofstream &fx) const
   {
-    double epsilon = 1e-6;
-    double d = ((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda);
-    return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 
-                  1., alpha*d, 1., epsilon);
-		//return Metric(Vector_3(1, 0, 0), Vector_3(0, 
-		//	((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda), 0), 
-		//	Vector_3(0, 0, 1));
-	}
-	Arctan_metric_field(FT lambda_, FT sigma_, FT alpha_) : 
-          lambda(lambda_), 
-          sigma(sigma_),
-          alpha(alpha_){ }
+    fx << "type:   arctan" << std::endl;
+    fx << "sigma:  " << sigma << std::endl;
+    fx << "lambda: " << lambda << std::endl;
+  }
+
+  virtual Metric compute_metric(const Point_3 &p) const
+  {
+    double d = ((atan(p.y() / sigma) / CGAL_PI) + 0.5)
+               * (lambda - 1.0 / lambda)
+               + (1.0 / lambda);
+
+    return Metric(Vector_3(1, 0, 0),
+                  Vector_3(0, 1, 0),
+                  Vector_3(0, 0, 1),
+                  1.,
+                  alpha*d,
+                  1.,
+                  this->epsilon);
+    //return Metric(Vector_3(1, 0, 0), Vector_3(0,
+    //	((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda), 0),
+    //	Vector_3(0, 0, 1));
+  }
+    Arctan_metric_field(FT lambda_, FT sigma_, FT alpha_, FT epsilon_ = 1e-6)
+   :Metric_field<K>(epsilon_), lambda(lambda_), sigma(sigma_), alpha(alpha_){ }
 };
   }
 }

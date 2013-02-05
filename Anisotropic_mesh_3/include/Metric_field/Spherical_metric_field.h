@@ -24,46 +24,43 @@ using namespace CGAL::Anisotropic_mesh_3;
 template<typename K>
 class Spherical_metric_field : public Metric_field<K> {
 public:
-	typedef Metric_field<K>        Base;
-	typedef typename Base::FT      FT;
-	typedef typename Base::Metric  Metric;
-	typedef typename Base::Point_3 Point_3;
+  typedef Metric_field<K>        Base;
+  typedef typename Base::FT      FT;
+  typedef typename Base::Metric  Metric;
+  typedef typename Base::Point_3 Point_3;
   typedef typename Base::Vector_3 Vector_3;
 
 public:
-	FT epsilon;
-
-public:
-	virtual void report(typename std::ofstream &fx) const 
+  virtual void report(typename std::ofstream &fx) const
   {
-		fx << "type:   spherical" << std::endl;
-		fx << "epsilon: " << epsilon << std::endl;
-	}
+    fx << "type:   spherical" << std::endl;
+    fx << "epsilon: " << this->epsilon << std::endl;
+  }
 
-	virtual Metric compute_metric(const Point_3 &p) const 
+  virtual Metric compute_metric(const Point_3 &p) const
   {
-		FT x = p.x(), y = p.y(), z = p.z();
-		FT r = x * x + y * y;
-		FT R = r + z * z;
-		r = std::sqrt(r);	
+    FT x = p.x(), y = p.y(), z = p.z();
+    FT r = x * x + y * y;
+    FT R = r + z * z;
+    r = std::sqrt(r);
     R = std::sqrt(R);
 
-		if (r == 0.)
-			return Metric(Vector_3(1, 0, 0), 
+    if (r == 0.)
+      return Metric(Vector_3(1, 0, 0),
                     Vector_3(0, 1, 0), 
                     Vector_3(0, 0, (z >= 0.) ? R : (-R)),
-                    1., 1., 1., epsilon);
+                    1., 1., 1., this->epsilon);
     Vector_3 n(x,y,z);
     n = (1./R) * n;
     Vector_3 v1(-y/r, x/r, 0);
     Vector_3 v2 = CGAL::cross_product(n,v1);
     v2 = (1./std::sqrt(v2*v2)) * v2;
 
-  	return Metric(n, v1, v2, 1., 1., 1., epsilon);
-	}
+    return Metric(n, v1, v2, 1., 1., 1., this->epsilon);
+  }
 
-	Spherical_metric_field(const FT& epsilon_) 
-    : epsilon(epsilon_) { }
+  Spherical_metric_field(const FT& epsilon_)
+    : Metric_field<K>(epsilon_) { }
 };
 
 

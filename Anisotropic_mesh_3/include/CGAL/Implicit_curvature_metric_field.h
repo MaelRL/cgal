@@ -23,7 +23,6 @@ namespace CGAL
       typedef typename Base::Vector_3 Vector_3;
 
       typedef Constrain_surface_3_implicit<K> Constrain_surface;
-      FT epsilon;
       mutable FT maxl;
     public:
       const Constrain_surface &surface;
@@ -31,7 +30,7 @@ namespace CGAL
       virtual void report(typename std::ofstream &fx) const 
       {
         fx << "type: implicit surface" << std::endl;
-        fx << "epsilon: " << epsilon << std::endl;
+        fx << "epsilon: " << this->epsilon << std::endl;
         fx << "maxl: " << maxl << std::endl;
       }
 
@@ -43,12 +42,12 @@ namespace CGAL
 
         double vpn = surface.global_max_curvature();//global max of c_max
 
-        return Metric(en, e1, e2, vpn, vp1, vp2, epsilon);
+        return Metric(en, e1, e2, vpn, vp1, vp2, this->epsilon);
       }
 
       Implicit_curvature_metric_field(const Constrain_surface &surface_, 
                                       const FT epsilon_ = 1.0) 
-        : Metric_field<K>(), epsilon(epsilon_), surface(surface_) { }
+        : Metric_field<K>(epsilon_), surface(surface_) { }
     };
 
   }

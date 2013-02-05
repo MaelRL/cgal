@@ -31,14 +31,13 @@ public:
   typedef typename Base::Vector_3 Vector_3;
 
 public:
-  FT lambda;
   FT radius;
   FT height;
 
 public:
   virtual void report(typename std::ofstream &fx) const {
     fx << "type:   cylinder" << std::endl;
-    fx << "lambda: " << lambda << std::endl;
+    fx << "epsilon: " << this->epsilon << std::endl;
     fx << "radius:  " << radius << std::endl;
     fx << "height:  " << height << std::endl;
   }
@@ -49,9 +48,9 @@ public:
 //    FT l = sqrt(x * x + y * y);
 //    Vector_3 g(x / l, y / l, 0); //gradient = normal
 //    Vector_3 t(-y / l, x / l, 0);//tangent
-//    Vector_3 q(0, 0, z*z+1.0);// lambda * (z * z + 1.0));//vertical
+//    Vector_3 q(0, 0, z*z+1.0);// epsilon * (z * z + 1.0));//vertical
 ////    return Metric(g, t, q);
-//    
+//
 //    double ng = std::sqrt(g.squared_length());
 //    double nt = std::sqrt(t.squared_length());
 //    double nq = std::sqrt(q.squared_length());
@@ -62,8 +61,7 @@ public:
 //                  1./radius,
 //                  nt,
 //                  nq,
-//                  lambda/*epsilon*/);
-
+//                  this->epsilon);
 
     Vector_3 n(p.x(), p.y(), 0.);//normal
     Vector_3 v1(0., 0., 1.);//vertical
@@ -73,20 +71,18 @@ public:
     double nv1 = std::sqrt(v1.squared_length());
     double nv2 = std::sqrt(v2.squared_length());
 
-    return Metric(1./nn * n, 
-                  1./nv1 * v1, 
+    return Metric(1./nn * n,
+                  1./nv1 * v1,
                   1./nv2 * v2,
-      1./radius,//normal -> e_n = max curvature
-      0.,//1./(height*height), 
-      1./radius, 
-      lambda/*epsilon*/);
+      1./radius, //normal -> e_n = max curvature
+      0.,
+      1./radius,
+      this->epsilon);
   }
-  Cylinder_metric_field(FT radius_ = 1.0, 
-                        FT height_ = 10.,
-                        FT lambda_ = 1.0) 
-    : radius(radius_), 
-      height(height_),
-      lambda(lambda_) { }
+
+  Cylinder_metric_field(FT radius_ = 1.0, FT height_ = 10.,
+                                          FT epsilon_ = 1.0)
+    : Metric_field<K>(epsilon_), radius(radius_), height(height_){ }
 };
 
 
