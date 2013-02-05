@@ -18,8 +18,8 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
-//#include <Metric_field/Cylinder_metric_field.h>
-#include <CGAL/Implicit_curvature_metric_field.h>
+#include <Metric_field/Cylinder_metric_field.h>
+//#include <CGAL/Implicit_curvature_metric_field.h>
 
 #include <Domain/Constrain_surface_3_cylinder.h>
 
@@ -32,15 +32,15 @@ using namespace CGAL::Anisotropic_mesh_3;
 typedef CGAL::Exact_predicates_inexact_constructions_kernel	K;
 typedef CGAL::Timer Timer;
 
-std::string output_filename(const double& r,
-			    const double& h)
+std::string output_filename(const double& r, const double& h)
 {
   std::ostringstream oss;
   oss << "cylinder_" << r << "_" << h << ".off";
   return oss.str();
 }
 
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[])
+{
   std::ofstream fx("cylinder_timings.txt");
 
   Timer timer;
@@ -81,8 +81,8 @@ int main(int argc, char* argv[]){
   Constrain_surface_3_cylinder<K>* pdomain
      = new Constrain_surface_3_cylinder<K>(r, h);
 
-  Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
-  //Cylinder_metric_field<K> metric_field(r, h, epsilon);
+  //Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
+  Cylinder_metric_field<K> metric_field(r, h, epsilon);
 
   int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 0., 1., -0.01*h);
