@@ -176,14 +176,9 @@ namespace CGAL {
       void print()
       {
         std::cout << "Queue : ( ";
-        //for(int i = 0; i < 5; i++)
         for(int i = 1; i < nb_queues; i++)
           std::cout << queues[i]->size() <<" ";
-        std::cout << ") ";
-        //Refine_facet f; int t;
-        //if(top(f, t))
-        //  std::cout << "(" << t << ": " << f.value << ")";
-        std::cout << std::endl;
+        std::cout << ") " << std::endl;
       }
 
     public:
