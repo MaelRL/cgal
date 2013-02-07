@@ -274,15 +274,21 @@ public:
                 const double& vpz,
                 const double& epsilon)
     {      
-      //std::cout << "produits scalaires : " << axis_x*axis_z << " " 
-      //                                     << axis_x*axis_y << " " 
-      //                                     << axis_y*axis_z << std::endl;
-      //std::cout << "norms              : " << std::sqrt(axis_x*axis_x) << " " 
-      //                                     << std::sqrt(axis_y*axis_y) << " " 
-      //                                     << std::sqrt(axis_z*axis_z) << std::endl;
-      //std::cout << "valeurs propres    : " << vpn << " " << vpy << " " << vpz << std::endl;
-      //std::cout << std::endl;
-      
+#ifdef ANISO_DEBUG_METRIC
+      double xz = axis_x*axis_z;
+      double xy = axis_x*axis_y;
+      double yz = axis_y*axis_z;
+      double xx = std::sqrt(axis_x*axis_x);
+      double yy = std::sqrt(axis_y*axis_y);
+      double zz = std::sqrt(axis_z*axis_z);
+      std::cout << "produits scalaires : " 
+        << xz << " " << xy << " " << yz << std::endl;
+      std::cout << "norms              : " 
+        << xx << " " << yy << " " << zz << std::endl;
+      std::cout << "valeurs propres    : " << vpn << " " << vpy << " " << vpz << std::endl;
+      std::cout << std::endl;    
+#endif
+
       if(std::abs(vpy) > std::abs(vpz))
         construct(axis_x, axis_y, axis_z, vpn, vpy, vpz, epsilon);
       else
