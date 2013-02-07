@@ -15,7 +15,7 @@ using namespace CGAL::Anisotropic_mesh_3;
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef Anisotropic_surface_mesher_3<K> Mesher;
 
-int main()
+int main(int argc, char* argv[])
 {
   CGAL::default_random = CGAL::Random(0);
     
@@ -33,9 +33,9 @@ int main()
                             60,  //max tries in picking region
                             0.); //approximation
 
-  const double epsilon = 1e-2;
+  const double epsilon = (argc > 1) ? atof(argv[1]) : 1e-2;
 
-  Implicit_curvature_metric_field<K> metric_field(*pdomain, 1.0);   
+  Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);   
   //Spherical_metric_field<K> metric_field(epsilon);
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
