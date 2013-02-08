@@ -283,7 +283,7 @@ public:
       double zz = axis_z*axis_z;
       std::cout << "produits scalaires : " 
         << xz << " " << xy << " " << yz << std::endl;
-      std::cout << "sq_norms              : " 
+      std::cout << "sq_norms           : " 
         << xx << " " << yy << " " << zz << std::endl;
       std::cout << "valeurs propres    : " << vpn << " " << vpy << " " << vpz << std::endl;
       std::cout << std::endl;    
