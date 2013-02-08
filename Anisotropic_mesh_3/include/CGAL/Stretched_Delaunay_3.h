@@ -1642,9 +1642,10 @@ public:
         return p;
       }
 
-      void debug_steiner_point(const Point_3& steiner_point, 
-                               const Facet& f)
+      bool debug_steiner_point(const Point_3& steiner_point, 
+                               const Facet& f) const
       {
+        bool bug = false;
         Point_3 p;
         compute_exact_dual_intersection(f,p);
 
@@ -1654,7 +1655,24 @@ public:
 
         Sphere s(center, CGAL::squared_distance(center, pf));
         if(s.has_on_unbounded_side(steiner))
-          std::cerr << "Error : Steiner point is outside surface Delaunay ball" << std::endl;
+        {
+          std::cerr << "\nSteiner point ("
+            <<steiner_point<< ") outside exact surface Delaunay ball";
+          bug = true;
+        }
+
+        Point_3 p2;
+        compute_dual_intersection(f,p2);
+        const TPoint_3& center2 = m_metric.transform(p);
+        Sphere s2(center2, CGAL::squared_distance(center2, pf));
+        if(s2.has_on_unbounded_side(steiner))
+        {
+          std::cerr << "\nSteiner point ("
+            <<steiner_point<< ") outside inexact surface Delaunay ball";
+          bug = true;
+        }
+
+        return bug;
       }
 
       //not used yet

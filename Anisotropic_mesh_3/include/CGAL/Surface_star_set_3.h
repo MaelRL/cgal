@@ -1278,6 +1278,12 @@ public:
                 m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria.distortion;
               if (over_distortion > 0) 
               { // here, protect the edge
+#ifdef ANISO_DEBUG_REFINEMENT
+                Index im1 = cell->vertex(index_1)->info();
+                Index im2 = cell->vertex(index_2)->info();
+                typename Star::Metric m1 = m_stars[im1]->metric();
+                typename Star::Metric m2 = m_stars[im2]->metric();
+#endif
                 m_refine_queue.push_over_distortion(star, *fi, over_distortion);
                 b_continue = true;
                 break;
@@ -1654,7 +1660,10 @@ public:
         } 
          
         Point_3 steiner_point = compute_steiner_point(bad_facet.star, f, need_picking_valid);
-
+#ifdef ANISO_DEBUG_REFINEMENT
+        if(bad_facet.star->debug_steiner_point(steiner_point, f))
+          std::cerr << "(Not exact)" << std::endl;
+#endif
         if(!m_refinement_condition(steiner_point))
           return true; //note false would stop refinement
 
@@ -1701,6 +1710,7 @@ public:
                 std::cerr << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
                 std::cerr << std::endl;
                 bad_facet.star->debug_steiner_point(steiner_point, ff);
+                std::cerr << "(Exact)" << std::endl;
               }
             }
             else
