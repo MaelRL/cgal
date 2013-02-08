@@ -41,6 +41,7 @@ public:
 	typedef typename DTS::Edge_circulator Edge_circulator;
 	typedef typename DTS::Vertex_circulator Vertex_circulator;
 	typedef Triangulation_sphere_line_face_circulator_2<Self> Line_face_circulator;//not excisting yet
+	
 
 	typedef typename Geom_traits::Point_2      Point;
 	typedef std::pair<Point,Point>             Constraint;
@@ -465,54 +466,7 @@ public:
 	}
 	
 		
-  /*template <class Gt, class Tds >
-  bool 
-  Constrained_Delaunay_triangulation_sphere_2<Gt, Tds>::
-  includes_edge(Vertex_handle va, Vertex_handle vb,
-				Vertex_handle & vbb, Face_handle& fr, int & i) const
-						// returns true if the line segment ab contains an edge e of t 
-						// incident to a, false otherwise
-						// if true, vbb becomes the vertex of e distinct from a
-						// fr is the face incident to e and e=(fr,i)
-						// fr is on the right side of a->b
-	{
-		Vertex_handle v;
-		Orientation orient;
-		int indv;
-		Edge_circulator ec = incident_edges(va), done(ec);
-		if (ec != 0) {
-			do { 
-				//find the index of the other vertex of *ec
-				indv = 3 - ((*ec).first)->index(va) - (*ec).second ; 
-				v = ((*ec).first)->vertex(indv);
-				show_vertex(v);
-				show_vertex(va);
-				show_vertex(vb);
-				
-				if (v==vb) {
-						vbb = vb;
-						fr=(*ec).first;
-						i= (*ec).second;
-						return true;
-					}
-					else {
-						orient = this->orientation(va->point(),
-											 vb->point(),
-											 v->point()); 
-						if((orient==COLLINEAR) && 
-						   (collinear_between (va->point(),
-											   v->point(),
-											   vb->point()))) {
-							vbb = v;
-							fr=(*ec).first;
-							i= (*ec).second;
-							return true;
-						}
-					}
-			} while (++ec != done);
-		}
-		return false;
-	}	*/					
+  
 						
 	
 	//FLIPS
@@ -1125,10 +1079,10 @@ flip (Face_handle& f, int i)
 	Constrained_Delaunay_triangulation_sphere_2<Gt,Tds>::
 	locate(const Point& p,Locate_type& lt,int& li, Face_handle start) const{
 		Face_handle fh= DTS::locate(p,lt,li,start);
-		
-		if(lt == TOO_CLOSE)
+		if( lt == TOO_CLOSE)
 			lt = VERTEX;
 		return fh;
+		
 	}	
 	
  
