@@ -16,7 +16,7 @@
 // $Id$
 // 
 //
-// Author(s)     : Claudia WERNER
+// Author(s)     : Laurent RINEAU, Claudia WERNER
 
 #ifndef CGAL_DELAUNAY_MESH_SPHERE_SIZE_CRITERIA_2_H
 #define CGAL_DELAUNAY_MESH_SPHERE_SIZE_CRITERIA_2_H
@@ -53,11 +53,13 @@ namespace CGAL {
 		
 		// first: squared_minimum_sine
 		// second: size
+		
 		struct Quality : public std::pair<double, double>
 		{
 			typedef std::pair<double, double> Base;
+			bool irreparable;
 			
-			Quality() : Base() {};
+			Quality() : Base() {irreparable=false;};
 			Quality(double _sine, double _size) : Base(_sine, _size) {}
 			
 			const double& size() const { return second; }
@@ -92,6 +94,8 @@ namespace CGAL {
 			const Geom_traits& traits;
 		public:
 			typedef typename Base::Is_bad::Point_2 Point_2;
+			typedef typename CDT::Vertex_handle Vertex_handle;
+			typedef typename CDT::Face_handle Face_handle;
 			
 			Is_bad(const double aspect_bound,
 				   const double size_bound,
@@ -104,8 +108,56 @@ namespace CGAL {
 				_radius = r;
 				_minDist = _radius*pow(2,-23)*_radius*pow(2,-23);
 			}
+			
+			
+						
+			Vertex_handle
+			nearest_vertex(const Point_2& p, Face_handle f) const
+			{
+				typename Geom_traits::Compare_distance_2 
+				compare_distance =  traits.compare_distance_2_object();
+				Vertex_handle nn =  f->vertex(0);
+				if ( compare_distance(p,  f->vertex(1)->point(),nn->point()) == SMALLER) 
+					nn=f->vertex(1);
+				if ( compare_distance(p,f->vertex(2)->point(), nn->point()) == SMALLER) 
+					nn=f->vertex(2);
+				
+				look_nearest_neighbor(p,f,0,nn);
+				look_nearest_neighbor(p,f,1,nn);
+				look_nearest_neighbor(p,f,2,nn);
+				return nn;
+			}
+			
+			
+			
+			
+			void
+			look_nearest_neighbor(const Point_2& p, Face_handle f, int i,
+								  Vertex_handle& nn) const
+			{
+				Face_handle  ni=f->neighbor(i);
+				if ( ON_NEGATIVE_SIDE == traits.orientation_2_object()(ni->vertex(0)->point(),ni->vertex(1)->point(),ni->vertex(2)->point(),p) ) return;
+				
+				typename Geom_traits::Compare_distance_2 
+				compare_distance =  traits.compare_distance_2_object();
+				i = ni->index(f);
+				if ( compare_distance(p,  ni->vertex(i)->point(), nn->point())  == SMALLER)  nn=ni->vertex(i);
+				
+				// recursive exploration of triangles whose circumcircle contains p
+				look_nearest_neighbor(p, ni, CDT::ccw(i), nn);
+				look_nearest_neighbor(p, ni, CDT::cw(i), nn);
+			} 
+			
+						
+			
+			
 			Mesh_2::Face_badness operator()(const Quality q) const
 			{
+				//std::cout<<" quality-check"<<std::endl;
+				if(q.irreparable){
+					//std::cout<<"irreparable"<<std::endl;
+					return Mesh_2::NOT_BAD;
+				}
 				if( q.size() > 1 )
 					return Mesh_2::IMPERATIVELY_BAD;
 				if( q.sine() < this->B )
@@ -118,17 +170,14 @@ namespace CGAL {
 											Quality& q) const
 			{
 				
-				
 				typedef typename CDT::Geom_traits Geom_traits;
 				typedef typename Geom_traits::Compute_area_2 Compute_area_2;
 				typedef typename Geom_traits::Compute_squared_distance_2
-				Compute_squared_distance_2;
-				typedef typename Geom_traits::Construct_circumcenter_3
-				Construct_circumcenter_2;
-				
-				
-				
-				//Geom_traits traits(_radius); /** @warning traits with data!! */
+								 Compute_squared_distance_2;
+				typedef typename Geom_traits::Construct_circumcenter_2
+				                 Construct_circumcenter_2;
+				typedef typename Geom_traits::Construct_midpoint_2
+								 Construct_midpoint_2;
 				
 				Compute_squared_distance_2 squared_distance = 
 				traits.compute_squared_distance_2_object();
@@ -142,27 +191,21 @@ namespace CGAL {
 				b = CGAL::to_double(squared_distance(pc, pa)),
 				c = CGAL::to_double(squared_distance(pa, pb));
 				
-				double tmp = _minDist;
-				if (a<=tmp || b<=tmp || c<= tmp){
-					std::cout<<" edge to short"<<std::endl;
-					return Mesh_2::NOT_BAD;
-				}
 				
 				double max_sq_length; // squared max edge length
 				double second_max_sq_length;
-				double min_sq_length;
+				//double min_sq_length;
 				
+								
 				if(a<b)
 				{
 					if(b<c) {
 						max_sq_length = c;
 						second_max_sq_length = b;
-						min_sq_length = a;
 					}
 					else { // c<=b
 						max_sq_length = b;
 						second_max_sq_length = ( a < c ? c : a );
-						
 					}
 				}
 				else // b<=a
@@ -170,13 +213,67 @@ namespace CGAL {
 					if(a<c) {
 						max_sq_length = c;
 						second_max_sq_length = a;
-						min_sq_length = b ;
 					}
 					else { // c<=a
 						max_sq_length = a;
 						second_max_sq_length = ( b < c ? c : b );
 					}
 				}
+				/*if(max_sq_length<=4*_minDist){
+				  q.irreparable = true;				
+					return Mesh_2::NOT_BAD;
+				}*/
+									
+				Construct_circumcenter_2 circumcenter_2 = traits.construct_circumcenter_2_object();
+				Point_2 cc = circumcenter_2(pa,pb,pc);
+				Vertex_handle nearest = nearest_vertex(cc, fh);
+				double circumradius= CGAL::to_double(squared_distance(cc, nearest->point()));				
+				//Orientation o = traits.orientation_2_object()(pa,pb,pc,cc);
+				//CGAL_triangulation_precondition(o!=NEGATIVE);
+				
+				
+				
+				//circumcenter has to be in the triangle
+				Orientation o1 = traits.orientation_2_object()(pa, pb,cc);
+				Orientation o2 = traits.orientation_2_object()(pb, pc,cc);
+				Orientation o3 = traits.orientation_2_object()(pc,pa, cc);
+				//if (o1==NEGATIVE || o2 == NEGATIVE || o3==NEGATIVE){
+				if (o1!=POSITIVE || o2 != POSITIVE || o3!=POSITIVE){
+					
+					if ((max_sq_length ==a && fh->is_constrained(0))||
+						(max_sq_length ==b && fh->is_constrained(1))||
+						(max_sq_length ==c && fh->is_constrained(2))){
+						q.irreparable = true;
+						return Mesh_2:: NOT_BAD;
+					}
+					if((max_sq_length == a&& fh->neighbor(0)->is_constrained(0) || fh->neighbor(0)->is_constrained(1) || fh->neighbor(0)->is_constrained(2))||
+					   (max_sq_length == b&& fh->neighbor(1)->is_constrained(0) || fh->neighbor(1)->is_constrained(1) || fh->neighbor(1)->is_constrained(2))||
+					   (max_sq_length == b&& fh->neighbor(2)->is_constrained(0) || fh->neighbor(2)->is_constrained(1) || fh->neighbor(2)->is_constrained(2))){
+						q.irreparable = true;
+						return Mesh_2:: NOT_BAD;
+					}
+
+						
+					/*if(fh->neighbor(0)->is_constrained(0) || fh->neighbor(0)->is_constrained(1) || fh->neighbor(0)->is_constrained(2) ||
+					   fh->neighbor(1)->is_constrained(1) || fh->neighbor(1)->is_constrained(1) || fh->neighbor(1)->is_constrained(2) ||
+					   fh->neighbor(2)->is_constrained(2) || fh->neighbor(2)->is_constrained(1) || fh->neighbor(2)->is_constrained(2)){
+						q.irreparable = true;
+						return Mesh_2:: NOT_BAD;
+					}*/
+					
+					
+						}
+				
+				
+				if (circumradius<=2*_minDist){
+					//return Mesh_2::IMPERATIVELY_BAD;
+					q.irreparable = true;
+					//std::cout<<"circumradius"<<std::endl;
+					return Mesh_2::NOT_BAD;
+					
+					
+				}
+				
 				
 				q.second = 0;
 				if( squared_size_bound != 0 )
@@ -192,38 +289,28 @@ namespace CGAL {
 					}
 				}
 				
+				
+				
+				
+				
 				Compute_area_2 area_2 = traits.compute_area_2_object();
-				 
-				 double area = 2*CGAL::to_double(area_2(pa, pb, pc));
-				 
-				 q.first = (area * area) / (max_sq_length * second_max_sq_length); // (sine)*/
 				
-				Construct_circumcenter_2 circumcenter_2 = traits.construct_circumcenter_2_object();
+				double area = 2*CGAL::to_double(area_2(pa, pb, pc));
 				
-				//Point_2 cc =triangulation_ref_impl().circumcenter_2(pa,pb,pc);
-				Point_2 cc = circumcenter_2(pa,pb,pc);
-				//std::cout<<"circumcenter   :"<<cc<<std::endl;
+				q.first = (area * area) / (max_sq_length * second_max_sq_length); // (sine)*/
 				
-				double circumradius = CGAL::to_double(squared_distance(cc, pa));
-				if (circumradius<=_minDist)
-					//return Mesh_2::IMPERATIVELY_BAD;
-					return Mesh_2::NOT_BAD;
-				
-				
-				//Circumcenter in triangle?
-				Orientation o0 = traits.orientation_2_object()(pa,pb,cc); 
-				Orientation o1 = traits.orientation_2_object()(pb,pc,cc); 
-				Orientation o2 = traits.orientation_2_object()(pc,pa,cc); 
-				
-				if(o0 !=POSITIVE ||o1 !=POSITIVE ||o2 !=POSITIVE )
-					return Mesh_2::NOT_BAD;
 				
 				//q.first = max_sq_length/(4* circumradius);
 				
-				if( q.sine() < this->B )
+				if( q.sine() < this->B ){
+					//std::cout<<"BAD"<<std::endl;
 					return Mesh_2::BAD;
-				else
+				}
+				else{
+					//std::cout<<"size"<<std::endl;
 					return Mesh_2::NOT_BAD;
+					
+			}
 			}
 		};
 		
