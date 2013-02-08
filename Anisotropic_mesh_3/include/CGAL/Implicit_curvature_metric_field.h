@@ -38,7 +38,7 @@ namespace CGAL
       {
         Vector_3 en, e1, e2;
         double vp1, vp2;
-        surface.tensor_frame(p, en, e1, e2, vp1, vp2, 1e-5);
+        surface.tensor_frame(p, en, e1, e2, vp1, vp2);
 
         double vpn = surface.global_max_curvature();//global max of c_max
 
