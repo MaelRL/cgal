@@ -190,6 +190,32 @@ public:
   {
     double eigen_dis1 = (m.eigen_transformation * eigen_inverse_transformation).operatorNorm();
     double eigen_dis2 = (eigen_transformation * m.eigen_inverse_transformation).operatorNorm();
+
+#ifdef ANISO_DEBUG_METRIC
+    double max_dist = 1.001;
+    if(max(eigen_dis1, eigen_dis2) > max_dist){
+      std::cout << "--------" << std::endl;
+      std::cout << "this evs : " << get_third_eigenvalue() << " " << get_min_eigenvalue() << " " << get_max_eigenvalue() << std::endl;
+      std::cout << "m evs : " << m.get_third_eigenvalue() << " " << m.get_min_eigenvalue() << " " << get_max_eigenvalue() << std::endl;
+      std::cout << "--THIS-ET---" << std::endl;
+      std::cout << eigen_transformation << std::endl;
+      std::cout << "--THIS-EIT---" << std::endl;
+      std::cout << eigen_inverse_transformation << std::endl;
+      std::cout << "--M-ET---" << std::endl;
+      std::cout << m.eigen_transformation << std::endl;
+      std::cout << "--M-EIT---" << std::endl;
+      std::cout << m.eigen_inverse_transformation << std::endl;
+      std::cout << "------" << std::endl;
+      std::cout << "--M-ET-*-THIS-EIT-" << std::endl;
+      std::cout << m.eigen_transformation * eigen_inverse_transformation << std::endl;
+      std::cout << "------" << std::endl;
+      std::cout << "--THIS-ET-*-M-EIT" << std::endl;
+      std::cout << eigen_transformation * m.eigen_inverse_transformation << std::endl;
+      std::cout << "------" << std::endl;
+      std::cout << "vals dist1,dist2 : " << eigen_dis1 << " " << eigen_dis2 << std::endl;
+    }
+#endif
+
     return max(eigen_dis1, eigen_dis2);
   }
 
