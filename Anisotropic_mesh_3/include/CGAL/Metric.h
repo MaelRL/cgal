@@ -278,15 +278,19 @@ public:
       double xz = axis_x*axis_z;
       double xy = axis_x*axis_y;
       double yz = axis_y*axis_z;
-      double xx = std::sqrt(axis_x*axis_x);
-      double yy = std::sqrt(axis_y*axis_y);
-      double zz = std::sqrt(axis_z*axis_z);
+      double xx = axis_x*axis_x;
+      double yy = axis_y*axis_y;
+      double zz = axis_z*axis_z;
       std::cout << "produits scalaires : " 
         << xz << " " << xy << " " << yz << std::endl;
-      std::cout << "norms              : " 
+      std::cout << "sq_norms           : " 
         << xx << " " << yy << " " << zz << std::endl;
       std::cout << "valeurs propres    : " << vpn << " " << vpy << " " << vpz << std::endl;
       std::cout << std::endl;    
+      if(xz > 0.01 || xy > 0.01 || yz > 0.01)
+        std::cout << "Warning : This dot product should be 0" << std::endl;
+      if(std::abs(xx-1.) > 0.01 || std::abs(yy-1.) > 0.01 || std::abs(zz-1.) > 0.01)
+        std::cout << "Warning : This sqnorm should be 1" << std::endl;
 #endif
 
       if(std::abs(vpy) > std::abs(vpz))
