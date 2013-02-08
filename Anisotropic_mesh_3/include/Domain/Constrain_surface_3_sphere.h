@@ -59,6 +59,15 @@ public:
     return Pointset(ip.begin(), ip.end());
   }
 
+  virtual double global_max_curvature() const
+  {
+    return 1.;
+  }
+  virtual double global_min_curvature() const
+  {
+    return 1.;
+  }
+
   virtual std::set<Point_3>& compute_poles() const
   {
     // warning : the sphere is a degenerate case
