@@ -386,8 +386,14 @@ class Constrain_surface_3_polyhedral :
       inline void find_nearest_vertices(const Point_3 &p, std::vector<Point_3> &points, int count) 
       {
         FT dist = nearest_start_try_radius;
-        while (true) 
+
+        int iter = 0, max_iter = 100;
+        double max_search_dist = 1e5;
+        bool found = false;
+
+        while (!found && iter < max_iter)
         {
+          ++iter;
           points.clear();
           find_nearest_vertices(p, points, dist);
           if ((int)points.size() > count * 2) {
@@ -396,7 +402,23 @@ class Constrain_surface_3_polyhedral :
             dist = dist * 1.2;
           } else {
             nearest_start_try_radius = nearest_start_try_radius * 0.6 + dist * 0.4;
-            break;
+            found = true;
+          }
+        }
+        if(!found && iter == max_iter){
+          while( (int)points.size() < count / 2 ){
+            dist = dist * 1.01;
+            points.clear();
+            find_nearest_vertices(p, points, dist);
+            if(dist > max_search_dist){
+                std::cerr << "No points close enough to be found in find_nearest_vertices" << std::endl;
+            }
+          }
+          nearest_start_try_radius = nearest_start_try_radius * 0.6 + dist * 0.4;
+          if((int)points.size() > count * 2){
+            int diff = (int)points.size() - (count * 2);
+            for(int i = 0; i<diff; ++i)
+                points.pop_back();
           }
         }
       }
@@ -408,7 +430,6 @@ class Constrain_surface_3_polyhedral :
         queue.push_back(find_nearest_vertex(p));
 
         FT squared_max_dist = max_dist * max_dist;
-
         while (!queue.empty()) {
           typename Polyhedron::Vertex_handle top = queue.front();
           queue.pop_front();
@@ -512,7 +533,6 @@ class Constrain_surface_3_polyhedral :
         m_max_curvature = 0.;
         m_min_curvature = DBL_MAX;
         std::vector<typename Eigen::Vector3d> vectors;
-
         for (std::size_t i = 0; i < m_vertices.size(); ++i) 
         {
           if (i % 100 == 0)
@@ -642,7 +662,7 @@ class Constrain_surface_3_polyhedral :
 
       void initialize(const FT& epsilon)
       {
-        set_aabb_tree();        
+        set_aabb_tree();
         
         //std::vector<Point_3> points;
         //compute_bounding_box(points);
