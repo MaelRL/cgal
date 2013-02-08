@@ -21,8 +21,9 @@ public:
 	
 	typedef Predicate_ Predicate;
 	typedef typename K::Point_3 Point;
-	Project_on_sphere_adaptor(double radius):_radius(radius){}
+	Project_on_sphere_adaptor(double radius,Point sphere):_radius(radius), _sphere(sphere){}
 double _radius;
+	Point _sphere;
 	typedef typename Predicate::result_type result_type;
 	
 	
@@ -62,14 +63,14 @@ public:
 	typedef typename Kernel::Vector_3 Vector_2;
 	typedef typename Kernel::Compute_area_3 Compute_area_2;
 	typedef typename Kernel::Angle_3 Angle_2;
+	typedef typename Kernel::Compare_distance_3 Compare_distance_2;
 	typedef typename Kernel::Construct_vector_3 Construct_vector_2;
 	typedef typename Kernel::Construct_scaled_vector_3 Construct_scaled_vector_2;
 	typedef typename Kernel::Construct_translated_point_3 Construct_translated_point_2;
-	
+	typedef typename Kernel::Construct_circumcenter_3 Circumcenter_2;
 	
 	typedef Project_on_sphere_adaptor<Kernel,typename Kernel::Construct_midpoint_3> Construct_midpoint_2;
-	typedef Project_on_sphere_adaptor<Kernel,typename Kernel::Construct_circumcenter_3> Construct_circumcenter_3;
-	
+	typedef Project_on_sphere_adaptor<Kernel,typename Kernel::Construct_circumcenter_3> Construct_circumcenter_2;
 	typedef boost::true_type requires_test;
 	double _radius;
 	double _minDistSquared;
@@ -79,6 +80,10 @@ public:
 	}
 	double radius(){return _radius;}
 	Delaunay_mesh_sphere_traits_2(double radius=1);
+	
+	Compare_distance_2
+	compare_distance_2_object()const
+	{return Compare_distance_2();}
 	
 	Compute_area_2
 	compute_area_2_object()const
@@ -103,11 +108,12 @@ public:
 		
 	Construct_midpoint_2
 	construct_midpoint_2_object()const
-	{return Construct_midpoint_2(_radius);}
+	{return Construct_midpoint_2(_radius, Base::_sphere);}
 	
-	Construct_circumcenter_3
+	Construct_circumcenter_2
 	construct_circumcenter_2_object()const
-	{return Construct_circumcenter_3(_radius);}
+	{return Construct_circumcenter_2(_radius, Base::_sphere);}
+			
 protected:
 	Point_2 _sphere;
 };	
