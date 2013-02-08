@@ -217,13 +217,30 @@ public:
 
           Eigen::Matrix3d PN;
           PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
-          Eigen::Matrix3d m = (PN * hessian(p, delta) * PN);
+          Eigen::Matrix3d H;
+          H = hessian(p, delta) ;
+          Eigen::Matrix3d m = (PN * H * PN);
           
           // hessian should be (hessian * (1 / gl))
           double dd = 1. / (gl);
           for (int i = 0; i < 3; i++)
             for(int j = 0; j < 3; j++)
               m(i,j) = dd * m(i,j);
+
+#ifdef ANISO_DEBUG_METRIC
+          std::cout.precision(10);
+          std::cout << "Normal : " << std::endl;
+          std::cout << normal << std::endl;
+          std::cout << "NN^t : " << std::endl;
+          std::cout << normal * normal.transpose() << std::endl;
+          std::cout << "Matrices before EVs computing : " << std::endl;
+          std::cout << "PN : " << std::endl;
+          std::cout << PN << std::endl;
+          std::cout << "Hessian with gl = " << gl << std::endl;
+          std::cout << H << std::endl;
+          std::cout << "M : " << std::endl;
+          std::cout << m << std::endl;
+#endif
 
           Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
           const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
@@ -241,6 +258,7 @@ public:
               min_id = i;
             }
           }
+
           // normal is ok (computed with gradient)
           e0 = get_vector(normal);
             
@@ -251,7 +269,7 @@ public:
           int zeros = are_zeros(ev0, ev1, ev2, z0, z1, z2);
 
           if(zeros == 1) //it is ev0
-          {        
+          {
             if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";  
             Vector_3 normal_test = get_eigenvector(vecs.col(min_id));
             if(!are_equal(e0, normal_test))
@@ -303,7 +321,24 @@ public:
           }
           else //zeros == 0
             std::cerr << "Error : see tensor_frame, zeros==0\n";
-      }          
+
+          //make sure the vectors form an orth matrix
+        FT res = e1*e2;
+        if(std::abs(res)>1e-5){
+            std::cout << "swap" << std::endl;
+            e2 = normalize(CGAL::cross_product(e0,e1));
+        }
+        res = e1*e0;
+        if(std::abs(res)>1e-5){
+            std::cout << "swap" << std::endl;
+            e1 = normalize(CGAL::cross_product(e2,e0));
+        }
+        res = e0*e2;
+        if(std::abs(res)>1e-5){
+            std::cout << "swap" << std::endl;
+            e2 = normalize(CGAL::cross_product(e0,e1));
+        }
+      }
 
         bool are_equal(const Vector_3& v1,        //unit vector
                        const Vector_3& v2) const  //unit vector
