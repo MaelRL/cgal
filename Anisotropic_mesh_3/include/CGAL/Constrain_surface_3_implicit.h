@@ -16,6 +16,9 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_IMPLICIT_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_IMPLICIT_H
 
+#define ZERO_DOT_PRODUCT 1e-5
+#define ZERO_EIGENVALUE 1e-10
+
 #include <CGAL/Constrain_surface_3_ex.h>
 
 #include <Eigen/Dense>
@@ -167,22 +170,13 @@ public:
         return m;
       }
 
-      int are_zero(const double& d1, const double& d2, const double& d3) const
-      {
-        int count = 0;
-        if(std::abs(d1) < 1e-10) count++;
-        if(std::abs(d2) < 1e-10) count++;
-        if(std::abs(d3) < 1e-10) count++;
-        return count;
-      }
-
       int are_zeros(const double& d1, const double& d2, const double& d3,
                     bool& z1, bool& z2, bool& z3) const
       {
         int count = 0;
-        z1 = (std::abs(d1) < 1e-10);  if(z1) count++;
-        z2 = (std::abs(d2) < 1e-10);  if(z2) count++;
-        z3 = (std::abs(d3) < 1e-10);  if(z3) count++;
+        z1 = (std::abs(d1) < ZERO_EIGENVALUE);  if(z1) count++;
+        z2 = (std::abs(d2) < ZERO_EIGENVALUE);  if(z2) count++;
+        z3 = (std::abs(d3) < ZERO_EIGENVALUE);  if(z3) count++;
         return count;
       }
 
@@ -215,18 +209,10 @@ public:
             std::cout << "Warning : gradient is null vector at "<< p <<"!" << std::endl;
           Eigen::Vector3d normal = -grad;
 
-          Eigen::Matrix3d PN;
-          PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
-          Eigen::Matrix3d H;
-          H = hessian(p, delta) ;
-          Eigen::Matrix3d m = (PN * H * PN);
+          Eigen::Matrix3d PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
+          Eigen::Matrix3d hess = (1./gl) * hessian(p, delta) ;
+          Eigen::Matrix3d m = (PN * hess * PN);
           
-          // hessian should be (hessian * (1 / gl))
-          double dd = 1. / (gl);
-          for (int i = 0; i < 3; i++)
-            for(int j = 0; j < 3; j++)
-              m(i,j) = dd * m(i,j);
-
 #ifdef ANISO_DEBUG_METRIC
           std::cout.precision(10);
           std::cout << "Normal : " << std::endl;
@@ -236,8 +222,8 @@ public:
           std::cout << "Matrices before EVs computing : " << std::endl;
           std::cout << "PN : " << std::endl;
           std::cout << PN << std::endl;
-          std::cout << "Hessian with gl = " << gl << std::endl;
-          std::cout << H << std::endl;
+          std::cout << "Hessian with grad_len = " << gl << std::endl;
+          std::cout << hess << std::endl;
           std::cout << "M : " << std::endl;
           std::cout << m << std::endl;
 #endif
@@ -279,6 +265,12 @@ public:
             v2 = ev2;
             e1 = get_eigenvector(vecs.col((min_id + 1) % 3)); 
             e2 = get_eigenvector(vecs.col((min_id + 2) % 3)); 
+
+            //make sure the vectors form an orthogonal matrix
+            //when eigenvalues are the same, vectors returned by Eigen are not 
+            //necessarily orthogonal
+            if(std::abs(e1*e2) > ZERO_DOT_PRODUCT)
+              e2 = normalize(CGAL::cross_product(e0,e1));       
           }
           else if(zeros == 2)
           {
@@ -321,24 +313,7 @@ public:
           }
           else //zeros == 0
             std::cerr << "Error : see tensor_frame, zeros==0\n";
-
-          //make sure the vectors form an orth matrix
-        FT res = e1*e2;
-        if(std::abs(res)>1e-5){
-            std::cout << "swap" << std::endl;
-            e2 = normalize(CGAL::cross_product(e0,e1));
         }
-        res = e1*e0;
-        if(std::abs(res)>1e-5){
-            std::cout << "swap" << std::endl;
-            e1 = normalize(CGAL::cross_product(e2,e0));
-        }
-        res = e0*e2;
-        if(std::abs(res)>1e-5){
-            std::cout << "swap" << std::endl;
-            e2 = normalize(CGAL::cross_product(e0,e1));
-        }
-      }
 
         bool are_equal(const Vector_3& v1,        //unit vector
                        const Vector_3& v2) const  //unit vector
