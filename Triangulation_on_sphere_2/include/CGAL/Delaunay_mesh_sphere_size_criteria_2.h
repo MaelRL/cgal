@@ -219,21 +219,12 @@ namespace CGAL {
 						second_max_sq_length = ( b < c ? c : b );
 					}
 				}
-				/*if(max_sq_length<=4*_minDist){
-				  q.irreparable = true;				
-					return Mesh_2::NOT_BAD;
-				}*/
-									
+					
 				Construct_circumcenter_2 circumcenter_2 = traits.construct_circumcenter_2_object();
 				Point_2 cc = circumcenter_2(pa,pb,pc);
 				Vertex_handle nearest = nearest_vertex(cc, fh);
 				double circumradius= CGAL::to_double(squared_distance(cc, nearest->point()));				
-				//Orientation o = traits.orientation_2_object()(pa,pb,pc,cc);
-				//CGAL_triangulation_precondition(o!=NEGATIVE);
-				
-				
-				
-				//circumcenter has to be in the triangle
+				//circumcenter  in the triangle?
 				Orientation o1 = traits.orientation_2_object()(pa, pb,cc);
 				Orientation o2 = traits.orientation_2_object()(pb, pc,cc);
 				Orientation o3 = traits.orientation_2_object()(pc,pa, cc);
@@ -251,18 +242,9 @@ namespace CGAL {
 					   (max_sq_length == b&& fh->neighbor(2)->is_constrained(0) || fh->neighbor(2)->is_constrained(1) || fh->neighbor(2)->is_constrained(2))){
 						q.irreparable = true;
 						return Mesh_2:: NOT_BAD;
-					}
+					   }
 
-						
-					/*if(fh->neighbor(0)->is_constrained(0) || fh->neighbor(0)->is_constrained(1) || fh->neighbor(0)->is_constrained(2) ||
-					   fh->neighbor(1)->is_constrained(1) || fh->neighbor(1)->is_constrained(1) || fh->neighbor(1)->is_constrained(2) ||
-					   fh->neighbor(2)->is_constrained(2) || fh->neighbor(2)->is_constrained(1) || fh->neighbor(2)->is_constrained(2)){
-						q.irreparable = true;
-						return Mesh_2:: NOT_BAD;
-					}*/
-					
-					
-						}
+					}
 				
 				
 				if (circumradius<=2*_minDist){
