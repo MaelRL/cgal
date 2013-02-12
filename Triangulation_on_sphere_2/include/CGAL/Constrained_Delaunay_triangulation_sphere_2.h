@@ -562,7 +562,7 @@ public:
 			get_conflicts_and_boundary(p, std::back_inserter(faces), std::back_inserter(edges), loc);
 			v =star_hole(p,edges.begin(), edges.end());
 			v->set_point(p);
-			delete_faces(faces.begin(), faces.end());
+			this->delete_faces(faces.begin(), faces.end());
 			
 			if( lt != FACE )
 				update_ghost_faces(v);
