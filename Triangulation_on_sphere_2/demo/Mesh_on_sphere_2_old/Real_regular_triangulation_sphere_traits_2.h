@@ -80,6 +80,8 @@ public:
   typedef CGAL::Inside_cone_2<Self>           Inside_cone_2;
   typedef CGAL::Orientation_sphere_1<Self>    Orientation_1;
 
+  double _radius;
+
   Real_regular_triangulation_sphere_traits_2(const Point_2& sphere=typename Point_2::Point(0,0,0));
   
 	void set_radius(double radius){}
@@ -115,7 +117,7 @@ protected :
 template < class R,class W >
 Real_regular_triangulation_sphere_traits_2<R,W> ::
 Real_regular_triangulation_sphere_traits_2(const Point_2& sphere)
-: _sphere(sphere)
+: _sphere(sphere), _radius(1)
 {}
  
 
