@@ -45,7 +45,6 @@ private:
 		double dist = x*x+y*y+z*z;
 		if (dist ==0) return Point(0,0,0);
 		double scale= _radius/sqrt(dist);
-		double test = sqrt((x*x+y*y+z*z)*scale*scale);
 		return Point(x*scale, y*scale, z*scale);
 	}
 	
