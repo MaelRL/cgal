@@ -221,13 +221,12 @@ void test4(double radius){
 	std::cout<<"number of vertices:  "<<cdt.number_of_vertices()<<std::endl;
 	cdt.is_valid();
 }
-void test5(double radius){
+void test5(){
 	
 	CDTS cdt;
-	double r = radius;
-	cdt.set_radius(r);
+	
 	std::vector<Point> lst_pt;
-	char* filename = "/Users/cwerner/CGAL-git/Triangulation_on_sphere_2/test/norway.poly";
+	char* filename = "/Users/cwerner/CGAL-git/Triangulation_on_sphere_2/test/data/norway.poly";
 	read_points(filename,
 				std::back_inserter(lst_pt));	
 	
@@ -260,51 +259,6 @@ void test5(double radius){
 }
 	
 
-void test6(){
-
-	
-
-	
-		typedef CGAL::Triangulation_vertex_base_2<K> Vb2;
-	typedef CGAL::Delaunay_mesh_face_base_2<K> Fb2;
-	typedef CGAL::Triangulation_data_structure_2<Vb2, Fb2> Tds;
-	typedef CGAL::Constrained_Delaunay_triangulation_2<K, Tds> CDT2;
-	typedef CGAL::Delaunay_mesh_size_criteria_2<CDT2> Criteria;
-	
-	typedef CDT2::Vertex_handle Vertex_handle;
-	typedef CDT2::Point Point;
-	
-		
-		CDT2 cdt;
-		std::vector<K::Point_2> lst_pt;
-	char* filename = "/Users/cwerner/CGAL-git/Triangulation_on_sphere_2/test/norway.poly";
-	read_points2(filename,
-				std::back_inserter(lst_pt));	
-	
-	
-	Vertex_handle v;
-
-	std::vector<Vertex_handle> vertices;
-	for(int i=0;i< lst_pt.size(); i++){
-		Point p = lst_pt.at(i);
-				v =cdt.insert(lst_pt.at(i));
-		vertices.push_back(v);
-	}
-	int n=lst_pt.size();
-	cdt.insert_constraint(vertices.at(n-1), vertices.at(0));
-	int number_vert= cdt.number_of_vertices();
-	for (int i=1; i<n; i++)
-		cdt.insert_constraint(vertices.at(i), vertices.at(i-1));
-	std::cout<< "starting mehsing 2d"<<std::endl;
-	
-	std::cout<<"number of vertices before meshing:  "<< cdt.number_of_vertices() <<std::endl;
-	cdt.is_valid();
-	CGAL::refine_Delaunay_mesh_2(cdt, Criteria(0.125,0.5,cdt.geom_traits()),false);
-	cdt.is_valid();
-	
-	std::cout<<"number of vertices after meshing:  "<<cdt.number_of_vertices()<<std::endl;
-	
-}
 
 
 int main()
@@ -333,11 +287,8 @@ int main()
 	
 	//std::cout<< "Meshing two polygons " <<std::endl;
 	//test4(1);
+	std::cout<<"meshing Norway"<<std::endl;
+	test5();
 	
-	std::cout<<"Meshing Norway"<<std::endl;
-	test5(1);
-	
-	std::cout<<"Meshing Norway"<<std::endl;
-	test6();
 }
 	 
