@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
   //Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
   Cylinder_metric_field<K> metric_field(r, h, epsilon);
 
-  int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x
+  int xcondition = (argc > 9) ? atoi(argv[9]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 0., 1., -0.01*h);
   K::Plane_3 plane2(0., 0., 1., -0.99*h);
 
