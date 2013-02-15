@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
   timer.stop();
-  starset.output("base_closed_cylinder.off");
+  starset.output("base_closed_cylinder.off", false);
 
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();

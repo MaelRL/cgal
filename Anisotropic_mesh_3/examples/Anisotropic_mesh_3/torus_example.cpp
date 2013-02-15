@@ -19,7 +19,7 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
 //#include <CGAL/Implicit_curvature_metric_field.h>
-//#include <CGAL/Euclidean_metric_field.h>
+#include <CGAL/Euclidean_metric_field.h>
 #include <Metric_field/Torus_metric_field.h>
 
 #include <Domain/Constrain_surface_3_torus.h>
@@ -72,13 +72,15 @@ int main(int argc, char* argv[])
   fx << "\tgamma0 = " << gamma0 << std::endl;
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
-  
+
   Criteria_base<K> criteria(3.0, //radius_edge_ratio_
     0.2,    //sliverity_
     r0,     //circumradius_ 0.1
     gamma0, //distortion_ 1.3
     beta,   //beta_ 2.5
-    delta); //delta_ 0.3
+    delta,  //delta_ 0.3
+    60,     //max_times_to_try_in_picking_region_
+    0.001); //approximation
 
   fx << std::endl << "nbV" << "\t" << "time" << std::endl;
   timer.start();
@@ -86,14 +88,14 @@ int main(int argc, char* argv[])
   Constrain_surface_3_torus<K>* pdomain
     = new Constrain_surface_3_torus<K>(R, r);
 
-//  Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
+  //Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
   Torus_metric_field<K> metric_field(R, r, epsilon);
-//  Euclidean_metric_field<K> metric_field;
+  //Euclidean_metric_field<K> metric_field;
 
   K::FT y = (argc > 9) ? atof(argv[9]) : (0.5*(R + r));
-  int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x 
-  K::Plane_3 plane1(0., 1., 0., -y);//-0.1*h);
-  K::Plane_3 plane2(0., 1., 0.,  y);//-0.9*h);
+  int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x
+  K::Plane_3 plane1(0., 1., 0., 0.);
+  K::Plane_3 plane2(1.0, 0.0001, 0., 0.);
 
   typedef Is_between<K::Plane_3, K::Point_3> RCondition;
 
@@ -102,7 +104,7 @@ int main(int argc, char* argv[])
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
   timer.stop();
-  
+
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();
 
