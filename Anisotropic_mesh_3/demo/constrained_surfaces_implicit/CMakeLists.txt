@@ -67,7 +67,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND)
   polyhedron_demo_plugin(sphere_constrained_surface_plugin Sphere_function)
   polyhedron_demo_plugin(tanglecube_constrained_surface_plugin Tanglecube_function)
   polyhedron_demo_plugin(torus_constrained_surface_plugin Torus_function)
-
+  polyhedron_demo_plugin(ellipsoid_constrained_surface_plugin Ellipsoid_function)
 
 
 else (CGAL_Qt4_FOUND AND QT4_FOUND)

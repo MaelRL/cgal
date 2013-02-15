@@ -11,8 +11,8 @@ include_directories(../../include)
 add_definitions(
 	-DANISO_VERBOSE
 #	-DANISO_DEBUG
-	-DANISO_DEBUG_REFINEMENT
-	-DANISO_DEBUG_METRIC
+#	-DANISO_DEBUG_REFINEMENT
+#	-DANISO_DEBUG_METRIC
     -DANISO_APPROXIMATE_SPHERE_BBOX 
 	-DANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR)
 
@@ -39,11 +39,12 @@ if ( CGAL_FOUND )
   if(LAPACK_FOUND)
     include( ${LAPACK_USE_FILE} )
 	
-#   create_single_source_cgal_program("implicit_surface_with_specified_metric_field.cpp")
-    create_single_source_cgal_program("implicit_surface_with_curvature_mf.cpp")
+   create_single_source_cgal_program("implicit_surface_with_specified_metric_field.cpp")
+   create_single_source_cgal_program("implicit_surface_with_curvature_mf.cpp")
+   create_single_source_cgal_program("ellipsoid_example.cpp")
 #   create_single_source_cgal_program("polyhedral_surface_with_curvature_mf.cpp")
-#   create_single_source_cgal_program("torus_example.cpp")
-#   create_single_source_cgal_program("cylinder_example.cpp")
+   create_single_source_cgal_program("torus_example.cpp")
+   create_single_source_cgal_program("cylinder_example.cpp")
 #	create_single_source_cgal_program("bench_parameters.cpp")
 #	create_single_source_cgal_program("chair_example.cpp")
 #   create_single_source_cgal_program("debug_example.cpp")	

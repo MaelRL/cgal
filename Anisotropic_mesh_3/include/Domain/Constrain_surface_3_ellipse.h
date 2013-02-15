@@ -24,14 +24,17 @@ template<typename K>
 class Constrain_surface_3_ellipse : public Constrain_surface_3_implicit<K> 
 {
 public:
-  typedef Constrain_surface_3_implicit<K> Base;
-  typedef typename Base::FT       FT;
+  typedef Constrain_surface_3_implicit<K>  Base;
+  typedef typename Base::FT                FT;
+  typedef typename Base::Point_3           Point_3;
   typedef typename Base::Point_container   Point_container;
-  typedef typename Constrain_surface_3_implicit<K>::Point_3 Point_3;
 public:
   FT a, b, c;
   FT bounding_radius;
 public:
+  void set_a(const FT& aa) { a = aa; }
+  void set_b(const FT& bb) { b = bb; }
+  void set_c(const FT& cc) { c = cc; }
   FT get_a() const { return a; }
   FT get_b() const { return b; }
   FT get_c() const { return c; }
@@ -42,13 +45,27 @@ public:
 
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    return CGAL::Bbox_3(-a, -b, -c, a, b, c);
+    FT aa = 1.1*a;
+    FT bb = 1.1*b;
+    FT cc = 1.1*c;
+    return CGAL::Bbox_3(-aa, -bb, -cc, aa, bb, cc);
   }
 
   FT evaluate(const FT x, const FT y, const FT z) const 
   {
-    return x * x / a + y * y / b + z * z / c - 1.0;
+    return x*x/(a*a) + y*y/(b*b) + z*z/(c*c) - 1.0;
   }
+
+//  virtual double global_max_curvature() const
+//  {
+//    std::cout << "using bad curv values" << std::endl;
+//    return 1e30; //todo
+//  }
+//  virtual double global_min_curvature() const
+//  {
+//    std::cout << "using bad curv values" << std::endl;
+//    return -1e30; //todo
+//  }
 
   Point_container initial_points(const int nb = 8) const 
   {
@@ -63,16 +80,17 @@ public:
     return new Constrain_surface_3_ellipse(*this);
   }
 
-  Constrain_surface_3_ellipse(const FT a_, const FT b_, const FT c_) : 
-  a(a_ * a_), 
-    b(b_ * b_), 
-    c(c_ * c_) 
+  Constrain_surface_3_ellipse(const FT a_ = 2.0, const FT b_ = 1.0, const FT c_ = 1.0) :
+    a(a_),
+    b(b_),
+    c(c_)
   {
     bounding_radius = (std::max)((std::max)(a_, b_), c_) * 1.1;
   }
+
   Constrain_surface_3_ellipse(const Constrain_surface_3_ellipse& e)
-    : a(e.get_a()), b(e.get_b()), c(e.get_c())
-  {}
+      : a(e.get_a()), b(e.get_b()), c(e.get_c()), bounding_radius(e.get_bounding_radius()) { }
+
   ~Constrain_surface_3_ellipse() { };
 };
 
