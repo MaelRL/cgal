@@ -72,12 +72,14 @@ public:
       return result;
     }
 
+    /* transformation_exact doesn't exist anymore
 #ifdef ANISO_USE_EXACT
     template<typename Object>
     Object transform(const Object &p, KExact k_exact) const {
       return p.transform(transformation_exact);
     }
 #endif
+    */
 
     // Inverse transform
     template <typename Object>
@@ -179,12 +181,14 @@ public:
       return result;
     }
 
+    /* inverse_transformation_exact doesn't exist anymore
 #ifdef ANISO_USE_EXACT
     template<typename Object>
     Object inverse_transform(const Object &p, KExact k_exact) const {
         return p.transform(inverse_transformation_exact);
     }
 #endif
+    */
 
   FT compute_distortion(const Metric_base &m) 
   {
