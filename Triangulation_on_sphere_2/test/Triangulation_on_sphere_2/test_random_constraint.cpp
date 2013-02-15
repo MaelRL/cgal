@@ -28,13 +28,6 @@
 
 #include <CGAL/Constrained_Delaunay_triangulation_sphere_2.h>
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-typedef CGAL::Polyhedron_3<K>                     Polyhedron_3;
-
-typedef K::Segment_3                              Segment_3;
-typedef CGAL::Delaunay_triangulation_3<K>         Delaunay;
-
-
-
 typedef CGAL::Delaunay_triangulation_sphere_traits_2<K>             Gt;
 typedef CGAL::Projection_sphere_traits_3<K>							Gt2;
 typedef CGAL::Constrained_Delaunay_triangulation_sphere_2<Gt>       CTOS;
@@ -47,7 +40,7 @@ typedef  CTOS::Vertex_handle								Vertex_handle;
 int main(){
 	
 	
-	int nu_of_pts;
+	 int nu_of_pts;
 	double radius;
 	nu_of_pts =pow(2,15);
 	radius=sqrt(110);
@@ -96,7 +89,7 @@ int main(){
 	std::cout<<"number of vertices   "<<rtos.number_of_vertices()<<std::endl;
 	
 	
-	assert(rtos.number_of_vertices() == nu_of_pts+4);
+	assert((int)rtos.number_of_vertices() == nu_of_pts+4);
 	
 	
 	

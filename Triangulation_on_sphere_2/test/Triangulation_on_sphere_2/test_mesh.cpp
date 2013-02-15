@@ -98,7 +98,6 @@ void test1(double radius){
 	CDTS cdt;
 	double r = radius;
 	double a = r/sqrt(3);
-	double b = r/sqrt(2);
 	cdt.set_radius(r);
 	
 	
@@ -133,7 +132,7 @@ void test2(double radius){
 	
 	Vertex_handle va = cdt.insert(Point(a,a,a));
 	Vertex_handle vb = cdt.insert(Point(a,-a,a));
-	Vertex_handle vc= cdt.insert(Point(-r/sqrt(2),-r/sqrt(2),0));
+	Vertex_handle vc= cdt.insert(Point(-b,-b,0));
 	Vertex_handle vd = cdt.insert(Point(-a,a,a));
 	
 	
@@ -153,7 +152,6 @@ void test3(double radius){
 	
 	CDTS cdt;
 	double r = radius;
-	double a = r/sqrt(3);
 	double b = r/sqrt(2);
 	cdt.set_radius(r);
 	
@@ -189,7 +187,6 @@ void test4(double radius){
 	
 	CDTS cdt;
 	double r = radius;
-	double a = r/sqrt(3);
 	double b = r/sqrt(2);
 	cdt.set_radius(r);
 	
@@ -234,18 +231,14 @@ void test5(){
 	Vertex_handle v;
 	cdt.set_radius(100);
 	std::vector<Vertex_handle> vertices;
-	for(int i=0;i< lst_pt.size(); i++){
+	for(int i=0;i< (int)lst_pt.size(); i++){
 		Point p = lst_pt.at(i);
-		double x = p.x();
-		double y= p.y();
-		double z = p.z();
-		//std::cout<<lst_pt.at(i)<<std::endl;
 		v =cdt.insert(lst_pt.at(i));
 		vertices.push_back(v);
 	}
 	int n=lst_pt.size();
 	cdt.insert_constraint(vertices.at(n-1), vertices.at(0));
-	int number_vert= cdt.number_of_vertices();
+	
 	for (int i=1; i<n; i++)
 		cdt.insert_constraint(vertices.at(i), vertices.at(i-1));
 	std::cout<< "starting mehsing "<<std::endl;
@@ -256,7 +249,7 @@ void test5(){
 	CGAL::refine_Delaunay_mesh_2(cdt, Criteria(0.125,0,cdt.geom_traits()),false);
 	cdt.is_valid();
 	std::cout<<"number of vertices after meshing:  "<<cdt.number_of_vertices()<<std::endl;
-}
+	}
 	
 
 

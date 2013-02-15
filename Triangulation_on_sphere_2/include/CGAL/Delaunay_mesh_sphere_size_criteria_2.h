@@ -153,9 +153,7 @@ namespace CGAL {
 			
 			Mesh_2::Face_badness operator()(const Quality q) const
 			{
-				//std::cout<<" quality-check"<<std::endl;
 				if(q.irreparable){
-					//std::cout<<"irreparable"<<std::endl;
 					return Mesh_2::NOT_BAD;
 				}
 				if( q.size() > 1 )
@@ -194,7 +192,7 @@ namespace CGAL {
 				
 				double max_sq_length; // squared max edge length
 				double second_max_sq_length;
-				//double min_sq_length;
+				
 				
 								
 				if(a<b)
@@ -223,20 +221,37 @@ namespace CGAL {
 				Construct_circumcenter_2 circumcenter_2 = traits.construct_circumcenter_2_object();
 				Point_2 cc = circumcenter_2(pa,pb,pc);
 				Vertex_handle nearest = nearest_vertex(cc, fh);
-				double circumradius= CGAL::to_double(squared_distance(cc, nearest->point()));				
+				
+				//compute the distance of circumcenter of to the nearest neighbor. Since the triangulation
+				//is constrained this can be a vertex not belonging to fh
+				//if distance to smal ->NOT_BAD (no point can be inserted)
+				double circumradius= CGAL::to_double(squared_distance(cc, nearest->point()));
+				if (circumradius<=_minDist){
+					q.irreparable = true;
+					return Mesh_2::NOT_BAD;
+				}
+				
+				
+				
 				//circumcenter  in the triangle?
 				Orientation o1 = traits.orientation_2_object()(pa, pb,cc);
 				Orientation o2 = traits.orientation_2_object()(pb, pc,cc);
 				Orientation o3 = traits.orientation_2_object()(pc,pa, cc);
-				//if (o1==NEGATIVE || o2 == NEGATIVE || o3==NEGATIVE){
+				
+				//if circumcenter lies outside the triangle:
 				if (o1!=POSITIVE || o2 != POSITIVE || o3!=POSITIVE){
-					
+					//longest edge constrained -> NOT_BAD, else circumcenter would lie outside 
+					//the domain. Notice: this is possible since on a sphere it is not always possible
+					// to make a constrained edge Gabriel conform
 					if ((max_sq_length ==a && fh->is_constrained(0))||
 						(max_sq_length ==b && fh->is_constrained(1))||
 						(max_sq_length ==c && fh->is_constrained(2))){
 						q.irreparable = true;
 						return Mesh_2:: NOT_BAD;
 					}
+					
+					//has the neighbor of fh (adjacent to the longest edge) a constrained edge? If yes ->NOT_BAD
+					// else there could be an encroached edge which can not be split ->infinity loop
 					if((max_sq_length == a&& fh->neighbor(0)->is_constrained(0) || fh->neighbor(0)->is_constrained(1) || fh->neighbor(0)->is_constrained(2))||
 					   (max_sq_length == b&& fh->neighbor(1)->is_constrained(0) || fh->neighbor(1)->is_constrained(1) || fh->neighbor(1)->is_constrained(2))||
 					   (max_sq_length == b&& fh->neighbor(2)->is_constrained(0) || fh->neighbor(2)->is_constrained(1) || fh->neighbor(2)->is_constrained(2))){
@@ -246,15 +261,9 @@ namespace CGAL {
 
 					}
 				
+				//We can be sure that there are not more problems with to closed vertices
+				//go on with the same computation as in Mesh_2
 				
-				if (circumradius<=2*_minDist){
-					//return Mesh_2::IMPERATIVELY_BAD;
-					q.irreparable = true;
-					//std::cout<<"circumradius"<<std::endl;
-					return Mesh_2::NOT_BAD;
-					
-					
-				}
 				
 				
 				q.second = 0;
@@ -271,28 +280,19 @@ namespace CGAL {
 					}
 				}
 				
-				
-				
-				
-				
 				Compute_area_2 area_2 = traits.compute_area_2_object();
 				
 				double area = 2*CGAL::to_double(area_2(pa, pb, pc));
 				
 				q.first = (area * area) / (max_sq_length * second_max_sq_length); // (sine)*/
-				
-				
-				//q.first = max_sq_length/(4* circumradius);
-				
-				if( q.sine() < this->B ){
-					//std::cout<<"BAD"<<std::endl;
+								
+				if( q.sine() < this->B )
 					return Mesh_2::BAD;
-				}
-				else{
-					//std::cout<<"size"<<std::endl;
+				
+				else
 					return Mesh_2::NOT_BAD;
 					
-			}
+			
 			}
 		};
 		

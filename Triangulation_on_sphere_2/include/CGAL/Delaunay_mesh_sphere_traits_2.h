@@ -1,4 +1,4 @@
-
+//Claudia WERNER
 #ifndef CGAL_DELAUNAY_MESH_SPHERE_TRAITS_2_H
 #define CGAL_DELAUNAY_MESH_SPHERE_TRAITS_2_H
 
@@ -10,11 +10,11 @@
 #include <CGAL/distance_predicates_2.h>
 
 #include <CGAL/triangulation_assertions.h>
-
+//Claudia WERNER
 
 
 namespace CGAL { 
-			
+//projects the computed points (e.g. midpoint, circumcenter) on the sphere			
 template <class K, class Predicate_>
 class Project_on_sphere_adaptor{
 public:

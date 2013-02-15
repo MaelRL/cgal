@@ -93,6 +93,8 @@ public:
 		return vertices_begin();
 	}
 	
+	
+	//is_infinite(...) is needed for meshing
 	bool is_infinite(Vertex_handle v)const{
 		return false;
 	}
@@ -163,9 +165,9 @@ public:
 	//QUERY
 	bool is_constrained(Edge e) const;
 	bool is_valid(bool verbose = false, int level = 0) const;
-	bool includes_edge(Vertex_handle va, Vertex_handle vb,
+	/*bool includes_edge(Vertex_handle va, Vertex_handle vb,
 						 Vertex_handle& vbb,
-						 Face_handle& fr, int & i) const;
+						 Face_handle& fr, int & i) const;*/
 		
 	//FLIIPS
 	bool is_flipable(Face_handle f, int i, bool perturb = true) const;
@@ -686,8 +688,6 @@ public:
 		
 		// loop over triangles intersected by ab
 		bool done = false;
-		bool test = (current_vertex !=vbb);
-		bool test2 = (current_vertex !=vbb && !done);
 		while (current_vertex != vbb && !done)  { 
 			orient = this->orientation(aa,bb,current_vertex->point());
 			int i1, i2;
@@ -1074,12 +1074,16 @@ flip (Face_handle& f, int i)
 	
 	
 	//--------
+	
+	
 	template <class Gt, class Tds >
 	typename Constrained_Delaunay_triangulation_sphere_2<Gt, Tds>::Face_handle
 	Constrained_Delaunay_triangulation_sphere_2<Gt,Tds>::
 	locate(const Point& p,Locate_type& lt,int& li, Face_handle start) const{
 		Face_handle fh= DTS::locate(p,lt,li,start);
 		if( lt == TOO_CLOSE)
+		/* for being able to avoid inserting a point which is too close to an existing
+		 vertex during the meshing, location_typ has to be changed to VERTEX*/
 			lt = VERTEX;
 		return fh;
 		
