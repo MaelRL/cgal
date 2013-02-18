@@ -82,7 +82,7 @@ public:
 
     FT zev = (1.01+std::sin(3*M_PI*z));
     zev *= zev*zev*zev*zev*zev*zev*zev*zev*zev;
-    FT max = std::max(1.,zev);
+    FT max = (std::max)(1.,zev);
     zev /= max;
     FT yev = 1./max;
 
