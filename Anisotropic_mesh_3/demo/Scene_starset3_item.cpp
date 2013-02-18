@@ -194,8 +194,8 @@ Scene_starset3_item::direct_draw() const
     star_set().gl_draw_inconsistent_facets(m_draw_star_id-1);
   if(m_draw_metric_field){
     Scene_item::Bbox mf_bbox = this->bbox();
-    double bbox_min = std::min(mf_bbox.depth(), mf_bbox.height());
-    bbox_min = std::min(bbox_min, mf_bbox.width());
+    double bbox_min = (std::min)(mf_bbox.depth(), mf_bbox.height());
+    bbox_min = (std::min)(bbox_min, mf_bbox.width());
     star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id-1);
   }
 
