@@ -57,7 +57,7 @@ public:
     FT zz = z - s_center.z();
     FT first_elli = x*x/(a*a) + y*y/(b*b) + z*z/(c*c) - 1.0;
     FT second_elli = xx*xx/(d*d) + yy*yy/(e*e) + zz*zz/(f*f) - 1.0;
-    return 1 - std::exp(first_elli) - std::exp(second_elli);
+    return 1 - std::exp(0.7*first_elli) - std::exp(0.7*second_elli);
   }
 
 //  virtual double global_max_curvature() const
@@ -87,7 +87,7 @@ public:
   Constrain_surface_3_double_ellipsoid(const FT a_ = 3.5, const FT b_ = 2.5, const FT c_ = 1.5,
                                        const FT d_ = 3.0, const FT e_ = 2.0, const FT f_ = 1.0,
                                        const Point_3 P = Point_3(2.5,1.0,1.0)) :
-      a(a_), b(b_), c(c_), d(d_), e(_e), f(f_), s_center(P)
+      a(a_), b(b_), c(c_), d(d_), e(e_), f(f_), s_center(P)
   {
     FT dist_to_s_center = std::abs(s_center.x()*s_center.x() + s_center.y()*s_center.y() + s_center.z()*s_center.z());
     FT all_max = (std::max)((std::max)((std::max)((std::max)((std::max)(a_, b_), c_),d_),e_),f_);
