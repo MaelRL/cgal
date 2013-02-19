@@ -87,7 +87,6 @@ int main(int argc, char* argv[])
           new Constrain_surface_3_double_ellipsoid<K>(a, b, c, d, e, f, s_center);
 
   Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
-  //Ellipsoid_metric_field<K> metric_field(a, b, c, epsilon);
 
   int xcondition = (argc > 13) ? atoi(argv[13]) : -1;//default : no condition on x
   K::Plane_3 plane1(1., 0., 0., -4);
@@ -101,10 +100,6 @@ int main(int argc, char* argv[])
 
   timer.stop();
   starset.output("base_double_ellipse.off", false);
-
-  std::cout << "n : " << starset.number_of_stars() << std::endl;
-  std::cout << "surf : " << starset.number_of_surface_stars() << std::endl;
-  std::cout << "restricted facets : " << starset.count_restricted_facets() << std::endl;
 
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();
