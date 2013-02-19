@@ -411,7 +411,8 @@ class Constrain_surface_3_polyhedral :
             points.clear();
             find_nearest_vertices(p, points, dist);
             if(dist > max_search_dist){
-                std::cerr << "No points close enough to be found in find_nearest_vertices" << std::endl;
+                std::cerr << "No enough points close enough to be found in find_nearest_vertices" << std::endl;
+                break;
             }
           }
           nearest_start_try_radius = nearest_start_try_radius * 0.6 + dist * 0.4;
