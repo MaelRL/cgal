@@ -1,5 +1,6 @@
 #include "Scene_polyhedron_item.h"
 #include "Scene_polygon_soup.h"
+#include "Scene_starset3_item.h"
 #include "Polyhedron_type.h"
 
 #include <CGAL_demo/Io_plugin_interface.h>
@@ -69,7 +70,8 @@ bool Io_off_plugin::canSave(const Scene_item* item)
 {
   // This plugin supports polyhedrons and polygon soups
   return qobject_cast<const Scene_polyhedron_item*>(item) ||
-    qobject_cast<const Scene_polygon_soup*>(item);
+         qobject_cast<const Scene_polygon_soup*>(item) ||
+         qobject_cast<const Scene_starset3_item*>(item);
 }
 
 bool Io_off_plugin::save(const Scene_item* item, QFileInfo fileinfo)
@@ -79,14 +81,17 @@ bool Io_off_plugin::save(const Scene_item* item, QFileInfo fileinfo)
     qobject_cast<const Scene_polyhedron_item*>(item);
   const Scene_polygon_soup* soup_item = 
     qobject_cast<const Scene_polygon_soup*>(item);
+  const Scene_starset3_item* starset_item =
+    qobject_cast<const Scene_starset3_item*>(item);
 
-  if(!poly_item && !soup_item)
+  if(!poly_item && !soup_item && !starset_item)
     return false;
 
   std::ofstream out(fileinfo.filePath().toUtf8());
 
   return (poly_item && poly_item->save(out)) || 
-    (soup_item && soup_item->save(out));
+         (soup_item && soup_item->save(out)) ||
+         (starset_item && starset_item->save(out));
 }
 
 #include <QtPlugin>

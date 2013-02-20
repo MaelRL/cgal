@@ -140,6 +140,13 @@ Scene_starset3_item::bbox() const
   }
 }
 
+bool
+Scene_starset3_item::save(std::ofstream& out) const
+{
+  (const_cast< Scene_starset3_item* >(this))->star_set().output(out,true);
+}
+
+
 QString 
 Scene_starset3_item::toolTip() const 
 {

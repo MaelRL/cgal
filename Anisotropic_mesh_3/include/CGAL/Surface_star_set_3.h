@@ -1894,8 +1894,14 @@ public:
         std::string file(filename);
         if(file.substr(file.length()-4).compare(".off") != 0)
           std::cout << "Warning : file name does not end with .off" << std::endl;
-        typename std::ofstream fx(filename);
 
+        std::ofstream fx(filename);
+        output(fx,consistent_only);
+      }
+
+      void output(std::ofstream& fx, const bool consistent_only = true)
+      {
+        std::cout << "Saving " << "...";
         std::map<Index, int> match_indices;//because we won't use all of them
         int off_index = 0; // the corresponding index in .off 
         std::vector<Point_3> points;
