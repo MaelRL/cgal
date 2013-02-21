@@ -72,6 +72,9 @@ public:
 
   void direct_draw() const;
   
+  //io
+  bool save(std::ofstream& out) const;
+
   // data item
   inline const Scene_item* data_item() const;
   inline void set_data_item(const Scene_item* data_item);

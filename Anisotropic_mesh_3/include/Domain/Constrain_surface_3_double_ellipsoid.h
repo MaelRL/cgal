@@ -33,7 +33,7 @@ public:
   FT get_d() const { return d; }
   FT get_e() const { return e; }
   FT get_f() const { return f; }
-  FT get_s_center() const { return s_center; }
+  Point_3 get_s_center() const { return s_center; }
 
   virtual std::string name() const { return std::string("Implicit torellipsoid"); }
 
@@ -95,8 +95,14 @@ public:
   }
 
   Constrain_surface_3_double_ellipsoid(const Constrain_surface_3_double_ellipsoid& de)
-      : a(de.get_a()), b(de.get_b()), c(de.get_c()), d(de.get_d()), e(de.get_e()), f(de.get_f()),
-        bounding_radius(de.get_bounding_radius()) { }
+      : a(de.get_a()), b(de.get_b()), c(de.get_c()),
+        d(de.get_d()), e(de.get_e()), f(de.get_f()),
+        s_center((de.get_s_center()))
+  {
+    FT dist_to_s_center = std::abs(s_center.x()*s_center.x() + s_center.y()*s_center.y() + s_center.z()*s_center.z());
+    FT all_max = (std::max)((std::max)((std::max)((std::max)((std::max)(a, b), c),d),e),f);
+    bounding_radius = dist_to_s_center + all_max * 1.1;
+  }
 
   ~Constrain_surface_3_double_ellipsoid() { };
 };

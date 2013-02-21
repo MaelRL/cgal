@@ -41,7 +41,7 @@
 namespace CGAL{
   namespace Anisotropic_mesh_3{
 
-    
+
     template<typename K, typename KExact = K>
     class Stretched_Delaunay_3 : public CGAL::Delaunay_triangulation_3<
       Delaunay_traits_3<K, KExact>,
@@ -98,7 +98,7 @@ namespace CGAL{
       typedef typename Facet_vector::iterator           Facet_handle;
       typedef typename Cell_handle_vector::iterator     Cell_handle_handle;
       typedef typename Vertex_handle_vector::iterator   Vertex_handle_handle;
-      
+
     private:
       typedef typename KExact::Point_3                      Exact_Point_3;
       typedef typename KExact::Point_3                      Exact_TPoint_3;
@@ -106,7 +106,7 @@ namespace CGAL{
       typedef CGAL::Cartesian_converter<KExact, K> Back_from_exact;
       To_exact to_exact;
       Back_from_exact back_from_exact;
-      
+
     private:
       Point_3 m_center_point; //before transformation by m_metric.transform
       Vertex_handle m_center; //after transformation by m_metric.transform
@@ -131,8 +131,8 @@ namespace CGAL{
       static const Index index_of_infinite_vertex = -10;
     public:
       static Index infinite_vertex_index() { return index_of_infinite_vertex; }
-      bool is_infinite() const 
-      { 
+      bool is_infinite() const
+      {
         return (infinite_vertex_index() == index_in_star_set());
       }
 
@@ -157,7 +157,7 @@ namespace CGAL{
         return cell->template is_inside_exact<Self>(*this, *constrain(), *traits());
       }
 #endif
-      inline bool is_infinite_vertex(const Vertex_handle &v) const 
+      inline bool is_infinite_vertex(const Vertex_handle &v) const
       {
         return Base::is_infinite(v);
       }
@@ -165,7 +165,7 @@ namespace CGAL{
       {
         return Base::is_infinite(cell);
       }
-      
+
     public:
       Vertex_handle center() const      { return m_center; }
       Metric metric() const             { return m_metric; }
@@ -176,7 +176,7 @@ namespace CGAL{
     public:
       Point_3& center_point()             { return m_center_point; }
       const Point_3& center_point() const { return m_center_point; }
-      
+
       Index& index_in_star_set()             { return m_center->info(); }
       const Index& index_in_star_set() const { return m_center->info(); }
 
@@ -184,19 +184,19 @@ namespace CGAL{
       const bool& is_surface_star() const { return m_is_surface_star; }
 
     public:
-      const Bbox& bbox(const bool verbose = false) const 
-      { 
-        update_bbox(verbose); 
-        return m_bbox; 
+      const Bbox& bbox(const bool verbose = false) const
+      {
+        update_bbox(verbose);
+        return m_bbox;
       }
-     
+
     protected: // star configuration caching
       mutable bool is_cache_dirty;
       mutable Facet_set boundary_facets_cache;
       mutable Cell_handle_vector neighboring_cells_cache;
       mutable Cell_handle_vector neighboring_finite_cells_cache;
       mutable Vertex_handle_vector neighboring_vertices_cache;
-      
+
 //      FT squared_bounding_radius;
 
       inline void update_star_caches() const
@@ -219,7 +219,7 @@ namespace CGAL{
             if(is_in_star(*fit) && is_restricted(*fit))
               boundary_facets_cache.insert(this->make_canonical(*fit));
         }
-        else if(Base::dimension() > 2) 
+        else if(Base::dimension() > 2)
         {
           // update neighboring vertices
           std::back_insert_iterator<Vertex_handle_vector> neighboring_vertices_insertor(neighboring_vertices_cache);
@@ -229,7 +229,7 @@ namespace CGAL{
           std::back_insert_iterator<Cell_handle_vector> neighboring_cells_insertor(neighboring_cells_cache);
           Base::incident_cells(m_center, neighboring_cells_insertor);
 
-          std::back_insert_iterator<Cell_handle_vector> 
+          std::back_insert_iterator<Cell_handle_vector>
             neighboring_finite_cells_insertor(neighboring_finite_cells_cache);
           Base::finite_incident_cells(m_center, neighboring_finite_cells_insertor);
 
@@ -238,7 +238,7 @@ namespace CGAL{
           {
             Cell_handle_handle ci = neighboring_finite_cells_cache.begin();
             Cell_handle_handle cend = neighboring_finite_cells_cache.end();
-            for (; ci != cend; ci++) 
+            for (; ci != cend; ci++)
             {
               int center_index = (*ci)->index(m_center);
               for(int i = 0; i < 4; i++)
@@ -256,9 +256,9 @@ namespace CGAL{
           //ci = neighboring_cells_cache.begin();
           //cend = neighboring_cells_cache.end();
           //Traits::Compute_squared_distance_3 csd = m_traits->compute_squared_distance_3_object();
-          //for (; ci != cend; ci++) 
+          //for (; ci != cend; ci++)
           //{
-          //  if (is_infinite(*ci)) 
+          //  if (is_infinite(*ci))
           //  {
           //    squared_bounding_radius = DBL_MAX;
           //    break;
@@ -276,7 +276,7 @@ namespace CGAL{
       }
 
       void invalidate_cache() const
-      {        
+      {
         is_cache_dirty = true;
         m_is_valid_bbox = false;
         m_is_valid_topo_disk = false;
@@ -303,10 +303,10 @@ public:
 
 public:
       void update_bbox(const bool verbose = false) const
-      { 
+      {
         if(m_is_valid_bbox)
           return;
-        
+
         if(verbose) std::cout << "Update Bbox...";
         CGAL_PROFILER("[update_bbox]");
 
@@ -324,9 +324,9 @@ public:
 
       Bbox surface_bbox() const// compute bbox of incident surface Delaunay balls
       {
-        typename Traits::Compute_squared_distance_3 csd 
+        typename Traits::Compute_squared_distance_3 csd
           = m_traits->compute_squared_distance_3_object();
-        
+
         Bbox bb = m_center->point().bbox();
         Facet_set_iterator fi = begin_boundary_facets();
         Facet_set_iterator fend = end_boundary_facets();
@@ -347,23 +347,23 @@ public:
       }
 
       Bbox volume_bbox() const//// compute bbox of incident cells circumspheres
-      { 
-        typename Traits::Compute_squared_distance_3 csd 
+      {
+        typename Traits::Compute_squared_distance_3 csd
           = m_traits->compute_squared_distance_3_object();
 
         Bbox bb = m_center->point().bbox();
         Cell_handle_handle ci = begin_finite_star_cells();
         Cell_handle_handle cend = end_finite_star_cells();
-        for (; ci != cend; ci++) 
-        {         
+        for (; ci != cend; ci++)
+        {
           TPoint_3 cc = (*ci)->circumcenter(*m_traits);
           FT squared_radius = csd(cc, m_center->point());
 
 #ifdef ANISO_APPROXIMATE_SPHERE_BBOX
-		  double radius = sqrt(squared_radius);
-		  Bbox bbs(cc.x()-radius, cc.y()-radius, cc.z()-radius,
-			      cc.x()+radius, cc.y()+radius, cc.z()+radius);
-		  bb = bb + bbs;
+          double radius = sqrt(squared_radius);
+          Bbox bbs(cc.x()-radius, cc.y()-radius, cc.z()-radius,
+                  cc.x()+radius, cc.y()+radius, cc.z()+radius);
+          bb = bb + bbs;
 #else
           Sphere s(cc, squared_radius);
           bb = bb + s.bbox();
@@ -404,7 +404,7 @@ public:
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
-            
+
       inline FT compute_circumradius_overflow(const Cell_handle &cell) {
         return m_criteria.circumradius_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
@@ -427,8 +427,8 @@ public:
 
       inline FT compute_squared_circumradius(const Facet &facet) {
         return m_criteria.compute_squared_circumradius(
-          facet.first->vertex((facet.second + 1) % 4)->point(), 
-          facet.first->vertex((facet.second + 2) % 4)->point(), 
+          facet.first->vertex((facet.second + 1) % 4)->point(),
+          facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
@@ -459,21 +459,21 @@ public:
 
     public:
       // star configuration
-      inline Facet_set_iterator begin_boundary_facets() const { 
+      inline Facet_set_iterator begin_boundary_facets() const {
         update_star_caches();
         return boundary_facets_cache.begin();
       }
       inline Facet_set_iterator end_boundary_facets() const {
         return boundary_facets_cache.end();
       }
-      inline Cell_handle_handle begin_star_cells() const { 
+      inline Cell_handle_handle begin_star_cells() const {
         update_star_caches();
         return neighboring_cells_cache.begin();
       }
       inline Cell_handle_handle end_star_cells() const {
         return neighboring_cells_cache.end();
       }
-      inline Cell_handle_handle begin_finite_star_cells() const { 
+      inline Cell_handle_handle begin_finite_star_cells() const {
         update_star_caches();
         return neighboring_finite_cells_cache.begin();
       }
@@ -491,12 +491,10 @@ public:
       //  update_star_caches();
       //  return squared_bounding_radius;
       //}
-
       inline int get_finite_star_cell_count() const {
         update_star_caches();
         return (int)neighboring_finite_cells_cache.size();
       }
-
       inline bool is_boundary_star() const {
         update_star_caches();
         return (boundary_facets_cache.size() > 0);
@@ -517,19 +515,18 @@ public:
         Point_3 c;
         return is_restricted(f,c,false/*do not compute intersection*/);
       }
-      bool is_restricted(const Facet& f, 
+      bool is_restricted(const Facet& f,
                          Point_3& surface_delaunay_ball_center) const
       {
         return is_restricted(f, surface_delaunay_ball_center, true);
       }
-            
-      bool is_restricted(const Facet& f, 
+      bool is_restricted(const Facet& f,
                          Point_3& surface_delaunay_ball_center,
                          const bool compute_intersection) const
       {
         if(Base::is_infinite(f))
           return false;
-        else if(Base::dimension() == 2) 
+        else if(Base::dimension() == 2)
           return is_restricted_2_in_3(f, surface_delaunay_ball_center, true/*=exact*/);
         else if(Base::dimension() == 3)
         {
@@ -544,7 +541,7 @@ public:
 #endif
           if((inside1 && !inside2) || (!inside1 && inside2))
           {
-            if(!compute_intersection) 
+            if(!compute_intersection)
               return true;
 #ifdef ANISO_USE_EXACT
             if(!compute_exact_dual_intersection(f, surface_delaunay_ball_center))
@@ -567,10 +564,10 @@ public:
       }
 
       void update_is_topological_disk() const
-      {        
+      {
         if(m_is_valid_topo_disk)
           return;
-        
+
         CGAL_PROFILER("[Update is_topological_disk]");
         if(!is_surface_star() || this->dimension() < 3)
         {
@@ -584,7 +581,7 @@ public:
           m_is_topological_disk = false;// no restricted facet --> false
           return;
         }
-        
+
         std::set<Index> vertices_around;
         for(; fit != fend; fit++)
         {
@@ -601,21 +598,20 @@ public:
             }
           }
         }
-        m_is_topological_disk = vertices_around.empty(); 
+        m_is_topological_disk = vertices_around.empty();
         m_is_valid_topo_disk = true;
       }
 
       inline bool is_same(const Cell_handle &c, const Cell_handle &d)
       {
         int cids[4], dids[4];
-        for (int i = 0; i < 4; i++) 
+        for (int i = 0; i < 4; i++)
         {
           cids[i] = c->vertex(i)->info();
           dids[i] = d->vertex(i)->info();
         }
         return is_same_ids<4>(cids, dids);
       }
-
       inline bool is_same(const Cell_handle &c, int *vertices)
       {
         int cids[4];
@@ -624,7 +620,7 @@ public:
         return is_same_ids<4>(cids, vertices);
       }
 
-      bool has_cell(const Cell_handle &cell) 
+      bool has_cell(const Cell_handle &cell)
       {
         int cids[4], dids[4];
         for (int i = 0; i < 4; i++)
@@ -632,7 +628,7 @@ public:
 
         Cell_handle_handle ci = begin_star_cells();
         Cell_handle_handle cend = end_star_cells();
-        for (; ci != cend; ci++) 
+        for (; ci != cend; ci++)
         {
           for (int i = 0; i < 4; i++)
             dids[i] = (*ci)->vertex(i)->info();
@@ -641,7 +637,7 @@ public:
         }
         return false;
       }
-      bool has_cell_ref(int *vertices, Cell_handle &cell) 
+      bool has_cell_ref(int *vertices, Cell_handle &cell)
       {
         int dids[4];
         Cell_handle_handle ci = begin_star_cells();
@@ -649,7 +645,7 @@ public:
         for (; ci != cend; ci++) {
           for (int i = 0; i < 4; i++)
             dids[i] = (*ci)->vertex(i)->info();
-          if (is_same_ids<4>(vertices, dids)) 
+          if (is_same_ids<4>(vertices, dids))
           {
             cell = *ci;
             return true;
@@ -663,11 +659,11 @@ public:
         int dids[3];
         Facet_set_iterator fi = begin_boundary_facets();
         Facet_set_iterator fiend = end_boundary_facets();
-        for (; fi != fiend; fi++) 
+        for (; fi != fiend; fi++)
         {
           for (int i = 1; i <= 3; i++)
             dids[i - 1] = fi->first->vertex((fi->second + i) % 4)->info();
-          if (is_same_ids<3>(vertices, dids)) 
+          if (is_same_ids<3>(vertices, dids))
           {
             facet = *fi;
             return true;
@@ -675,12 +671,12 @@ public:
         }
         return false;
       }
-      
+
       bool is_same(const Facet &c, const Facet &d) const
       {
         int cids[3], dids[3];
         int cidp = 0, didp = 0;
-        for (int i = 0; i < 4; i++) 
+        for (int i = 0; i < 4; i++)
         {
           if (i != c.second)
             cids[cidp++] = c.first->vertex(i)->info();
@@ -688,9 +684,9 @@ public:
             dids[didp++] = d.first->vertex(i)->info();
         }
         // sorting and compare
-        for (int i = 2; i >= 0; i--) 
+        for (int i = 2; i >= 0; i--)
         {
-          for (int j = 1; j <= i; j++) 
+          for (int j = 1; j <= i; j++)
           {
             if (cids[j] < cids[j - 1])
               std::swap(cids[j], cids[j - 1]);
@@ -707,11 +703,12 @@ public:
       {
         Facet_set_iterator fi = begin_boundary_facets(); // does update caches
         Facet_set_iterator fend = end_boundary_facets();
-        for (; fi != fend; fi++) 
+        for (; fi != fend; fi++)
           if (is_same(*fi, facet))
             return true;
         return false;
       }
+
       bool has_vertex(const int i)
       {
         typename Base::Finite_vertices_iterator vit = this->finite_vertices_begin();
@@ -762,7 +759,7 @@ public:
         Facet_set facets;
         Cell_handle_handle ci = begin_finite_star_cells();
         Cell_handle_handle cend = end_finite_star_cells();
-        for (; ci != cend; ci++) 
+        for (; ci != cend; ci++)
         {
           int center_index = (*ci)->index(m_center);
           for(int i = 0; i < 4; i++)
@@ -778,7 +775,7 @@ public:
           std::cout << "\t\t f(" << f.first->vertex((f.second+1)%4)->info()
                         << " " << f.first->vertex((f.second+2)%4)->info()
                         << " " << f.first->vertex((f.second+3)%4)->info() << ") ";
-          if(is_restricted(f))  
+          if(is_restricted(f))
             std::cout << "restricted";
           std::cout << ",\n";
         }
@@ -791,8 +788,8 @@ public:
             && p.y() >= m_bbox.ymin() && p.y() <= m_bbox.ymax()
             && p.z() >= m_bbox.zmin() && p.z() <= m_bbox.zmax();
       }
-      
-      inline bool is_conflicted(const TPoint_3 &tp, 
+
+      inline bool is_conflicted(const TPoint_3 &tp,
                                 Cell_handle &in_which_cell) const
       {
         if(Base::dimension() <= 1)
@@ -824,10 +821,10 @@ public:
         if(this->dimension() < 3) return true;
         Cell_handle_handle ci = begin_star_cells();
         Cell_handle_handle cend = end_star_cells();
-        for (; ci != cend; ci++) 
+        for (; ci != cend; ci++)
         {
           if(is_in_delaunay_ball(tp, *ci))
-          {                       
+          {
             in_which_cell = *ci;
             return true;
           }
@@ -843,7 +840,7 @@ private :
         return (Base::side_of_sphere(c, tp) == CGAL::ON_BOUNDED_SIDE);
         // i.e. ON_BOUNDARY or ON_BOUNDED_SIDE
       }
-      
+
       bool is_in_surface_delaunay_ball(const TPoint_3& tp,
                                        const Facet& f,
                                        Cell_handle& in_which_cell) const
@@ -852,7 +849,7 @@ private :
         if(Base::dimension() < 3)
           return true;
 
-        typename Traits::Compute_squared_distance_3 csd 
+        typename Traits::Compute_squared_distance_3 csd
           = m_traits->compute_squared_distance_3_object();
         Point_3 center;
 #ifdef ANISO_USE_EXACT
@@ -861,7 +858,7 @@ private :
         compute_dual_intersection(f, center);
 #endif
         TPoint_3 tcenter = m_metric.transform(center);
-        
+
         FT sq_radius = csd(tcenter, m_center->point()); // M_star
         if(csd(tcenter, tp) >= sq_radius)
           return false;
@@ -873,8 +870,8 @@ private :
           in_which_cell = c1;
           return true;
         }
-        else if(Base::side_of_sphere(c2, tp) == CGAL::ON_BOUNDED_SIDE)        
-        { 
+        else if(Base::side_of_sphere(c2, tp) == CGAL::ON_BOUNDED_SIDE)
+        {
           in_which_cell = c2;
           return true;
         }
@@ -903,14 +900,14 @@ public:
 
   private:
       // warning : point should be transformed before this insert function is called
-      Vertex_handle insert(const TPoint_3 &tp, const Cell_handle &cell) 
+      Vertex_handle insert(const TPoint_3 &tp, const Cell_handle &cell)
       {
         Vertex_handle retval = Base::insert(tp, cell);
         invalidate_cache();
         return retval;
       }
       // warning : point should be transformed before this insert function is called
-      Vertex_handle insert(const TPoint_3 &tp) 
+      Vertex_handle insert(const TPoint_3 &tp)
       {
         Vertex_handle retval = Base::insert(tp);
         invalidate_cache();
@@ -918,7 +915,7 @@ public:
       }
       // warning : point should be transformed before this insert function is called
       Vertex_handle insert_to_star_(const TPoint_3 &tp,
-                                    const bool conditional) 
+                                    const bool conditional)
       {
         if(Base::dimension() < 3 || !conditional)
           return this->insert(tp);
@@ -932,18 +929,18 @@ public:
       }
 
   public:
-      Vertex_handle insert_to_star(const Point_3 &p, 
+      Vertex_handle insert_to_star(const Point_3 &p,
                                    const int id,
-                                   const bool conditional) 
+                                   const bool conditional)
       {
         Vertex_handle v = insert_to_star_(m_metric.transform(p), conditional);
-        if(v != center() && v != Vertex_handle()) 
+        if(v != center() && v != Vertex_handle())
           v->info() = id;
         return v;
       }
 
       int simulate_insert_to_star(const Point_3& p, const int id)
-      { 
+      {
         CGAL_HISTOGRAM_PROFILER("V", this->number_of_vertices());
         TPoint_3 tp = m_metric.transform(p);
         bool found_vertex = false;
@@ -963,14 +960,14 @@ public:
             ++it){
           if(p == it->point()){
             found_vertex = true;
-			vh = it;
+            vh = it;
           }
         }
 #endif
         if(found_vertex) // already in star
         {
           std::cout << "Warning : simulate_insert_to_star re-inserts same point.\n";
-          return vh->info(); // 
+          return vh->info(); //
         }
         else             // in conflict
         {
@@ -1011,7 +1008,7 @@ public:
       std::size_t clean() //remove useless vertices
       {
         typedef typename std::pair<TPoint_3, int> PPoint;
-        std::vector<PPoint> backup;    
+        std::vector<PPoint> backup;
         Vertex_handle_handle vit = begin_neighboring_vertices();
         Vertex_handle_handle vend = end_neighboring_vertices();
         // backup star vertices
@@ -1022,7 +1019,7 @@ public:
           if(!is_infinite_vertex(*vit))
             backup.push_back(PPoint((*vit)->point(), (*vit)->info()));
 
-        std::size_t nbv = this->number_of_vertices();        
+        std::size_t nbv = this->number_of_vertices();
         this->clear();
 
         //center first
@@ -1032,18 +1029,18 @@ public:
         for(std::size_t i = 1; i < backup.size(); i++)
           insert(backup[i].first)->info() = backup[i].second;
         this->infinite_vertex()->info() = index_of_infinite_vertex;
-        
+
         invalidate_cache();
         return (nbv - backup.size());
       }
-      
+
       // Note (JT) : this function is commented because it is not used anywhere
       // Note 2 : p should be transformed before anything
-      //bool can_form_sliver(const Point_3 &p, const FT &squared_radius_bound) 
+      //bool can_form_sliver(const Point_3 &p, const FT &squared_radius_bound)
       //{
       //  Cell_handle_handle ci = begin_star_cells();
       //  Cell_handle_handle cend = end_star_cells();
-      //  for (; ci != cend; ci++) 
+      //  for (; ci != cend; ci++)
       //  {
       //    if (Base::side_of_sphere((*ci), p) == CGAL::ON_UNBOUNDED_SIDE)
       //      continue;
@@ -1051,13 +1048,13 @@ public:
       //    Point_3 points[3];
       //    Point_3 centerpoint = m_center->point();
       //    int k = 0;
-      //    for (int i = 0; i < 4; i++) 
+      //    for (int i = 0; i < 4; i++)
       //    {
       //      if (c->vertex(i) != m_center)
       //        points[k++] = c->vertex(i)->point();
       //    }
       //    assert(k == 3);
-      //    for (int i = 0; i < 3; i++) 
+      //    for (int i = 0; i < 3; i++)
       //    {
       //      FT sliver_overflow = m_criteria.sliverity_overflow(
       //        centerpoint, points[i], points[(i + 1) % 3], p);
@@ -1067,7 +1064,7 @@ public:
       //        centerpoint, points[i], points[(i + 1) % 3], p) < 1e-7)
       //        continue;
       //      // here, we have to check coplanar and colinear cases
-      //      if (m_criteria.compute_squared_circumradius(centerpoint, points[i], 
+      //      if (m_criteria.compute_squared_circumradius(centerpoint, points[i],
       //        points[(i + 1) % 3], p) >= squared_radius_bound)
       //        continue;
       //      return true;
@@ -1099,7 +1096,7 @@ public:
       }
 
 
-      TPoint_3 compute_circumcenter(const Facet &facet) const 
+      TPoint_3 compute_circumcenter(const Facet &facet) const
       {
 #ifdef ANISO_USE_CC_EXACT
         return back_from_exact(compute_exact_circumcenter(facet));
@@ -1119,7 +1116,7 @@ public:
         return m_traits->construct_circumcenter_3_object()(ps[0], ps[1], ps[2]);
 #endif
       }
-      
+
       Exact_TPoint_3 compute_exact_circumcenter(Cell_handle cell) const
       {
 #ifdef ANISO_USE_CC_EXACT
@@ -1166,23 +1163,23 @@ public:
       {
         return m_traits->construct_circumcenter_3_object()(p0, p1, p2, p3);
       }
-      
-      bool is_encroached(const Point_3 &testp, typename Constrain_surface::EdgeIterator &e) 
+
+      bool is_encroached(const Point_3 &testp, typename Constrain_surface::EdgeIterator &e)
       {
         typename Traits::Side_of_bounded_sphere_3 o = m_traits->side_of_bounded_sphere_3_object();
         typename Constrain_surface::EdgeIterator ei = m_pConstrain->edge_begin();
         typename Constrain_surface::EdgeIterator eiend = m_pConstrain->edge_end();
-        for (; ei != eiend; ei++) 
+        for (; ei != eiend; ei++)
         {
           Point_3 p1 = ei->first;
           Point_3 p2 = ei->second;
-          if (CGAL::abs(p1.x() - testp.x()) + CGAL::abs(p1.y() - testp.y()) 
+          if (CGAL::abs(p1.x() - testp.x()) + CGAL::abs(p1.y() - testp.y())
             + CGAL::abs(p1.z() - testp.z()) < 1e-3)
             continue;
-          if (CGAL::abs(p2.x() - testp.x()) + CGAL::abs(p2.y() - testp.y()) 
+          if (CGAL::abs(p2.x() - testp.x()) + CGAL::abs(p2.y() - testp.y())
             + CGAL::abs(p2.z() - testp.z()) < 1e-3)
             continue;
-          if (o(p1, p2, testp) != CGAL::ON_UNBOUNDED_SIDE) 
+          if (o(p1, p2, testp) != CGAL::ON_UNBOUNDED_SIDE)
           {
             e = ei;
             return true;
@@ -1191,8 +1188,8 @@ public:
         return false;
       }
 
-      typename K::Object_3 constrain_ray_intersection(const Point_3 &p1, //source 
-                                                      const Point_3 &p2) const //target 
+      typename K::Object_3 constrain_ray_intersection(const Point_3 &p1, //source
+                                                      const Point_3 &p2) const //target
       {
         if(p1 == p2)
         {
@@ -1208,9 +1205,9 @@ public:
           return make_object(res);
         else return typename K::Object_3();
       }
-      
-      //typename KExact::Object_3 constrain_ray_intersection(const Exact_Point_3 &p1, //source 
-      //                                                     const Exact_Point_3 &p2) const //target 
+
+      //typename KExact::Object_3 constrain_ray_intersection(const Exact_Point_3 &p1, //source
+      //                                                     const Exact_Point_3 &p2) const //target
       //{
       //  if(p1 == p2)
       //    std::cout << "CONSTRAIN_RAY_INTERSECTION : source cannot be == target ";
@@ -1225,21 +1222,21 @@ public:
       //  return constrain_ray_intersection(p1, p2);
       //}
 
-      bool is_restricted_2_in_3(const Facet& f, 
+      bool is_restricted_2_in_3(const Facet& f,
                                 Point_3& surface_delaunay_ball_center,
                                 const bool exact = true) const
       {
         if(Base::dimension() != 2)
           return false;
         CGAL_PROFILER("[is_restricted_2_in_3]");
-        
+
         Triangle tr = m_metric.inverse_transform(Base::triangle(f));
-        Vector_3 n = tr.supporting_plane().orthogonal_vector();        
+        Vector_3 n = tr.supporting_plane().orthogonal_vector();
         if(exact)
         {
 #ifdef ANISO_USE_CC_EXACT
           Point_3 fc = back_from_exact(m_metric.inverse_transform(compute_exact_circumcenter(f)));
-#else          
+#else
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(f));
 #endif
           return (constrain_ray_intersection(fc, fc-n).assign(surface_delaunay_ball_center)
@@ -1269,19 +1266,19 @@ public:
         bool f2 = !is_infinite(c2);
         if(f1)
         {
-          if (f2) 
+          if (f2)
           {
             Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
             Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
             return make_object(Segment(cp1, cp2));
-          } 
+          }
           else // !f2
           {
             Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
             Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-              
+
             Point_3 ps[3];
-            get_inverse_transformed_points(ps, facet); 
+            get_inverse_transformed_points(ps, facet);
             CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2],
               m_metric.inverse_transform(facet.first->vertex(facet.second)->point()));
             CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
@@ -1289,29 +1286,29 @@ public:
             if(o1 == o2)      return make_object(Ray_3(cp, fc));
             else if(o1 != o2) return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
           }
-        } 
+        }
         else // !f1
         {
-          if (f2) 
-          { 
+          if (f2)
+          {
             Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
             Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
 
             Point_3 ps[3];
-            get_inverse_transformed_points(ps, facet); 
+            get_inverse_transformed_points(ps, facet);
             CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2],
               m_metric.inverse_transform(facet.first->vertex(facet.second)->point()));
             CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
 
             if(o1 == o2)      return make_object(Ray_3(cp, fc));
             else if(o1 != o2) return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
-          } 
+          }
         }
         return typename K::Object_3();
       }
 
-      bool compute_exact_dual_intersection(const Facet &facet, 
-                                           Point_3& p, 
+      bool compute_exact_dual_intersection(const Facet &facet,
+                                           Point_3& p,
                                            const bool use_cache = false,
                                            const bool verbose = true) const
       {
@@ -1331,28 +1328,28 @@ public:
         if(Base::dimension() == 2)
           ret_val = compute_exact_dual_intersection_2(facet, p);
         else
-        { 
+        {
           Point_3 ps[3];
-          get_inverse_transformed_points(ps, facet); 
-        
+          get_inverse_transformed_points(ps, facet);
+
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
           if(f1)
           {
-            if (f2) 
+            if (f2)
             {
               Exact_Point_3 cp1 = m_metric.inverse_transform(compute_exact_circumcenter(c1));
               Exact_Point_3 cp2 = m_metric.inverse_transform(compute_exact_circumcenter(c2));
               if(m_pConstrain->intersection(back_from_exact(cp1), back_from_exact(cp2)).assign(p))
                 ret_val = true;
-            } 
+            }
             else // !f2
             {
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c1));
               Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
-              
+
               CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
                 to_exact(ps[2]), to_exact(m_metric.inverse_transform(facet.first->vertex(facet.second)->point())));
               CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
@@ -1366,11 +1363,11 @@ public:
                   ret_val = true;
               }
             }
-          } 
+          }
           else // !f1
           {
-            if (f2) 
-            { 
+            if (f2)
+            {
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c2));
               Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
 
@@ -1393,16 +1390,20 @@ public:
             set_facet_cache(facet, p);
           else
           {
-            std::cerr << "Oops! no intersection!" << std::endl;
+            std::cerr.precision(15);
+            std::cerr << "Oops! no intersection [exact]" << std::endl;
             std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
-            std::cerr << "Facet: " << c1->vertex((facet.second + 1) % 4)->info() << " " <<
-              c1->vertex((facet.second + 2) % 4)->info() << " " <<
-              c1->vertex((facet.second + 3) % 4)->info() << std::endl;
             std::cerr << "Star:  " << m_center->info() << std::endl;
-            std::cerr << "Cell:  " << c1->vertex(0)->info() << " " <<
-              c1->vertex(1)->info() << " " <<
-              c1->vertex(2)->info() << " " <<
-              c1->vertex(3)->info() << std::endl;
+            std::cerr << "Facet 1: " << std::endl;
+            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " " << c1->vertex((facet.second + 1) % 4)->point() << std::endl;
+            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " " << c1->vertex((facet.second + 2) % 4)->point() << std::endl;
+            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " " << c1->vertex((facet.second + 3) % 4)->point() << std::endl;
+            std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
+            std::cerr << "Cell 2: " << std::endl;
+            std::cerr << c2->vertex(0)->info() << " " << c2->vertex(0)->point() << std::endl;
+            std::cerr << c2->vertex(1)->info() << " " << c2->vertex(1)->point() << std::endl;
+            std::cerr << c2->vertex(2)->info() << " " << c2->vertex(2)->point() << std::endl;
+            std::cerr << c2->vertex(3)->info() << " " << c2->vertex(3)->point() << std::endl;
           }
         }
 #ifdef USE_ANISO_TIMERS
@@ -1420,9 +1421,9 @@ public:
         facet.first->set_facet_visited(facet.second);
         mf.first->set_facet_visited(mf.second);
       }
-      
+
       //compute_exact_dual_intersection if triangulation is of dimension 2
-      bool compute_exact_dual_intersection_2(const Facet &facet, 
+      bool compute_exact_dual_intersection_2(const Facet &facet,
                                              Point_3& p) const
       {
         bool ret_val = false;
@@ -1436,7 +1437,7 @@ public:
         if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
         if(b1 && b2)
         {
-          if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2)) 
+          if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
             p = p2;
           else p = p1;
           ret_val = true;
@@ -1447,8 +1448,8 @@ public:
       }
 
 
-      bool compute_dual_intersection(const Facet &facet, 
-                                     Point_3& p, 
+      bool compute_dual_intersection(const Facet &facet,
+                                     Point_3& p,
                                      const bool use_cache = true,
                                      const bool verbose = true) const
       {
@@ -1477,7 +1478,7 @@ public:
         ////if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
         ////if(b1 && b2)
         ////{
-        ////  if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2)) 
+        ////  if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
         ////    p = p2;
         ////  else p = p1;
         ////  ret_val = true;
@@ -1498,7 +1499,7 @@ public:
           if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
           if(b1 && b2)
           {
-            if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2)) 
+            if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
               p = p2;
             else p = p1;
             ret_val = true;
@@ -1507,7 +1508,7 @@ public:
           else if(!b1 && b2) { p = p2 ; ret_val = true; }
         }
         else
-        { 
+        {
           Point_3 ps[3];
           get_inverse_transformed_points(ps, facet); 
           Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
@@ -1518,13 +1519,13 @@ public:
           bool f2 = !is_infinite(c2);
           if(f1)
           {
-            if (f2) 
+            if (f2)
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
               if(m_pConstrain->intersection(cp1, cp2).assign(p))
                 ret_val = true;
-            } 
+            }
             else // !f2
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
@@ -1548,11 +1549,11 @@ public:
               //else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
               //  ret_val = true;
             }
-          } 
+          }
           else // !f1
           {
-            if (f2) 
-            { 
+            if (f2)
+            {
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
               Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
 
@@ -1560,7 +1561,6 @@ public:
               Plane_3 t_plane = ttr.supporting_plane();
               Vector_3 t_n = t_plane.orthogonal_vector();
               Vector_3 n = m_metric.inverse_transform(t_n);
-
               Vector_3 ps3_fc(ps3,fc);
               if(ps3_fc * n  < 0.)
                 n = -n;
@@ -1581,18 +1581,22 @@ public:
           }
           if(verbose && !ret_val)
           {
+            std::cerr.precision(15);
             std::cerr << "Oops! no intersection!" << std::endl;
             std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
-            std::cerr << "Facet: " << c1->vertex((facet.second + 1) % 4)->info() << " " <<
-              c1->vertex((facet.second + 2) % 4)->info() << " " <<
-              c1->vertex((facet.second + 3) % 4)->info() << std::endl;
             std::cerr << "Star:  " << m_center->info() << std::endl;
-            std::cerr << "Cell:  " << c1->vertex(0)->info() << " " <<
-              c1->vertex(1)->info() << " " <<
-              c1->vertex(2)->info() << " " <<
-              c1->vertex(3)->info() << std::endl;
+            std::cerr << "Facet 1: " << std::endl;
+            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " " << c1->vertex((facet.second + 1) % 4)->point() << std::endl;
+            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " " << c1->vertex((facet.second + 2) % 4)->point() << std::endl;
+            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " " << c1->vertex((facet.second + 3) % 4)->point() << std::endl;
+            std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
+            std::cerr << "Cell 2: " << std::endl;
+            std::cerr << c2->vertex(0)->info() << " " << c2->vertex(0)->point() << std::endl;
+            std::cerr << c2->vertex(1)->info() << " " << c2->vertex(1)->point() << std::endl;
+            std::cerr << c2->vertex(2)->info() << " " << c2->vertex(2)->point() << std::endl;
+            std::cerr << c2->vertex(3)->info() << " " << c2->vertex(3)->point() << std::endl;
           }
-        
+
           if(ret_val)//do this in dimension 3 only (mirror_facet could crash, otherwise)
           {
             Facet mf = this->mirror_facet(facet);
@@ -1626,10 +1630,10 @@ public:
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
           bool f1 = !is_infinite(c1);
-          bool f2 = !is_infinite(c2);            
-          if (f1) 
+          bool f2 = !is_infinite(c2);
+          if (f1)
           {
-            if (f2) 
+            if (f2)
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
@@ -1637,41 +1641,44 @@ public:
                 return p;
               if (m_pConstrain->intersection(facetp, cp2).assign(p))
                 return p;
-            } 
-            else 
+            }
+            else
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               if (constrain_ray_intersection(cp, facetp).assign(p))
                 return p;
             }
-          }  
-          else 
+          }
+          else
           {
-            if (f2) 
+            if (f2)
             {
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
               if (constrain_ray_intersection(cp, facetp).assign(p))
                 return p;
-            } 
+            }
             else // oops, impossible
               std::cerr << "Oops! Impossible!\n";
           }
-        
+
           std::cerr << "Oops! no intersection! [with point on facet]" << facetp << std::endl;
-          std::cerr << "Facet: " << c1->vertex((facet.second + 1) % 4)->info() << " " <<
-            c1->vertex((facet.second + 2) % 4)->info() << " " <<
-            c1->vertex((facet.second + 3) % 4)->info() << std::endl;
           std::cerr << "Star:  " << m_center->info() << std::endl;
-          std::cerr << "Cell:  " << c1->vertex(0)->info() << " " <<
-            c1->vertex(1)->info() << " " <<
-            c1->vertex(2)->info() << " " <<
-            c1->vertex(3)->info() << std::endl;
+          std::cerr << "Facet 1: " << std::endl;
+          std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " " << c1->vertex((facet.second + 1) % 4)->point() << std::endl;
+          std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " " << c1->vertex((facet.second + 2) % 4)->point() << std::endl;
+          std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " " << c1->vertex((facet.second + 3) % 4)->point() << std::endl;
+          std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
+          std::cerr << "Cell 2: " << std::endl;
+          std::cerr << c2->vertex(0)->info() << " " << c2->vertex(0)->point() << std::endl;
+          std::cerr << c2->vertex(1)->info() << " " << c2->vertex(1)->point() << std::endl;
+          std::cerr << c2->vertex(2)->info() << " " << c2->vertex(2)->point() << std::endl;
+          std::cerr << c2->vertex(3)->info() << " " << c2->vertex(3)->point() << std::endl;
           throw "Oops! no intersection!";
         }
         return p;
       }
 
-      bool debug_steiner_point(const Point_3& steiner_point, 
+      bool debug_steiner_point(const Point_3& steiner_point,
                                const Facet& f) const
       {
         bool bug = false;
@@ -1705,7 +1712,7 @@ public:
       }
 
       //not used yet
-      //bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet) 
+      //bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet)
       //{
       //  TPoint_3 tc = m_metric.transform(compute_exact_dual_intersection(facet));
       //  TPoint_3 tq = facet.first->vertex((facet.second + 1) % 4)->point();
@@ -1714,15 +1721,15 @@ public:
       //}
 
       ////not used yet
-      //bool is_encroached(const Point_3 &p, Facet &facet) 
+      //bool is_encroached(const Point_3 &p, Facet &facet)
       //{
       //  TPoint_3 tp = m_metric.transform(p);
 
       //  Facet_set_iterator fi = begin_boundary_facets();
       //  Facet_set_iterator fend = end_boundary_facets();
-      //  for (; fi != fend; fi++) 
+      //  for (; fi != fend; fi++)
       //  {
-      //    if (is_facet_encroached(tp, *fi)) 
+      //    if (is_facet_encroached(tp, *fi))
       //    {
       //      facet = *fi;
       //      return true;
@@ -1760,7 +1767,7 @@ public:
         {
           const Cell_handle& cell = (*fit).first;
           const int& i = (*fit).second;
-          
+
           const Point_3& pa = m_metric.inverse_transform(cell->vertex((i+1)&3)->point());
           const Point_3& pb = m_metric.inverse_transform(cell->vertex((i+2)&3)->point());
           const Point_3& pc = m_metric.inverse_transform(cell->vertex((i+3)&3)->point());
@@ -1815,7 +1822,7 @@ public:
         const Side sa = plane.oriented_side(pa);
         const Side sb = plane.oriented_side(pb);
         const Side sc = plane.oriented_side(pc);
-        return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);          
+        return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
       }
 
       //void gl_draw_all(const typename K::Plane_3& plane) const
@@ -1845,16 +1852,16 @@ public:
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
         if(!was) ::glEnable(GL_LIGHTING);
-  
+
         typename Base::Finite_facets_iterator fit = this->finite_facets_begin();
         typename Base::Finite_facets_iterator fend = this->finite_facets_end();
         for(; fit != fend; fit++)
         {
-          Facet f = *fit;          
+          Facet f = *fit;
           if(!is_in_star(f)) continue;
           if(is_restricted(f)) { ::glColor3f(0.,0.,1.f); ::glLineWidth(2.);}
           else                 { ::glColor3f(0.,0.,0.);  ::glLineWidth(1.);}
-          
+
           typename K::Object_3 o = dual(f);
           typename K::Line_3 l;
           typename K::Ray_3 r;
@@ -1867,7 +1874,7 @@ public:
           else if(CGAL::assign(l, o))
             std::cout << "gl_draw_dual : line dual\n";
         }
-        if(!was) ::glDisable(GL_LIGHTING);  
+        if(!was) ::glDisable(GL_LIGHTING);
       }
 
       bool is_in_star(const Facet& f) const
@@ -1926,16 +1933,16 @@ public:
         return (m_center != Vertex_handle()) && Base::is_valid();
       }
 
-      void reset(const Point_3 &centerpoint, 
+      void reset(const Point_3 &centerpoint,
                  const int &index,
-                 const Metric &metric_, 
+                 const Metric &metric_,
                  const bool is_surface_star = true)
       {
         this->clear();
         m_center_point = centerpoint;
         m_metric = metric_;
         m_center = Base::insert(m_metric.transform(centerpoint));
-        m_center->info() = index;        
+        m_center->info() = index;
         m_is_surface_star = is_surface_star;
         this->infinite_vertex()->info() = index_of_infinite_vertex;
 
@@ -1943,7 +1950,7 @@ public:
       }
 
     public:
-      Stretched_Delaunay_3(const Criteria &criteria_, 
+      Stretched_Delaunay_3(const Criteria &criteria_,
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
         m_center_point(CGAL::ORIGIN),
@@ -1956,8 +1963,8 @@ public:
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
         is_cache_dirty(true),
-        boundary_facets_cache(), 
-        neighboring_cells_cache(), 
+        boundary_facets_cache(),
+        neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
         m_center = Vertex_handle();
@@ -1965,12 +1972,12 @@ public:
         this->infinite_vertex()->info() = index_of_infinite_vertex;
       }
 
-      Stretched_Delaunay_3(const Criteria &criteria_, 
-                           const Point_3 &centerpoint, 
+      Stretched_Delaunay_3(const Criteria &criteria_,
+                           const Point_3 &centerpoint,
                            const int &index,
-                           const Metric &metric_, 
+                           const Metric &metric_,
                            const Constrain_surface* pconstrain_surface,
-                           const bool is_surface_star = true) : 
+                           const bool is_surface_star = true) :
         m_center_point(centerpoint),
         Base(*(m_traits = new Traits())),
         m_metric(metric_),
@@ -1981,18 +1988,18 @@ public:
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
         is_cache_dirty(true),
-        boundary_facets_cache(), 
-        neighboring_cells_cache(), 
+        boundary_facets_cache(),
+        neighboring_cells_cache(),
         neighboring_finite_cells_cache()
-      { 
+      {
         m_center = Base::insert(m_metric.transform(centerpoint));
         m_center->info() = index;
         m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
         this->infinite_vertex()->info() = index_of_infinite_vertex;
       }
-        
+
       ~Stretched_Delaunay_3()
-      { 
+      {
         delete m_traits;
 //        delete m_pConstrain;
       }

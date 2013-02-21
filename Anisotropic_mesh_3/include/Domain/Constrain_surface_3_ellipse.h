@@ -81,15 +81,16 @@ public:
   }
 
   Constrain_surface_3_ellipse(const FT a_ = 2.0, const FT b_ = 1.0, const FT c_ = 1.0) :
-    a(a_),
-    b(b_),
-    c(c_)
+    a(a_), b(b_), c(c_)
   {
-    bounding_radius = (std::max)((std::max)(a_, b_), c_) * 1.1;
+    bounding_radius = (std::max)((std::max)(a, b), c) * 1.1;
   }
 
-  Constrain_surface_3_ellipse(const Constrain_surface_3_ellipse& e)
-      : a(e.get_a()), b(e.get_b()), c(e.get_c()), bounding_radius(e.get_bounding_radius()) { }
+  Constrain_surface_3_ellipse(const Constrain_surface_3_ellipse& e) :
+    a(e.get_a()), b(e.get_b()), c(e.get_c())
+  {
+    bounding_radius = (std::max)((std::max)(a, b), c) * 1.1;
+  }
 
   ~Constrain_surface_3_ellipse() { };
 };

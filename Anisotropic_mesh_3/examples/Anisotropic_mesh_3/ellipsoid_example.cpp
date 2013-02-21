@@ -12,6 +12,8 @@
 // WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 //#define ANISO_USE_INSIDE_EXACT
+//#define ANISO_DEBUG
+//#define ANISO_VERBOSE
 
 #include <CGAL/Timer.h>
 #include <CGAL/Default_configuration.h>
@@ -97,10 +99,6 @@ int main(int argc, char* argv[])
 
   timer.stop();
   starset.output("base_ellipse.off", false);
-
-  std::cout << "n : " << starset.number_of_stars() << std::endl;
-  std::cout << "surf : " << starset.number_of_surface_stars() << std::endl;
-  std::cout << "restricted facets : " << starset.count_restricted_facets() << std::endl;
 
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();

@@ -29,9 +29,9 @@ Io_c3t3_plugin::nameFilters() const
 
 
 bool
-Io_c3t3_plugin::canSave(const Scene_item*)
+Io_c3t3_plugin::canSave(const Scene_item* item)
 {
-  return true;
+  return qobject_cast<const Scene_c3t3_item*>(item);
 }
 
 bool
@@ -39,10 +39,8 @@ Io_c3t3_plugin::save(const Scene_item* item, QFileInfo fileInfo)
 {
   const Scene_c3t3_item* c3t3_item = qobject_cast<const Scene_c3t3_item*>(item);
   if ( NULL == c3t3_item )
-  {
     return false;
-  }
-  
+
   QString path = fileInfo.absoluteFilePath();
   std::ofstream medit_file (qPrintable(path));
   c3t3_item->c3t3().output_to_medit(medit_file,true,true);
