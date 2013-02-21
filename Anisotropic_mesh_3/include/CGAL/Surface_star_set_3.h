@@ -1286,6 +1286,7 @@ public:
                   typename Star::Metric m1 = m_stars[im1]->metric();
                   typename Star::Metric m2 = m_stars[im2]->metric();
   #endif
+
                   m_refine_queue.push_over_distortion(star, *fi, over_distortion);
                   b_continue = true;
                   break;
@@ -1918,8 +1919,6 @@ public:
           {
             Point_3 cc;
             star->compute_dual_intersection(*fi, cc);
-            if(!m_refinement_condition(cc))
-              continue;
 
             bool consistent = true;
             if(consistent_only)
