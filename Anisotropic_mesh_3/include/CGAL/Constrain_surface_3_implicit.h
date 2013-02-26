@@ -45,7 +45,7 @@ namespace CGAL{
       /// Constructor
       Member_function_pointer_to_function_wrapper(PointerToObject po, PointerToMemberFunction pf)
       : pf_(pf) , po_(po) {}
-    
+
       // Default copy constructor and assignment operator are ok
       /// Destructor
       ~Member_function_pointer_to_function_wrapper() {}
@@ -63,8 +63,8 @@ namespace CGAL{
 
 
     template<typename K>
-    class Constrain_surface_3_implicit : 
-      public Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container>  
+    class Constrain_surface_3_implicit :
+      public Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container>
     {
     public:
       typedef Constrain_surface_3_implicit<K>           Self;
@@ -79,7 +79,7 @@ namespace CGAL{
 
       // for Mesh_3
       typedef FT (Self::*Function)(const Point_3& p) const;
-      
+
       typedef Member_function_pointer_to_function_wrapper<Function, const Self*, FT, Point_3> Function_wrapper;
       typedef typename CGAL::Implicit_mesh_domain_3<Function_wrapper, K> Mesh_domain;
 
@@ -91,18 +91,18 @@ namespace CGAL{
       typedef typename CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 
     protected:
-      mutable std::set<Point_3> m_poles;   
+      mutable std::set<Point_3> m_poles;
       mutable C3t3 m_c3t3;
-      
+
       mutable double m_max_curvature;
       mutable double m_min_curvature;
       mutable bool m_cache_max_curvature;
       mutable bool m_cache_min_curvature;
-      
+
     public:
       virtual FT get_bounding_radius() const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
-      virtual std::string name() const { return std::string("Implicit"); } 
+      virtual std::string name() const { return std::string("Implicit"); }
 
       virtual FT evaluate(const FT x, const FT y, const FT z) const = 0;
       FT implicit_function(const Point_3& p) const
@@ -110,10 +110,10 @@ namespace CGAL{
         return evaluate(p.x(), p.y(), p.z());
       }
 
-      std::set<Point_3>& poles() { return m_poles; } 
-      const std::set<Point_3>& poles() const { return m_poles; } 
+      std::set<Point_3>& poles() { return m_poles; }
+      const std::set<Point_3>& poles() const { return m_poles; }
 
-      virtual Oriented_side side_of_constraint(const Point_3 &p) const 
+      virtual Oriented_side side_of_constraint(const Point_3 &p) const
       {
         FT w = evaluate(p.x(), p.y(), p.z());
         if (w < 0)
@@ -124,7 +124,7 @@ namespace CGAL{
           return CGAL::ON_ORIENTED_BOUNDARY;
       }
 
-      virtual Vector_3 gradient(const Point_3 &p, const FT delta = 1e-5) const 
+      virtual Vector_3 gradient(const Point_3 &p, const FT delta = 1e-5) const
       {
         FT dd = 1. / (2. * delta);
         return dd * Vector_3(
@@ -133,7 +133,7 @@ namespace CGAL{
           (evaluate(p.x(), p.y(), p.z() + delta) - evaluate(p.x(), p.y(), p.z() - delta)));
       }
 
-      //virtual Vector_3 normal(const Point_3 &p, const FT delta = 1e-5) const 
+      //virtual Vector_3 normal(const Point_3 &p, const FT delta = 1e-5) const
       //{
       //  Vector_3 n = gradient(p, delta);
       //  FT inv_len = -1. / sqrt(n*n);
@@ -164,8 +164,8 @@ public:
         Vector_3 zn = gradient(Point_3(p.x(), p.y(), p.z() - delta), delta);
         FT dd = 1. / (2. * delta);
         Eigen::Matrix3d m;
-        m(0,0) = dd*(xp.x() - xn.x()); m(0,1) = dd*(yp.x() - yn.x()); m(0,2) = dd*(zp.x() - zn.x());                         
-        m(1,0) = dd*(xp.y() - xn.y()); m(1,1) = dd*(yp.y() - yn.y()); m(1,2) = dd*(zp.y() - zn.y());   
+        m(0,0) = dd*(xp.x() - xn.x()); m(0,1) = dd*(yp.x() - yn.x()); m(0,2) = dd*(zp.x() - zn.x());
+        m(1,0) = dd*(xp.y() - xn.y()); m(1,1) = dd*(yp.y() - yn.y()); m(1,2) = dd*(zp.y() - zn.y());
         m(2,0) = dd*(xp.z() - xn.z()); m(2,1) = dd*(yp.z() - yn.z()); m(2,2) = dd*(zp.z() - zn.z());
         return m;
       }
@@ -180,24 +180,24 @@ public:
         return count;
       }
 
-      void tensor_frame(const Point_3 &p, 
-                        Vector_3 &e0, //unit normal 
+      void tensor_frame(const Point_3 &p,
+                        Vector_3 &e0, //unit normal
                         Vector_3 &e1, //unit eigenvector
                         Vector_3 &e2, //unit eigenvector
                         double& v1, //eigenvalue corresponding to e1
                         double& v2, //eigenvalue corresponding to e2
-                        const FT delta = 1e-5) const 
+                        const FT delta = 1e-5) const
       {
          tensor_frame_eigen(p, e0, e1, e2, v1, v2, delta);
       }
 
-      void tensor_frame_eigen(const Point_3 &p, 
-                              Vector_3 &e0, //unit normal 
+      void tensor_frame_eigen(const Point_3 &p,
+                              Vector_3 &e0, //unit normal
                               Vector_3 &e1, //unit eigenvector
                               Vector_3 &e2, //unit eigenvector
                               double& v1, //eigenvalue corresponding to e1
                               double& v2, //eigenvalue corresponding to e2
-                              const FT delta = 1e-5) const 
+                              const FT delta = 1e-5) const
       {
           // method in the book
           Vector_3 gx = gradient(p, delta);
@@ -212,7 +212,7 @@ public:
           Eigen::Matrix3d PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
           Eigen::Matrix3d hess = (1./gl) * hessian(p, delta) ;
           Eigen::Matrix3d m = (PN * hess * PN);
-          
+
 #ifdef ANISO_DEBUG_METRIC
           std::cout.precision(10);
           std::cout << "Normal : " << std::endl;
@@ -235,10 +235,10 @@ public:
           // look for smallest eigenvalue
           FT min_abs_value = DBL_MAX;
           int min_id = 0;
-          for (int i = 0; i < 3; i++) 
+          for (int i = 0; i < 3; i++)
           {
             double avi = std::abs(std::real(vals[i]));
-            if(avi < min_abs_value) 
+            if(avi < min_abs_value)
             {
               min_abs_value = avi;
               min_id = i;
@@ -247,7 +247,7 @@ public:
 
           // normal is ok (computed with gradient)
           e0 = get_vector(normal);
-            
+
           bool z0, z1, z2;
           double ev0 = std::abs(std::real(vals[min_id])); //should be the smallest
           double ev1 = std::abs(std::real(vals[(min_id + 1) % 3]));
@@ -256,21 +256,21 @@ public:
 
           if(zeros == 1) //it is ev0
           {
-            if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";  
+            if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";
             Vector_3 normal_test = get_eigenvector(vecs.col(min_id));
             if(!are_equal(e0, normal_test))
              std::cout << "Error2 : see tensor_frame, zeros==1\n";
-        
+
             v1 = ev1;
             v2 = ev2;
-            e1 = get_eigenvector(vecs.col((min_id + 1) % 3)); 
-            e2 = get_eigenvector(vecs.col((min_id + 2) % 3)); 
+            e1 = get_eigenvector(vecs.col((min_id + 1) % 3));
+            e2 = get_eigenvector(vecs.col((min_id + 2) % 3));
 
             //make sure the vectors form an orthogonal matrix
-            //when eigenvalues are the same, vectors returned by Eigen are not 
+            //when eigenvalues are the same, vectors returned by Eigen are not
             //necessarily orthogonal
             if(std::abs(e1*e2) > ZERO_DOT_PRODUCT)
-              e2 = normalize(CGAL::cross_product(e0,e1));       
+              e2 = normalize(CGAL::cross_product(e0,e1));
           }
           else if(zeros == 2)
           {
@@ -282,7 +282,7 @@ public:
 
             //the non-zero one
             v1 = std::abs(std::real(vals[id]));
-            e1 = get_eigenvector(vecs.col(id)); 
+            e1 = get_eigenvector(vecs.col(id));
             //the last one : choose the vector which is not // to the normal
             Vector_3 normal_test_1 = get_eigenvector(vecs.col((id + 1) % 3));
             Vector_3 normal_test_2 = get_eigenvector(vecs.col((id + 2) % 3));
@@ -348,17 +348,17 @@ public:
         Function fct = (Function)(&Self::implicit_function);
         FT r = this->get_bounding_radius();
         Function_wrapper fw(this, fct);
-        Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));        
-        Mesh_criteria criteria(CGAL::parameters::facet_angle = 25., 
+        Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
+        Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
                                CGAL::parameters::facet_size = r * 0.1,//05,
                                CGAL::parameters::facet_distance = r * 0.01);
-                               // cell criteria are ignored        
+                               // cell criteria are ignored
         // run Mesh_3
-        m_c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria, 
-                                         CGAL::parameters::no_perturb(), 
+        m_c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
+                                         CGAL::parameters::no_perturb(),
                                          CGAL::parameters::no_exude());
         m_poles.clear();
-        compute_triangulation_poles(m_c3t3.triangulation(), 
+        compute_triangulation_poles(m_c3t3.triangulation(),
           std::inserter(m_poles, m_poles.end()));
         return m_poles;
       }
@@ -415,7 +415,7 @@ public:
       }
 
       void min_max_curvatures(const Point_3& p,
-                              double& minc, 
+                              double& minc,
                               double& maxc) const
       {
         Vector_3 n, e1, e2;
@@ -426,11 +426,11 @@ public:
       }
 
       virtual Constrain_surface_3_implicit* clone() const = 0; // Uses the copy constructor
-      
-      Constrain_surface_3_implicit() 
-        : Base(), 
-          m_poles(), 
-          m_cache_max_curvature(false), 
+
+      Constrain_surface_3_implicit()
+        : Base(),
+          m_poles(),
+          m_cache_max_curvature(false),
           m_cache_min_curvature(false) {}
 
       virtual ~Constrain_surface_3_implicit(){}
@@ -438,7 +438,7 @@ public:
 
 
     template<typename K>
-    class Constrain_surface_3_implicit_with_bounding_sphere : 
+    class Constrain_surface_3_implicit_with_bounding_sphere :
       public Constrain_surface_3_implicit<K> {
 
     public:
@@ -453,7 +453,7 @@ public:
     public:
       virtual FT get_bounding_radius() const = 0;
       virtual FT evaluate(const FT x, const FT y, const FT z) const = 0;
-            
+
       virtual Oriented_side side_of_constraint(const Point_3 &p) const {
         FT br = get_bounding_radius();
         if (p.x() * p.x() + p.y() * p.y() + p.z() * p.z() > br * br)
