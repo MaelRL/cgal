@@ -47,7 +47,7 @@ find_package(OpenGL)
 link_libraries(${OPENGL_LIBRARIES})
 
 # Find GLEW (for OpenGL-1.5 and OpenGL extensions)
-find_package(GLEW)
+find_package(GLEW QUIET)
 
 # Find QGLViewer
 if(QT4_FOUND)
@@ -57,7 +57,7 @@ if(QT4_FOUND)
 endif(QT4_FOUND)
 
 # use Eigen if it is installed
-find_package(Eigen3 ) #(requires 3.1.0-alpha1 or greater)
+find_package(Eigen3 3.1.0 REQUIRED) #(requires 3.1.0-alpha1 or greater)
 if (NOT EIGEN3_FOUND)
 message ( STATUS "eigen not found" )
 else()
