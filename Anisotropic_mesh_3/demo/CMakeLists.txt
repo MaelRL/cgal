@@ -155,7 +155,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   set(SCENE_SEGMENTED_IMAGE_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_segmented_image_item")
   add_library(${SCENE_SEGMENTED_IMAGE_ITEM_LIB} SHARED
     Scene_segmented_image_item.cpp Scene_segmented_image_item.moc)
-  target_link_libraries(${SCENE_SEGMENTED_IMAGE_ITEM_LIB} ${SCENE_ITEM_LIB})
+  target_link_libraries(${SCENE_SEGMENTED_IMAGE_ITEM_LIB} ${SCENE_ITEM_LIB} ${CGAL_LIBRARIES})
   set_target_properties(${SCENE_SEGMENTED_IMAGE_ITEM_LIB} PROPERTIES DEFINE_SYMBOL scene_segmented_image_item_EXPORTS)
 
   if(GLEW_FOUND)
@@ -165,25 +165,25 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   set(SCENE_POLYHEDRON_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_polyhedron_item")
   add_library(${SCENE_POLYHEDRON_ITEM_LIB} SHARED
     Scene_polyhedron_item.cpp Scene_polyhedron_item.moc)
-  target_link_libraries(${SCENE_POLYHEDRON_ITEM_LIB} ${SCENE_ITEM_LIB})
+  target_link_libraries(${SCENE_POLYHEDRON_ITEM_LIB} ${SCENE_ITEM_LIB} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
   set_target_properties(${SCENE_POLYHEDRON_ITEM_LIB} PROPERTIES DEFINE_SYMBOL scene_polyhedron_item_EXPORTS)
 
   set(POLYGON_SOUP_LIB "${MESH_3_LIB_PREFIX}polygon_soup")
   add_library(${POLYGON_SOUP_LIB} SHARED
     Scene_polygon_soup.cpp Scene_polygon_soup.moc)
-  target_link_libraries(${POLYGON_SOUP_LIB} ${SCENE_ITEM_LIB})
+  target_link_libraries(${POLYGON_SOUP_LIB} ${SCENE_ITEM_LIB} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
   set_target_properties(${POLYGON_SOUP_LIB} PROPERTIES DEFINE_SYMBOL polygon_soup_EXPORTS)
 
   set(SCENE_C3T3_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_c3t3_item")
   add_library(${SCENE_C3T3_ITEM_LIB} SHARED
     Scene_c3t3_item.cpp Scene_c3t3_item.moc)
-  target_link_libraries(${SCENE_C3T3_ITEM_LIB} ${SCENE_ITEM_LIB} ${QGLVIEWER_LIBRARIES} )
+  target_link_libraries(${SCENE_C3T3_ITEM_LIB} ${SCENE_ITEM_LIB} ${QGLVIEWER_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} )
   set_target_properties(${SCENE_C3T3_ITEM_LIB} PROPERTIES DEFINE_SYMBOL scene_c3t3_item_EXPORTS)
 
   set(SCENE_STARSET3_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_starset3_item")
   add_library(${SCENE_STARSET3_ITEM_LIB} SHARED
     Scene_starset3_item.cpp Scene_starset3_item.moc)
-  target_link_libraries(${SCENE_STARSET3_ITEM_LIB}  ${SCENE_ITEM_LIB} ${QGLVIEWER_LIBRARIES} )
+  target_link_libraries(${SCENE_STARSET3_ITEM_LIB}  ${SCENE_ITEM_LIB} ${QGLVIEWER_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} )
   set_target_properties(${SCENE_STARSET3_ITEM_LIB} PROPERTIES DEFINE_SYMBOL scene_starset3_item_EXPORTS)
 
   set(SCENE_IMPLICIT_FUNCTION_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_implicit_function_item")
