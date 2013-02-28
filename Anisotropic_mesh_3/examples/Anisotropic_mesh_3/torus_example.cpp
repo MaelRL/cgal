@@ -46,7 +46,7 @@ std::string output_filename(const double& R,
 
 int main(int argc, char* argv[])
 {
-  std::ofstream fx("torus_timings.txt");
+  std::ofstream fx("torus_info.txt");
 
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
@@ -58,11 +58,13 @@ int main(int argc, char* argv[])
 
   K::FT r0 = (argc > 4) ? atof(argv[4]) : 1.0/*default*/;
   K::FT gamma0 = (argc > 5) ? atof(argv[5]) : 1.5;
+  K::FT rho0 = (argc > 6) ? atof(argv[6]) : 3.0;
+  K::FT approx = (argc > 7) ? atof(argv[7]) : 0.;
 
-  int nb = (argc > 6) ? atoi(argv[6]) : 10;
+  int nb = (argc > 8) ? atoi(argv[8]) : 20;
 
-  K::FT beta = (argc > 7) ? atof(argv[7]) : 2.5;
-  K::FT delta = (argc > 8) ? atof(argv[8]) : 0.3;
+  K::FT beta = (argc > 9) ? atof(argv[9]) : 2.5;
+  K::FT delta = (argc > 10) ? atof(argv[10]) : 0.3;
 
   fx << "Torus :" << std::endl;
   fx << "\tR = " << R << std::endl;
@@ -70,17 +72,19 @@ int main(int argc, char* argv[])
   fx << "\teps = " << epsilon << std::endl;
   fx << "\tr0 = " << r0 << std::endl;
   fx << "\tgamma0 = " << gamma0 << std::endl;
+  fx << "\trho0 = " << rho0 << std::endl;
+  fx << "\tapprox = " << approx << std::endl;
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
 
-  Criteria_base<K> criteria(3.0, //radius_edge_ratio_
+  Criteria_base<K> criteria(rho0, //radius_edge_ratio_
     0.2,    //sliverity_
     r0,     //circumradius_ 0.1
     gamma0, //distortion_ 1.3
     beta,   //beta_ 2.5
     delta,  //delta_ 0.3
     60,     //max_times_to_try_in_picking_region_
-    0.001); //approximation
+    approx); //approximation
 
   fx << std::endl << "nbV" << "\t" << "time" << std::endl;
   timer.start();
@@ -92,8 +96,8 @@ int main(int argc, char* argv[])
   Torus_metric_field<K> metric_field(R, r, epsilon);
   //Euclidean_metric_field<K> metric_field;
 
-  K::FT y = (argc > 9) ? atof(argv[9]) : (0.5*(R + r));
-  int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x
+  K::FT y = (argc > 11) ? atof(argv[11]) : (0.5*(R + r));
+  int xcondition = (argc > 12) ? atoi(argv[12]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 1., 0., 0.);
   K::Plane_3 plane2(1.0, 0.0001, 0., 0.);
 
@@ -106,7 +110,7 @@ int main(int argc, char* argv[])
   timer.stop();
 
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
-  starset.refine_all();
+  starset.refine_all(/*max nb of points*/);
 
   //starset.refine_all(fx, starttime);
   //timer.stop();
