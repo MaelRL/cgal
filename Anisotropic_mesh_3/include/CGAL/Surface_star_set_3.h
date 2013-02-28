@@ -200,8 +200,8 @@ private:
           Star_handle s = get_star(it);
           if(!s->is_surface_star())
             continue;                    
-          typename Star::Facet_set_iterator fit = s->begin_boundary_facets();
-          typename Star::Facet_set_iterator fend = s->end_boundary_facets();
+          typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
+          typename Star::Facet_set_iterator fend = s->end_restricted_facets();
           for(; fit != fend; ++fit)
           {
             Facet f = *fit;
@@ -445,8 +445,8 @@ private:
         typename std::set<Facet_ijk> facets;
         for(unsigned int i = 0; i < m_stars.size(); i++)
         {
-          typename Star::Facet_set_iterator fit = m_stars[i]->begin_boundary_facets();
-          typename Star::Facet_set_iterator fitend = m_stars[i]->end_boundary_facets();
+          typename Star::Facet_set_iterator fit = m_stars[i]->begin_restricted_facets();
+          typename Star::Facet_set_iterator fitend = m_stars[i]->end_restricted_facets();
           for(; fit != fitend; fit++)
             facets.insert(Facet_ijk(*fit));          
         }
@@ -514,8 +514,8 @@ private:
       void facets_created(Star_handle star,
                           std::map<Facet_ijk, int>& facets) const
       {
-        typename Star::Facet_set_iterator it = star->begin_boundary_facets(); 
-        typename Star::Facet_set_iterator iend = star->end_boundary_facets();
+        typename Star::Facet_set_iterator it = star->begin_restricted_facets(); 
+        typename Star::Facet_set_iterator iend = star->end_restricted_facets();
         for(; it != iend; it++)
           add_to_map(Facet_ijk(*it), facets);               
       }
@@ -803,8 +803,8 @@ private:
         for(unsigned int i = 0; i < m_stars.size(); i++)
         {
           Star_handle s = m_stars[i];
-          typename Star::Facet_set_iterator fit = s->begin_boundary_facets();
-          typename Star::Facet_set_iterator fitend = s->end_boundary_facets();
+          typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
+          typename Star::Facet_set_iterator fitend = s->end_restricted_facets();
           for(; fit != fitend; fit++)
           {
             Facet_ijk ftest(*fit);
@@ -1245,8 +1245,8 @@ public:
           if(!star->is_surface_star())
             continue;
 
-          Facet_set_iterator fi = star->begin_boundary_facets();
-          Facet_set_iterator fiend = star->end_boundary_facets();
+          Facet_set_iterator fi = star->begin_restricted_facets();
+          Facet_set_iterator fiend = star->end_restricted_facets();
           for (; fi != fiend; fi++) 
           {
             Point_3 cc;
@@ -1383,8 +1383,8 @@ public:
         for(std::size_t i = 0; i < N; i++)
         {
           Star_handle star = m_stars[i];
-          typename Star::Facet_set_iterator fit = star->begin_boundary_facets();
-          typename Star::Facet_set_iterator fitend = star->end_boundary_facets();
+          typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+          typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
           for(; fit != fitend; fit++)
             if(!is_consistent(*fit, verbose))
               return false;
@@ -1584,8 +1584,8 @@ public:
 
 
 #ifdef ANISO_DEBUG
-        typename Star::Facet_set_iterator it = star->begin_boundary_facets();
-        typename Star::Facet_set_iterator itend = star->end_boundary_facets();
+        typename Star::Facet_set_iterator it = star->begin_restricted_facets();
+        typename Star::Facet_set_iterator itend = star->end_restricted_facets();
         for(; it != itend; it++)
         {
           Facet f = *it;
@@ -1624,8 +1624,8 @@ public:
       std::set<Facet_ijk> restricted_facets(Star_handle star)
       {
         std::set<Facet_ijk> facets;
-        typename Star::Facet_set_iterator it = star->begin_boundary_facets();
-        typename Star::Facet_set_iterator itend = star->end_boundary_facets();
+        typename Star::Facet_set_iterator it = star->begin_restricted_facets();
+        typename Star::Facet_set_iterator itend = star->end_restricted_facets();
         for(; it != itend; it++)
         {
           Facet f = *it;
@@ -1926,8 +1926,8 @@ public:
           points.push_back(star->center_point());
           match_indices[star->index_in_star_set()] = off_index++;
 
-          typename Star::Facet_set_iterator fi = star->begin_boundary_facets();
-          typename Star::Facet_set_iterator fiend = star->end_boundary_facets();
+          typename Star::Facet_set_iterator fi = star->begin_restricted_facets();
+          typename Star::Facet_set_iterator fiend = star->end_restricted_facets();
           for (; fi != fiend; ++fi) 
           {
             Point_3 cc;
@@ -2102,8 +2102,8 @@ public:
           Star_handle s = m_stars[i];
           if(!s->is_surface_star() || !s->is_topological_disk())
             continue;
-          typename Star::Facet_set_iterator fi = s->begin_boundary_facets();
-          typename Star::Facet_set_iterator fend = s->end_boundary_facets();
+          typename Star::Facet_set_iterator fi = s->begin_restricted_facets();
+          typename Star::Facet_set_iterator fend = s->end_restricted_facets();
           for(; fi != fend; fi++)
           {
             FT rer = s->compute_squared_radius_edge_ratio(*fi);
@@ -2218,8 +2218,8 @@ public:
           if(!s->is_surface_star())
             continue;
           std::cout << "  " << i << " : ";
-          typename Star::Facet_set_iterator fit = s->begin_boundary_facets();
-          typename Star::Facet_set_iterator fend = s->end_boundary_facets();
+          typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
+          typename Star::Facet_set_iterator fend = s->end_restricted_facets();
           for(; fit != fend; ++fit)
           {
             std::cout << "(";
@@ -2387,8 +2387,8 @@ public:
         for(std::size_t i = start; i < N; i++)
         {
           Star_handle star = m_stars[i];
-          typename Star::Facet_set_iterator fit = star->begin_boundary_facets();
-          typename Star::Facet_set_iterator fitend = star->end_boundary_facets();
+          typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+          typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
           for(; fit != fitend; fit++)
           {
             Facet f = *fit;

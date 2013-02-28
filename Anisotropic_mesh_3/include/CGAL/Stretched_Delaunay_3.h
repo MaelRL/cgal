@@ -192,7 +192,7 @@ namespace CGAL{
 
     protected: // star configuration caching
       mutable bool is_cache_dirty;
-      mutable Facet_set boundary_facets_cache;
+      mutable Facet_set restricted_facets_cache; //restricted and incident to m_center
       mutable Cell_handle_vector neighboring_cells_cache;
       mutable Cell_handle_vector neighboring_finite_cells_cache;
       mutable Vertex_handle_vector neighboring_vertices_cache;
@@ -207,7 +207,7 @@ namespace CGAL{
         CGAL_PROFILER("[update_star_caches]");
         neighboring_cells_cache.clear();
         neighboring_finite_cells_cache.clear();
-        boundary_facets_cache.clear();
+        restricted_facets_cache.clear();
         neighboring_vertices_cache.clear();
 //        squared_bounding_radius = DBL_MAX;
 
@@ -217,7 +217,7 @@ namespace CGAL{
           typename Base::Finite_facets_iterator fend = this->finite_facets_end();
           for(; fit != fend; ++fit)
             if(is_in_star(*fit) && is_restricted(*fit))
-              boundary_facets_cache.insert(this->make_canonical(*fit));
+              restricted_facets_cache.insert(this->make_canonical(*fit));
         }
         else if(Base::dimension() > 2)
         {
@@ -247,7 +247,7 @@ namespace CGAL{
                 Facet f = this->make_canonical(Facet(*ci, i));
                 Point_3 p;
                 if(is_restricted(f, p, true)) //updates surface delaunay center, if needed
-                  boundary_facets_cache.insert(f);
+                  restricted_facets_cache.insert(f);
               }
             }
           }
@@ -328,8 +328,8 @@ public:
           = m_traits->compute_squared_distance_3_object();
 
         Bbox bb = m_center->point().bbox();
-        Facet_set_iterator fi = begin_boundary_facets();
-        Facet_set_iterator fend = end_boundary_facets();
+        Facet_set_iterator fi = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
         for(; fi != fend; fi++)
         {
           Point_3 p;
@@ -459,12 +459,12 @@ public:
 
     public:
       // star configuration
-      inline Facet_set_iterator begin_boundary_facets() const {
+      inline Facet_set_iterator begin_restricted_facets() const {
         update_star_caches();
-        return boundary_facets_cache.begin();
+        return restricted_facets_cache.begin();
       }
-      inline Facet_set_iterator end_boundary_facets() const {
-        return boundary_facets_cache.end();
+      inline Facet_set_iterator end_restricted_facets() const {
+        return restricted_facets_cache.end();
       }
       inline Cell_handle_handle begin_star_cells() const {
         update_star_caches();
@@ -497,14 +497,14 @@ public:
       }
       inline bool is_boundary_star() const {
         update_star_caches();
-        return (boundary_facets_cache.size() > 0);
+        return (restricted_facets_cache.size() > 0);
       }
 
       unsigned int nb_restricted_facets() const
       {
         unsigned int count = 0;
-        Facet_set_iterator fit = begin_boundary_facets();
-        Facet_set_iterator fend = end_boundary_facets();
+        Facet_set_iterator fit = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
         for(; fit != fend; ++fit)
           count++;
         return count;
@@ -574,8 +574,8 @@ public:
           m_is_topological_disk = false;
           return;
         }
-        Facet_set_iterator fit = this->begin_boundary_facets();
-        Facet_set_iterator fend = this->end_boundary_facets();
+        Facet_set_iterator fit = this->begin_restricted_facets();
+        Facet_set_iterator fend = this->end_restricted_facets();
         if(fit == fend)
         {
           m_is_topological_disk = false;// no restricted facet --> false
@@ -657,8 +657,8 @@ public:
       bool has_facet_ref(int *vertices, Facet &facet) const
       {
         int dids[3];
-        Facet_set_iterator fi = begin_boundary_facets();
-        Facet_set_iterator fiend = end_boundary_facets();
+        Facet_set_iterator fi = begin_restricted_facets();
+        Facet_set_iterator fiend = end_restricted_facets();
         for (; fi != fiend; fi++)
         {
           for (int i = 1; i <= 3; i++)
@@ -701,8 +701,8 @@ public:
 
       bool has_facet(const Facet &facet) const
       {
-        Facet_set_iterator fi = begin_boundary_facets(); // does update caches
-        Facet_set_iterator fend = end_boundary_facets();
+        Facet_set_iterator fi = begin_restricted_facets(); // does update caches
+        Facet_set_iterator fend = end_restricted_facets();
         for (; fi != fend; fi++)
           if (is_same(*fi, facet))
             return true;
@@ -724,12 +724,12 @@ public:
         std::cout << "\t Star_" << index_in_star_set();
         std::cout << " vertices ("<<(this->number_of_vertices())<<" v.)\t (";
         typename std::set<Vertex_handle> vertices;
-        if(begin_boundary_facets() == end_boundary_facets())
+        if(begin_restricted_facets() == end_restricted_facets())
           std::cout << "empty";
         else
         {
-          for(Facet_set_iterator fit = begin_boundary_facets();
-              fit != end_boundary_facets();
+          for(Facet_set_iterator fit = begin_restricted_facets();
+              fit != end_restricted_facets();
               fit++)
           {
             Facet f = *fit;
@@ -806,8 +806,8 @@ public:
                                                Cell_handle& in_which_cell) const
       {
         CGAL_PROFILER("[is_in_a_surface_delaunay_ball]");
-        Facet_set_iterator fi = begin_boundary_facets();
-        Facet_set_iterator fend = end_boundary_facets();
+        Facet_set_iterator fi = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
         for(; fi != fend; fi++)
           if(is_in_surface_delaunay_ball(tp, *fi, in_which_cell))
             return true;
@@ -986,8 +986,8 @@ public:
           return false;
         else if(dim == 2)
         {
-          Facet_set_iterator fit = begin_boundary_facets();
-          Facet_set_iterator fend = end_boundary_facets();
+          Facet_set_iterator fit = begin_restricted_facets();
+          Facet_set_iterator fend = end_restricted_facets();
           for(; fit != fend; fit++)
             if(is_restricted(*fit))
               *oit++ = *fit;
@@ -1729,8 +1729,8 @@ public:
       //{
       //  TPoint_3 tp = m_metric.transform(p);
 
-      //  Facet_set_iterator fi = begin_boundary_facets();
-      //  Facet_set_iterator fend = end_boundary_facets();
+      //  Facet_set_iterator fi = begin_restricted_facets();
+      //  Facet_set_iterator fend = end_restricted_facets();
       //  for (; fi != fend; fi++)
       //  {
       //    if (is_facet_encroached(tp, *fi))
@@ -1765,8 +1765,8 @@ public:
         if(! this->is_surface_star())
           return;
         gl_draw_center();
-        Facet_set_iterator fit = begin_boundary_facets();
-        Facet_set_iterator fend = end_boundary_facets();
+        Facet_set_iterator fit = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
         for(; fit != fend; fit++)
         {
           const Cell_handle& cell = (*fit).first;
@@ -1903,8 +1903,8 @@ public:
         if(!is_above_plane(plane, this->center_point()))
           return;
 
-        Facet_set_iterator fit = begin_boundary_facets();
-        Facet_set_iterator fend = end_boundary_facets();
+        Facet_set_iterator fit = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
         for(; fit != fend; fit++)
         {
           Facet f = *fit;
@@ -1969,7 +1969,7 @@ public:
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
         is_cache_dirty(true),
-        boundary_facets_cache(),
+        restricted_facets_cache(),
         neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
@@ -1994,7 +1994,7 @@ public:
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
         is_cache_dirty(true),
-        boundary_facets_cache(),
+        restricted_facets_cache(),
         neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
