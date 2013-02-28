@@ -45,7 +45,7 @@ public:
     const FT distortion;
     const FT beta;
     const FT delta;
-    const int max_times_to_try_in_picking_region;
+    const std::size_t max_times_to_try_in_picking_region;
 public:
 
     void report(typename std::ofstream &fx) const {
@@ -65,7 +65,7 @@ public:
              const FT distortion_ = 1.2,
              const FT beta_ = 2.5,
              const FT delta_ = 0.3,
-             const int max_times_to_try_in_picking_region_ = 60,
+             const std::size_t max_times_to_try_in_picking_region_ = 60,
              const FT approximation_ = 0.)
               :
         approximation(approximation_),

@@ -36,7 +36,7 @@ struct Anisotropic_mesh_parameters
   double distortion;
   double beta;
   double delta;
-  int max_times_to_try_in_picking_region;
+  std::size_t max_times_to_try_in_picking_region;
   int dim;
   
   inline QStringList log() const;
@@ -157,14 +157,14 @@ launch()
   if(p_.dim == 2)
   {
     smesher_ = new SMesher(starset_);
-    //smesher_->refine_all();//p_.max_times_to_try_in_picking_region);
+    //smesher_->refine_all();
 
 //------------------------------------------------------------------------
 //The following is a copy of refine_all from surface_star_set_3.h
 //to use a continue boolean. If you edit the algorithm here,
 //make sure to edit in the above file as well.
 
-    const int max_count = INT_MAX;//p_.max_times_to_try_in_picking_region);
+    const std::size_t max_count = (size_t) -1; //p_.max_times_to_try_in_picking_region);
 
 #ifdef ANISO_VERBOSE
     std::cout << "\nRefine all...";

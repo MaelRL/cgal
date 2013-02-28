@@ -57,6 +57,7 @@ namespace CGAL
 
       Metric_field(FT epsilon_ = 1.0):epsilon(epsilon_) { }
 
+      virtual ~Metric_field ( ) { }
     };
   }
 }

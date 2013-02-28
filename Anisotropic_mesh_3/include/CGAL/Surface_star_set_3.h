@@ -1395,7 +1395,7 @@ public:
       void fill_refinement_queue()
       {
         m_refine_queue.clear();
-        fill_refinement_queue(m_stars, -1);      
+        fill_refinement_queue(m_stars, -1);
 #ifdef ANISO_VERBOSE
         m_refine_queue.print();
 #endif
@@ -2373,36 +2373,37 @@ public:
       void gl_draw_inconsistent_facets(const int star_id = -1) const
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
-        if(!was) ::glEnable(GL_LIGHTING);
+        if(!was)
+            ::glEnable(GL_LIGHTING);
 
         ::glPolygonOffset(1.f, 0.1f);
         ::glEnable(GL_POLYGON_OFFSET_FILL);
         ::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-               
+
         bool draw_all = (star_id < 0);
-        std::size_t N = m_stars.size();
-        for(std::size_t i = 0; i < N; i++)
+        std::size_t start = draw_all ? 0 : star_id;
+        std::size_t N = draw_all ? m_stars.size() : (star_id + 1);
+
+        for(std::size_t i = start; i < N; i++)
         {
-          if(draw_all || i == star_id)
+          Star_handle star = m_stars[i];
+          typename Star::Facet_set_iterator fit = star->begin_boundary_facets();
+          typename Star::Facet_set_iterator fitend = star->end_boundary_facets();
+          for(; fit != fitend; fit++)
           {
-            Star_handle star = m_stars[i];
-            typename Star::Facet_set_iterator fit = star->begin_boundary_facets();
-            typename Star::Facet_set_iterator fitend = star->end_boundary_facets();
-            for(; fit != fitend; fit++)
-            {
-              Facet f = *fit;
-              if(is_consistent(f))
-                continue;
-              gl_draw_triangle<K>(
-                transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star), 
-                transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star), 
-                transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star), 
-                EDGES_AND_FACES, 255,0,0);
-            }
+            Facet f = *fit;
+            if(is_consistent(f))
+              continue;
+            gl_draw_triangle<K>(
+              transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star),
+              transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star),
+              transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star),
+              EDGES_AND_FACES, 255,0,0);
           }
         }
         ::glDisable(GL_POLYGON_OFFSET_FILL);
-        if(!was) ::glDisable(GL_LIGHTING);
+        if(!was)
+            ::glDisable(GL_LIGHTING);
       }   
             
 #ifdef USE_ANISO_TIMERS

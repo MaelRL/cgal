@@ -1890,7 +1890,7 @@ public:
           Vertex_handle v = f.first->vertex((f.second+i)%4);
           if(v == m_center)
           {
-            unsigned int index = f.first->index(m_center);
+            int index = f.first->index(m_center);
             if(index != f.second)
               return true;
           }
