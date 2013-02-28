@@ -23,7 +23,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
                                  const double distortion,
                                  const double beta,
                                  const double delta,
-                                 const int max_times_to_try_in_picking_region,
+                                 const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
                                  const int nb_initial_points)
 {
