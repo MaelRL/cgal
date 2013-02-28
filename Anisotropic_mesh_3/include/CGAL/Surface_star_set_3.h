@@ -2171,7 +2171,7 @@ public:
             std::cerr << duration(start_time) << " sec.,\t";
             m_refine_queue.print();
 #endif
-#ifdef ANISO_DEBUG
+#ifdef ANISO_DUMP_INTERMEDIATE_MESHES
             std::ostringstream oss;
             oss << "out_" << nbv << ".off";
             output(oss.str().c_str(), false/*consistent_only*/);
