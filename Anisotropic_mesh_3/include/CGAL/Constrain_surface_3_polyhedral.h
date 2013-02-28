@@ -596,7 +596,7 @@ class Constrain_surface_3_polyhedral :
           CGAL::parameters::no_perturb(), 
           CGAL::parameters::no_exude());
         m_poles.clear();
-        compute_triangulation_poles(m_c3t3.triangulation(), 
+        compute_triangulation_poles(m_c3t3, 
           std::inserter(m_poles, m_poles.end()));
         return m_poles;
       }
