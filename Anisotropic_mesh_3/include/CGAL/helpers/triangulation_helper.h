@@ -1,20 +1,28 @@
 #include <vector>
 
 
-template<typename Triangulation, typename OutputIterator>
-void compute_triangulation_poles(const Triangulation& tr,
+template<typename C3T3, typename OutputIterator>
+void compute_triangulation_poles(const C3T3& c3t3,
                                  OutputIterator oit)
 {   
+  typedef typename C3T3::Triangulation Triangulation;
   typedef typename Triangulation::Geom_traits::Point_3 Point_3;
   typedef typename Triangulation::Geom_traits::Vector_3 Vector_3;
   typedef typename Triangulation::Cell_handle Cell_handle;
 
+  const Triangulation& tr = c3t3.triangulation();
   typename Triangulation::Finite_vertices_iterator v;
   for(v = tr.finite_vertices_begin();
       v != tr.finite_vertices_end();
       ++v)
   {
     Point_3 pi = v->point();
+
+    if(c3t3.in_dimension(v) == 3)
+    {
+      std::cerr << "Warning : in compute_triangulation_poles ("<< pi <<") is inside" << std::endl;
+      continue;
+    }
                     
     std::vector<Point_3> candidates;
     Point_3 pole;
