@@ -1953,8 +1953,8 @@ public:
       Stretched_Delaunay_3(const Criteria &criteria_,
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
-        m_center_point(CGAL::ORIGIN),
         Base(*(m_traits = new Traits())),
+        m_center_point(CGAL::ORIGIN),
         m_metric(),
         m_pConstrain(pconstrain_surface),
         m_criteria(*m_traits, criteria_),
@@ -1978,8 +1978,8 @@ public:
                            const Metric &metric_,
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
-        m_center_point(centerpoint),
         Base(*(m_traits = new Traits())),
+        m_center_point(centerpoint),
         m_metric(metric_),
         m_pConstrain(pconstrain_surface),
         m_criteria(*m_traits, criteria_),

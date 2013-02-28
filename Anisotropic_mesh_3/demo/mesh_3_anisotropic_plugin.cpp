@@ -307,11 +307,9 @@ void Anisotropic_mesh_3_plugin::view_one_star()
   const Scene_interface::Item_id index = scene->mainSelectionIndex();
 
   // Get item
-  Scene_starset3_item* ssetitem = 
+  Scene_starset3_item* ssetitem =
     qobject_cast<Scene_starset3_item*>(scene->item(index));
-  Scene_item* item = NULL;
-  if( NULL != ssetitem ) { item = ssetitem; }
-  else
+  if( NULL == ssetitem )
   {
     QMessageBox::warning(mw,tr(""),tr("Selected object is not a star set.")); 
     return;
