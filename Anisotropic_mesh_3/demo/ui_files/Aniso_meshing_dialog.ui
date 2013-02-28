@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>437</width>
+    <width>455</width>
     <height>658</height>
    </rect>
   </property>
@@ -229,6 +229,9 @@
       </item>
       <item row="1" column="1">
        <widget class="QDoubleSpinBox" name="sliverity">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="minimumSize">
          <size>
           <width>110</width>
@@ -336,8 +339,11 @@
         <property name="text">
          <string/>
         </property>
-        <property name="checked">
+        <property name="checkable">
          <bool>true</bool>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
