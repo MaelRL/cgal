@@ -771,7 +771,7 @@ private:
         typename Star::Traits::Compute_random_point_3 random = 
           star->traits()->compute_random_point_3_object();
 
-        int tried_times = 0;
+        std::size_t tried_times = 0;
         Point_3 p;
         Star_handle retstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
         while(true)
