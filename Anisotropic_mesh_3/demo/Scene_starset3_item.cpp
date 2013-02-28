@@ -59,7 +59,7 @@ struct Scene_starset3_item_priv
                            const Constrain_surface* const surface,
                            const int nb_initial_points)
     : star_set(criteria, metric, surface, nb_initial_points)
-  {}
+  { }
 
   Surface_star_set star_set;
   QVector<QColor> colors;
@@ -77,6 +77,8 @@ Scene_starset3_item(const Criteria& criteria,
   data_item_(NULL),
   indices_(),
   m_draw_dual(false),
+  m_draw_poles(false),
+  m_draw_initial_points(false),
   m_draw_surface_delaunay_balls(false),
   m_draw_star_id(-1),
   m_draw_inconsistent_facets(false),
@@ -143,31 +145,24 @@ Scene_starset3_item::bbox() const
 bool
 Scene_starset3_item::save(std::ofstream& out) const
 {
-  (const_cast< Scene_starset3_item* >(this))->star_set().output(out,true);
+  (const_cast< Scene_starset3_item* >(this))->star_set().output(out, true);
+  return !out.bad();
 }
-
 
 QString 
 Scene_starset3_item::toolTip() const 
 {
-  //int number_of_tets = 0;
-  //for(Tr::Finite_cells_iterator
-  //      cit = c3t3().triangulation().finite_cells_begin(),
-  //      end = c3t3().triangulation().finite_cells_end();
-  //    cit != end; ++cit)
-  //{
-  //  if( c3t3().is_in_complex(cit) )
-  //    ++number_of_tets;
-  //}
-  return tr("<p>3D cell star set: (ToDo...)<br />");
-    //        "<b>%4</b></p>"
-    //        "<p>Number of vertices: %1<br />"
-    //        "Number of surface facets: %2<br />"
-    //        "Number of volume tetrahedra: %3</p>")
-    //.arg(c3t3().triangulation().number_of_vertices())
-    //.arg(c3t3().number_of_facets_in_complex())
-    //.arg(number_of_tets)
-    //.arg(this->name());
+  return tr("<p>3D cell star set: <br />"
+            "<b>%5</b></p>"
+            "<p>Number of surface vertices : %1<br />"
+            "Total number of vertices (memory): %2<br />"
+            "Number of surface facets: %3<br />"
+            "Number of volume tetrahedra: %4</p>")
+  .arg(star_set().number_of_surface_stars())
+  .arg(star_set().total_number_of_vertices())
+  .arg(star_set().count_restricted_facets())
+  .arg(star_set().number_of_tets_in_star_set())
+  .arg(this->name());
 }
 
 void
@@ -188,27 +183,35 @@ Scene_starset3_item::direct_draw() const
   ::glGetBooleanv(GL_LIGHT_MODEL_TWO_SIDE, &two_side);
   ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
   if(!lighting)
-    ::glDisable(GL_LIGHTING);
+    ::glEnable(GL_LIGHTING);
 
   const Kernel::Plane_3& plane = this->plane();
 
   star_set().gl_draw(plane, true/*draw_edges*/, m_draw_star_id-1);
+  if(m_draw_poles)
+    star_set().gl_draw_poles(plane);
+  if(m_draw_initial_points)
+    star_set().gl_draw_initial_points(plane);
   if(m_draw_dual)
     star_set().gl_draw_dual(m_draw_star_id-1);
   if(m_draw_surface_delaunay_balls)
     star_set().gl_draw_surface_delaunay_balls(plane, m_draw_star_id-1);
   if(m_draw_inconsistent_facets)
     star_set().gl_draw_inconsistent_facets(m_draw_star_id-1);
-  if(m_draw_metric_field){
+  if(m_draw_metric_field)
+  {
     Scene_item::Bbox mf_bbox = this->bbox();
     double bbox_min = (std::min)(mf_bbox.depth(), mf_bbox.height());
     bbox_min = (std::min)(bbox_min, mf_bbox.width());
     star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id-1);
   }
 
-  if(!two_side) ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
-  if(lighting)  ::glEnable(GL_LIGHTING);
-  else          ::glDisable(GL_LIGHTING);
+  if(!two_side)
+    ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+  if(lighting)
+    ::glEnable(GL_LIGHTING);
+  else
+    ::glDisable(GL_LIGHTING);
 }
 
 
@@ -266,7 +269,8 @@ Scene_starset3_item::compute_color_map(const QColor& c)
   for(std::size_t i = 0; i < nb_stars; i++)
   {
     double hue = c.hueF() + 1./nb_stars * i;
-    if ( hue > 1 ) { hue -= 1.; }
+    if(hue > 1)
+      hue -= 1.;
     d->colors[i] = QColor::fromHsvF(hue, c.saturationF(), c.valueF());
   }
 }

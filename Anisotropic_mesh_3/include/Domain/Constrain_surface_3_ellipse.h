@@ -58,13 +58,11 @@ public:
 
 //  virtual double global_max_curvature() const
 //  {
-//    std::cout << "using bad curv values" << std::endl;
-//    return 1e30; //todo
+//    return 1e30; // theory to check : a/c² (a > b > c)
 //  }
 //  virtual double global_min_curvature() const
 //  {
-//    std::cout << "using bad curv values" << std::endl;
-//    return -1e30; //todo
+//    return -1e30; // theory to check : c/a² (a > b > c)
 //  }
 
   Point_container initial_points(const int nb = 8) const 

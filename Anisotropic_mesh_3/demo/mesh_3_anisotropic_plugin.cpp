@@ -92,6 +92,14 @@ public:
     if(actionDraw_dual_edges)
      connect(actionDraw_dual_edges, SIGNAL(toggled(bool)), this, SLOT(view_dual_edges(bool)));
 
+    actionDraw_poles = this->getActionFromMainWindow(mw, "actionDraw_poles");
+    if(actionDraw_poles)
+     connect(actionDraw_poles, SIGNAL(toggled(bool)), this, SLOT(view_poles(bool)));
+
+    actionDraw_initial_points = this->getActionFromMainWindow(mw, "actionDraw_initial_points");
+    if(actionDraw_initial_points)
+     connect(actionDraw_initial_points, SIGNAL(toggled(bool)), this, SLOT(view_initial_points(bool)));
+
     actionDraw_surface_delaunay_balls = this->getActionFromMainWindow(mw, "actionDraw_surface_delaunay_balls");
     if(actionDraw_surface_delaunay_balls)
       connect(actionDraw_surface_delaunay_balls, SIGNAL(toggled(bool)), this, SLOT(view_surface_delaunay_balls(bool)));;
@@ -121,6 +129,8 @@ public slots:
   void anisotropic_mesh_3();
   //view
   void view_dual_edges(bool);
+  void view_poles(bool);
+  void view_initial_points(bool);
   void view_surface_delaunay_balls(bool);
   void view_one_star();
   void view_all_stars();
@@ -137,6 +147,8 @@ private:
 private:
   QAction* actionAnisotropicMeshing;
   QAction* actionDraw_dual_edges;
+  QAction* actionDraw_poles;
+  QAction* actionDraw_initial_points;
   QAction* actionDraw_surface_delaunay_balls;
   QAction* actionDraw_one_star;
   QAction* actionDraw_inconsistent_facets;
@@ -152,6 +164,8 @@ Anisotropic_mesh_3_plugin::
 Anisotropic_mesh_3_plugin()
   : actionAnisotropicMeshing(NULL)
   , actionDraw_dual_edges(NULL)
+  , actionDraw_poles(NULL)
+  , actionDraw_initial_points(NULL)
   , actionDraw_surface_delaunay_balls(NULL)
   , actionDraw_one_star(NULL)
   , actionDraw_inconsistent_facets(NULL)
@@ -307,11 +321,9 @@ void Anisotropic_mesh_3_plugin::view_one_star()
   const Scene_interface::Item_id index = scene->mainSelectionIndex();
 
   // Get item
-  Scene_starset3_item* ssetitem = 
+  Scene_starset3_item* ssetitem =
     qobject_cast<Scene_starset3_item*>(scene->item(index));
-  Scene_item* item = NULL;
-  if( NULL != ssetitem ) { item = ssetitem; }
-  else
+  if( NULL == ssetitem )
   {
     QMessageBox::warning(mw,tr(""),tr("Selected object is not a star set.")); 
     return;
@@ -359,11 +371,35 @@ void Anisotropic_mesh_3_plugin::view_all_stars()
 void Anisotropic_mesh_3_plugin::view_dual_edges(bool b)
 {
   const Scene_interface::Item_id index = scene->mainSelectionIndex();
-  Scene_starset3_item* ssetitem = 
+  Scene_starset3_item* ssetitem =
     qobject_cast<Scene_starset3_item*>(scene->item(index));
   if(ssetitem != NULL)
   {
     ssetitem->draw_dual() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_poles(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_poles() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_initial_points(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_initial_points() = b;
     ssetitem->starset_changed();
   }
 }

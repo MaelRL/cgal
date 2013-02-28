@@ -57,7 +57,7 @@ public:
     FT zz = z - s_center.z();
     FT first_elli = x*x/(a*a) + y*y/(b*b) + z*z/(c*c) - 1.0;
     FT second_elli = xx*xx/(d*d) + yy*yy/(e*e) + zz*zz/(f*f) - 1.0;
-    return 1 - std::exp(0.7*first_elli) - std::exp(0.7*second_elli);
+    return  std::exp(-0.7*first_elli) + std::exp(-0.7*second_elli) - 1.0;
   }
 
 //  virtual double global_max_curvature() const

@@ -26,12 +26,12 @@ namespace CGAL
   namespace Anisotropic_mesh_3
   {
 
-    template<typename K, 
+    template<typename K,
              typename Point_container = typename Constrain_surface_3<K>::Point_container>
-    class Constrain_surface_3_ex : 
-      public Constrain_surface_3<K> 
+    class Constrain_surface_3_ex :
+      public Constrain_surface_3<K>
     {
-    
+
     public:
       typedef Constrain_surface_3<K> Base;
 
@@ -47,7 +47,7 @@ namespace CGAL
       typedef typename EdgeList::iterator  EdgeIterator;
       //typedef typename Base::Point_container Point_container;
       typedef typename Base::Pointset        Pointset;
-      
+
     public:
       EdgeList edges;
 
@@ -61,12 +61,12 @@ namespace CGAL
 
       virtual double global_max_curvature() const = 0;
       virtual double global_min_curvature() const = 0;
-            
+
     protected:
-      Object_3 intersection_of_ray(const Ray_3 &ray) const 
-      {	
-        return intersection(ray.source(), ray.source() + 
-          ray.to_vector() * 
+      Object_3 intersection_of_ray(const Ray_3 &ray) const
+      {
+        return intersection(ray.source(), ray.source() +
+          ray.to_vector() *
           (get_bounding_radius() * 2.0 / std::sqrt(ray.to_vector() * ray.to_vector())));
       }
 
@@ -83,7 +83,7 @@ namespace CGAL
           return Object_3();
       }
 
-      Object_3 intersection_of_segment(const Segment_3 &seg) const 
+      Object_3 intersection_of_segment(const Segment_3 &seg) const
       {
         return intersection(seg.source(), seg.target());
       }
@@ -104,21 +104,21 @@ namespace CGAL
         Vector_3 r_l(rp, lp);
         FT sqdist = r_l.squared_length();
         FT tol = 1e-16;
-        while (sqdist > tol) 
+        while (sqdist > tol)
         {
           Oriented_side mv = side_of_constraint(mp);
-          if (mv == lv) 
+          if (mv == lv)
           {
             lp = mp;
             mp = CGAL::midpoint(lp, rp);
-          } 
-          else if (mv == rv) 
+          }
+          else if (mv == rv)
           {
             rp = mp;
             mp = CGAL::midpoint(lp, rp);
-          } 
-          else 
-            return make_object(mp);         
+          }
+          else
+            return make_object(mp);
           sqdist *= 0.25;
         }
         return make_object(mp);
@@ -139,11 +139,11 @@ namespace CGAL
           return Object_3();
       }
 
-      Point_3 get_random_direction_end_point(const Point_3 &c) const 
+      Point_3 get_random_direction_end_point(const Point_3 &c) const
       {
         static CGAL::Random r(0);
         FT radius = get_bounding_radius() * 2.0;
-        while (true) 
+        while (true)
         {
           FT x = r.get_double(-1.0, 1.0);
           FT y = r.get_double(-1.0, 1.0);
@@ -159,47 +159,47 @@ namespace CGAL
         }
         return Point_3(0.,0.,0.); //should not be reached
       }
-      
-      virtual Point_container initial_points(const Point_container &init_points, 
-                                             const std::vector<Point_3> &seeds, 
+
+      virtual Point_container initial_points(const Point_container &init_points,
+                                             const std::vector<Point_3> &seeds,
                                              const FT min_dist,
-                                             const int nb = 8) const 
+                                             const int nb = 8) const
       {
         Point_container points = init_points;
         FT squared_min_dist = min_dist * min_dist;
-       
-        for (int i = 0; i < (int)seeds.size(); i++) 
+
+        for (int i = 0; i < (int)seeds.size(); i++)
         {
           Point_3 center = seeds[i];
           int fail_count = 0;
-          while (fail_count < 12 && (int)points.size() < nb) 
+          while (fail_count < 12 && (int)points.size() < nb)
           {
             Point_3 p;
             Object_3 pobj = intersection(center, get_random_direction_end_point(center));
-            if (CGAL::assign(p, pobj)) 
+            if (CGAL::assign(p, pobj))
             {
               bool throwaway = false;
-              for (int j = 0; j < (int)points.size(); j++) 
+              for (int j = 0; j < (int)points.size(); j++)
               {
                 Point_3 q = points[j];
                 FT sql = (p.x() - q.x()) * (p.x() - q.x()) +
                          (p.y() - q.y()) * (p.y() - q.y()) +
                          (p.z() - q.z()) * (p.z() - q.z());
-                if (sql < squared_min_dist) 
+                if (sql < squared_min_dist)
                 {
                   throwaway = true;
                   break; //for j
                 }
               }// end for j
-              if (throwaway) 
+              if (throwaway)
                 fail_count++;
-              else 
+              else
               {
                 fail_count = 0;
                 points.push_back(p);
               }
             } //end if assign
-            else 
+            else
             {
               fail_count++;
             } //end else assign
@@ -211,8 +211,8 @@ namespace CGAL
       EdgeIterator edge_begin() { return edges.begin(); }
       EdgeIterator edge_end() { return edges.end(); }
       void edge_split(EdgeIterator edge, const Point_3 & c) { }
-            
-      
+
+
 
       Constrain_surface_3_ex() : edges() { }
       ~Constrain_surface_3_ex() { };

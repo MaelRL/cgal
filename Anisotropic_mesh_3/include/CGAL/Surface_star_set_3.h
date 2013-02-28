@@ -112,6 +112,8 @@ namespace CGAL
       typedef typename Kd_tree::key_type                          Kd_point_info;
 
     public:
+      std::set<Point_3> poles;
+      typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
       const Metric_field &m_metric_field;
       const Criteria &m_criteria;
@@ -1405,14 +1407,15 @@ public:
         std::cout << "Initialize "<< nb << " stars..."; 
 #endif
         //typename Constrain_surface::Pointset initial_points = m_pConstrain->initial_points(nb);
-        typename Constrain_surface::Pointset initial_points = m_pConstrain->get_surface_points(2*nb);
+        initial_points.clear();
+        initial_points = m_pConstrain->get_surface_points(2*nb);
         typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
         typename Constrain_surface::Pointset::iterator pend = initial_points.end();
 #ifdef ANISO_VERBOSE
         std::cout << "(" << initial_points.size() << " initial points) ";
 #endif
         int nbdone = 0;
-        for (; pi != pend && nbdone < nb; pi++) 
+        for (; pi != pend && nbdone < nb; pi++)
         {
           std::size_t this_id = m_stars.size();
           int id = -1;
@@ -1434,9 +1437,13 @@ public:
         // compute poles (2/2) (1 per vertex : the furthest on the other side)
         std::cout << "(compute poles...";
 #endif
-        const std::set<Point_3>& poles = m_pConstrain->compute_poles();
+        poles.clear();
+        poles = m_pConstrain->compute_poles();
+
+        std::cout << poles.size() << " poles" << std::endl;
+
 #ifdef ANISO_VERBOSE
-        std::cout << poles.size() << ")";      
+        std::cout << poles.size() << ")";
 
         //insert them all in all stars
         std::cout << "(insert poles...";
@@ -1459,7 +1466,7 @@ public:
         }
         this->clean_stars();
 #ifdef ANISO_VERBOSE
-        std::cout << ") done ("<< done << " points)." << std::endl; 
+        std::cout << ") done ("<< done << " points)." << std::endl;
 #endif
       }
 
@@ -1476,7 +1483,7 @@ public:
         return nb;
       }
 
-      int number_of_vertices() const
+      int total_number_of_vertices() const
       {
         int nbv = 0;
         for(unsigned int i = 0; i < m_stars.size(); i++)
@@ -2064,7 +2071,7 @@ public:
         }
       }
       
-      int number_of_tets_in_star_set()
+      int number_of_tets_in_star_set() const
       {
         int count = 0;
          for (int i = 0; i < (int)m_stars.size(); i++)
@@ -2282,12 +2289,58 @@ public:
           m_stars[star_id]->gl_draw(plane);//, colors, draw_edges);
       }
 
+
+      void gl_draw_initial_points(const typename K::Plane_3& plane) const
+      {
+        typename Constrain_surface::Pointset::const_iterator pi = initial_points.begin();
+        typename Constrain_surface::Pointset::const_iterator pend = initial_points.end();
+        for (; pi != pend; pi++)
+        {
+//        if(!is_above_plane(plane, *it))
+//          return;
+
+          GLboolean light = (::glIsEnabled(GL_LIGHTING));
+
+          ::glPointSize(10.);
+          ::glColor3f(0.706f, 0.345f, 0.878f);
+          if(light)
+            ::glDisable(GL_LIGHTING);
+          ::glBegin(GL_POINTS);
+          ::glVertex3f((*pi).x(), (*pi).y(), (*pi).z());
+          ::glEnd();
+          if(light)
+            ::glEnable(GL_LIGHTING);
+        }
+      }
+
+      void gl_draw_poles(const typename K::Plane_3& plane) const
+      {
+        typename std::set<Point_3>::const_iterator it;
+        for(it = poles.begin(); it != poles.end(); ++it)
+        {
+//        if(!is_above_plane(plane, *it))
+//          return;
+
+          GLboolean light = (::glIsEnabled(GL_LIGHTING));
+
+          ::glPointSize(5.);
+          ::glColor3f(0.98f, 0.757f, 0.137f);
+          if(light)
+            ::glDisable(GL_LIGHTING);
+          ::glBegin(GL_POINTS);
+          ::glVertex3f((*it).x(), (*it).y(), (*it).z());
+          ::glEnd();
+          if(light)
+            ::glEnable(GL_LIGHTING);
+        }
+      }
+
       void gl_draw_metric(const typename K::Plane_3& plane,
                           double bbox_min, double eps,
                           const int star_id = -1/*only this one*/) const 
       {
         double coeff = bbox_min/20;
-        double glob_min = (std::max)(eps, m_pConstrain->global_min_curvature());
+        double glob_min = std::sqrt((std::max)(eps, m_pConstrain->global_min_curvature()));
         coeff *= glob_min;
 
         if(star_id < 0) // draw them all

@@ -234,7 +234,7 @@ public:
       e_n = (std::max)(epsilon, std::abs(vpn));
       e_max = (std::max)(epsilon, std::abs(vpmax)); //vpmax
       e_min = (std::max)(epsilon, std::abs(vpmin)); //vpmin
-            
+
       v_n = axis_x;
       v_max = axis_y;
       v_min = axis_z;
@@ -252,10 +252,26 @@ public:
       Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
       eigen_transformation = eigen_m * eigen_diag * eigen_mtransp;
 
+#ifdef ANISO_DEBUG_METRIC
+      std::cout << "--- eigen_m ---" << std::endl;
+      std::cout << eigen_m << std::endl;
+      std::cout << "--- eigen_diag ---" << std::endl;
+      std::cout << eigen_diag << std::endl;
+      std::cout << "-- eigen_mtransp ---" << std::endl;
+      std::cout << eigen_mtransp << std::endl;
+      std::cout << "-- eigen_transformation ---" << std::endl;
+      std::cout << eigen_transformation << std::endl;
+#endif
+
       eigen_diag(0,0) = 1.0/eigen_diag(0,0); 
       eigen_diag(1,1) = 1.0/eigen_diag(1,1);
       eigen_diag(2,2) = 1.0/eigen_diag(2,2);       
       eigen_inverse_transformation = eigen_m * eigen_diag * eigen_mtransp;
+
+#ifdef ANISO_DEBUG_METRIC
+      std::cout << "-- eigen_inverse_transformation ---" << std::endl;
+      std::cout << eigen_inverse_transformation << std::endl;
+#endif
     }
 
     void get_min_eigenvector(Vector_3& v) const

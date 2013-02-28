@@ -1792,17 +1792,17 @@ public:
         Vector_3 vec = CGAL::NULL_VECTOR;
         double val = 0.;
 
-        val = 1/m_metric.get_min_eigenvalue();
+        val = 1/std::sqrt(m_metric.get_min_eigenvalue());
         m_metric.get_min_eigenvector(vec);
         ::glColor3f(0.,0.,250.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
 
-        val = 1/m_metric.get_max_eigenvalue();
+        val = 1/std::sqrt(m_metric.get_max_eigenvalue());
         m_metric.get_max_eigenvector(vec);
         ::glColor3f(250.,0.,0.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
 
-        val = 1/m_metric.get_third_eigenvalue();
+        val = 1/std::sqrt(m_metric.get_third_eigenvalue());
         m_metric.get_third_eigenvector(vec);
         ::glColor3f(0.,250.,0.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
@@ -1855,7 +1855,8 @@ public:
       void gl_draw_dual() const
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
-        if(!was) ::glEnable(GL_LIGHTING);
+        if(was)
+          ::glDisable(GL_LIGHTING);
 
         typename Base::Finite_facets_iterator fit = this->finite_facets_begin();
         typename Base::Finite_facets_iterator fend = this->finite_facets_end();
@@ -1878,7 +1879,8 @@ public:
           else if(CGAL::assign(l, o))
             std::cout << "gl_draw_dual : line dual\n";
         }
-        if(!was) ::glDisable(GL_LIGHTING);
+        if(was)
+          ::glEnable(GL_LIGHTING);
       }
 
       bool is_in_star(const Facet& f) const
@@ -1957,8 +1959,8 @@ public:
       Stretched_Delaunay_3(const Criteria &criteria_,
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
-        m_center_point(CGAL::ORIGIN),
         Base(*(m_traits = new Traits())),
+        m_center_point(CGAL::ORIGIN),
         m_metric(),
         m_pConstrain(pconstrain_surface),
         m_criteria(*m_traits, criteria_),
@@ -1982,8 +1984,8 @@ public:
                            const Metric &metric_,
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
-        m_center_point(centerpoint),
         Base(*(m_traits = new Traits())),
+        m_center_point(centerpoint),
         m_metric(metric_),
         m_pConstrain(pconstrain_surface),
         m_criteria(*m_traits, criteria_),
