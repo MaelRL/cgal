@@ -1531,10 +1531,12 @@ public:
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
 
-              Triangle ttr = Base::triangle(facet);
-              Plane_3 t_plane = ttr.supporting_plane();
-              Vector_3 t_n = t_plane.orthogonal_vector();
+              //Triangle ttr = Base::triangle(facet);
+              //Plane_3 t_plane = ttr.supporting_plane();
+              //Vector_3 t_n = t_plane.orthogonal_vector();
+              Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
               Vector_3 n = m_metric.inverse_transform(t_n);
+
 
               Vector_3 ps3_fc(ps3,fc);
               if(ps3_fc * n  < 0.)
@@ -1557,9 +1559,11 @@ public:
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
               Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
 
-              Triangle ttr = Base::triangle(facet);
-              Plane_3 t_plane = ttr.supporting_plane();
-              Vector_3 t_n = t_plane.orthogonal_vector();
+              //Triangle ttr = Base::triangle(facet);
+              //Plane_3 t_plane = ttr.supporting_plane();
+              //Vector_3 t_n = t_plane.orthogonal_vector();
+              Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+
               Vector_3 n = m_metric.inverse_transform(t_n);
               Vector_3 ps3_fc(ps3,fc);
               if(ps3_fc * n  < 0.)
