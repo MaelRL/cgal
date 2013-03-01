@@ -413,11 +413,9 @@ private:
           }
           return false;
         }
-
         bool operator==(const Edge_ij& e) const
         {
-          return (vertex(0) == e.vertex(0) && vertex(1) == e.vertex(1))
-              || (vertex(0) == e.vertex(1) && vertex(1) == e.vertex(0));
+          return vertex(0) == e.vertex(0) && vertex(1) == e.vertex(1);
         }
         bool operator<(const Edge_ij& e) const
         {
@@ -2340,7 +2338,7 @@ public:
                           double bbox_min, double eps,
                           const int star_id = -1/*only this one*/) const 
       {
-        double coeff = bbox_min/20;
+        double coeff = bbox_min/20.;
         double glob_min = std::sqrt((std::max)(eps, m_pConstrain->global_min_curvature()));
         coeff *= glob_min;
 
