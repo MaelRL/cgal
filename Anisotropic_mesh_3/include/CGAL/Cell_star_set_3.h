@@ -484,8 +484,8 @@ namespace CGAL{
           Star_handle star = *si;
 
           // check encroachment
-          Facet_handle bi = star->begin_boundary_facets();
-          Facet_handle biend = star->end_boundary_facets();
+          Facet_handle bi = star->begin_restricted_facets();
+          Facet_handle biend = star->end_restricted_facets();
           for (; bi != biend; bi++) 
           {
             if ((relative_point >= 0) && (bi->first->vertex(bi->second)->info() != relative_point))
