@@ -253,7 +253,7 @@ Scene_starset3_item::starset_changed()
     indices_.insert(cit->subdomain_index());
   }
   */
-  d->colors.resize(max+1);
+  d->colors.resize((int)(max+1));
   compute_color_map(color_);
   
   // Rebuild histogram

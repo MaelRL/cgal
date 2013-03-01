@@ -56,7 +56,7 @@ public:
 
   bool isFinite() const { return true; }
   bool isEmpty() const  { return star_set().empty(); }
-  int nbStars() const { return star_set().size(); }
+  int nbStars() const { return (int)star_set().size(); }
 
   Bbox bbox() const;
 
