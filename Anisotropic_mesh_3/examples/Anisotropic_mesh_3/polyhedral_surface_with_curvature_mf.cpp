@@ -48,27 +48,24 @@ int main(int argc, char *argv[])
 
   double r0 = (argc > 2) ? atof(argv[2]) : 1.;
   double gamma0 = (argc > 3) ? atof(argv[3]) : 1.8;
+  double approx = (argc > 4) ? atof(argv[4]) : 0.;
+  double epsilon = (argc > 5) ? atof(argv[5]) : (0.1);
   
-  Criteria_base<K> criteria(3.0, //radius_edge_ratio_ //3.0
-                            0.2, //sliverity_
+  Criteria_base<K> criteria(0., //radius_edge_ratio_ //3.0
+                            0., //sliverity_ (not used)
                             r0, //circumradius_ 
                             gamma0, //distortion_   
                             2.5, //beta_
-                            0.3);//delta_
-
-  double epsilon = (argc > 4) ? atof(argv[4]) : (0.1);
-  // * pdomain->global_max_curvature());
+                            0.3, //delta_
+                            approx);
 
   Constrain_surface_3_polyhedral<K>* pdomain
     = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);  
 
   Polyhedral_curvature_metric_field<K> metric_field(*pdomain, epsilon);	
   
-  //Criteria_base<K> criteria(3.0, 0.2, 0.1, 1.8, 2.5, 0.3);
+  //Criteria_base<K> criteria(3.0, 0.2, r0, gamma0, 2.5, 0.3, approx);
   //Euclidean_metric_field<K> metric_field;
-  
-  //Criteria_base<K> criteria(3.0, 0.2, 0.3, 1.3, 2.5, 0.3);
-  //Arctan_metric_field<K> metric_field(5.0, 0.2);
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
 
