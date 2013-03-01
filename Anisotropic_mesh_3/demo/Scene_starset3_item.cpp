@@ -124,7 +124,7 @@ Scene_starset3_item::bbox() const
   {
     bool initialized = false;
     CGAL::Bbox_3 result;
-    unsigned int N = star_set().m_stars.size();
+    std::size_t N = star_set().m_stars.size();
     for(unsigned int i = 0; i < N; i++)
     {
       if(star_set().m_stars[i]->is_surface_star())
@@ -245,7 +245,7 @@ Scene_starset3_item::starset_changed()
   // Fill indices map and get max subdomain value
   indices_.clear();
   
-  int max = d->star_set.size();
+  std::size_t max = d->star_set.size();
 /*  for(C3t3::Cells_in_complex_iterator cit = this->c3t3().cells_in_complex_begin(),
       end = this->c3t3().cells_in_complex_end() ; cit != end; ++cit)
   {
@@ -266,7 +266,7 @@ void
 Scene_starset3_item::compute_color_map(const QColor& c)
 {
   std::size_t nb_stars = d->star_set.size();
-  for(std::size_t i = 0; i < nb_stars; i++)
+  for(int i = 0; i < nb_stars; i++)
   {
     double hue = c.hueF() + 1./nb_stars * i;
     if(hue > 1)
