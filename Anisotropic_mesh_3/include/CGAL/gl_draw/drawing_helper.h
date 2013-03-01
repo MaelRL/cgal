@@ -22,7 +22,7 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
   //draw triangles
   if(option != EDGES_ONLY)
   {
-    ::glColor3f(r / 256., g / 256., b / 256.);
+    ::glColor3d(r / 256., g / 256., b / 256.);
     ::glBegin(GL_TRIANGLES);
     typename Kernel::Vector_3 n = CGAL::cross_product(pb - pa, pc -pa);
     n = n / CGAL::sqrt(n*n);
@@ -105,10 +105,10 @@ void gl_draw_cylinder(const typename Kernel::Point_3& p1,
   {
     double nextangle = angle + anglestep;
     ::glBegin(GL_QUADS);
-      ::glVertex3f(p1.x() + r*std::cos(angle), p1.y() + r*std::sin(angle), p1.z());
-      ::glVertex3f(p1.x() + r*std::cos(nextangle), p1.y() + r*std::sin(nextangle), p1.z());
-      ::glVertex3f(p2.x() + r*std::cos(nextangle), p2.y() + r*std::sin(nextangle), p2.z());
-      ::glVertex3f(p2.x() + r*std::cos(angle), p2.y() + r*std::sin(angle), p2.z());
+      ::glVertex3d(p1.x() + r*std::cos(angle), p1.y() + r*std::sin(angle), p1.z());
+      ::glVertex3d(p1.x() + r*std::cos(nextangle), p1.y() + r*std::sin(nextangle), p1.z());
+      ::glVertex3d(p2.x() + r*std::cos(nextangle), p2.y() + r*std::sin(nextangle), p2.z());
+      ::glVertex3d(p2.x() + r*std::cos(angle), p2.y() + r*std::sin(angle), p2.z());
     ::glEnd();//GL_QUADS
     angle = nextangle;
   }
@@ -127,15 +127,15 @@ void gl_draw_cone(const typename Kernel::Point_3& p1,
   unsigned int NSIDES = 10;
   double anglestep = 360./(float)NSIDES;
   ::glBegin(GL_TRIANGLE_FAN);
-  ::glVertex3f(tip.x(), tip.y(), tip.z());
+  ::glVertex3d(tip.x(), tip.y(), tip.z());
   for(unsigned i = 0; i < NSIDES; i++, angle += anglestep)
-    ::glVertex3f(p2.x() + r * std::cos(angle), p2.y() + r * std::sin(angle), p2.z());
+    ::glVertex3d(p2.x() + r * std::cos(angle), p2.y() + r * std::sin(angle), p2.z());
   ::glEnd(); //GL_TRIANGLE_FAN
 
   angle = 0.;
   ::glBegin(GL_POLYGON);
   for(unsigned int i = 0; i < NSIDES; i++, angle += anglestep)
-    ::glVertex3f(p2.x() + r * std::cos(angle), p2.y() + r * std::sin(angle), p2.z());
+    ::glVertex3d(p2.x() + r * std::cos(angle), p2.y() + r * std::sin(angle), p2.z());
   ::glEnd();//GL_POLYGON
 }
 

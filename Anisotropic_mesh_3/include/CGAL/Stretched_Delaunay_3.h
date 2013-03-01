@@ -1755,7 +1755,7 @@ public:
           ::glColor3f(139., 137., 137.);
         }
         ::glBegin(GL_POINTS);
-        ::glVertex3f(m_center_point.x(), m_center_point.y(), m_center_point.z());
+        ::glVertex3d(m_center_point.x(), m_center_point.y(), m_center_point.z());
         ::glEnd();
       }
 

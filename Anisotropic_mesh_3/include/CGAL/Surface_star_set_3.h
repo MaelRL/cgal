@@ -2305,7 +2305,7 @@ public:
           if(light)
             ::glDisable(GL_LIGHTING);
           ::glBegin(GL_POINTS);
-          ::glVertex3f((*pi).x(), (*pi).y(), (*pi).z());
+          ::glVertex3d((*pi).x(), (*pi).y(), (*pi).z());
           ::glEnd();
           if(light)
             ::glEnable(GL_LIGHTING);
@@ -2327,7 +2327,7 @@ public:
           if(light)
             ::glDisable(GL_LIGHTING);
           ::glBegin(GL_POINTS);
-          ::glVertex3f((*it).x(), (*it).y(), (*it).z());
+          ::glVertex3d((*it).x(), (*it).y(), (*it).z());
           ::glEnd();
           if(light)
             ::glEnable(GL_LIGHTING);
