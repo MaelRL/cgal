@@ -1474,6 +1474,7 @@ public:
       {
         return m_stars.size();
       }
+
       unsigned int number_of_surface_stars() const
       {
         unsigned int nb = 0;
@@ -1483,9 +1484,9 @@ public:
         return nb;
       }
 
-      int total_number_of_vertices() const
+      std::size_t total_number_of_vertices() const
       {
-        int nbv = 0;
+        std::size_t nbv = 0;
         for(unsigned int i = 0; i < m_stars.size(); i++)
           nbv += m_stars[i]->number_of_vertices();
         return nbv;
@@ -2478,7 +2479,7 @@ public:
       Surface_star_set_3& operator=(const Surface_star_set_3&) {}
 
     };
-  }
-}
+  }//namespace Anisotropic_mesh_3
+}//namespace CGAL
 
 #endif // CGAL_ANISOTROPIC_MESH_3_SURFACE_STAR_SET_3_H
