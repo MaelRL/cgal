@@ -217,7 +217,7 @@ class Constrain_surface_3_polyhedral :
     public:
       FT compute_sq_approximation(const Point_3& p) const
       {
-        return 0.;//todo!
+        return tree->squared_distance(p);
       }
 
       virtual void tensor_frame_on_point(const Point_3 &p, 
