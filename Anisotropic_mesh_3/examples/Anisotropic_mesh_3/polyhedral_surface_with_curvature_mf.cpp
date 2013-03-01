@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
                             gamma0, //distortion_   
                             2.5, //beta_
                             0.3, //delta_
+                            60, //nb tries in pick_valid
                             approx);
 
   Constrain_surface_3_polyhedral<K>* pdomain
