@@ -83,7 +83,8 @@ Scene_starset3_item(const Criteria& criteria,
   m_draw_star_id(-1),
   m_draw_inconsistent_facets(false),
   m_draw_metric_field(false),
-  m_draw_metric_eps(metric.epsilon)
+  m_draw_metric_eps(metric.epsilon),
+  m_draw_mesh_3(false)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));
   starset_changed();
@@ -205,7 +206,8 @@ Scene_starset3_item::direct_draw() const
     bbox_min = (std::min)(bbox_min, mf_bbox.width());
     star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id-1);
   }
-  star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
+  if(m_draw_mesh_3)
+    star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
 
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);

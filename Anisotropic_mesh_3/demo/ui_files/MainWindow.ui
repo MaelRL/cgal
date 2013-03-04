@@ -37,7 +37,7 @@
      <x>0</x>
      <y>0</y>
      <width>978</width>
-     <height>27</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -107,6 +107,7 @@
      <addaction name="actionDraw_inconsistent_facets"/>
      <addaction name="separator"/>
      <addaction name="actionDraw_metric_field"/>
+     <addaction name="actionDraw_mesh_3"/>
     </widget>
     <addaction name="actionAntiAliasing"/>
     <addaction name="actionDraw_two_sides"/>
@@ -609,6 +610,11 @@
    </property>
    <property name="text">
     <string>initial points</string>
+   </property>
+  </action>
+  <action name="actionDraw_mesh_3">
+   <property name="text">
+    <string>Mesh_3 (poles)</string>
    </property>
   </action>
  </widget>

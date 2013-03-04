@@ -116,6 +116,10 @@ public:
     if(actionDraw_metric_field)
       connect(actionDraw_metric_field, SIGNAL(toggled(bool)), this, SLOT(view_metric_field(bool)));
 
+    actionDraw_mesh_3 = this->getActionFromMainWindow(mw, "actionDraw_mesh_3");
+    if(actionDraw_mesh_3)
+      connect(actionDraw_mesh_3, SIGNAL(toggled(bool)), this, SLOT(view_mesh_3(bool)));
+
     this->msg = msg_interface;
   }
 
@@ -136,6 +140,7 @@ public slots:
   void view_all_stars();
   void view_inconsistent_facets(bool);
   void view_metric_field(bool);
+  void view_mesh_3(bool);
   //others
   void meshing_done(Anisotropic_meshing_thread* t);
   void status_report(QString str);
@@ -153,6 +158,7 @@ private:
   QAction* actionDraw_one_star;
   QAction* actionDraw_inconsistent_facets;
   QAction* actionDraw_metric_field;
+  QAction* actionDraw_mesh_3;
 
   Messages_interface* msg;
   QMessageBox* message_box_;
@@ -435,6 +441,18 @@ void Anisotropic_mesh_3_plugin::view_metric_field(bool b)
   if(ssetitem != NULL)
   {
     ssetitem->draw_metric_field() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_mesh_3(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem = 
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_mesh_3() = b;
     ssetitem->starset_changed();
   }
 }

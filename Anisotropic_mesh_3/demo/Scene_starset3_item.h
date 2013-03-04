@@ -104,6 +104,7 @@ public:
   bool& draw_inconsistent_facets() { return m_draw_inconsistent_facets; }
   bool& draw_metric_field()        { return m_draw_metric_field; }
   double draw_metric_eps() const { return m_draw_metric_eps; }
+  bool& draw_mesh_3()              { return m_draw_mesh_3; }
 
 protected:
   Scene_starset3_item_priv* d;
@@ -125,6 +126,7 @@ private:
   bool m_draw_inconsistent_facets;
   bool m_draw_metric_field;
   double m_draw_metric_eps;
+  bool m_draw_mesh_3;
 };
 
 inline
