@@ -47,6 +47,7 @@ namespace CGAL
       typedef typename K::Segment_3                Segment_3;
       typedef typename K::Ray_3                    Ray_3;
       typedef typename K::Line_3                   Line_3;
+      typedef typename K::Plane_3                  Plane_3;
       typedef std::pair<Point_3, Point_3>          Edge;
       typedef std::vector<Edge>                    EdgeList;
       typedef typename EdgeList::iterator	   EdgeIterator;
@@ -73,10 +74,11 @@ namespace CGAL
       virtual Pointset get_surface_points(unsigned int nb) const = 0;
 
       virtual FT compute_sq_approximation(const Point_3& p) const = 0;
-
-
+      
       virtual double global_max_curvature() const = 0;
       virtual double global_min_curvature() const = 0;
+
+      virtual void gl_draw_intermediate_mesh_3(const Plane_3& plane) const = 0;
 
       virtual void edge_split(EdgeIterator edge, const Point_3 & c) = 0;
       void edge_split(const Point_3 &p1, const Point_3 &p2, const Point_3 & c) 

@@ -31,6 +31,8 @@
 #include <CGAL/Implicit_mesh_domain_3.h>
 #include <CGAL/make_mesh_3.h>
 
+#include <CGAL/gl_draw/drawing_helper.h>
+
 #include <boost/bind.hpp>
 
 namespace CGAL{
@@ -350,13 +352,17 @@ public:
         Function_wrapper fw(this, fct);
         Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
         Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
-                               CGAL::parameters::facet_size = r * 0.1,//05,
+                               CGAL::parameters::facet_size = r * 0.05,//1,//05,
                                CGAL::parameters::facet_distance = r * 0.01);
                                // cell criteria are ignored
         // run Mesh_3
         m_c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
                                          CGAL::parameters::no_perturb(),
                                          CGAL::parameters::no_exude());
+#ifdef ANISO_OUTPUT_MESH_FOR_POLES
+        std::ofstream out("mesh_3_temp.mesh");
+        m_c3t3.output_to_medit(out);
+#endif
         m_poles.clear();
         compute_triangulation_poles(m_c3t3,
           std::inserter(m_poles, m_poles.end()));
@@ -423,6 +429,11 @@ public:
         tensor_frame(p, n, e1, e2, v1, v2, 1e-5);
         minc = (std::min)(v1, v2);
         maxc = (std::max)(v1, v2);
+      }
+
+      void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
+      {
+        gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
       }
 
       virtual Constrain_surface_3_implicit* clone() const = 0; // Uses the copy constructor

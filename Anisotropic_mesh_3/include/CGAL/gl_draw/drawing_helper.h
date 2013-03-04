@@ -162,5 +162,41 @@ void gl_draw_arrow(const typename Kernel::Point_3& p1,
   //::glPopMatrix();
 }
 
+template<typename K>
+bool is_above_plane(const typename K::Plane_3& plane,
+                    const typename K::Point_3& pa,
+                    const typename K::Point_3& pb,
+                    const typename K::Point_3& pc) 
+{
+  typedef typename K::Oriented_side Side;
+  using CGAL::ON_ORIENTED_BOUNDARY;
+  using CGAL::ON_NEGATIVE_SIDE;
+  const Side sa = plane.oriented_side(pa);
+  const Side sb = plane.oriented_side(pb);
+  const Side sc = plane.oriented_side(pc);
+  return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
+}
+
+template<typename C3T3, typename Plane>
+void gl_draw_c3t3(const C3T3& c3t3,
+                  const Plane& plane)
+{
+  typedef typename C3T3::Triangulation Tr;
+  typedef typename Tr::Cell_handle Cell_handle;
+  typedef typename Tr::Geom_traits K;
+  typename C3T3::Facets_in_complex_iterator fit = c3t3.facets_in_complex_begin();
+  for(; fit != c3t3.facets_in_complex_end(); ++fit)
+  {
+    const Cell_handle& cell = (*fit).first;
+    const int& i = (*fit).second;
+
+    const typename K::Point_3& pa = cell->vertex((i+1)&3)->point();
+    const typename K::Point_3& pb = cell->vertex((i+2)&3)->point();
+    const typename K::Point_3& pc = cell->vertex((i+3)&3)->point();
+    if(is_above_plane<K>(plane, pa, pb, pc))
+      gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
+  }
+}
+
 
 #endif //DRAWING_HELPER_H

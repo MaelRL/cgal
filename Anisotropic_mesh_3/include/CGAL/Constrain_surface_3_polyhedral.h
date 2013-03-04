@@ -44,6 +44,8 @@
 #include <CGAL/Mesh_criteria_3.h>
 #include <CGAL/make_mesh_3.h>
 
+#include <CGAL/gl_draw/drawing_helper.h>
+
 namespace CGAL
 {
   namespace Anisotropic_mesh_3
@@ -237,8 +239,8 @@ class Constrain_surface_3_polyhedral :
         FT minc = monge_form.principal_curvatures(1);
         e0 = monge_form.normal_direction();
 
-        c1 = std::max(epsilon, fabs(maxc));
-        c2 = std::max(epsilon, fabs(minc));
+        c1 = (std::max)(epsilon, fabs(maxc));
+        c2 = (std::max)(epsilon, fabs(minc));
         e1 = monge_form.maximal_principal_direction();
         e2 = monge_form.minimal_principal_direction();
       }
@@ -589,12 +591,16 @@ class Constrain_surface_3_polyhedral :
         FT r = this->get_bounding_radius();
         // run Mesh_3
         Mesh_criteria criteria(CGAL::parameters::facet_angle = 25., 
-          CGAL::parameters::facet_size = r * 0.1,//0.15, 
+          CGAL::parameters::facet_size = r * 0.02,//0.15, 
           CGAL::parameters::facet_distance = r * 0.05);//0.008,
         // cell criteria are ignored
         m_c3t3 = CGAL::make_mesh_3<C3t3>(*domain, criteria, 
           CGAL::parameters::no_perturb(), 
           CGAL::parameters::no_exude());
+#ifdef ANISO_OUTPUT_MESH_FOR_POLES
+        std::ofstream out("mesh_3_temp.mesh");
+        m_c3t3.output_to_medit(out);
+#endif
         m_poles.clear();
         compute_triangulation_poles(m_c3t3, 
           std::inserter(m_poles, m_poles.end()));
@@ -676,6 +682,11 @@ class Constrain_surface_3_polyhedral :
 
         compute_bounding_box();
         compute_local_metric(epsilon);
+      }
+
+      void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
+      {
+        gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
       }
 
       Constrain_surface_3_polyhedral(char *filename, const FT& epsilon) 

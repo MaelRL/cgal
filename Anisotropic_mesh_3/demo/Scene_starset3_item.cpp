@@ -205,6 +205,7 @@ Scene_starset3_item::direct_draw() const
     bbox_min = (std::min)(bbox_min, mf_bbox.width());
     star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id-1);
   }
+  star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
 
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
