@@ -165,18 +165,30 @@ void gl_draw_arrow(const typename Kernel::Point_3& p1,
 }
 
 template<typename K>
-bool is_above_plane(const typename K::Plane_3& plane,
+bool is_facet_above_plane(const typename K::Plane_3& plane,
                     const typename K::Point_3& pa,
                     const typename K::Point_3& pb,
                     const typename K::Point_3& pc) 
 {
   typedef typename K::Oriented_side Side;
-  using CGAL::ON_ORIENTED_BOUNDARY;
   using CGAL::ON_NEGATIVE_SIDE;
   const Side sa = plane.oriented_side(pa);
   const Side sb = plane.oriented_side(pb);
   const Side sc = plane.oriented_side(pc);
   return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
+}
+
+template<typename K>
+bool is_above_plane(const typename K::Plane_3& plane,
+                    const typename K::Point_3& pa,
+                    const typename K::Point_3& pb,
+                    const typename K::Point_3& pc,
+                    const typename K::Point_3& pd) 
+{
+  typedef typename K::Oriented_side Side;
+  using CGAL::ON_NEGATIVE_SIDE;
+  const Side sd = plane.oriented_side(pd);
+  return (sd == ON_NEGATIVE_SIDE && is_facet_above_plane<K>(plane,pa,pb,pc));
 }
 
 template<typename C3T3, typename Plane>
@@ -188,17 +200,16 @@ void gl_draw_c3t3(const C3T3& c3t3,
   typedef typename Tr::Cell_handle Cell_handle;
   typedef typename Tr::Geom_traits K;
   typedef typename Tr::Facet Facet;
-  typename C3T3::Facets_in_complex_iterator fit = c3t3.facets_in_complex_begin();
-  for(; fit != c3t3.facets_in_complex_end(); ++fit)
+  typename C3T3::Cells_in_complex_iterator cit = c3t3.cells_in_complex_begin();
+  for(; cit != c3t3.cells_in_complex_end(); ++cit)
   {
-    const Cell_handle& cell = (*fit).first;
-    const int& i = (*fit).second;
-
-    const typename K::Point_3& pa = cell->vertex((i+1)&3)->point();
-    const typename K::Point_3& pb = cell->vertex((i+2)&3)->point();
-    const typename K::Point_3& pc = cell->vertex((i+3)&3)->point();
-    if(is_above_plane<K>(plane, pa, pb, pc))
-      gl_draw_facet<K, Facet>((*fit), EDGES_ONLY, 44, 117, 255);
+    const typename K::Point_3& p0 = cit->vertex(0)->point();
+    const typename K::Point_3& p1 = cit->vertex(1)->point();
+    const typename K::Point_3& p2 = cit->vertex(2)->point();
+    const typename K::Point_3& p3 = cit->vertex(3)->point();
+    if(is_above_plane<K>(plane, p0, p1, p2, p3))
+      for(int i = 0; i < 4; i++)
+        gl_draw_facet<K, Facet>(Facet(cit,i), EDGES_ONLY, 44, 117, 255);
   }
 }
 
