@@ -55,18 +55,18 @@ namespace CGAL
 template <class Refs, class T>
 class Enriched_facet : public CGAL::HalfedgeDS_face_base<Refs, T>
 {
-	// tag
-	int m_tag; 
+  // tag
+  std::size_t m_tag;
 
 public:
-	// life cycle
-	// no constructors to repeat, since only
-	// default constructor mandatory
-	Enriched_facet()
-    : m_tag(0)	{}
-	// tag
-	const int& tag() const { return m_tag; }
-	int& tag() { return m_tag; }
+  // life cycle
+  // no constructors to repeat, since only
+  // default constructor mandatory
+  Enriched_facet()
+    : m_tag(0)  {}
+  // tag
+  const std::size_t& tag() const { return m_tag; }
+  std::size_t& tag() { return m_tag; }
 };
 
 // a refined halfedge with a tag
@@ -74,16 +74,16 @@ template <class Refs, class Tprev, class Tvertex, class Tface>
 class Enriched_halfedge : public CGAL::HalfedgeDS_halfedge_base<Refs,Tprev,Tvertex,Tface>
 {
 private:
-	// general purpose tag
-	int m_tag; 
+  // general purpose tag
+  std::size_t m_tag;
 
 public:
-	// life cycle
-	Enriched_halfedge()
-    : m_tag(0)	{}
-	// tag
-	const int& tag() const { return m_tag;  }
-	int& tag()             { return m_tag;  }
+  // life cycle
+  Enriched_halfedge()
+    : m_tag(0)  {}
+  // tag
+  const std::size_t& tag() const { return m_tag;  }
+  std::size_t& tag()             { return m_tag;  }
 };
 
 
@@ -91,49 +91,50 @@ public:
 template <class Refs, class T, class P>
 class Enriched_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
 {
-	// tag
-	int m_tag; 
+  // tag
+  std::size_t m_tag;
 
 public:
-	// life cycle
-	Enriched_vertex()  {}
-	// repeat mandatory constructors
-	Enriched_vertex(const P& pt)
-		: CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0)	{}
+  // life cycle
+  Enriched_vertex()  {}
+  // repeat mandatory constructors
+  Enriched_vertex(const P& pt)
+    : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
+      m_tag(0)  {}
 
-	// tag
-	int& tag() {  return m_tag; }
-	const int& tag() const {  return m_tag; }
+  // tag
+  std::size_t& tag() {  return m_tag; }
+  const std::size_t& tag() const {  return m_tag; }
 }; 
 
 struct Enriched_items : public CGAL::Polyhedron_items_3
 {
-	// wrap vertex
-	template<class Refs, class Traits> struct Vertex_wrapper
-	{
-		typedef typename Traits::Point_3 Point;
-		typedef Enriched_vertex<Refs, CGAL::Tag_true, Point> Vertex;
-	};
+  // wrap vertex
+  template<class Refs, class Traits>
+  struct Vertex_wrapper
+  {
+    typedef typename Traits::Point_3 Point;
+    typedef Enriched_vertex<Refs, CGAL::Tag_true, Point> Vertex;
+  };
 
-	// wrap face
-	template<class Refs, class Traits> struct Face_wrapper
-	{
-		typedef Enriched_facet<Refs, CGAL::Tag_true> Face;
-	};
+  // wrap face
+  template<class Refs, class Traits>
+  struct Face_wrapper
+  {
+    typedef Enriched_facet<Refs, CGAL::Tag_true> Face;
+  };
 
-	// wrap halfedge
-	template<class Refs, class Traits> struct Halfedge_wrapper
-	{
-		typedef Enriched_halfedge<Refs,
-			CGAL::Tag_true,
-			CGAL::Tag_true,
-			CGAL::Tag_true> Halfedge;
-	};
+  // wrap halfedge
+  template<class Refs, class Traits>
+  struct Halfedge_wrapper
+  {
+    typedef Enriched_halfedge<Refs,
+                              CGAL::Tag_true,
+                              CGAL::Tag_true,
+                              CGAL::Tag_true> Halfedge;
+  };
 };
 
-    
-    
 template<typename K, typename Polyhedron = CGAL::Polyhedron_3<K, Enriched_items> >
 class Constrain_surface_3_polyhedral : 
     public Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> 
@@ -293,7 +294,7 @@ class Constrain_surface_3_polyhedral :
         { 
           FT w = std::exp(-wpp_inv * sq_distances[i]);     
           wsum += w;
-          int index = neighbors[i]->tag();
+          std::size_t index = neighbors[i]->tag();
           for(int j = 0; j < 3; j++)
             for(int k = 0; k < 3; k++)
               m(j,k) = m(j,k) + w * m_metrics[index](j,k);
@@ -509,7 +510,7 @@ class Constrain_surface_3_polyhedral :
         minx = miny = minz = DBL_MAX;
         maxx = maxy = maxz = DBL_MIN;
         //for (int i = 0; i < (int)points.size(); i++) 
-        int index = 0;
+        std::size_t index = 0;
         typename Polyhedron::Vertex_iterator vi = m_polyhedron.vertices_begin();
         typename Polyhedron::Vertex_iterator viend = m_polyhedron.vertices_end();
         for (; vi != viend; ++vi, ++index)
@@ -550,7 +551,7 @@ class Constrain_surface_3_polyhedral :
           m_max_curvature = (std::max)(m_max_curvature, v1);
           m_min_curvature = (std::min)(m_min_curvature, v2);
 
-          int index = m_vertices[i]->tag();
+          std::size_t index = m_vertices[i]->tag();
           if(i != index) 
             std::cerr << "Error1 in indices in compute_local_metric!" << std::endl;
 
@@ -722,7 +723,7 @@ class Constrain_surface_3_polyhedral :
       ~Constrain_surface_3_polyhedral() 
       { 
         delete domain;
-      };
+      }
     }; //Constrain_surface_3_polyhedral
   } //Anisotropic_mesh_3
 } //CGAL
