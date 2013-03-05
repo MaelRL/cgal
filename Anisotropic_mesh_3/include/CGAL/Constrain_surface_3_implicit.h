@@ -69,13 +69,14 @@ namespace CGAL{
       public Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container>
     {
     public:
-      typedef Constrain_surface_3_implicit<K>           Self;
+      typedef Constrain_surface_3_implicit<K>            Self;
       typedef Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> Base;
       typedef typename Base::FT                          FT;
       typedef typename Base::Vector_3                    Vector_3;
       typedef typename Base::Point_3                     Point_3;
-      typedef typename Base::Oriented_side	         Oriented_side;
-       typedef typename Base::Pointset                   Pointset;
+      typedef typename Base::Plane_3                     Plane_3;
+      typedef typename Base::Oriented_side               Oriented_side;
+      typedef typename Base::Pointset                    Pointset;
 
       typedef typename Constrain_surface_3<K>::Point_container Point_container;
 

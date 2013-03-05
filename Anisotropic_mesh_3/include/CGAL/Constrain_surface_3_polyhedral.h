@@ -144,8 +144,9 @@ class Constrain_surface_3_polyhedral :
       typedef typename Base::FT                          FT;
       typedef typename Base::Vector_3                    Vector_3;
       typedef typename Base::Point_3                     Point_3;
-      typedef typename Base::Oriented_side		 Oriented_side;
-      typedef typename Base::Pointset		         Pointset;
+      typedef typename Base::Plane_3                     Plane_3;
+      typedef typename Base::Oriented_side               Oriented_side;
+      typedef typename Base::Pointset                    Pointset;
 
       typedef typename CGAL::Polyhedral_mesh_domain_3<Polyhedron, K> Mesh_domain;
 
