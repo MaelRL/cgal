@@ -269,7 +269,7 @@ void
 Scene_starset3_item::compute_color_map(const QColor& c)
 {
   std::size_t nb_stars = d->star_set.size();
-  for(int i = 0; i < nb_stars; i++)
+  for(std::size_t i = 0; i < nb_stars; i++)
   {
     double hue = c.hueF() + 1./nb_stars * i;
     if(hue > 1)
