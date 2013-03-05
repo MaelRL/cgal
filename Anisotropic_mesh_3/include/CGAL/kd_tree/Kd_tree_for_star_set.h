@@ -23,7 +23,8 @@ public:
 public:
   typedef typename K::Point_3   value_type;
   typedef const value_type&     reference;
-  typedef std::size_t           Point;
+  //typedef std::size_t           Point;
+  typedef int                   Point;
   typedef Point                 key_type;
   typedef boost::readable_property_map_tag category;  
 
