@@ -98,13 +98,14 @@ public:
   int& draw_star()                 { return m_draw_star_id; }
   const int& draw_star() const     { return m_draw_star_id; }
   bool& draw_dual()                { return m_draw_dual; }
-  bool& draw_poles()        { return m_draw_poles; }
+  bool& draw_poles()               { return m_draw_poles; }
   bool& draw_initial_points()        { return m_draw_initial_points; }
   bool& draw_surface_delaunay_balls() { return m_draw_surface_delaunay_balls; }
   bool& draw_inconsistent_facets() { return m_draw_inconsistent_facets; }
   bool& draw_metric_field()        { return m_draw_metric_field; }
   double draw_metric_eps() const { return m_draw_metric_eps; }
   bool& draw_mesh_3()              { return m_draw_mesh_3; }
+  bool& draw_surface_star_set()    { return m_draw_surface_star_set; }
 
 protected:
   Scene_starset3_item_priv* d;
@@ -118,6 +119,7 @@ private:
   typedef std::set<int> Indices;
   Indices indices_;
 
+  bool m_draw_surface_star_set;
   bool m_draw_dual;
   bool m_draw_poles;
   bool m_draw_initial_points;

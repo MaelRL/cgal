@@ -36,6 +36,8 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
   if(option != FACES_ONLY)
   {    
     ::glColor3f(0.,0.,0.);
+    if(option == EDGES_ONLY)
+      ::glColor3f(r / 256., g / 256., b / 256.);
     ::glBegin(GL_LINE_LOOP);
     if(option == EDGES_AND_FACES) ::glLineWidth(2.f);
     else                          ::glLineWidth(1.f);
@@ -181,9 +183,11 @@ template<typename C3T3, typename Plane>
 void gl_draw_c3t3(const C3T3& c3t3,
                   const Plane& plane)
 {
+  ::glLineWidth(2.f);
   typedef typename C3T3::Triangulation Tr;
   typedef typename Tr::Cell_handle Cell_handle;
   typedef typename Tr::Geom_traits K;
+  typedef typename Tr::Facet Facet;
   typename C3T3::Facets_in_complex_iterator fit = c3t3.facets_in_complex_begin();
   for(; fit != c3t3.facets_in_complex_end(); ++fit)
   {
@@ -194,7 +198,7 @@ void gl_draw_c3t3(const C3T3& c3t3,
     const typename K::Point_3& pb = cell->vertex((i+2)&3)->point();
     const typename K::Point_3& pc = cell->vertex((i+3)&3)->point();
     if(is_above_plane<K>(plane, pa, pb, pc))
-      gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
+      gl_draw_facet<K, Facet>((*fit), EDGES_ONLY, 44, 117, 255);
   }
 }
 

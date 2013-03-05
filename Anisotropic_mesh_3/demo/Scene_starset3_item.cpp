@@ -76,6 +76,7 @@ Scene_starset3_item(const Criteria& criteria,
   //histogram_(),
   data_item_(NULL),
   indices_(),
+  m_draw_surface_star_set(true),
   m_draw_dual(false),
   m_draw_poles(false),
   m_draw_initial_points(false),
@@ -188,7 +189,8 @@ Scene_starset3_item::direct_draw() const
 
   const Kernel::Plane_3& plane = this->plane();
 
-  star_set().gl_draw(plane, true/*draw_edges*/, m_draw_star_id-1);
+  if(m_draw_surface_star_set)
+    star_set().gl_draw(plane, true/*draw_edges*/, m_draw_star_id-1);
   if(m_draw_poles)
     star_set().gl_draw_poles(plane);
   if(m_draw_initial_points)
@@ -208,7 +210,7 @@ Scene_starset3_item::direct_draw() const
   }
   if(m_draw_mesh_3)
     star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
-
+  
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
   if(lighting)
