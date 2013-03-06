@@ -14,10 +14,10 @@ class Plugin_interface
 {
 public:
   virtual ~Plugin_interface() {}
-  virtual void init(QMainWindow*, Scene_interface*) {};
+  virtual void init(QMainWindow*, Scene_interface*) {}
   virtual void init(QMainWindow* mw, Scene_interface* sc, Messages_interface*) {
     init(mw, sc);
-  };
+  }
   virtual QList<QAction*> actions() const = 0;
 };
 

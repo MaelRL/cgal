@@ -41,7 +41,7 @@ namespace CGAL
         , m_rebuild_counter(0)
         , m_rebuild_needed(false)
 #endif
-        { };
+        { }
 
     AABB_tree_bbox(const unsigned int bs) :
         m_insertion_buffer_max_size(bs),
@@ -52,7 +52,7 @@ namespace CGAL
         , m_rebuild_counter(0)
         , m_rebuild_needed(false)
 #endif
-        { };
+        { }
         
   /// Insertion
   public:

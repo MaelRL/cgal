@@ -233,7 +233,7 @@ launch()
     histogram_vertices_per_star<Surface_star_set>(smesher_->star_set);
 #endif
 #ifdef USE_ANISO_TIMERS
-    report_timers();
+    smesher_->star_set.report_timers();
 #endif
 
 // end of copy ----------------------------------------------------------

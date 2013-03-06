@@ -836,7 +836,7 @@ private:
 #ifdef CHECK_EDGE_ENCROACHMENT
         Star_iterator si = m_stars.begin();
         Star_iterator siend = m_stars.end();
-        Constrain_surface::EdgeIterator encroached_edge;
+        typename Constrain_surface::EdgeIterator encroached_edge;
         for (; si != siend; si++) {
           if ((*si)->is_encroached(p, encroached_edge))
             return compute_insert_or_snap_point(encroached_edge);
@@ -854,7 +854,7 @@ private:
 #ifdef CHECK_EDGE_ENCROACHMENT
         Star_iterator si = m_stars.begin();
         Star_iterator siend = m_stars.end();
-        Constrain_surface::EdgeIterator encroached_edge;
+        typename Constrain_surface::EdgeIterator encroached_edge;
         for (; si != siend; si++) 
         {
           if ((*si)->is_encroached(p, encroached_edge)) 
