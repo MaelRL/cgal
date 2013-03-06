@@ -17,7 +17,7 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
                       const Polygon_drawing_options& option,
                       const float r = 205.,
                       const float g = 175., 
-                      const float b = 149.) 
+                      const float b = 149.)
 {
   //draw triangles
   if(option != EDGES_ONLY)
@@ -35,6 +35,10 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
   //draw edges
   if(option != FACES_ONLY)
   {    
+    GLboolean was = (::glIsEnabled(GL_LIGHTING));
+    if(!was)
+      ::glEnable(GL_LIGHTING);
+
     ::glColor3f(0.,0.,0.);
     if(option == EDGES_ONLY)
       ::glColor3f(r / 256., g / 256., b / 256.);
@@ -45,6 +49,9 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
     ::glVertex3d(pb.x(),pb.y(),pb.z());
     ::glVertex3d(pc.x(),pc.y(),pc.z());
     ::glEnd();
+
+    if(!was)
+      ::glDisable(GL_LIGHTING);
   }
 }
 
@@ -53,7 +60,7 @@ void gl_draw_facet(const Facet& f,
                    const Polygon_drawing_options& option,
                    const float r = 205.,
                    const float g = 175., 
-                   const float b = 149.) 
+                   const float b = 149.)
 {
   gl_draw_triangle<Kernel>(f.first->vertex((f.second+1)%4)->point(),
                    f.first->vertex((f.second+2)%4)->point(),
@@ -215,8 +222,14 @@ void gl_draw_c3t3(const C3T3& c3t3,
     const typename K::Point_3& p2 = cit->vertex(2)->point();
     const typename K::Point_3& p3 = cit->vertex(3)->point();
     if(is_above_plane<K>(plane, p0, p1, p2, p3))
-      for(int i = 0; i < 4; i++)
-        gl_draw_facet<K, Facet>(Facet(cit,i), EDGES_ONLY, 44, 117, 255);
+      for(int i = 0; i < 4; i++){
+        if(cit->is_facet_on_surface(i)){
+          gl_draw_facet<K, Facet>(Facet(cit,i), EDGES_AND_FACES, 44, 117, 255);
+        }
+        else{
+          gl_draw_facet<K, Facet>(Facet(cit,i), EDGES_ONLY, 0, 0, 0);
+        }
+      }
   }
 }
 
