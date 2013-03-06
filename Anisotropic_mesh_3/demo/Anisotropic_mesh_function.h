@@ -164,7 +164,7 @@ launch()
 //to use a continue boolean. If you edit the algorithm here,
 //make sure to edit in the above file as well.
 
-    const std::size_t max_count = (size_t) -1; //p_.max_times_to_try_in_picking_region);
+    const std::size_t max_count = (std::size_t) -1; //p_.max_times_to_try_in_picking_region);
 
 #ifdef ANISO_VERBOSE
     std::cout << "\nRefine all...";

@@ -78,6 +78,10 @@ void gl_draw_sphere(const typename Kernel::Sphere_3& s)
   typename Kernel::Point_3 c = s.center();
   const GLdouble r = std::sqrt(s.squared_radius());
 
+  GLboolean was = (::glIsEnabled(GL_LIGHTING));
+  if(!was)
+    ::glEnable(GL_LIGHTING);
+
   GLint polygon_mode[2];
   ::glPushMatrix();
 
@@ -88,10 +92,13 @@ void gl_draw_sphere(const typename Kernel::Sphere_3& s)
   GLUquadric *quad = gluNewQuadric();
   ::gluQuadricDrawStyle(quad, GLU_FILL);
   ::glColor3f(1.0f, 1.0f, 0.0f);
-  ::gluSphere(quad, r, 40, 40);
+  ::gluSphere(quad, r, 20, 20);
   ::gluDeleteQuadric(quad);
 
   ::glPopMatrix();
+
+  if(!was)
+    ::glDisable(GL_LIGHTING);
 }
 
 template<typename Kernel>

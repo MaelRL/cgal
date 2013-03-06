@@ -41,7 +41,6 @@
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/timer_helper.h>
 #include <CGAL/helpers/combinatorics_helper.h>
-#include <CGAL/gl_draw/drawing_helper.h>
 
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
@@ -2361,7 +2360,6 @@ public:
       void gl_draw_surface_delaunay_balls(const typename K::Plane_3& plane,
                                           const int star_id = -1) const
       {
-        std::cout << star_id << " ";
         if(star_id < 0)
           for(std::size_t i = 0; i < m_stars.size(); i++)
             m_stars[i]->gl_draw_surface_delaunay_balls(plane);
@@ -2373,7 +2371,7 @@ public:
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
         if(!was)
-            ::glEnable(GL_LIGHTING);
+          ::glEnable(GL_LIGHTING);
 
         ::glPolygonOffset(1.f, 0.1f);
         ::glEnable(GL_POLYGON_OFFSET_FILL);
@@ -2402,7 +2400,7 @@ public:
         }
         ::glDisable(GL_POLYGON_OFFSET_FILL);
         if(!was)
-            ::glDisable(GL_LIGHTING);
+          ::glDisable(GL_LIGHTING);
       }   
             
 #ifdef USE_ANISO_TIMERS
