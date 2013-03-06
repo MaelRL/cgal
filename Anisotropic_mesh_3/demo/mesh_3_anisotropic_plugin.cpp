@@ -106,7 +106,7 @@ public:
 
     actionDraw_surface_delaunay_balls = this->getActionFromMainWindow(mw, "actionDraw_surface_delaunay_balls");
     if(actionDraw_surface_delaunay_balls)
-      connect(actionDraw_surface_delaunay_balls, SIGNAL(toggled(bool)), this, SLOT(view_surface_delaunay_balls(bool)));;
+      connect(actionDraw_surface_delaunay_balls, SIGNAL(toggled(bool)), this, SLOT(view_surface_delaunay_balls(bool)));
 
     actionDraw_one_star = this->getActionFromMainWindow(mw, "actionDraw_one_star");
     if(actionDraw_one_star)

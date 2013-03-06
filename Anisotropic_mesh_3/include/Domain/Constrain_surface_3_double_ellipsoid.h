@@ -104,7 +104,7 @@ public:
     bounding_radius = dist_to_s_center + all_max * 1.1;
   }
 
-  ~Constrain_surface_3_double_ellipsoid() { };
+  ~Constrain_surface_3_double_ellipsoid() { }
 };
 
 #endif

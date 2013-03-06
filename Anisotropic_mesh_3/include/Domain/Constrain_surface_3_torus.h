@@ -120,7 +120,7 @@ public:
   Constrain_surface_3_torus(const Constrain_surface_3_torus& t)
     : R(t.R), r(t.r) {}
   
-  ~Constrain_surface_3_torus() { };
+  ~Constrain_surface_3_torus() { }
 };
 
 #endif

@@ -57,7 +57,7 @@ public:
   
   typedef int Item_id;
 
-  virtual ~Scene_interface() {};
+  virtual ~Scene_interface() {}
 
   virtual Item_id addItem(Scene_item* item) = 0;
 

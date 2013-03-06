@@ -26,7 +26,7 @@ namespace CGAL
       class Construct_circumcenter_3 
       {
       public:
-        Construct_circumcenter_3() { };
+        Construct_circumcenter_3() { }
         template<typename Point>
         Point operator()(const Point &p, const Point &q, const Point &r, const Point &s) const 
         {
@@ -91,7 +91,7 @@ namespace CGAL
       class Compute_random_point_3 
       {
       public:
-        Compute_random_point_3() {};
+        Compute_random_point_3() {}
 
         // returns a point in the sphere(center, radius)
         Point_3 operator()(const Point_3 &center, const FT &radius) const 
@@ -154,8 +154,8 @@ namespace CGAL
           construct_circumcenter_3_object_cache(),
           compute_volume_object_cache(),
           compute_random_point_3_object_cache()
-          {};
-      ~Delaunay_traits_3(){};
+          {}
+      ~Delaunay_traits_3(){}
 
     public:
       const Construct_circumcenter_3 construct_circumcenter_3_object() const 

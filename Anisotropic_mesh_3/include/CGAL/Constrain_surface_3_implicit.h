@@ -480,7 +480,7 @@ public:
       }
 
       Constrain_surface_3_implicit_with_bounding_sphere() { }
-      ~Constrain_surface_3_implicit_with_bounding_sphere() { };
+      ~Constrain_surface_3_implicit_with_bounding_sphere() { }
     };
 
   }

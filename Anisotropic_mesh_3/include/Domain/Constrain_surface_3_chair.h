@@ -76,7 +76,7 @@ public:
     : a(a_), b(b_), k(k_)    {}
   Constrain_surface_3_chair(const Constrain_surface_3_chair& c)
     : a(c.a), b(c.b), k(c.k) {}
-  ~Constrain_surface_3_chair() {};
+  ~Constrain_surface_3_chair() {}
 };
 
 #endif

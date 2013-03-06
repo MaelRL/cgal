@@ -27,13 +27,13 @@ namespace CGAL
 
   public:
     // Constructors
-    AABB_bbox_primitive() {};
+    AABB_bbox_primitive() {}
 
     AABB_bbox_primitive(const AABB_bbox_primitive& primitive)
-      : m_star_handle(primitive.id()) { };
+      : m_star_handle(primitive.id()) { }
 
     AABB_bbox_primitive(const Id& handle)
-      : m_star_handle(handle) { };
+      : m_star_handle(handle) { }
 
     Self& operator=(const Self& s)
     {

@@ -46,7 +46,7 @@ namespace CGAL
       typedef typename Base::EdgeList      EdgeList;
       typedef typename EdgeList::iterator  EdgeIterator;
       //typedef typename Base::Point_container Point_container;
-      typedef typename Base::Pointset        Pointset;
+      typedef typename Base::Pointset      Pointset;
 
     public:
       EdgeList edges;
@@ -215,7 +215,7 @@ namespace CGAL
 
 
       Constrain_surface_3_ex() : edges() { }
-      ~Constrain_surface_3_ex() { };
+      ~Constrain_surface_3_ex() { }
     };
   }
 }

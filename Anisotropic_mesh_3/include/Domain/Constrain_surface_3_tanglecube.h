@@ -76,7 +76,7 @@ public:
     : stretch(stretch_) {}
   Constrain_surface_3_tanglecube(const Constrain_surface_3_tanglecube& t)
     : stretch(t.stretch) {}
-  ~Constrain_surface_3_tanglecube() {};
+  ~Constrain_surface_3_tanglecube() {}
 };
 
 #endif

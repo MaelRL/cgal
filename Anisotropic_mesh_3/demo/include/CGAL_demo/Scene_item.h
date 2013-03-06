@@ -30,7 +30,7 @@ public:
       color_(defaultColor),
       visible_(true),
       rendering_mode(FlatPlusEdges)
-  {};
+  {}
   virtual ~Scene_item();
   virtual Scene_item* clone() const = 0;
 

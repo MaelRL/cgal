@@ -94,7 +94,8 @@ public:
     return 0.;
   }
   
-  Point_container initial_points(const int nb = 8) const {
+  Point_container initial_points(const int nb = 8) const
+  {
     Point_container points;
     std::vector<Point_3> seeds;
     seeds.push_back(CGAL::ORIGIN);
@@ -108,7 +109,7 @@ public:
     : radius(e.radius), height(e.height)
     {}
 
-  ~Constrain_surface_3_cylinder() { };
+  ~Constrain_surface_3_cylinder() { }
 };
 
 #undef	PI

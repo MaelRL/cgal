@@ -96,7 +96,7 @@ namespace CGAL
         }
       }
 
-      virtual ~Constrain_surface_3(){};
+      virtual ~Constrain_surface_3(){}
     };
   }
 }

@@ -15,14 +15,14 @@ namespace CGAL
     typedef typename CGAL::Aff_transformation_3<K> Aff_transformation;
 
   public:
-    Bbox() {};
+    Bbox() {}
 
     Bbox(const typename CGAL::Bbox_3& bb)
-      : CGAL::Bbox_3(bb) { };
+      : CGAL::Bbox_3(bb) { }
 
     Bbox(double x_min, double y_min, double z_min, 
          double x_max, double y_max, double z_max)
-      : CGAL::Bbox_3(x_min, y_min, z_min, x_max, y_max, z_max) { };
+      : CGAL::Bbox_3(x_min, y_min, z_min, x_max, y_max, z_max) { }
 
   public:
     CGAL::Bbox_3 bbox() 

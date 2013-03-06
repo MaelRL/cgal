@@ -521,7 +521,7 @@ void SceneDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
     int width = option.rect.width();
     int height = option.rect.height();
     size = (std::min)(width, height);
-    int x = option.rect.x() + (option.rect.width() / 2) - (size / 2);;
+    int x = option.rect.x() + (option.rect.width() / 2) - (size / 2);
     int y = option.rect.y() + (option.rect.height() / 2) - (size / 2);
     if(checked) {
       painter->drawPixmap(x, y, checkOnPixmap.scaled(QSize(size, size),

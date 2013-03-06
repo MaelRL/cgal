@@ -59,7 +59,7 @@ namespace CGAL {
     class Refine_facet_comparer 
     {
     public:
-      Refine_facet_comparer() { };
+      Refine_facet_comparer() { }
       bool operator() (Refine_facet<K, KExact> &left, Refine_facet<K, KExact> &right) const 
       {
         return left.value < right.value;

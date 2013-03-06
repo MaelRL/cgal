@@ -21,32 +21,34 @@
 using namespace CGAL::Anisotropic_mesh_3;
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
-class Constrain_surface_3_heart : public Constrain_surface_3_implicit<K, Point_container> {
+class Constrain_surface_3_heart : public Constrain_surface_3_implicit<K, Point_container>
+{
 public:
-	typedef Constrain_surface_3_implicit<K, Point_container> Base;
-	typedef typename Base::FT                                FT;
+  typedef Constrain_surface_3_implicit<K, Point_container> Base;
+  typedef typename Base::FT                                FT;
 public:
-	FT get_bounding_radius() const { return 3.0; }
+  FT get_bounding_radius() const { return 3.0; }
 
-	FT evaluate(const FT x, const FT y, const FT z) const {
+  FT evaluate(const FT x, const FT y, const FT z) const
+  {
+    FT x2 = x * x;
+    FT z2 = z * z;
+    FT y2 = y * y;
+    FT z3 = z2 * z;
+    FT w = (x2 + y2 * 9.0 / 4.0 + z2 - 1.0);
+    return w * w * w - x2 * z3 - y2 * z3 * 9.0 / 80.0;
+  }
 
-		FT x2 = x * x;
-		FT z2 = z * z;
-		FT y2 = y * y;
-		FT z3 = z2 * z;
-		FT w = (x2 + y2 * 9.0 / 4.0 + z2 - 1.0);
-		return w * w * w - x2 * z3 - y2 * z3 * 9.0 / 80.0;
-	}
+  Point_container initial_points() const
+  {
+    Point_container points;
+    std::vector<Point_3> seeds;
+    seeds.push_back(Point_3(0, 0, 0));
+    return Base::initial_points(points, seeds, 0.2);
+  }
 
-	Point_container initial_points() const {
-		Point_container points;
-		std::vector<Point_3> seeds;
-		seeds.push_back(Point_3(0, 0, 0));
-		return Base::initial_points(points, seeds, 0.2);
-	}
-
-	Constrain_surface_3_heart() { }
-	~Constrain_surface_3_heart() { };
+  Constrain_surface_3_heart() { }
+  ~Constrain_surface_3_heart() { }
 };
 
 #endif

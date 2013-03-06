@@ -90,7 +90,7 @@ public:
     bounding_radius = (std::max)((std::max)(a, b), c) * 1.1;
   }
 
-  ~Constrain_surface_3_ellipse() { };
+  ~Constrain_surface_3_ellipse() { }
 };
 
 #endif

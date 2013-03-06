@@ -21,27 +21,29 @@
 using namespace CGAL::Anisotropic_mesh_3;
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
-class Constrain_surface_3_paraboloid : public Constrain_surface_3_implicit<K, Point_container> {
+class Constrain_surface_3_paraboloid : public Constrain_surface_3_implicit<K, Point_container>
+{
 public:
-	typedef Constrain_surface_3_implicit<K, Point_container> Base;
-	typedef typename Base::FT                                FT;
+  typedef Constrain_surface_3_implicit<K, Point_container> Base;
+  typedef typename Base::FT                                FT;
 
 public:
-	FT get_bounding_radius() const { return 5.0; }
+  FT get_bounding_radius() const { return 5.0; }
 
-	FT evaluate(const FT x, const FT y, const FT z) const {
-		return (x * x + y * y) / 2.0 - z;
-	}
+  FT evaluate(const FT x, const FT y, const FT z) const
+  {
+    return (x * x + y * y) / 2.0 - z;
+  }
 
-	Point_container initial_points() const {
-		Point_container points;
-		std::vector<Point_3> seeds;
-		seeds.push_back(Point_3(0, 0, 1));
-		return Base::initial_points(points, seeds, 0.2);
-	}
+  Point_container initial_points() const {
+    Point_container points;
+    std::vector<Point_3> seeds;
+    seeds.push_back(Point_3(0, 0, 1));
+    return Base::initial_points(points, seeds, 0.2);
+  }
 
-	Constrain_surface_3_paraboloid() { }
-	~Constrain_surface_3_paraboloid() { };
+  Constrain_surface_3_paraboloid() { }
+  ~Constrain_surface_3_paraboloid() { }
 };
 
 #endif
