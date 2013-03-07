@@ -23,27 +23,25 @@ if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
-if(WIN32)
- # Creates a new CMake option, turned ON by default
- option(ACTIVATE_MSVC_PRECOMPILED_HEADERS
-   "Activate precompiled headers in MSVC"
-   ON)
+# Creates a new CMake option, turned ON by default
+option(ACTIVATE_MSVC_PRECOMPILED_HEADERS
+"Activate precompiled headers in MSVC"
+ON)
  
- # Macro to add precompiled headers for MSVC
- MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
-   IF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
-     GET_FILENAME_COMPONENT(PrecompiledBasename ${PrecompiledHeader} NAME_WE)
-     SET(Sources ${${SourcesVar}})
+# Macro to add precompiled headers for MSVC
+MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
+IF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
+    GET_FILENAME_COMPONENT(PrecompiledBasename ${PrecompiledHeader} NAME_WE)
+    SET(Sources ${${SourcesVar}})
  
-     SET_SOURCE_FILES_PROPERTIES(${PrecompiledSource}
-                                 PROPERTIES COMPILE_FLAGS "/Yc\"${PrecompiledHeader}\"")
-     SET_SOURCE_FILES_PROPERTIES(${Sources}
-                                 PROPERTIES COMPILE_FLAGS "/Yu\"${PrecompiledHeaders}\" /FI\"${PrecompiledHeader}\"")
-     # Add precompiled header to SourcesVar
-     LIST(APPEND ${SourcesVar} ${PrecompiledSource})
-   ENDIF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
- ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
-endif()
+    SET_SOURCE_FILES_PROPERTIES(${PrecompiledSource}
+                                PROPERTIES COMPILE_FLAGS "/Yc\"${PrecompiledHeader}\"")
+    SET_SOURCE_FILES_PROPERTIES(${Sources}
+                                PROPERTIES COMPILE_FLAGS "/Yu\"${PrecompiledHeaders}\" /FI\"${PrecompiledHeader}\"")
+    # Add precompiled header to SourcesVar
+    LIST(APPEND ${SourcesVar} ${PrecompiledSource})
+ENDIF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
+ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
 
 
 # Add specific Find.cmake modules
@@ -316,9 +314,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
     Mesh_3_plugin_image_cgal_code.cpp
     Mesh_3_plugin_implicit_function_cgal_code.cpp
     Meshing_thread.cpp)
-if(WIN32)
   ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" MESH_3_PLUGIN_SOURCE_FILES)
-endif()
   LIST(REMOVE_AT MESH_3_PLUGIN_SOURCE_FILES 0) 
   LIST(APPEND MESH_3_PLUGIN_SOURCE_FILES "Scene_c3t3_item.moc" ${meshingUI_FILES})
   polyhedron_demo_plugin(${MESH_3_PLUGIN_LIB} Mesh_3_plugin ${MESH_3_PLUGIN_SOURCE_FILES})
@@ -337,9 +333,7 @@ endif()
   set(MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES Mesh_3_optimization_plugin.cpp
                          Mesh_3_optimization_plugin_cgal_code.cpp
                          Optimizer_thread.cpp)
-  if(WIN32)
     ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES)
-  endif()
   LIST(REMOVE_AT MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES 0) 
   LIST(APPEND MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES Scene_c3t3_item.moc ${optimUI_FILES}) 
   polyhedron_demo_plugin(${MESH_3_OPTIMIZATION_PLUGIN_LIB} Mesh_3_optimization_plugin 
@@ -360,9 +354,7 @@ endif()
 			mesh_3_anisotropic_plugin_polyhedron_cgal_code.cpp
 			mesh_3_anisotropic_plugin_implicit_cgal_code.cpp
 			Anisotropic_meshing_thread.cpp)
-  if(WIN32)
 	ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" ANISO_MESH_3_SRC_FILES)
-  endif()
   LIST(REMOVE_AT ANISO_MESH_3_SRC_FILES 0)
   LIST(APPEND ANISO_MESH_3_SRC_FILES Scene_starset3_item.moc ${anisoUI_FILES})
   polyhedron_demo_plugin(${ANISO_MESH_3_PLUGIN_LIB} 
