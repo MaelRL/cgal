@@ -2287,6 +2287,15 @@ public:
           m_stars[star_id]->gl_draw(plane);//, colors, draw_edges);
       }
 
+      void gl_draw_cell(const typename K::Plane_3& plane,
+                   const int star_id = -1/*only this one*/) const
+      {
+        if(star_id < 0) // draw them all
+          for(std::size_t i = 0; i < m_stars.size(); i++)
+            m_stars[i]->gl_draw_cell(plane);
+        else
+          m_stars[star_id]->gl_draw_cell(plane);
+      }
 
       void gl_draw_initial_points(const typename K::Plane_3& plane) const
       {

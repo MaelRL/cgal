@@ -91,7 +91,11 @@ public:
     actionDraw_surface_star_set = this->getActionFromMainWindow(mw, "actionDraw_surface_star_set");
     if(actionDraw_surface_star_set)
       connect(actionDraw_surface_star_set, SIGNAL(toggled(bool)), this, SLOT(view_surface_star_set(bool)));
-        
+
+    actionDraw_cell = this->getActionFromMainWindow(mw, "actionDraw_cell");
+    if(actionDraw_cell)
+      connect(actionDraw_cell, SIGNAL(toggled(bool)), this, SLOT(view_cell(bool)));
+
     actionDraw_dual_edges = this->getActionFromMainWindow(mw, "actionDraw_dual_edges");
     if(actionDraw_dual_edges)
      connect(actionDraw_dual_edges, SIGNAL(toggled(bool)), this, SLOT(view_dual_edges(bool)));
@@ -137,6 +141,7 @@ public slots:
   void anisotropic_mesh_3();
   //view
   void view_surface_star_set(bool);
+  void view_cell  (bool);
   void view_dual_edges(bool);
   void view_poles(bool);
   void view_initial_points(bool);
@@ -157,6 +162,7 @@ private:
 private:
   QAction* actionAnisotropicMeshing;
   QAction* actionDraw_surface_star_set;
+  QAction* actionDraw_cell;
   QAction* actionDraw_dual_edges;
   QAction* actionDraw_poles;
   QAction* actionDraw_initial_points;
@@ -176,6 +182,7 @@ Anisotropic_mesh_3_plugin::
 Anisotropic_mesh_3_plugin()
   : actionAnisotropicMeshing(NULL)
   , actionDraw_surface_star_set(NULL)
+  , actionDraw_cell(NULL)
   , actionDraw_dual_edges(NULL)
   , actionDraw_poles(NULL)
   , actionDraw_initial_points(NULL)
@@ -389,6 +396,18 @@ void Anisotropic_mesh_3_plugin::view_surface_star_set(bool b)
   if(ssetitem != NULL)
   {
     ssetitem->draw_surface_star_set() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_cell(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_cell() = b;
     ssetitem->starset_changed();
   }
 }
