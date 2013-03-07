@@ -28,6 +28,28 @@ set( QT_USE_QTSCRIPT  TRUE )
 set( QT_USE_QTOPENGL  TRUE )
 find_package(Qt4)
 
+if(WIN32)
+ # Creates a new CMake option, turned ON by default
+ option(ACTIVATE_MSVC_PRECOMPILED_HEADERS
+   "Activate precompiled headers in MSVC"
+   ON)
+ 
+ # Macro to add precompiled headers for MSVC
+ MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
+   IF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
+     GET_FILENAME_COMPONENT(PrecompiledBasename ${PrecompiledHeader} NAME_WE)
+     SET(Sources ${${SourcesVar}})
+ 
+     SET_SOURCE_FILES_PROPERTIES(${PrecompiledSource}
+                                 PROPERTIES COMPILE_FLAGS "/Yc\"${PrecompiledHeader}\"")
+     SET_SOURCE_FILES_PROPERTIES(${Sources}
+                                 PROPERTIES COMPILE_FLAGS "/Yu\"${PrecompiledHeaders}\" /FI\"${PrecompiledHeader}\"")
+     # Add precompiled header to SourcesVar
+     LIST(APPEND ${SourcesVar} ${PrecompiledSource})
+   ENDIF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
+ ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
+endif()
+
 
 if(CGAL_Qt4_FOUND AND QT4_FOUND)
   include(${QT_USE_FILE})
@@ -62,14 +84,31 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND)
     target_link_libraries( ${plugin_name} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} )
   endmacro(polyhedron_demo_plugin)
 
+  set(CHAIR_SRC_FILES "Chair_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" CHAIR_SRC_FILES)
+  LIST(REMOVE_AT CHAIR_SRC_FILES 0) 
+  polyhedron_demo_plugin(chair_constrained_surface_plugin Chair_function ${CHAIR_SRC_FILES})
 
-  polyhedron_demo_plugin(chair_constrained_surface_plugin Chair_function)
-  polyhedron_demo_plugin(sphere_constrained_surface_plugin Sphere_function)
-  polyhedron_demo_plugin(tanglecube_constrained_surface_plugin Tanglecube_function)
-  polyhedron_demo_plugin(torus_constrained_surface_plugin Torus_function)
-  polyhedron_demo_plugin(ellipsoid_constrained_surface_plugin Ellipsoid_function)
+  set(SPHERE_SRC_FILES "Sphere_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" SPHERE_SRC_FILES)
+  LIST(REMOVE_AT SPHERE_SRC_FILES 0) 
+  polyhedron_demo_plugin(sphere_constrained_surface_plugin Sphere_function ${SPHERE_SRC_FILES})
 
+  set(TANGLECUBE_SRC_FILES "Tanglecube_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" TANGLECUBE_SRC_FILES)
+  LIST(REMOVE_AT TANGLECUBE_SRC_FILES 0) 
+  polyhedron_demo_plugin(tanglecube_constrained_surface_plugin Tanglecube_function ${TANGLECUBE_SRC_FILES})
 
+  set(TORUS_SRC_FILES "Torus_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" TORUS_SRC_FILES)
+  LIST(REMOVE_AT TORUS_SRC_FILES 0) 
+  polyhedron_demo_plugin(torus_constrained_surface_plugin Torus_function ${TORUS_SRC_FILES})
+
+  set(ELLIPSOID_SRC_FILES "Ellipsoid_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" ELLIPSOID_SRC_FILES)
+  LIST(REMOVE_AT ELLIPSOID_SRC_FILES 0) 
+  polyhedron_demo_plugin(ellipsoid_constrained_surface_plugin Ellipsoid_function ${ELLIPSOID_SRC_FILES})
+  
 else (CGAL_Qt4_FOUND AND QT4_FOUND)
 
   set(MESH_3_MISSING_DEPS "")
