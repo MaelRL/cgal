@@ -36,7 +36,6 @@
 #include <CGAL/Criteria.h>
 #include <CGAL/Facet_refine_queue.h>
 #include <CGAL/Output_facets.h>
-#include <CGAL/Euclidean_metric_field.h>
 
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/timer_helper.h>
