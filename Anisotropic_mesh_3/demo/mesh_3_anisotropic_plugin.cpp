@@ -296,13 +296,13 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   // Polyhedron
   if ( NULL != poly_item )
   {
-    Polyhedron* pMesh = poly_item->polyhedron();
-    if( NULL == pMesh )
+    Polyhedron* pPoly = poly_item->polyhedron();
+    if( NULL == pPoly )
     {
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    thread = cgal_code_anisotropic_mesh_3(pMesh, epsilon,
+    thread = cgal_code_anisotropic_mesh_3(pPoly, epsilon,
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points);
