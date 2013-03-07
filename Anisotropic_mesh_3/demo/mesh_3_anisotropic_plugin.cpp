@@ -359,14 +359,14 @@ void Anisotropic_mesh_3_plugin::view_one_star()
   connect(ui.displayAll, SIGNAL(clicked()), &dialog, SLOT(reject()));
 
    // Set default parameters
-  int nbstars = ssetitem->nbStars();
+  int indexMax = ssetitem->nbStars()-1;
   ui.objectQuestion->setText(
-    tr("Which star do you want to display? (from 1 to %1)").arg(nbstars));
+    tr("Which star do you want to display? (from 0 to %1)").arg(indexMax));
   ui.starId->setDecimals(0);
   ui.starId->setSingleStep(1);
   ui.starId->setValue((std::max)(1, ssetitem->draw_star()));
-  ui.starId->setMinimum(1);
-  ui.starId->setMaximum(nbstars);
+  ui.starId->setMinimum(0);
+  ui.starId->setMaximum(indexMax);
    
   // Get value and use it
   int i = dialog.exec();  
