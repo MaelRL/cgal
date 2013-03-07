@@ -25,10 +25,6 @@ typedef Kernel::Plane_3 Plane_3;
 // implicit surface 
 typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_implicit<Kernel> Implicit_surface;
 
-
-// more types
-#include <Domain/Constrain_surface_3_sphere.h>
-
-typedef Constrain_surface_3_sphere<Kernel> Implicit_sphere;
+#include "Implicit_surface_type_fwd.h"
 
 #endif // IMPLICIT_SURFACE_TYPE_H

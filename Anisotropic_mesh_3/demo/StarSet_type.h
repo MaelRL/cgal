@@ -1,14 +1,11 @@
 #ifndef CGAL_DEMO_MESH_3_STARSET_TYPE_H
 #define CGAL_DEMO_MESH_3_STARSET_TYPE_H
 
-#include "Polyhedron_type.h"
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
-//#include <CGAL/Cell_star_set_3.h>
+typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
+
 #include <CGAL/Surface_star_set_3.h>
-
-#include <CGAL/Mesh_3/Robust_intersection_traits_3.h>
-#include <CGAL/Polyhedral_mesh_domain_3.h>
-
 #include <CGAL/Criteria.h>
 #include <CGAL/Metric_field.h>
 #include <CGAL/Constrain_surface_3.h>

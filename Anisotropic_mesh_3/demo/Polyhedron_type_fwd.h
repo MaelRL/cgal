@@ -4,14 +4,7 @@
 #include <CGAL/Filtered_kernel_fwd.h>
 #include <memory>
 
-#ifdef USE_FORWARD_DECL
-
-#include <CGAL/Filtered_kernel_fwd.h>
-
 namespace CGAL {
-
-  template < typename FT_ >
-  struct Simple_cartesian;
 
   class Epick;
   
@@ -49,11 +42,5 @@ typedef CGAL::Polyhedron_3<Kernel,
                            CGAL::Anisotropic_mesh_3::Enriched_items,
                            CGAL::HalfedgeDS_default,
                            std::allocator<int> > Polyhedron;
-
-#else // USE_FORWARD_DECL
-
-#include "Polyhedron_type.h"
-
-#endif // USE_FORWARD_DECL
 
 #endif // POLYHEDRON_TYPE_FWD_H

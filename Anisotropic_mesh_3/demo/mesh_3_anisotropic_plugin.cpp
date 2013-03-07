@@ -19,9 +19,8 @@
 #include "Scene_polyhedron_item.h"
 #include "Scene_constrained_surface_implicit_item.h"
 
-#include "Polyhedron_type.h"
-#include "constrained_surfaces_implicit/Constrained_surface_implicit_interface.h"
-#include "Implicit_surface_type.h"
+#include "Polyhedron_type_fwd.h"
+#include "Implicit_surface_type_fwd.h"
 
 #include "Scene_starset3_item.h"
 #include "Anisotropic_meshing_thread.h"
@@ -317,7 +316,6 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    std::cout << "Let's mesh " << pFunction->name() << "...";
     thread = cgal_code_anisotropic_mesh_3(pFunction, epsilon,
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
