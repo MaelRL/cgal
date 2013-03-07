@@ -36,8 +36,8 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
   if(option != FACES_ONLY)
   {    
     GLboolean was = (::glIsEnabled(GL_LIGHTING));
-    if(!was)
-      ::glEnable(GL_LIGHTING);
+    if(was)
+      ::glDisable(GL_LIGHTING);
 
     ::glColor3f(0.,0.,0.);
     if(option == EDGES_ONLY)
@@ -50,8 +50,8 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
     ::glVertex3d(pc.x(),pc.y(),pc.z());
     ::glEnd();
 
-    if(!was)
-      ::glDisable(GL_LIGHTING);
+    if(was)
+      ::glEnable(GL_LIGHTING);
   }
 }
 

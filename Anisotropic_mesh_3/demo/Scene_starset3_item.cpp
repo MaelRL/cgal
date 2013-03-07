@@ -77,6 +77,7 @@ Scene_starset3_item(const Criteria& criteria,
   data_item_(NULL),
   indices_(),
   m_draw_surface_star_set(true),
+  m_draw_cell(false),
   m_draw_dual(false),
   m_draw_poles(false),
   m_draw_initial_points(false),
@@ -191,6 +192,8 @@ Scene_starset3_item::direct_draw() const
 
   if(m_draw_surface_star_set)
     star_set().gl_draw(plane, true/*draw_edges*/, m_draw_star_id-1);
+  if(m_draw_cell)
+    star_set().gl_draw_cell(plane, m_draw_star_id-1);
   if(m_draw_poles)
     star_set().gl_draw_poles(plane);
   if(m_draw_initial_points)

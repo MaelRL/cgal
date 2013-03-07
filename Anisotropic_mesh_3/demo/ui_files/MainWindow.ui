@@ -37,7 +37,7 @@
      <x>0</x>
      <y>0</y>
      <width>978</width>
-     <height>21</height>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -99,6 +99,8 @@
       <string>Surface star set</string>
      </property>
      <addaction name="actionDraw_surface_star_set"/>
+     <addaction name="actionDraw_cell"/>
+     <addaction name="actionDraw_mesh_3"/>
      <addaction name="separator"/>
      <addaction name="actionDraw_dual_edges"/>
      <addaction name="actionDraw_one_star"/>
@@ -106,9 +108,7 @@
      <addaction name="actionDraw_initial_points"/>
      <addaction name="actionDraw_poles"/>
      <addaction name="actionDraw_inconsistent_facets"/>
-     <addaction name="separator"/>
      <addaction name="actionDraw_metric_field"/>
-     <addaction name="actionDraw_mesh_3"/>
     </widget>
     <addaction name="actionAntiAliasing"/>
     <addaction name="actionDraw_two_sides"/>
@@ -630,6 +630,14 @@
    </property>
    <property name="text">
     <string>Star set</string>
+   </property>
+  </action>
+  <action name="actionDraw_cell">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Cells</string>
    </property>
   </action>
  </widget>

@@ -1780,6 +1780,31 @@ public:
         }
       }
 
+      void gl_draw_cell(const typename K::Plane_3& plane) const
+      {
+        gl_draw_center();
+
+        Cell_handle_handle ci = begin_finite_star_cells();
+        Cell_handle_handle cend = end_finite_star_cells();
+        for (; ci != cend; ci++)
+        {
+          std::vector<Point_3> cell_points(4);
+          cell_points[0] = m_metric.inverse_transform((*ci)->vertex(0)->point());
+          cell_points[1] = m_metric.inverse_transform((*ci)->vertex(1)->point());
+          cell_points[2] = m_metric.inverse_transform((*ci)->vertex(2)->point());
+          cell_points[3] = m_metric.inverse_transform((*ci)->vertex(3)->point());
+          if(is_above_plane(plane, cell_points[0], cell_points[1], cell_points[2], cell_points[3]))
+          {
+            for(int i = 0; i < 4; i++)
+            {
+              gl_draw_triangle<K>(cell_points[i%4],
+                                  cell_points[(i+1)%4],
+                                  cell_points[(i+2)%4],EDGES_ONLY, 255, 117, 44);
+            }
+          }
+        }
+      }
+
       void gl_draw_metric(const typename K::Plane_3& plane,
                           double coeff) const
       {
@@ -1827,6 +1852,18 @@ public:
         const Side sb = plane.oriented_side(pb);
         const Side sc = plane.oriented_side(pc);
         return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
+      }
+
+      bool is_above_plane(const typename K::Plane_3& plane,
+                          const typename K::Point_3& pa,
+                          const typename K::Point_3& pb,
+                          const typename K::Point_3& pc,
+                          const typename K::Point_3& pd) const
+      {
+        typedef typename K::Oriented_side Side;
+        using CGAL::ON_NEGATIVE_SIDE;
+        const Side sd = plane.oriented_side(pd);
+        return (sd == ON_NEGATIVE_SIDE && is_facet_above_plane<K>(plane,pa,pb,pc));
       }
 
       //void gl_draw_all(const typename K::Plane_3& plane) const

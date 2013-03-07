@@ -97,6 +97,7 @@ public slots:
 public:
   int& draw_star()                 { return m_draw_star_id; }
   const int& draw_star() const     { return m_draw_star_id; }
+  bool& draw_cell()                { return m_draw_cell; }
   bool& draw_dual()                { return m_draw_dual; }
   bool& draw_poles()               { return m_draw_poles; }
   bool& draw_initial_points()        { return m_draw_initial_points; }
@@ -120,6 +121,7 @@ private:
   Indices indices_;
 
   bool m_draw_surface_star_set;
+  bool m_draw_cell;
   bool m_draw_dual;
   bool m_draw_poles;
   bool m_draw_initial_points;
