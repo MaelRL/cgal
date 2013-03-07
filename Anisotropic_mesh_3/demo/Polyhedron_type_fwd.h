@@ -1,6 +1,8 @@
 #ifndef POLYHEDRON_TYPE_FWD_H
 #define POLYHEDRON_TYPE_FWD_H
 
+#include "Polyhedron_type.h"
+
 #include <CGAL/Filtered_kernel_fwd.h>
 #include <memory>
 
