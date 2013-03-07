@@ -125,7 +125,6 @@
  #include <CGAL/Mesher_level.h>
  #include <CGAL/Mesher_level_default_implementations.h>
  #include <CGAL/Mesher_level_visitors.h>
- #include <CGAL/Meshes/Filtered_multimap_container.h>
  #include <CGAL/Meshes/Triangulation_mesher_level_traits_3.h>
  #include <CGAL/Mesh_cell_base_3.h>
  #include <CGAL/Mesh_cell_criteria_3.h>

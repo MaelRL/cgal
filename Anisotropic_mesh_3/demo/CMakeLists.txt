@@ -225,7 +225,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   add_definitions(-DQT_STATICPLUGIN)
 
 
-    add_executable  ( Mesh_3 MainWindow.cpp
+  add_executable  ( Mesh_3 MainWindow.cpp
       Mesh_3.cpp
       ${DEMO_SRC_DIR}/Scene.cpp
       MainWindow_moc.cpp
@@ -308,21 +308,27 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   polyhedron_demo_plugin(${IO_CONSTRAINED_SURFACE_IMPLICIT_PLUGIN_LIB} Io_constrained_surface_implicit_plugin ${funcUI_FILES})
   target_link_libraries(${IO_CONSTRAINED_SURFACE_IMPLICIT_PLUGIN_LIB} ${SCENE_CONSTRAINED_SURFACE_IMPLICIT_LIB})
 
+  #Mesh_3_plugin
   set(MESH_3_PLUGIN_LIB "${MESH_3_LIB_PREFIX}mesh_3_plugin") 
-  polyhedron_demo_plugin(${MESH_3_PLUGIN_LIB} Mesh_3_plugin 
-                         Mesh_3_plugin_polyhedron_cgal_code.cpp
-                         Mesh_3_plugin_image_cgal_code.cpp
-                         Mesh_3_plugin_implicit_function_cgal_code.cpp
-                         Meshing_thread.cpp
-                         Scene_c3t3_item.moc
-                         ${meshingUI_FILES})
+  set(MESH_3_PLUGIN_SOURCE_FILES
+    Mesh_3_plugin.cpp
+    Mesh_3_plugin_polyhedron_cgal_code.cpp
+    Mesh_3_plugin_image_cgal_code.cpp
+    Mesh_3_plugin_implicit_function_cgal_code.cpp
+    Meshing_thread.cpp)
+if(WIN32)
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" MESH_3_PLUGIN_SOURCE_FILES)
+endif()
+  LIST(REMOVE_AT MESH_3_PLUGIN_SOURCE_FILES 0) 
+  LIST(APPEND MESH_3_PLUGIN_SOURCE_FILES "Scene_c3t3_item.moc" ${meshingUI_FILES})
+  polyhedron_demo_plugin(${MESH_3_PLUGIN_LIB} Mesh_3_plugin ${MESH_3_PLUGIN_SOURCE_FILES})
 
   target_link_libraries(${MESH_3_PLUGIN_LIB}
                         ${SCENE_C3T3_ITEM_LIB}
                         ${SCENE_POLYHEDRON_ITEM_LIB}
                         ${SCENE_SEGMENTED_IMAGE_ITEM_LIB}
                         ${SCENE_IMPLICIT_FUNCTION_ITEM_LIB}
-			${SCENE_CONSTRAINED_SURFACE_IMPLICIT_LIB}
+						${SCENE_CONSTRAINED_SURFACE_IMPLICIT_LIB}
                         ${QGLVIEWER_LIBRARIES}
                         ${OPENGL_gl_LIBRARY}
                         ${OPENGL_glu_LIBRARY})
