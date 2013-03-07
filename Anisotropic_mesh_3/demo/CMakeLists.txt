@@ -4,24 +4,47 @@ project( Anisotropic_Mesh_3_demo )
 
 cmake_minimum_required(VERSION 2.4.5)
 
-
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
 
 #option(MESH_3_DEMO_ENABLE_FORWARD_DECL "In the Mesh_3 demo, enable " OFF)
 #mark_as_advanced(MESH_3_DEMO_ENABLE_FORWARD_DECL)
 
+# Disable deprecated Mesh_3 names
+add_definitions(-DCGAL_MESH_3_NO_DEPRECATED_SURFACE_INDEX
+                -DCGAL_MESH_3_NO_DEPRECATED_C3T3_ITERATORS)
+
+# more macros
+add_definitions(-DANISO_APPROXIMATE_SPHERE_BBOX 
+		-DANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR
+		-DCGAL_MESH_3_MESHER_STATUS_ACTIVATED
+		-DANISO_VERBOSE)
+
 if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
-# Disable deprecated Mesh_3 names
-add_definitions(-DCGAL_MESH_3_NO_DEPRECATED_SURFACE_INDEX
-                -DCGAL_MESH_3_NO_DEPRECATED_C3T3_ITERATORS
-		-DANISO_APPROXIMATE_SPHERE_BBOX 
-		-DANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR
-		-DCGAL_MESH_3_MESHER_STATUS_ACTIVATED)
+if(WIN32)
+ # Creates a new CMake option, turned ON by default
+ option(ACTIVATE_MSVC_PRECOMPILED_HEADERS
+   "Activate precompiled headers in MSVC"
+   ON)
+ 
+ # Macro to add precompiled headers for MSVC
+ MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
+   IF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
+     GET_FILENAME_COMPONENT(PrecompiledBasename ${PrecompiledHeader} NAME_WE)
+     SET(Sources ${${SourcesVar}})
+ 
+     SET_SOURCE_FILES_PROPERTIES(${PrecompiledSource}
+                                 PROPERTIES COMPILE_FLAGS "/Yc\"${PrecompiledHeader}\"")
+     SET_SOURCE_FILES_PROPERTIES(${Sources}
+                                 PROPERTIES COMPILE_FLAGS "/Yu\"${PrecompiledHeaders}\" /FI\"${PrecompiledHeader}\"")
+     # Add precompiled header to SourcesVar
+     LIST(APPEND ${SourcesVar} ${PrecompiledSource})
+   ENDIF(MSVC AND ACTIVATE_MSVC_PRECOMPILED_HEADERS)
+ ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
+endif()
 
-add_definitions(-DANISO_VERBOSE)
 
 # Add specific Find.cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules )
@@ -200,6 +223,8 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   
   add_definitions(-DUSE_FORWARD_DECL)
   add_definitions(-DQT_STATICPLUGIN)
+
+
     add_executable  ( Mesh_3 MainWindow.cpp
       Mesh_3.cpp
       ${DEMO_SRC_DIR}/Scene.cpp
