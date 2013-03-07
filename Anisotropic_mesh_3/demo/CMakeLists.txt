@@ -334,29 +334,40 @@ endif()
                         ${OPENGL_glu_LIBRARY})
 
   set(MESH_3_OPTIMIZATION_PLUGIN_LIB "${MESH_3_LIB_PREFIX}mesh_3_optimization_plugin") 
-  polyhedron_demo_plugin(${MESH_3_OPTIMIZATION_PLUGIN_LIB} Mesh_3_optimization_plugin 
+  set(MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES Mesh_3_optimization_plugin.cpp
                          Mesh_3_optimization_plugin_cgal_code.cpp
-                         Optimizer_thread.cpp
-                         Scene_c3t3_item.moc
-                         ${optimUI_FILES})
+                         Optimizer_thread.cpp)
+  if(WIN32)
+    ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES)
+  endif()
+  LIST(REMOVE_AT MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES 0) 
+  LIST(APPEND MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES Scene_c3t3_item.moc ${optimUI_FILES}) 
+  polyhedron_demo_plugin(${MESH_3_OPTIMIZATION_PLUGIN_LIB} Mesh_3_optimization_plugin 
+                         ${MESH_3_OPTIMIZATION_PLUGIN_SRC_FILES})
 
   target_link_libraries(${MESH_3_OPTIMIZATION_PLUGIN_LIB}
                         ${SCENE_C3T3_ITEM_LIB}
                         ${SCENE_POLYHEDRON_ITEM_LIB}
                         ${SCENE_SEGMENTED_IMAGE_ITEM_LIB}
                         ${SCENE_IMPLICIT_FUNCTION_ITEM_LIB}
-			${SCENE_CONSTRAINED_SURFACE_IMPLICIT_LIB}
+						${SCENE_CONSTRAINED_SURFACE_IMPLICIT_LIB}
                         ${QGLVIEWER_LIBRARIES}
                         ${OPENGL_gl_LIBRARY}
                         ${OPENGL_glu_LIBRARY})
 
   set(ANISO_MESH_3_PLUGIN_LIB "${MESH_3_LIB_PREFIX}anisotropic_plugin")
-  polyhedron_demo_plugin(${ANISO_MESH_3_PLUGIN_LIB} mesh_3_anisotropic_plugin
+  set(ANISO_MESH_3_SRC_FILES mesh_3_anisotropic_plugin.cpp
 			mesh_3_anisotropic_plugin_polyhedron_cgal_code.cpp
 			mesh_3_anisotropic_plugin_implicit_cgal_code.cpp
-			Anisotropic_meshing_thread.cpp
-			Scene_starset3_item.moc
-			${anisoUI_FILES})
+			Anisotropic_meshing_thread.cpp)
+  if(WIN32)
+	ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" ANISO_MESH_3_SRC_FILES)
+  endif()
+  LIST(REMOVE_AT ANISO_MESH_3_SRC_FILES 0)
+  LIST(APPEND ANISO_MESH_3_SRC_FILES Scene_starset3_item.moc ${anisoUI_FILES})
+  polyhedron_demo_plugin(${ANISO_MESH_3_PLUGIN_LIB} 
+			mesh_3_anisotropic_plugin
+			${ANISO_MESH_3_SRC_FILES})
 
   target_link_libraries(${ANISO_MESH_3_PLUGIN_LIB}
 			${SCENE_C3T3_ITEM_LIB}
