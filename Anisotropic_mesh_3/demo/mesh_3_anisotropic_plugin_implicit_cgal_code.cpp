@@ -25,6 +25,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const int nb_initial_points)
 {
   if( NULL == p_surface ) { return NULL; }
+  std::cout << "Let's mesh " << p_surface->name() << "...";
   //CGAL::default_random = CGAL::Random(0);
 
   const Implicit_surface* p_domain = p_surface->clone();

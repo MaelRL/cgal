@@ -1,4 +1,5 @@
 #include "Scene_constrained_surface_implicit_item.h"
+#include "Implicit_surface_type.h"
 #include <QColor>
 #include <map>
 #include <CGAL/gl.h>

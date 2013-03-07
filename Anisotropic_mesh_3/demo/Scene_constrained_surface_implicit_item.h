@@ -5,7 +5,7 @@
 #include <CGAL_demo/Scene_interface.h>
 #include "Scene_constrained_surface_implicit_item_config.h"
 #include "Color_ramp.h"
-#include "Implicit_surface_type.h"
+#include "Implicit_surface_type_fwd.h"
 
 #include <QGLViewer/manipulatedFrame.h>
 #include <QGLViewer/qglviewer.h>
