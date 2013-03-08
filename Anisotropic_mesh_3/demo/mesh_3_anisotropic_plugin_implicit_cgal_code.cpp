@@ -3,13 +3,14 @@
 #include "Anisotropic_meshing_thread.h"
 #include "Anisotropic_mesh_function.h"
 #include "Implicit_surface_type.h"
+#include "anisotropic_meshing_options.h"
 
 #include <CGAL/Bbox_3.h>
 
-//#include <CGAL/Euclidean_metric_field.h>
+#include <CGAL/Metric_field.h>
+#include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <Metric_field/Torus_metric_field.h>
-#include <Metric_field/Ellipsoid_metric_field.h>
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface* p_surface,
                                  const double epsilon,
@@ -22,31 +23,13 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const int nb_initial_points)
+                                 const int nb_initial_points,
+                                 const Metric_options& metric)
 {
   if( NULL == p_surface ) { return NULL; }
-  std::cout << "Let's mesh " << p_surface->name() << "...";
-  //CGAL::default_random = CGAL::Random(0);
+  CGAL::default_random = CGAL::Random(0);
 
   const Implicit_surface* p_domain = p_surface->clone();
-
-  //typedef CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel> Metric_field;
-  //Metric_field* metric_field = new Metric_field(1., 1., 1., epsilon);
-  //std::cout << "(Euclidean)." << std::endl;
-
-  //typedef Torus_metric_field<Kernel> Metric_field;
-  //Metric_field* metric_field = new Metric_field(10., 1., epsilon);
-  //std::cout << "(Torus)" << std::endl;
-
-  //typedef Ellipsoid_metric_field<Kernel> Metric_field;
-  //std::cout << "(Ellipsoid)" << std::endl;
-  //Metric_field* metric_field = new Metric_field(2., 1., 1., epsilon);
-
-  typedef Implicit_curvature_metric_field<Kernel> Metric_field;
-  Metric_field* metric_field = new Metric_field(*p_domain, epsilon);
-  std::cout << "(Curvature metric field)." << std::endl;
-
-  typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
 
   Anisotropic_mesh_parameters param;
   param.approximation = approximation;
@@ -66,11 +49,30 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                     param.distortion, param.beta, param.delta, 
                                     param.max_times_to_try_in_picking_region, param.approximation);
 
+  typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
+  Metric_field* mf = NULL;
+  if(metric == EUCLIDEAN)
+  {
+    std::cout << "(Euclidean)." << std::endl;
+    mf = new CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel>(1., 1., 1., epsilon);
+  }
+  else if(metric == TORUS_NAIVE)
+  {
+    std::cout << "(Torus)" << std::endl;
+    mf = new Torus_metric_field<Kernel>(10., 1., epsilon);
+  }
+  else if(metric == IMPLICIT_CURVATURE)
+  {
+    std::cout << "(Curvature metric field)." << std::endl;
+    mf = new Implicit_curvature_metric_field<Kernel>(*p_domain, epsilon);
+  }
+    
   Scene_starset3_item* p_new_item 
-    = new Scene_starset3_item(*criteria, *metric_field, p_domain, nb_initial_points);
+    = new Scene_starset3_item(*criteria, *mf, p_domain, nb_initial_points);
 
+  typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
   AMesh_function* p_mesh_function 
-    = new AMesh_function(p_new_item->star_set(), param, criteria, metric_field);
+    = new AMesh_function(p_new_item->star_set(), param, criteria, mf);
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 

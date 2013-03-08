@@ -25,6 +25,8 @@
 #include "Scene_starset3_item.h"
 #include "Anisotropic_meshing_thread.h"
 
+#include "anisotropic_meshing_options.h"
+
 #include <iostream>
 #include <fstream>
 #include <math.h>
@@ -45,7 +47,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const int nb_initial_points);
+                                 const int nb_initial_points,
+                                 const Metric_options& metric);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
                                  const double epsilon,
@@ -58,10 +61,10 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const int nb_initial_points);
+                                 const int nb_initial_points,
+                                 const Metric_options& metric);
 
 double get_approximate(double d, int precision, int& decimals);
-
 
 
 class Anisotropic_mesh_3_plugin : 
@@ -208,9 +211,18 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
     qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
 
   // Get item
+  Domain_type t;
   Scene_item* item = NULL;
-  if( NULL != poly_item )          { item = poly_item; }
-  else if( NULL != function_item ) { item = function_item; }
+  if( NULL != poly_item )          
+  { 
+    item = poly_item; 
+    t = POLYHEDRAL_SURFACE; 
+  }
+  else if( NULL != function_item ) 
+  { 
+    item = function_item; 
+    t = IMPLICIT_SURFACE; 
+  }
   else if ( NULL == item )
   {
     QMessageBox::warning(mw,tr(""),tr("Selected object can't be meshed")); 
@@ -256,6 +268,19 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.epsilon->setValue(1.000);
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
+
+  ui.comboBox_metric->insertItem(EUCLIDEAN, "Euclidean");
+  if(t == POLYHEDRAL_SURFACE)
+  {
+    ui.comboBox_metric->insertItem(POLYHEDRON_CURVATURE, "Polyhedron curvature");
+    ui.comboBox_metric->setCurrentIndex(POLYHEDRON_CURVATURE);
+  }
+  else //IMPLICIT_SURFACE
+  {
+    ui.comboBox_metric->insertItem(IMPLICIT_CURVATURE, "Implicit curvature");
+    ui.comboBox_metric->insertItem(TORUS_NAIVE, "Torus (1/r, 1/R)");
+    ui.comboBox_metric->setCurrentIndex(IMPLICIT_CURVATURE);
+  }
  
   ui.maxTries->setDecimals(0);
   ui.maxTries->setSingleStep(1);
@@ -285,6 +310,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   else if(ui.dimension->currentText().compare(QString("Volume")) == 0)
     dim = 3;
   const int nb_initial_points = ui.nbInitialPoints->value();
+  Metric_options metric = (Metric_options)ui.comboBox_metric->currentIndex();
 
   // -----------------------------------
   // Dispatch mesh process
@@ -305,7 +331,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
     thread = cgal_code_anisotropic_mesh_3(pPoly, epsilon,
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
-      dim, nb_initial_points);
+      dim, nb_initial_points, metric);
   }
   //// Function
   else if( NULL != function_item )
@@ -319,7 +345,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
     thread = cgal_code_anisotropic_mesh_3(pFunction, epsilon,
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
-      dim, nb_initial_points);
+      dim, nb_initial_points, metric);
   }
 
   if ( NULL == thread )
