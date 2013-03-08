@@ -43,7 +43,6 @@ public:
     return Metric(Vector_3(1, 0, 0),
                   Vector_3(0, 1, 0),
                   Vector_3(0, 0, 1),
-                  //1, 1);
                   m_a, m_b, m_c, this->epsilon);
   }
 
