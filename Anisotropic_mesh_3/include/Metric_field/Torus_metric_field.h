@@ -76,8 +76,8 @@ public:
     //FT e2 = std::max(1./r, this->epsilon);
 
       //naive curvature
-    FT e1 = std::max(1./R, this->epsilon);
-    FT e2 = std::max(1./r, this->epsilon);
+    FT e1 = (std::max)(1./R, this->epsilon);
+    FT e2 = (std::max)(1./r, this->epsilon);
 
       //good looking curvature
     //FT e1 = std::max(1./(R-r*std::cos(Phi)), this->epsilon);
