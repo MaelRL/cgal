@@ -265,21 +265,21 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.circumradius->setValue(1.0);
   ui.distortion->setValue(1.8);
   ui.approximation->setValue(0.01*max_size);
-  ui.epsilon->setValue(1.000);
+  ui.epsilon->setValue(0.1);
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
 
-  ui.comboBox_metric->insertItem(EUCLIDEAN, "Euclidean");
+  ui.comboBox_metric->addItem("Euclidean", EUCLIDEAN);
   if(t == POLYHEDRAL_SURFACE)
   {
-    ui.comboBox_metric->insertItem(POLYHEDRON_CURVATURE, "Polyhedron curvature");
-    ui.comboBox_metric->setCurrentIndex(POLYHEDRON_CURVATURE);
+    ui.comboBox_metric->addItem("Polyhedron curvature", POLYHEDRON_CURVATURE);
+    ui.comboBox_metric->setCurrentIndex(1);//polyhedron curvature
   }
   else //IMPLICIT_SURFACE
   {
-    ui.comboBox_metric->insertItem(IMPLICIT_CURVATURE, "Implicit curvature");
-    ui.comboBox_metric->insertItem(TORUS_NAIVE, "Torus (1/r, 1/R)");
-    ui.comboBox_metric->setCurrentIndex(IMPLICIT_CURVATURE);
+    ui.comboBox_metric->addItem("Implicit curvature", IMPLICIT_CURVATURE);
+    ui.comboBox_metric->addItem("Torus (1/r, 1/R)", TORUS_NAIVE);
+    ui.comboBox_metric->setCurrentIndex(1);//implicit curvature
   }
  
   ui.maxTries->setDecimals(0);
@@ -310,7 +310,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   else if(ui.dimension->currentText().compare(QString("Volume")) == 0)
     dim = 3;
   const int nb_initial_points = ui.nbInitialPoints->value();
-  Metric_options metric = (Metric_options)ui.comboBox_metric->currentIndex();
+  int metric_index = ui.comboBox_metric->currentIndex();
+  Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
 
   // -----------------------------------
   // Dispatch mesh process
