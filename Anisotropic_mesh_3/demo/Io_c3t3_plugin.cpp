@@ -18,6 +18,7 @@ public:
 
   virtual bool canSave(const Scene_item*);
   virtual bool save(const Scene_item*, QFileInfo fileinfo);
+  virtual QString name() const { return "Io_c3t3_plugin"; }
 };
 
 

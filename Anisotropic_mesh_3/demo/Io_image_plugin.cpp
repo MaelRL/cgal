@@ -21,7 +21,7 @@ public:
     glewInit();
 #endif
   }
-
+  QString name() const { return "Io_image_plugin"; }
   QStringList nameFilters() const;
   bool canLoad() const;
   Scene_item* load(QFileInfo fileinfo);

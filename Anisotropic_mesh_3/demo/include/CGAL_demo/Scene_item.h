@@ -11,6 +11,10 @@ namespace qglviewer {
   class ManipulatedFrame;
 }
 
+class QMenu;
+class QKeyEvent;
+class Viewer_interface;
+
 // This class represents an object in the OpenGL scene
 class SCENE_ITEM_EXPORT Scene_item : public QObject {
   Q_OBJECT
@@ -29,7 +33,8 @@ public:
     : name_("unamed"),
       color_(defaultColor),
       visible_(true),
-      rendering_mode(FlatPlusEdges)
+      rendering_mode(FlatPlusEdges),
+      defaultContextMenu(0)
   {}
   virtual ~Scene_item();
   virtual Scene_item* clone() const = 0;
@@ -38,10 +43,13 @@ public:
   virtual bool supportsRenderingMode(RenderingMode m) const = 0;
   // Flat/Gouraud OpenGL drawing
   virtual void draw() const = 0;
+  virtual void draw(Viewer_interface*) const { draw(); };
   // Wireframe OpenGL drawing
   virtual void draw_edges() const { draw(); }
+  virtual void draw_edges(Viewer_interface*) const { draw_edges(); }
   // Points OpenGL drawing
   virtual void draw_points() const { draw(); }
+  virtual void draw_points(Viewer_interface*) const { draw_points(); }
 
   // Functions for displaying meta-data of the item
   virtual QString toolTip() const = 0;
@@ -62,25 +70,73 @@ public:
   virtual QString name() const { return name_; }
   virtual bool visible() const { return visible_; }
   virtual RenderingMode renderingMode() const { return rendering_mode; }
-  virtual QString renderingModeName() const; // Rendering mode as a human readable string
+  virtual QString renderingModeName() const; // Rendering mode as a human
+                                             // readable string
 
+  // Context menu
+  virtual QMenu* contextMenu();
+
+  // Event handling
+  virtual bool keyPressEvent(QKeyEvent*){return false;}
 public slots:
   // Call that once you have finished changing something in the item
   // (either the properties or internal data)
-  virtual void changed() {}
+  virtual void changed();
 
   // Setters for the four basic properties
   virtual void setColor(QColor c) { color_ = c; }
+  void setRbgColor(int r, int g, int b) { setColor(QColor(r, g, b)); }
   virtual void setName(QString n) { name_ = n; }
   virtual void setVisible(bool b) { visible_ = b; }
   virtual void setRenderingMode(RenderingMode m) { 
     if (supportsRenderingMode(m))
       rendering_mode = m; 
   }
+  void setPointsMode() {
+    setRenderingMode(Points);
+  }
 
+  void setWireframeMode() {
+    setRenderingMode(Wireframe);
+  }
+  void setWireframe() {
+    setRenderingMode(Wireframe);
+  }
+
+  void setFlat() {
+    setRenderingMode(Flat);
+  }
+  void setFlatMode() {
+    setRenderingMode(Flat);
+  }
+
+  void setFlatPlusEdgesMode() {
+    setRenderingMode(FlatPlusEdges);
+  }
+
+  void setGouraudMode() {
+    setRenderingMode(Gouraud);
+  }
+
+  void setPointsPlusNormalsMode(){
+    setRenderingMode(PointsPlusNormals);
+  }
+  
   virtual void itemAboutToBeDestroyed(Scene_item*);
 
+  virtual void select(double orig_x,
+                      double orig_y,
+                      double orig_z,
+                      double dir_x,
+                      double dir_y,
+                      double dir_z);
+
+  virtual void setSelectedPoint(double x,
+                                double y,
+                                double z);
+
 signals:
+  void itemChanged();
   void aboutToBeDestroyed();
 
 protected:
@@ -89,7 +145,12 @@ protected:
   QColor color_;
   bool visible_;
   RenderingMode rendering_mode;
+  QMenu* defaultContextMenu;
 
 }; // end class Scene_item
+
+
+#include <QMetaType>
+Q_DECLARE_METATYPE(Scene_item*)
 
 #endif // SCENE_ITEM_H

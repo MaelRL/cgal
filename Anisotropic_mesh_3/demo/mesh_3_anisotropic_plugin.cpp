@@ -87,7 +87,8 @@ public:
   {
     this->scene = scene_interface;
     this->mw = mainWindow;
-    
+    this->msg = msg_interface;
+
     actionAnisotropicMeshing = this->getActionFromMainWindow(mw, "actionAnisotropicMeshing");
     if(actionAnisotropicMeshing)
       connect(actionAnisotropicMeshing, SIGNAL(triggered()), this, SLOT(anisotropic_mesh_3()));
@@ -131,8 +132,6 @@ public:
     actionDraw_mesh_3 = this->getActionFromMainWindow(mw, "actionDraw_mesh_3");
     if(actionDraw_mesh_3)
       connect(actionDraw_mesh_3, SIGNAL(toggled(bool)), this, SLOT(view_mesh_3(bool)));
-
-    this->msg = msg_interface;
   }
 
   virtual QList<QAction*> actions() const
@@ -140,6 +139,21 @@ public:
     return QList<QAction*>() << actionAnisotropicMeshing;
   }
   
+  bool applicable() const {
+    const Scene_interface::Item_id index = scene->mainSelectionIndex();
+
+    // -----------------------------------
+    // Check if selected item is meshable
+    // -----------------------------------
+    Scene_polyhedron_item* poly_item = 
+      qobject_cast<Scene_polyhedron_item*>(scene->item(index));
+
+    Scene_constrained_surface_implicit_item* function_item =
+      qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
+
+    return poly_item || function_item;
+  }
+
 public slots:
   //meshing
   void anisotropic_mesh_3();

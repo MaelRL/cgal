@@ -3,6 +3,10 @@
 
 #include <QtCore/qglobal.h>
 
+#ifdef demo_framework_EXPORTS
+#  define viewer_EXPORTS
+#endif
+
 #ifdef viewer_EXPORTS
 #  define VIEWER_EXPORT Q_DECL_EXPORT
 #else

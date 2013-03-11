@@ -50,6 +50,8 @@
     <addaction name="actionDuplicate"/>
     <addaction name="actionSaveAs"/>
     <addaction name="separator"/>
+    <addaction name="actionLoad_Script"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
@@ -59,6 +61,8 @@
     <addaction name="actionShowHide"/>
     <addaction name="actionSetPolyhedronA"/>
     <addaction name="actionSetPolyhedronB"/>
+    <addaction name="actionSelect_all_items"/>
+    <addaction name="actionPreferences"/>
    </widget>
    <widget class="QMenu" name="menuOperations">
     <property name="title">
@@ -94,6 +98,16 @@
      </property>
      <addaction name="dummyAction"/>
     </widget>
+    <widget class="QMenu" name="menuCamera">
+     <property name="title">
+      <string>Ca&amp;mera</string>
+     </property>
+     <addaction name="actionDumpCamera"/>
+     <addaction name="action_Copy_camera"/>
+     <addaction name="action_Paste_camera"/>
+    </widget>
+    <addaction name="actionRecenterScene"/>
+    <addaction name="action_Look_at"/>
     <widget class="QMenu" name="menuSurface_star_set">
      <property name="title">
       <string>&amp;Surface star set</string>
@@ -112,8 +126,10 @@
     </widget>
     <addaction name="actionAntiAliasing"/>
     <addaction name="actionDraw_two_sides"/>
+    <addaction name="actionSetBackgroundColor"/>
     <addaction name="menuDockWindows"/>
     <addaction name="menuSurface_star_set"/>
+    <addaction name="menuCamera"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -186,12 +202,15 @@
         </layout>
        </item>
        <item>
-        <widget class="QTreeView" name="treeView">
+        <widget class="QTreeView" name="sceneView">
          <property name="editTriggers">
           <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
          </property>
          <property name="alternatingRowColors">
           <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::ExtendedSelection</enum>
          </property>
          <property name="indentation">
           <number>0</number>
@@ -211,17 +230,12 @@
     <string>Console</string>
    </property>
    <attribute name="dockWidgetArea">
-    <number>1</number>
+    <number>8</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout_3">
      <item>
       <widget class="QTextEdit" name="consoleTextEdit">
-       <property name="font">
-        <font>
-         <pointsize>11</pointsize>
-        </font>
-       </property>
        <property name="readOnly">
         <bool>true</bool>
        </property>
@@ -235,7 +249,7 @@
     <string>Infos</string>
    </property>
    <attribute name="dockWidgetArea">
-    <number>1</number>
+    <number>8</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_2">
     <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -245,13 +259,53 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QLabel" name="infoLabel">
-         <property name="lineWidth">
-          <number>0</number>
+        <widget class="QScrollArea" name="scrollArea">
+         <property name="minimumSize">
+          <size>
+           <width>350</width>
+           <height>0</height>
+          </size>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
          </property>
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="scrollAreaWidgetContents">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>545</width>
+            <height>178</height>
+           </rect>
+          </property>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="infoLabel">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>1</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::DefaultContextMenu</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+             </property>
+             <property name="textInteractionFlags">
+              <set>Qt::LinksAccessibleByKeyboard|Qt::LinksAccessibleByMouse|Qt::TextBrowserInteraction|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
        <item>
@@ -513,6 +567,22 @@
    <property name="text">
     <string>Draw &amp;two sides</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="actionRecenterScene">
+   <property name="text">
+    <string>Re&amp;center scene</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionSetBackgroundColor">
+   <property name="text">
+    <string>Change &amp;background color...</string>
+   </property>
   </action>
   <action name="actionOdt">
    <property name="text">
@@ -522,6 +592,44 @@
   <action name="actionLloyd">
    <property name="text">
     <string>&amp;Lloyd-smoothing</string>
+   </property>
+  </action>
+  <action name="action_Look_at">
+   <property name="text">
+    <string>&amp;Look at...</string>
+   </property>
+  </action>
+  <action name="actionDumpCamera">
+   <property name="text">
+    <string>&amp;Dump camera coordinates</string>
+   </property>
+  </action>
+  <action name="action_Copy_camera">
+   <property name="text">
+    <string>&amp;Copy camera</string>
+   </property>
+  </action>
+  <action name="action_Paste_camera">
+   <property name="text">
+    <string>&amp;Paste camera</string>
+   </property>
+  </action>
+  <action name="actionSelect_all_items">
+   <property name="text">
+    <string>Select all items</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="actionLoad_Script">
+   <property name="text">
+    <string>Load &amp;script</string>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="text">
+    <string>&amp;Preferences</string>
    </property>
   </action>
   <action name="actionPerturb">

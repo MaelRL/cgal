@@ -89,7 +89,18 @@ public:
   {
     return QList<QAction*>() << actionMesh_3;
   }
-  
+ 
+  bool applicable() const {
+    const Scene_interface::Item_id index = scene->mainSelectionIndex();
+    Scene_polyhedron_item* poly_item = 
+      qobject_cast<Scene_polyhedron_item*>(scene->item(index));
+    Scene_segmented_image_item* image_item = 
+      qobject_cast<Scene_segmented_image_item*>(scene->item(index));
+    Scene_implicit_function_item* function_item = 
+      qobject_cast<Scene_implicit_function_item*>(scene->item(index));
+    return poly_item || image_item || function_item;
+  }
+                                                                     
 public slots:
   void mesh_3();
   void meshing_done(Meshing_thread* t);

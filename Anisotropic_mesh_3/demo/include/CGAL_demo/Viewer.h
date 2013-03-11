@@ -2,46 +2,54 @@
 #define VIEWER_H
 
 #include <CGAL_demo/Viewer_config.h>
+#include <CGAL_demo/Viewer_interface.h>
+
 #include <QGLViewer/qglviewer.h>
+#include <QPoint>
 
 // forward declarations
 class QWidget;
 class Scene_draw_interface;
+class QMouseEvent;
+class QKeyEvent;
 
-class VIEWER_EXPORT Viewer : public QGLViewer {
+class Viewer_impl;
+
+class VIEWER_EXPORT Viewer : public Viewer_interface {
 
   Q_OBJECT
 
 public:
   Viewer(QWidget * parent, bool antialiasing = false);
+  ~Viewer();
 
   // overload several QGLViewer virtual functions
   void draw();
+  void fastDraw();
   void initializeGL();
   void drawWithNames();
   void postSelection(const QPoint&);
-  virtual void postDraw();
 
   void setScene(Scene_draw_interface* scene);
-  void setMask(bool b, double ratio=1);
-  bool antiAliasing() const { return antialiasing; }
+  bool antiAliasing() const;
 
-signals:
-  void selected(int);
-
+  bool inFastDrawing() const;
 public slots:
   void setAntiAliasing(bool b);
   void setTwoSides(bool b);
 
-private:
-  void draw_aux(bool with_names);
-  void draw_mask();
+  void turnCameraBy180Degres();
 
-  Scene_draw_interface* scene;
-  bool antialiasing;
-  bool twosides;
-  bool mask_;
-  double ratio_;
+  QString dumpCameraCoordinates();
+  bool moveCameraToCoordinates(QString, 
+                               float animation_duration = 0.5f);
+
+protected:
+  void mousePressEvent(QMouseEvent*);
+  void keyPressEvent(QKeyEvent*);
+
+protected:
+  Viewer_impl* d;
 }; // end class Viewer
 
 #endif // VIEWER_H

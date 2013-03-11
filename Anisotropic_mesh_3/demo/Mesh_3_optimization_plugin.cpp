@@ -70,6 +70,11 @@ public:
   using Base::init;
   virtual void init(QMainWindow*, Scene_interface*, Messages_interface*);
   inline virtual QList<QAction*> actions() const;
+  bool applicable() const { 
+    const Scene_interface::Item_id index = scene->mainSelectionIndex();
+    Scene_c3t3_item* item = qobject_cast<Scene_c3t3_item*>(scene->item(index));
+    return item != 0;
+  }
   
 public slots:
   void odt();

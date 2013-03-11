@@ -20,6 +20,7 @@ public:
 
   bool canSave(const Scene_item*);
   bool save(const Scene_item*, QFileInfo fileinfo);
+  virtual QString name() const { return "Io_off_plugin"; }
 };
 
 QStringList Io_off_plugin::nameFilters() const {

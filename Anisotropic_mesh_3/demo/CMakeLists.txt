@@ -112,7 +112,8 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
 
   include_directories ( ${QGLVIEWER_INCLUDE_DIR} )
 
-  qt4_wrap_ui( UI_FILES ui_files/MainWindow.ui )
+  qt4_wrap_ui( UI_FILES ui_files/MainWindow.ui ui_files/Preferences.ui ui_files/FileLoaderDialog.ui)
+  qt4_wrap_ui( Show_point_dialogUI_FILES ui_files/Show_point_dialog.ui )
   qt4_wrap_ui( meshingUI_FILES  ui_files/Meshing_dialog.ui)
   qt4_wrap_ui( optimUI_FILES  ui_files/Smoother_dialog.ui ui_files/LocalOptim_dialog.ui)
   qt4_wrap_ui( ribUI_FILES  ui_files/Rib_dialog.ui)
@@ -127,16 +128,18 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   set(DEMO_H_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/CGAL_demo")
 
   qt4_generate_moc( "MainWindow.h" "${CMAKE_CURRENT_BINARY_DIR}/MainWindow_moc.cpp" )
+  qt4_generate_moc( "File_loader_dialog.h" "${CMAKE_CURRENT_BINARY_DIR}/File_loader_dialog_moc.cpp" )
   add_file_dependencies( MainWindow_moc.cpp "${CMAKE_CURRENT_SOURCE_DIR}/MainWindow.h" )
+  add_file_dependencies( File_loader_dialog_moc_moc.cpp "${CMAKE_CURRENT_SOURCE_DIR}/File_loader_dialog.h" )
 
-  qt4_generate_moc( "${DEMO_H_DIR}/Viewer.h" Viewer_moc.cpp )
+  qt4_generate_moc( "${DEMO_H_DIR}/Viewer.h" "${CMAKE_CURRENT_BINARY_DIR}/Viewer_moc.cpp" )
   add_file_dependencies( Viewer_moc.cpp "${DEMO_H_DIR}/Viewer.h" )
 
-  qt4_generate_moc( "${DEMO_H_DIR}/Scene.h" Scene_moc.cpp )
-  add_file_dependencies( Scene_moc.cpp "${DEMO_H_DIR}/Scene.h" )
+  qt4_generate_moc( "${DEMO_H_DIR}/Viewer_interface.h" "${CMAKE_CURRENT_BINARY_DIR}/Viewer_interface_moc.cpp" )
 
-  qt4_generate_moc( "${DEMO_H_DIR}/Scene_item.h" Scene_item_moc.cpp )
-  add_file_dependencies( Scene_item_moc.cpp "${DEMO_H_DIR}/Scene_item.h" )
+  qt4_generate_moc( "${DEMO_H_DIR}/Scene.h" "${CMAKE_CURRENT_BINARY_DIR}/Scene.moc" )
+
+  qt4_generate_moc( "${DEMO_H_DIR}/Scene_item.h" "${CMAKE_CURRENT_BINARY_DIR}/Scene_item.moc" )
 
   qt4_add_resources ( RESOURCE_FILES Mesh_3.qrc )
 
@@ -147,10 +150,12 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   qt4_automoc( Scene_starset3_item.cpp )
   qt4_automoc( Scene_implicit_function_item.cpp )
   qt4_automoc( Scene_constrained_surface_implicit_item.cpp )
+  qt4_automoc( Show_point_dialog.cpp )
   qt4_automoc( Optimizer_thread.cpp )
   qt4_automoc( Meshing_thread.cpp )
   qt4_automoc( Anisotropic_meshing_thread.cpp )
-  
+#  qt4_automoc( Scene_polylines_item.cpp )
+
   # put plugins (which are shared libraries) at the same location as
   # executable files
   set(LIBRARY_OUTPUT_PATH ${RUNTIME_OUTPUT_PATH})
@@ -161,17 +166,30 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   # AUXILIARY LIBRARIES
   set(VIEWER_LIB "${MESH_3_LIB_PREFIX}viewer")
   add_library(${VIEWER_LIB} SHARED
-    ${DEMO_SRC_DIR}/Viewer.cpp Viewer_moc.cpp)
+    ${DEMO_SRC_DIR}/Viewer.cpp Viewer_moc.cpp Viewer_interface_moc.cpp )
   target_link_libraries(${VIEWER_LIB} ${QGLVIEWER_LIBRARIES})
   set_target_properties(${VIEWER_LIB} PROPERTIES DEFINE_SYMBOL viewer_EXPORTS)
 
   set(SCENE_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_item")
   add_library(${SCENE_ITEM_LIB} SHARED
     ${DEMO_SRC_DIR}/Scene_item.cpp
-    Scene_item_moc.cpp
+    Scene_item.moc
     ${DEMO_SRC_DIR}/Scene_item_with_display_list.cpp
     ${DEMO_SRC_DIR}/Plugin_helper.cpp)
   set_target_properties(${SCENE_ITEM_LIB} PROPERTIES DEFINE_SYMBOL scene_item_EXPORTS)
+
+  set(POINT_DIALOG_LIB "${MESH_3_LIB_PREFIX}point_dialog")
+  add_library(${POINT_DIALOG_LIB} SHARED
+    Show_point_dialog.cpp
+    ${Show_point_dialogUI_FILES})
+  target_link_libraries(${POINT_DIALOG_LIB} ${QT_LIBRARIES})
+  set_target_properties(${POINT_DIALOG_LIB} PROPERTIES DEFINE_SYMBOL point_dialog_EXPORTS)
+
+  # set(SCENE_POLYLINES_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_polylines_item")
+  # add_library(${SCENE_POLYLINES_ITEM_LIB} SHARED
+  #   Scene_polylines_item.cpp Scene_polylines_item.moc)
+  # target_link_libraries(${SCENE_POLYLINES_ITEM_LIB} ${SCENE_ITEM_LIB} ${CGAL_LIBRARIES})
+  # set_target_properties(${SCENE_POLYLINES_ITEM_LIB} PROPERTIES DEFINE_SYMBOL scene_polylines_item_EXPORTS)
 
   set(SCENE_SEGMENTED_IMAGE_ITEM_LIB "${MESH_3_LIB_PREFIX}scene_segmented_image_item")
   add_library(${SCENE_SEGMENTED_IMAGE_ITEM_LIB} SHARED
@@ -226,9 +244,12 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   add_executable  ( Mesh_3 MainWindow.cpp
       Mesh_3.cpp
       ${DEMO_SRC_DIR}/Scene.cpp
+      Scene.moc
       MainWindow_moc.cpp
-      Scene_moc.cpp
+      File_loader_dialog_moc.cpp
       ${UI_FILES} ${RESOURCE_FILES} )
+    target_link_libraries(Mesh_3 ${SCENE_ITEM_LIB})
+    target_link_libraries(Mesh_3 ${POINT_DIALOG_LIB})
     add_to_cached_list( CGAL_EXECUTABLE_TARGETS Mesh_3 )
 
   # Link with Qt libraries
@@ -263,8 +284,8 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
     else()
       set(other_sources ${ARGN_TAIL})
     endif()
-    qt4_generate_moc( "${CMAKE_CURRENT_SOURCE_DIR}/${plugin_implementation_base_name}.cpp" ${plugin_implementation_base_name}.moc )
-    add_file_dependencies( ${plugin_implementation_base_name}.moc "${CMAKE_CURRENT_SOURCE_DIR}/${plugin_implementation_base_name}.cpp" )
+    qt4_generate_moc( "${plugin_implementation_base_name}.cpp" "${CMAKE_CURRENT_BINARY_DIR}/${plugin_implementation_base_name}.moc" )
+    add_file_dependencies( "${CMAKE_CURRENT_BINARY_DIR}/${plugin_implementation_base_name}.moc" "${plugin_implementation_base_name}.cpp" )
 
     add_library(${plugin_name} MODULE ${option} ${plugin_implementation_base_name}.moc ${plugin_implementation_base_name}.cpp ${other_sources})
     add_to_cached_list( CGAL_EXECUTABLE_TARGETS ${plugin_name} )
@@ -291,6 +312,10 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   set(IO_C3T3_PLUGIN_LIB "${MESH_3_LIB_PREFIX}io_c3t3_plugin")
   polyhedron_demo_plugin(${IO_C3T3_PLUGIN_LIB} Io_c3t3_plugin)
   target_link_libraries(${IO_C3T3_PLUGIN_LIB} ${SCENE_C3T3_ITEM_LIB})
+
+  # set(POLYLINES_IO_PLUGIN_LIB "${MESH_3_LIB_PREFIX}polylines_io_plugin")
+  # polyhedron_demo_plugin(${POLYLINES_IO_PLUGIN_LIB} Polyhedron_demo_polylines_io_plugin)
+  # target_link_libraries(${POLYLINES_IO_PLUGIN_LIB} ${SCENE_POLYLINES_ITEM_LIB})
 
   if ( EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/c3t3_rib_exporter_plugin.cpp" )
     set(C3T3_RIB_EXPORTER_PLUGIN_LIB "${MESH_3_LIB_PREFIX}c3t3_rib_exporter_plugin")

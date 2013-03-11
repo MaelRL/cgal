@@ -9,6 +9,7 @@ class Scene_item;
 class Io_plugin_interface 
 {
 public:
+  virtual QString name() const = 0;
   virtual ~Io_plugin_interface() {}
 
   virtual QStringList nameFilters() const = 0;

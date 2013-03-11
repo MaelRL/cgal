@@ -53,6 +53,10 @@ public:
   using Plugin_helper::init;
   virtual void init(QMainWindow* mainWindow, Scene_interface* scene_interface);
   
+  virtual bool applicable() const {
+    return true;
+  }
+
   QList<QAction*> actions() const
   {
     return QList<QAction*>();

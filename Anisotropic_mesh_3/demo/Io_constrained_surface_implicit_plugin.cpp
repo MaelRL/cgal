@@ -38,6 +38,8 @@ public:
   {
     return QList<QAction*>();
   }
+
+  bool applicable() const { return true; }
   
 public slots:
   void load_function() const;
