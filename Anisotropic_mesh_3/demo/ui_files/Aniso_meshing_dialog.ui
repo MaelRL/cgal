@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>507</width>
-    <height>697</height>
+    <width>513</width>
+    <height>737</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -412,13 +412,6 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QCheckBox" name="pick_valid_causes_stop">
-        <property name="text">
-         <string>Stop when pick_valid fails</string>
-        </property>
-       </widget>
-      </item>
      </layout>
     </widget>
    </item>
@@ -427,15 +420,9 @@
      <property name="title">
       <string>Random</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_3" columnstretch="2,0">
+     <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,0">
       <item row="0" column="0">
        <widget class="QLabel" name="maxTries_label">
-        <property name="minimumSize">
-         <size>
-          <width>301</width>
-          <height>0</height>
-         </size>
-        </property>
         <property name="text">
          <string>Max Pick_valid  trials</string>
         </property>
@@ -446,12 +433,6 @@
       </item>
       <item row="0" column="1">
        <widget class="QDoubleSpinBox" name="maxTries">
-        <property name="minimumSize">
-         <size>
-          <width>110</width>
-          <height>0</height>
-         </size>
-        </property>
         <property name="decimals">
          <number>0</number>
         </property>
@@ -460,6 +441,19 @@
         </property>
         <property name="value">
          <double>60.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="pick_valid_causes_stop">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Stop if pick_valid fails</string>
         </property>
        </widget>
       </item>

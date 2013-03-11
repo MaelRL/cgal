@@ -138,8 +138,7 @@ namespace CGAL
       Back_from_exact back_from_exact;
 
     private:
-      struct Facet_ijk;
-      mutable Facet_ijk m_pick_valid_facet;
+      mutable std::vector<Point_3> m_pick_valid_facet;
       mutable std::vector<Point_3> m_pick_valid_cache;
 
 #ifdef USE_ANISO_TIMERS
@@ -775,8 +774,10 @@ private:
 
         std::size_t tried_times = 0;
         bool success = false;
-        Star_handle newstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
         m_pick_valid_cache.clear();
+        m_pick_valid_facet.clear();
+        Star_handle newstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
+
         while(true)
         {
           TPoint_3 random_point = random(tccf, tcccell, circumradius);          
@@ -788,13 +789,18 @@ private:
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             success = true;
             m_pick_valid_cache.clear();
+            m_pick_valid_facet.clear();
             break;
           }
           if((tried_times++) > m_criteria.max_times_to_try_in_picking_region) 
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
-            m_pick_valid_facet = Facet_ijk(facet);
+            std::cout << "failed at star : " << star->center()->info() << std::endl;
+            m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+1)%4)->point(), star));
+            m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+2)%4)->point(), star));
+            m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+3)%4)->point(), star));
+            m_pick_valid_cache.push_back(p);
             break;
           }
         }
@@ -1620,7 +1626,9 @@ public:
       }
 
 
-      bool refine(const bool pick_valid_causes_stop = false) 
+      bool refine(const bool pick_valid_causes_stop = false,
+                  const int max_pick_valid_fails = 100,
+                  int & pick_valid_failed = 0)
       {
         int queue_type = 0;
         Refine_facet bad_facet;
@@ -1660,7 +1668,10 @@ public:
          
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
-        if(pick_valid_causes_stop && !success)
+        pick_valid_failed += !success;
+        if(pick_valid_failed % 100 == 0)
+          std::cout << pick_valid_failed << " failures!" << std::endl;
+        if(pick_valid_causes_stop && pick_valid_failed >= max_pick_valid_fails)
           return false;
 
 #ifdef ANISO_DEBUG_REFINEMENT
@@ -2111,6 +2122,9 @@ public:
       {
         //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
+        const int max_pick_valid_fails = 100;
+        int pick_valid_failed = 0;
+
         t.start();
         fill_refinement_queue();         
         int nbv = m_stars.size();
@@ -2125,7 +2139,7 @@ public:
             t.start();
             clean_stars();//remove useless vertices
           }
-          if(!refine())
+          if(!refine(pick_valid_causes_stop, max_pick_valid_fails, pick_valid_failed))
             break;    
           nbv = m_stars.size();
         }
@@ -2142,6 +2156,8 @@ public:
         std::cout << "\nRefine all...";
         std::clock_t start_time = clock();
 #endif        
+        const int max_pick_valid_fails = 100;
+
         fill_refinement_queue();
 
 #ifdef ANISO_VERBOSE
@@ -2170,7 +2186,7 @@ public:
 #endif
           }
           
-          if(!refine(pick_valid_causes_stop))
+          if(!refine(pick_valid_causes_stop, max_pick_valid_fails, pick_valid_failed))
           {
             clean_stars();
             //debug_show_distortions();
@@ -2299,6 +2315,35 @@ public:
           m_stars[star_id]->gl_draw_cell(plane);
       }
 
+      void gl_draw_picked_points(const typename K::Plane_3& plane) const
+      {
+        typename std::vector<Point_3>::const_iterator it;
+        for(it = m_pick_valid_cache.begin(); it != m_pick_valid_cache.end(); ++it)
+        {
+  //      if(!is_above_plane(plane, *it))
+  //        return;
+
+          GLboolean light = (::glIsEnabled(GL_LIGHTING));
+
+          ::glPointSize(5.);
+          ::glColor3f(0.14f, 0.87f, 0.14f);
+          if( it == --(m_pick_valid_cache.end()) )
+            ::glColor3f(0.87f, 0.14f, 0.14f);
+          if(light)
+            ::glDisable(GL_LIGHTING);
+          ::glBegin(GL_POINTS);
+          ::glVertex3d((*it).x(), (*it).y(), (*it).z());
+          ::glEnd();
+          if(light)
+            ::glEnable(GL_LIGHTING);
+        }
+        if(!m_pick_valid_facet.empty()){
+          gl_draw_triangle<K>(m_pick_valid_facet[0],
+                              m_pick_valid_facet[1],
+                              m_pick_valid_facet[2], EDGES_AND_FACES, 84, 204, 204);
+        }
+      }
+
       void gl_draw_initial_points(const typename K::Plane_3& plane) const
       {
         typename Constrain_surface::Pointset::const_iterator pi = initial_points.begin();
@@ -2378,7 +2423,22 @@ public:
           m_stars[star_id]->gl_draw_surface_delaunay_balls(plane);
       }
 
-      void gl_draw_inconsistent_facets(const int star_id = -1) const
+      bool is_above_plane(const typename K::Plane_3& plane,
+                          const typename K::Point_3& pa,
+                          const typename K::Point_3& pb,
+                          const typename K::Point_3& pc) const
+      {
+        typedef typename K::Oriented_side Side;
+        using CGAL::ON_ORIENTED_BOUNDARY;
+        using CGAL::ON_NEGATIVE_SIDE;
+        const Side sa = plane.oriented_side(pa);
+        const Side sb = plane.oriented_side(pb);
+        const Side sc = plane.oriented_side(pc);
+        return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
+      }
+
+      void gl_draw_inconsistent_facets(const typename K::Plane_3& plane,
+                                       const int star_id = -1) const
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
         if(!was)
@@ -2402,11 +2462,15 @@ public:
             Facet f = *fit;
             if(is_consistent(f))
               continue;
-            gl_draw_triangle<K>(
-              transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star),
-              transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star),
-              transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star),
-              EDGES_AND_FACES, 255,0,0);
+
+            const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
+            const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
+            const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
+
+            if(is_above_plane(plane, pa, pb, pc)){
+              gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 227,27,27);
+              std::cout << "facet inconsisten in star : " << i << std::endl;
+            }
           }
         }
         ::glDisable(GL_POLYGON_OFFSET_FILL);
