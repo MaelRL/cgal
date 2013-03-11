@@ -24,7 +24,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
                                  const int nb_initial_points,
-                                 const Metric_options& metric)
+                                 const Metric_options& metric,
+                                 const bool pick_valid_causes_stop)
 {
   if( NULL == p_surface ) { return NULL; }
   CGAL::default_random = CGAL::Random(0);
@@ -72,7 +73,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
 
   typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
   AMesh_function* p_mesh_function 
-    = new AMesh_function(p_new_item->star_set(), param, criteria, mf);
+    = new AMesh_function(p_new_item->star_set(), param, criteria, mf, pick_valid_causes_stop);
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 

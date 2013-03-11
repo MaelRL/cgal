@@ -57,7 +57,8 @@ public:
                             //Domain* domain, 
                             const Anisotropic_mesh_parameters& p,
                             Criteria* criteria,
-                            Metric_field* metrix_field);
+                            Metric_field* metrix_field,
+                            const bool pick_valid_causes_stop);
   // Note: 'this' takes the ownership of 'criteria' and 'metrix_field'.
   
   ~Anisotropic_mesh_function();
@@ -85,6 +86,7 @@ private:
 
   Criteria* criteria_;
   Metric_field* metrix_field_;
+  bool pick_valid_causes_stop_;
 
 //  TMesher* tmesher_;
 //  mutable typename Mesher::Mesher_status last_report_;
@@ -122,13 +124,15 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
 //  Domain* domain, 
   const Anisotropic_mesh_parameters& param,
   Criteria* criteria,
-  Metric_field* metrix_field)
+  Metric_field* metrix_field,
+  const bool pick_valid_causes_stop)
 : starset_(starset) 
 , p_(param)
 , continue_(true)
 , smesher_(NULL)
 , criteria_(criteria)
 , metrix_field_(metrix_field)
+, pick_valid_causes_stop_(pick_valid_causes_stop)
 //, domain_(domain)
 //, tmesher_(NULL)
 //, last_report_(0,0,0)
@@ -201,7 +205,7 @@ launch()
 #endif
        }
 
-       if(!smesher_->star_set.refine())
+       if(!smesher_->star_set.refine(pick_valid_causes_stop_))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();
@@ -213,6 +217,9 @@ launch()
 #ifdef ANISO_VERBOSE
     double time = smesher_->star_set.duration(start_time);
     std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
+    if(smesher_->star_set.pick_valid_failed())
+      std::cout << "Pick valid failed and stopped mesher!" << std::endl;  
+    
     if(smesher_->star_set.is_consistent(true/*verbose*/))
       std::cout << "Triangulation is consistent.\n";
     else

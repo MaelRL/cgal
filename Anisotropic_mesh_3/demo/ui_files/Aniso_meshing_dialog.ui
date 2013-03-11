@@ -345,17 +345,33 @@
       <string>Others</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="nbInitPointLabel">
+        <property name="text">
+         <string>nb initial points</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
        <widget class="QDoubleSpinBox" name="nbInitialPoints">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="minimumSize">
          <size>
-          <width>110</width>
+          <width>0</width>
           <height>0</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>110</width>
+          <width>16777215</width>
           <height>16777215</height>
          </size>
         </property>
@@ -370,24 +386,17 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QLabel" name="nbInitPointLabel">
+      <item row="1" column="0">
+       <widget class="QLabel" name="epsilon_label">
         <property name="text">
-         <string>nb initial points</string>
+         <string>epsilon</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
        </widget>
       </item>
-      <item row="1" column="1" alignment="Qt::AlignRight">
-       <widget class="QLabel" name="epsilon_label">
-        <property name="text">
-         <string>epsilon</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2">
+      <item row="1" column="1">
        <widget class="QDoubleSpinBox" name="epsilon">
         <property name="decimals">
          <number>3</number>
@@ -400,6 +409,13 @@
         </property>
         <property name="value">
          <double>1.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="pick_valid_causes_stop">
+        <property name="text">
+         <string>Stop when pick_valid fails</string>
         </property>
        </widget>
       </item>

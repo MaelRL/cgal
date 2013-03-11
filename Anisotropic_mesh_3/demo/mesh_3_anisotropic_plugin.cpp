@@ -48,7 +48,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
                                  const int nb_initial_points,
-                                 const Metric_options& metric);
+                                 const Metric_options& metric,
+                                 const bool pick_valid_causes_stop);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
                                  const double epsilon,
@@ -62,7 +63,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
                                  const int nb_initial_points,
-                                 const Metric_options& metric);
+                                 const Metric_options& metric,
+                                 const bool pick_valid_causes_stop);
 
 double get_approximate(double d, int precision, int& decimals);
 
@@ -304,6 +306,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double beta = ui.beta->value();
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
+  const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
   int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
     dim = 2;
@@ -332,7 +335,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
     thread = cgal_code_anisotropic_mesh_3(pPoly, epsilon,
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
-      dim, nb_initial_points, metric);
+      dim, nb_initial_points, metric,
+      pick_valid_causes_stop);
   }
   //// Function
   else if( NULL != function_item )
@@ -346,7 +350,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
     thread = cgal_code_anisotropic_mesh_3(pFunction, epsilon,
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
-      dim, nb_initial_points, metric);
+      dim, nb_initial_points, metric,
+      pick_valid_causes_stop);
   }
 
   if ( NULL == thread )
