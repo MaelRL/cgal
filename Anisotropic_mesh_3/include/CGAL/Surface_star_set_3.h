@@ -2182,8 +2182,8 @@ public:
 #ifdef ANISO_VERBOSE
         double time = duration(start_time);
         std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
-        if(!m_pick_valid_cache.empty())
-          std::cout << "Pick valid failed!" << std::endl;
+        if(pick_valid_failed())
+          std::cout << "Pick valid failed and stopped mesher!" << std::endl;
         
         if(is_consistent(true/*verbose*/))
           std::cout << "Triangulation is consistent.\n";
@@ -2203,6 +2203,11 @@ public:
 #ifdef USE_ANISO_TIMERS
         report_timers();
 #endif
+      }
+
+      bool pick_valid_failed() const
+      {
+        return !m_pick_valid_cache.empty();
       }
 
       void debug_show_distortions() const
