@@ -7,6 +7,7 @@
 #  define scene_EXPORTS
 #endif
 
+#define scene_EXPORTS
 #ifdef scene_EXPORTS
 #  define SCENE_EXPORT Q_DECL_EXPORT
 #else
