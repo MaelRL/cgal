@@ -1627,9 +1627,9 @@ public:
 
 
       bool refine(const bool pick_valid_causes_stop = false,
-                  const int max_pick_valid_fails = 100,
-                  int & pick_valid_failed = 0)
+                  const int max_pick_valid_fails = 100)
       {
+        int pick_valid_failed = 0;
         int queue_type = 0;
         Refine_facet bad_facet;
         bool need_picking_valid;
@@ -1668,7 +1668,8 @@ public:
          
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
-        pick_valid_failed += !success;
+        if(!success) 
+          pick_valid_failed++;
         if(pick_valid_failed % 100 == 0)
           std::cout << pick_valid_failed << " failures!" << std::endl;
         if(pick_valid_causes_stop && pick_valid_failed >= max_pick_valid_fails)
@@ -2123,7 +2124,6 @@ public:
         //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
         const int max_pick_valid_fails = 100;
-        int pick_valid_failed = 0;
 
         t.start();
         fill_refinement_queue();         
@@ -2139,7 +2139,7 @@ public:
             t.start();
             clean_stars();//remove useless vertices
           }
-          if(!refine(pick_valid_causes_stop, max_pick_valid_fails, pick_valid_failed))
+          if(!refine(pick_valid_causes_stop, max_pick_valid_fails))
             break;    
           nbv = m_stars.size();
         }
@@ -2186,7 +2186,7 @@ public:
 #endif
           }
           
-          if(!refine(pick_valid_causes_stop, max_pick_valid_fails, pick_valid_failed))
+          if(!refine(pick_valid_causes_stop, max_pick_valid_fails))
           {
             clean_stars();
             //debug_show_distortions();

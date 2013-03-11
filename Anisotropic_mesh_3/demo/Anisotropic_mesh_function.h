@@ -207,7 +207,7 @@ launch()
 #endif
        }
 
-       if(!smesher_->star_set.refine(pick_valid_causes_stop_, max_pick_valid_fails, pick_valid_failed))
+       if(!smesher_->star_set.refine(pick_valid_causes_stop_, max_pick_valid_fails))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();
