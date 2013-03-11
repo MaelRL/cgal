@@ -137,6 +137,11 @@ namespace CGAL
       To_exact to_exact;
       Back_from_exact back_from_exact;
 
+    private:
+      struct Facet_ijk;
+      mutable Facet_ijk m_pick_valid_facet;
+      mutable std::vector<Point_3> m_pick_valid_cache;
+
 #ifdef USE_ANISO_TIMERS
 private:
       mutable double m_pick_valid_timer;
@@ -736,8 +741,9 @@ private:
 #endif
       }
       
-      Point_3 pick_valid(const Star_handle star, //to be refined
-                         const Facet &facet) const //belongs to star and should be refined
+      bool pick_valid(const Star_handle star, //to be refined
+                      const Facet &facet,
+                      Point_3& p) const //belongs to star and should be refined
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -768,30 +774,35 @@ private:
           star->traits()->compute_random_point_3_object();
 
         std::size_t tried_times = 0;
-        Point_3 p;
-        Star_handle retstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
+        bool success = false;
+        Star_handle newstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
+        m_pick_valid_cache.clear();
         while(true)
         {
           TPoint_3 random_point = random(tccf, tcccell, circumradius);          
           p = star->compute_steiner_dual_intersection(random_point, facet);
-          
-          if(is_valid_point(p, sq_radiusbound, star, retstar))
+          m_pick_valid_cache.push_back(p);
+
+          if(is_valid_point(p, sq_radiusbound, star, newstar))
           {            
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
+            success = true;
+            m_pick_valid_cache.clear();
             break;
           }
           if((tried_times++) > m_criteria.max_times_to_try_in_picking_region) 
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
+            m_pick_valid_facet = Facet_ijk(facet);
             break;
           }
         }
-        delete retstar;
+        delete newstar;
 #ifdef USE_ANISO_TIMERS
         m_pick_valid_timer += duration(start_time);
 #endif
-        return p;
+        return success;
       }
 
       bool exists(const Facet_ijk& f, unsigned int& star_id)
@@ -839,29 +850,6 @@ private:
         for (; si != siend; si++) {
           if ((*si)->is_encroached(p, encroached_edge))
             return compute_insert_or_snap_point(encroached_edge);
-        }
-#endif
-        return p;
-      }
-
-      Point_3 compute_insert_or_snap_valid_point(const Star_handle star, 
-                                                 const Facet &facet) const
-      {
-        Point_3 p = pick_valid(star, facet);
-        
-        // test encroachment
-#ifdef CHECK_EDGE_ENCROACHMENT
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        typename Constrain_surface::EdgeIterator encroached_edge;
-        for (; si != siend; si++) 
-        {
-          if ((*si)->is_encroached(p, encroached_edge)) 
-          {
-            delete retstar;
-            retstar = NULL;
-            return compute_insert_or_snap_point(encroached_edge);
-          }
         }
 #endif
         return p;
@@ -1632,7 +1620,7 @@ public:
       }
 
 
-      bool refine() 
+      bool refine(const bool pick_valid_causes_stop = false) 
       {
         int queue_type = 0;
         Refine_facet bad_facet;
@@ -1670,7 +1658,11 @@ public:
           return true; //note false would stop refinement
         } 
          
-        Point_3 steiner_point = compute_steiner_point(bad_facet.star, f, need_picking_valid);
+        Point_3 steiner_point;
+        bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
+        if(pick_valid_causes_stop && !success)
+          return false;
+
 #ifdef ANISO_DEBUG_REFINEMENT
         if(bad_facet.star->debug_steiner_point(steiner_point, f))
           std::cerr << "(Not exact)" << std::endl;
@@ -1748,28 +1740,29 @@ public:
         m_aabb_tree.remove_last();
       }
 
-      Point_3 compute_steiner_point(Star_handle to_be_refined,
-                                    const Facet& f, //facet to be refined
-                                    const bool need_picking_valid) const
+      bool compute_steiner_point(Star_handle to_be_refined,
+                                 const Facet& f, //facet to be refined
+                                 const bool need_picking_valid,
+                                 Point_3& steiner) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
 #endif
-        Point_3 p;
+        bool success = true;
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          p = compute_insert_or_snap_valid_point(to_be_refined, f);
+          success = pick_valid(to_be_refined, f, steiner);
         } 
         else 
         {
           vertex_without_picking_count++;
-          p = compute_insert_or_snap_point(to_be_refined, f);
+          steiner = compute_insert_or_snap_point(to_be_refined, f);
         }
 #ifdef USE_ANISO_TIMERS
         m_compute_steiner_timer += duration(start_time);
 #endif
-        return p;
+        return success;
       }
 
       Point_3 compute_exact_steiner_point(Star_handle to_be_refined,
@@ -1783,7 +1776,7 @@ public:
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          p = compute_insert_or_snap_valid_point(to_be_refined, f);
+          pick_valid(to_be_refined, f, p);
         } 
         else 
         {
@@ -2113,7 +2106,8 @@ public:
 public:
       void refine_all(std::ofstream& fx, 
                       const double& starttime,
-                      const int max_count = INT_MAX) 
+                      const int max_count = INT_MAX,
+                      const bool pick_valid_causes_stop = false)
       {
         //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
@@ -2140,7 +2134,8 @@ public:
       }
 
 public:
-      void refine_all(const int max_count = INT_MAX) 
+      void refine_all(const int max_count = INT_MAX,
+                      const bool pick_valid_causes_stop = false)
       {
         //if you modify this, do not forget to also modify the demo
 #ifdef ANISO_VERBOSE
@@ -2175,11 +2170,11 @@ public:
 #endif
           }
           
-          if(!refine())
+          if(!refine(pick_valid_causes_stop))
           {
             clean_stars();
             //debug_show_distortions();
-            break;    
+            break;
           }
           nbv = m_stars.size();
         }
@@ -2187,6 +2182,9 @@ public:
 #ifdef ANISO_VERBOSE
         double time = duration(start_time);
         std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
+        if(!m_pick_valid_cache.empty())
+          std::cout << "Pick valid failed!" << std::endl;
+        
         if(is_consistent(true/*verbose*/))
           std::cout << "Triangulation is consistent.\n";
         else
