@@ -250,6 +250,29 @@ Scene_starset3_item::setColor(QColor c)
 }
 
 void
+Scene_starset3_item::setSelectedPoint(double x, double y, double z)
+{
+  std::cerr << "Scene_starset3_item " << qPrintable(this->name())
+            << " received point(" << x << ", " << y << ", " << z << ")\n";
+
+  typedef Surface_star_set::Kd_traits TreeTraits;
+  typedef CGAL::Orthogonal_k_neighbor_search<TreeTraits> Neighbor_search;
+  typedef Surface_star_set::Kd_tree::Star_pmap Star_pmap;
+
+  Neighbor_search search(this->star_set().m_kd_tree
+                         , Kernel::Point_3(x, y, z)
+                         , 1 // N
+                         , 0 // epsilon
+                         , true // search nearest
+                         , this->star_set().m_kd_tree.traits().point_property_map()
+                         );
+
+  if(search.begin() != search.end()) {
+    std::cerr << "Picked start #" << search.begin()->first << std::endl;
+  }
+}
+
+void
 Scene_starset3_item::starset_changed()
 {
   // Update colors

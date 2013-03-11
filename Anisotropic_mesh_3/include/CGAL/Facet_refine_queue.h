@@ -84,9 +84,9 @@ namespace CGAL {
       static const int encroachment_queue = 0;
       static const int over_distortion_queue = 1;
       static const int over_circumradius_queue = 2;
-      static const int bad_shape_queue = 3;
-      static const int over_approximation_queue = 4;
-      static const int start_pick_valid = 5;
+      static const int over_approximation_queue = 3;
+      static const int start_pick_valid = 4; //before shape criterion, as in the TOG paper
+      static const int bad_shape_queue = 4;
       static const int inconsistent_queue = 5;
     private:
       Refine_facet_queue *queues[6];
