@@ -169,6 +169,8 @@ launch()
 //make sure to edit in the above file as well.
 
     const std::size_t max_count = (std::size_t) -1; //p_.max_times_to_try_in_picking_region);
+    const int max_pick_valid_fails = 100;
+    int pick_valid_failed = 0;
 
 #ifdef ANISO_VERBOSE
     std::cout << "\nRefine all...";
@@ -205,7 +207,7 @@ launch()
 #endif
        }
 
-       if(!smesher_->star_set.refine(pick_valid_causes_stop_))
+       if(!smesher_->star_set.refine(pick_valid_causes_stop_, max_pick_valid_fails, pick_valid_failed))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();

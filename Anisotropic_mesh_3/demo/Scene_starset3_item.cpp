@@ -202,8 +202,11 @@ Scene_starset3_item::direct_draw() const
     star_set().gl_draw_dual(m_draw_star_id);
   if(m_draw_surface_delaunay_balls)
     star_set().gl_draw_surface_delaunay_balls(plane, m_draw_star_id);
-  if(m_draw_inconsistent_facets)
-    star_set().gl_draw_inconsistent_facets(m_draw_star_id);
+  if(m_draw_inconsistent_facets){
+    star_set().gl_draw_inconsistent_facets(plane, m_draw_star_id);
+    if(star_set().pick_valid_failed())
+      star_set().gl_draw_picked_points(plane);
+  }
   if(m_draw_metric_field)
   {
     Scene_item::Bbox mf_bbox = this->bbox();
