@@ -88,6 +88,7 @@ public:
 public slots:
   inline void data_item_destroyed();
   virtual void setColor(QColor c);
+  virtual void setSelectedPoint(double x, double y, double z);
   
 //private:
 //  void build_histogram();
