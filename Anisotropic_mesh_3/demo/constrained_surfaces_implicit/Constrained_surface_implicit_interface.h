@@ -19,7 +19,6 @@ public:
 public:
   std::vector<double> get_values(const std::string& str) const
   {
-    std::cout << "get_values in " << str << std::endl;
     std::vector<double> values;    
     std::size_t str_end = str.size();
     if(str_end == 0)
