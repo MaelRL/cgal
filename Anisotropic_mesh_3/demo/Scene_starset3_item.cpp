@@ -268,7 +268,7 @@ Scene_starset3_item::setSelectedPoint(double x, double y, double z)
                          );
 
   if(search.begin() != search.end()) {
-    std::cerr << "Picked start #" << search.begin()->first << std::endl;
+    std::cerr << "Picked star #" << search.begin()->first << std::endl;
   }
 }
 
