@@ -20,7 +20,6 @@
 #include <fstream>
 #include <utility>
 
-//#include "Stretched_traits_3.h"
 #include <CGAL/Delaunay_traits_3.h>
 
 namespace CGAL {
@@ -138,13 +137,13 @@ public:
     }
 
     FT compute_volume(FOUR_POINTS(Point_3)) const{
-     typename   Traits::Compute_volume o = traits.compute_volume_object();
-        return o(p, q, r, s);
+      typename K::Compute_volume_3 o;
+      return std::abs(o(p, q, r, s));
     }
 
     FT compute_volume(THREE_POINTS(Point_3)) const{
-    typename    Traits::Compute_volume o = traits.compute_volume_object();
-        return o(p, q, r);
+      typename K::Compute_area_3 o;
+      return std::abs(o(p, q, r));
     }
 
     FT compute_sliverity(FOUR_POINTS(Point_3)) const {

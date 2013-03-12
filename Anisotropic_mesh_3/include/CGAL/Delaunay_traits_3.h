@@ -51,43 +51,6 @@ namespace CGAL
       };
 
     public:
-      class Compute_volume 
-      {
-      public:
-        Compute_volume(){ }
-        FT operator()(const Point_3 &p, const Point_3 &q, const Point_3 &r, const Point_3 &s) const
-        {
-          FT x[3], y[3], z[3];
-          Point_3 tp[4];
-          tp[0] = p; tp[1] = q; tp[2] = r; tp[3] = s;
-          for(int i = 1; i <= 3; i++)
-          {
-            x[i - 1] = tp[i].x() - tp[0].x();
-            y[i - 1] = tp[i].y() - tp[0].y();
-            z[i - 1] = tp[i].z() - tp[0].z();
-          }
-          FT determinant = x[0] * y[1] * z[2] + x[1] * y[2] * z[0] + x[2] * y[0] * z[1] 
-          - x[0] * y[2] * z[1] - x[2] * y[1] * z[0] - x[1] * y[0] * z[2];
-          return fabs(determinant / 6.0);
-        }
-        FT operator()(const Point_3 &p, const Point_3 &q, const Point_3 &r) const 
-        {
-          Point_3 tp[3];
-          tp[0] = p; tp[1] = q; tp[2] = r;
-          FT l[3];
-          for (int i = 0; i < 3; i++) 
-          {
-            int j = (i + 1) % 3;
-            l[i] = sqrt((tp[i].x() - tp[j].x()) * (tp[i].x() - tp[j].x()) +
-              (tp[i].y() - tp[j].y()) * (tp[i].y() - tp[j].y()) +
-              (tp[i].z() - tp[j].z()) * (tp[i].z() - tp[j].z()));
-          }
-          FT s = (l[0] + l[1] + l[2]) / 2.0;
-          return sqrt(s * (s - l[0]) * (s - l[1]) * (s - l[2]));
-        }
-      };
-
-    public:
       class Compute_random_point_3 
       {
       public:
@@ -140,7 +103,6 @@ namespace CGAL
 
     private:
       Construct_circumcenter_3 construct_circumcenter_3_object_cache;
-      Compute_volume compute_volume_object_cache;
       Compute_random_point_3 compute_random_point_3_object_cache;
 
     private:
@@ -152,7 +114,6 @@ namespace CGAL
     public:
       Delaunay_traits_3() :
           construct_circumcenter_3_object_cache(),
-          compute_volume_object_cache(),
           compute_random_point_3_object_cache()
           {}
       ~Delaunay_traits_3(){}
@@ -162,10 +123,6 @@ namespace CGAL
       { 
         return construct_circumcenter_3_object_cache; 
       }
-      const Compute_volume &compute_volume_object() const 
-      { 
-        return compute_volume_object_cache; 
-      }      
       const Compute_random_point_3 &compute_random_point_3_object() const 
       { 
         return compute_random_point_3_object_cache; 
