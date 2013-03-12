@@ -49,7 +49,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const int dim,
                                  const int nb_initial_points,
                                  const Metric_options& metric,
-                                 const bool pick_valid_causes_stop);
+                                 const bool pick_valid_causes_stop,
+                                 const int pick_valid_max_failures);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
                                  const double epsilon,
@@ -64,7 +65,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const int dim,
                                  const int nb_initial_points,
                                  const Metric_options& metric,
-                                 const bool pick_valid_causes_stop);
+                                 const bool pick_valid_causes_stop,
+                                 const int pick_valid_max_failures);
 
 double get_approximate(double d, int precision, int& decimals);
 
@@ -92,6 +94,10 @@ public:
     actionAnisotropicMeshing = this->getActionFromMainWindow(mw, "actionAnisotropicMeshing");
     if(actionAnisotropicMeshing)
       connect(actionAnisotropicMeshing, SIGNAL(triggered()), this, SLOT(anisotropic_mesh_3()));
+
+    actionResumeMeshing = this->getActionFromMainWindow(mw, "actionResumeMeshing");
+    if(actionResumeMeshing)
+      connect(actionResumeMeshing, SIGNAL(triggered()), this, SLOT(resume_aniso_mesh_3()));
 
     actionDraw_surface_star_set = this->getActionFromMainWindow(mw, "actionDraw_surface_star_set");
     if(actionDraw_surface_star_set)
@@ -157,6 +163,7 @@ public:
 public slots:
   //meshing
   void anisotropic_mesh_3();
+  void resume_aniso_mesh_3();
   //view
   void view_surface_star_set(bool);
   void view_cell  (bool);
@@ -179,6 +186,7 @@ private:
 
 private:
   QAction* actionAnisotropicMeshing;
+  QAction* actionResumeMeshing;
   QAction* actionDraw_surface_star_set;
   QAction* actionDraw_cell;
   QAction* actionDraw_dual_edges;
@@ -199,6 +207,7 @@ private:
 Anisotropic_mesh_3_plugin::
 Anisotropic_mesh_3_plugin()
   : actionAnisotropicMeshing(NULL)
+  , actionResumeMeshing(NULL)
   , actionDraw_surface_star_set(NULL)
   , actionDraw_cell(NULL)
   , actionDraw_dual_edges(NULL)
@@ -321,6 +330,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
   const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
+  const int pick_valid_max_failures = ui.maxPickFailures->value();
   int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
     dim = 2;
@@ -350,7 +360,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric,
-      pick_valid_causes_stop);
+      pick_valid_causes_stop, pick_valid_max_failures);
   }
   //// Function
   else if( NULL != function_item )
@@ -365,7 +375,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric,
-      pick_valid_causes_stop);
+      pick_valid_causes_stop, pick_valid_max_failures);
   }
 
   if ( NULL == thread )
@@ -378,6 +388,10 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   source_item_ = item;
   launch_thread(thread);
   QApplication::restoreOverrideCursor();
+}
+
+void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
+  std::cout << "tried to resume!" << std::endl;
 }
 
 void Anisotropic_mesh_3_plugin::view_one_star()

@@ -29,7 +29,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
                                  const int dim,
                                  const int nb_initial_points,
                                  const Metric_options& metric,
-                                 const bool pick_valid_causes_stop)
+                                 const bool pick_valid_causes_stop,
+                                 const int pick_valid_max_failures)
 {
   CGAL::default_random = CGAL::Random(0);
     
@@ -37,7 +38,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
   
   typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron> 
     Constrain_surface_polyhedral;
-  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly,epsilon);   
+  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly,epsilon);
   
 
   Anisotropic_mesh_parameters param;
@@ -77,7 +78,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
 
   typedef Anisotropic_mesh_function<Constrain_surface_polyhedral, Metric_field> AMesh_function;
   AMesh_function* p_mesh_function 
-    = new AMesh_function(p_new_item->star_set(), param, criteria, mf, pick_valid_causes_stop);
+    = new AMesh_function(p_new_item->star_set(), param, criteria, mf, pick_valid_causes_stop, pick_valid_max_failures);
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 

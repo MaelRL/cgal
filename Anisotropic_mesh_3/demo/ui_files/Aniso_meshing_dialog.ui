@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>513</width>
-    <height>737</height>
+    <width>518</width>
+    <height>771</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -421,13 +421,16 @@
       <string>Random</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,0">
-      <item row="0" column="0">
-       <widget class="QLabel" name="maxTries_label">
-        <property name="text">
-         <string>Max Pick_valid  trials</string>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="pick_valid_causes_stop">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
         </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <property name="text">
+         <string>Stop if pick_valid fails</string>
         </property>
        </widget>
       </item>
@@ -444,16 +447,36 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="pick_valid_causes_stop">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="maxTries_label">
         <property name="text">
-         <string>Stop if pick_valid fails</string>
+         <string>Max trials per Pick_valid</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QDoubleSpinBox" name="maxPickFailures">
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="minimum">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>10000.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="maxPickFailures_label">
+        <property name="text">
+         <string>Max Pick_valid failures</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
        </widget>
       </item>

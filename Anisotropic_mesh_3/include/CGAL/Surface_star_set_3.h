@@ -780,14 +780,14 @@ private:
 
         while(true)
         {
-          TPoint_3 random_point = random(tccf, tcccell, circumradius);          
+          TPoint_3 random_point = random(tccf, tcccell, circumradius);
           p = star->compute_steiner_dual_intersection(random_point, facet);
           m_pick_valid_cache.push_back(p);
 
           if(is_valid_point(p, sq_radiusbound, star, newstar))
-          {            
-            CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
+          {
             success = true;
+            CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             m_pick_valid_cache.clear();
             m_pick_valid_facet.clear();
             break;
@@ -796,7 +796,6 @@ private:
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
-            std::cout << "failed at star : " << star->center()->info() << std::endl;
             m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+1)%4)->point(), star));
             m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+2)%4)->point(), star));
             m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+3)%4)->point(), star));
@@ -1626,10 +1625,10 @@ public:
       }
 
 
-      bool refine(const bool pick_valid_causes_stop = false,
-                  const int max_pick_valid_fails = 100)
+      bool refine(int & pick_valid_failed,
+                  const bool pick_valid_causes_stop = false,
+                  const int pick_valid_max_failures = 100)
       {
-        int pick_valid_failed = 0;
         int queue_type = 0;
         Refine_facet bad_facet;
         bool need_picking_valid;
@@ -1670,10 +1669,12 @@ public:
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
         if(!success) 
           pick_valid_failed++;
-        if(pick_valid_failed % 100 == 0)
-          std::cout << pick_valid_failed << " failures!" << std::endl;
-        if(pick_valid_causes_stop && pick_valid_failed >= max_pick_valid_fails)
+        if(pick_valid_failed % 100 == 0 && pick_valid_failed > 0)
+          std::cout << pick_valid_failed << " pick_valid failures!" << std::endl;
+        if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures){
+          std::cout << "failed at star : " << bad_facet.star->center()->info() << std::endl;
           return false;
+        }
 
 #ifdef ANISO_DEBUG_REFINEMENT
         if(bad_facet.star->debug_steiner_point(steiner_point, f))
@@ -2123,7 +2124,8 @@ public:
       {
         //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
-        const int max_pick_valid_fails = 100;
+        const int pick_valid_max_failures = 100;
+        int pick_valid_failed_n = 0;
 
         t.start();
         fill_refinement_queue();         
@@ -2139,8 +2141,8 @@ public:
             t.start();
             clean_stars();//remove useless vertices
           }
-          if(!refine(pick_valid_causes_stop, max_pick_valid_fails))
-            break;    
+          if(!refine(pick_valid_failed_n, pick_valid_causes_stop, pick_valid_max_failures))
+            break;
           nbv = m_stars.size();
         }
         t.stop();
@@ -2156,7 +2158,8 @@ public:
         std::cout << "\nRefine all...";
         std::clock_t start_time = clock();
 #endif        
-        const int max_pick_valid_fails = 100;
+        const int pick_valid_max_failures = 100;
+        int pick_valid_failed_n = 0;
 
         fill_refinement_queue();
 
@@ -2186,7 +2189,7 @@ public:
 #endif
           }
           
-          if(!refine(pick_valid_causes_stop, max_pick_valid_fails))
+          if(!refine(pick_valid_failed_n, pick_valid_causes_stop, pick_valid_max_failures))
           {
             clean_stars();
             //debug_show_distortions();
@@ -2469,7 +2472,7 @@ public:
 
             if(is_above_plane(plane, pa, pb, pc)){
               gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 227,27,27);
-              std::cout << "facet inconsisten in star : " << i << std::endl;
+              //std::cout << "facet inconsisten in star : " << i << std::endl;
             }
           }
         }
