@@ -78,12 +78,13 @@ public:
       //naive curvature
     FT e1 = (std::max)(1./R, this->epsilon);
     FT e2 = (std::max)(1./r, this->epsilon);
-
+    
       //good looking curvature
     //FT e1 = std::max(1./(R-r*std::cos(Phi)), this->epsilon);
     //FT e2 = std::max(1./r, this->epsilon);
 
-    return Metric(n, v2, v1, e2, e2, e1, this->epsilon);
+    FT en = (std::max)(e1, e2);
+    return Metric(n, v2, v1, en, e2, e1, this->epsilon);
   }
 
   Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT epsilon_ = 1.0) 
