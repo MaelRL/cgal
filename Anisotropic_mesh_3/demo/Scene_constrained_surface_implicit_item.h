@@ -2,7 +2,6 @@
 #define SCENE_CONSTRAINED_SURFACE_IMPLICIT_ITEM_H
 
 #include <CGAL_demo/Scene_item_with_display_list.h>
-#include <CGAL_demo/Scene_interface.h>
 #include "Scene_constrained_surface_implicit_item_config.h"
 #include "Color_ramp.h"
 #include "Implicit_surface_type_fwd.h"
