@@ -452,10 +452,7 @@ void MainWindow::loadPlugins()
   }
 
   // sort the operations menu by name
-  QList<QAction*> actions = ui->menuOperations->actions();
-  Q_FOREACH(QAction* action, actions) {
-    std::cerr << "action " << qPrintable(action->objectName()) << std::endl;
-  }
+  // QList<QAction*> actions = ui->menuOperations->actions();
   // qSort(actions.begin(), actions.end(), actionsByName);
   // ui->menuOperations->clear();
   // if(!actions.isEmpty()) {

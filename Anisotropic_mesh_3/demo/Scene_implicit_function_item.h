@@ -2,7 +2,6 @@
 #define SCENE_IMPLICIT_FUNCTION_ITEM_H
 
 #include <CGAL_demo/Scene_item_with_display_list.h>
-#include <CGAL_demo/Scene_interface.h>
 #include "Scene_implicit_function_item_config.h"
 #include "implicit_functions/Implicit_function_interface.h"
 #include "Color_ramp.h"
