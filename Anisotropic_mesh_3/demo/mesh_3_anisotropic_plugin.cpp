@@ -24,7 +24,7 @@
 
 #include "Scene_starset3_item.h"
 #include "Anisotropic_meshing_thread.h"
-
+#include "Anisotropic_mesh_function.h"
 #include "anisotropic_meshing_options.h"
 
 #include <iostream>
@@ -35,7 +35,24 @@
 const QColor default_mesh_color(45,169,70);
 
 
-// declare the CGAL function
+// declare the CGAL functions
+
+  //polyhedron functions
+Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>* const p_domain,
+                                 Anisotropic_mesh_parameters & param,
+                                 CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                 const double epsilon,
+                                 const double approximation,
+                                 const double radius_edge_ratio,
+                                 const double sliverity,
+                                 const double circumradius,
+                                 const double distortion,
+                                 const double beta,
+                                 const double delta,
+                                 const std::size_t max_times_to_try_in_picking_region,
+                                 const int dim,
+                                 const Metric_options& metric);
+
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const double epsilon,
                                  const double approximation,
@@ -51,6 +68,23 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
                                  const int pick_valid_max_failures);
+
+  //implicit functions
+Criteria* build_param_and_metric(const Implicit_surface* p_domain,
+                                 Anisotropic_mesh_parameters & param,
+                                 CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                 const double epsilon,
+                                 const double approximation,
+                                 const double radius_edge_ratio,
+                                 const double sliverity,
+                                 const double circumradius,
+                                 const double distortion,
+                                 const double beta,
+                                 const double delta,
+                                 const std::size_t max_times_to_try_in_picking_region,
+                                 const int dim,
+                                 const Metric_options& metric);
+
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
                                  const double epsilon,
@@ -142,22 +176,24 @@ public:
 
   virtual QList<QAction*> actions() const
   {
-    return QList<QAction*>() << actionAnisotropicMeshing;
+    return QList<QAction*>() << actionAnisotropicMeshing << actionResumeMeshing;
   }
   
   bool applicable() const {
-    const Scene_interface::Item_id index = scene->mainSelectionIndex();
+    return true; //checked within aniso functions anyway
 
-    // -----------------------------------
-    // Check if selected item is meshable
-    // -----------------------------------
-    Scene_polyhedron_item* poly_item = 
-      qobject_cast<Scene_polyhedron_item*>(scene->item(index));
+//    const Scene_interface::Item_id index = scene->mainSelectionIndex();
 
-    Scene_constrained_surface_implicit_item* function_item =
-      qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
+//    // -----------------------------------
+//    // Check if selected item is meshable
+//    // -----------------------------------
+//    Scene_polyhedron_item* poly_item =
+//      qobject_cast<Scene_polyhedron_item*>(scene->item(index));
 
-    return poly_item || function_item;
+//    Scene_constrained_surface_implicit_item* function_item =
+//      qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
+
+//    return poly_item || function_item;
   }
 
 public slots:
@@ -177,12 +213,17 @@ public slots:
   void view_metric_field(bool);
   void view_mesh_3(bool);
   //others
-  void meshing_done(Anisotropic_meshing_thread* t);
+  void meshing_done_resume(Anisotropic_meshing_thread* t);
+  void meshing_done_nresume(Anisotropic_meshing_thread* t);
+  void meshing_done(Anisotropic_meshing_thread* t, const bool resumed);
   void status_report(QString str);
   
 private:
-  void launch_thread(Anisotropic_meshing_thread* mesh_thread);
-  void treat_result(Scene_item& source_item, Scene_starset3_item& result_item) const;
+  void launch_thread(Anisotropic_meshing_thread* mesh_thread,
+                const bool resumed = false);
+  void treat_result(Scene_item& source_item,
+               Scene_starset3_item& result_item,
+               const bool replacing = false) const;
 
 private:
   QAction* actionAnisotropicMeshing;
@@ -391,7 +432,214 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
 }
 
 void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
-  std::cout << "tried to resume!" << std::endl;
+  // ------------------------------------------
+  // Check if selected item can be resumed from
+  // ------------------------------------------
+  Scene_item* item = NULL;
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem = qobject_cast<Scene_starset3_item*>(scene->item(index));
+
+  if( NULL == ssetitem )
+  {
+    QMessageBox::warning(mw,tr(""),tr("Nothing to resume from"));
+    return;
+  }
+  else{
+    item = ssetitem;
+  }
+
+  typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>  Constrain_surface_polyhedral;
+  const Constrain_surface_polyhedral* poly_surf =
+      dynamic_cast<const Constrain_surface_polyhedral*>(ssetitem->star_set().constrain_surface());
+
+  const Implicit_surface* function_surf =
+      dynamic_cast<const Implicit_surface*>(ssetitem->star_set().constrain_surface());
+
+  // Get item
+  Domain_type t;
+  if( NULL != poly_surf )
+  {
+    t = POLYHEDRAL_SURFACE;
+  }
+  else if( NULL != function_surf )
+  {
+    t = IMPLICIT_SURFACE;
+  }
+
+  // ------------------
+  // Create Mesh dialog
+  // ------------------
+  QDialog dialog(mw);
+  Ui::Aniso_meshing_dialog ui;
+  ui.setupUi(&dialog);
+  connect(ui.buttonBox, SIGNAL(accepted()),
+          &dialog, SLOT(accept()));
+  connect(ui.buttonBox, SIGNAL(rejected()),
+          &dialog, SLOT(reject()));
+
+  // Connect checkboxes to spinboxes
+  connect(ui.noRadiusEdgeRatio,   SIGNAL(toggled(bool)),
+          ui.radius_edge_ratio,   SLOT(setEnabled(bool)));
+  connect(ui.noSliverity,         SIGNAL(toggled(bool)),
+          ui.sliverity,           SLOT(setEnabled(bool)));
+  connect(ui.noCircumradius,      SIGNAL(toggled(bool)),
+          ui.circumradius,        SLOT(setEnabled(bool)));
+  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
+          ui.distortion,          SLOT(setEnabled(bool)));
+  connect(ui.noApproximation,     SIGNAL(toggled(bool)),
+          ui.approximation,       SLOT(setEnabled(bool)));
+
+   // Set default parameters
+  Scene_interface::Bbox bbox = item->bbox();
+  ui.objectName->setText(item->name());
+  ui.objectNameSize->setText(tr("Object bbox size (w,h,d):  <b>%1</b>,  <b>%2</b>,  <b>%3</b>")
+                             .arg(bbox.width(),0,'g',3)
+                             .arg(bbox.height(),0,'g',3)
+                             .arg(bbox.depth(),0,'g',3) );
+  double max_size = (std::max)((std::max)(bbox.width(),bbox.height()),bbox.depth());
+  ui.radius_edge_ratio->setValue(3.0);
+  ui.sliverity->setValue(0.3);
+  ui.circumradius->setValue(1.0);
+  ui.distortion->setValue(1.8);
+  ui.approximation->setValue(0.01*max_size);
+  ui.epsilon->setValue(0.1);
+  ui.beta->setValue(2.5);
+  ui.delta->setValue(0.3);
+
+  ui.comboBox_metric->addItem("Euclidean", EUCLIDEAN);
+  if(t == POLYHEDRAL_SURFACE)
+  {
+    ui.comboBox_metric->addItem("Polyhedron curvature", POLYHEDRON_CURVATURE);
+    ui.comboBox_metric->setCurrentIndex(1);//polyhedron curvature
+  }
+  else //IMPLICIT_SURFACE
+  {
+    ui.comboBox_metric->addItem("Implicit curvature", IMPLICIT_CURVATURE);
+    ui.comboBox_metric->addItem("Torus (1/r, 1/R)", TORUS_NAIVE);
+    ui.comboBox_metric->setCurrentIndex(1);//implicit curvature
+  }
+
+  ui.maxTries->setDecimals(0);
+  ui.maxTries->setSingleStep(1);
+  ui.maxTries->setValue(60); // default value
+  ui.dimension->setCurrentIndex(0);
+  ui.nbInitialPoints->setValue(10);
+
+  // -----------------------------------
+  // Get values
+  // -----------------------------------
+  int i = dialog.exec();
+  if( i == QDialog::Rejected ) { return; }
+
+  // 0 means parameter is not considered
+  const bool keep_same_parameters = ui.resume_memory->isChecked();
+
+  const double radius_edge_ratio = !ui.noRadiusEdgeRatio->isChecked() ? 0 : ui.radius_edge_ratio->value();
+  const double sliverity = !ui.noSliverity->isChecked() ? 0 : ui.sliverity->value();
+  const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value();
+  const double distortion = !ui.noDistortion->isChecked() ? 0 : ui.distortion->value();
+  const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
+  const double epsilon = ui.epsilon->value();
+  const double beta = ui.beta->value();
+  const double delta = ui.delta->value();
+  const int max_times_to_try_in_picking_region = ui.maxTries->value();
+  const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
+  const int pick_valid_max_failures = ui.maxPickFailures->value();
+  int dim = -1;
+  if(ui.dimension->currentText().compare(QString("Surface")) == 0)
+    dim = 2;
+  else if(ui.dimension->currentText().compare(QString("Volume")) == 0)
+    dim = 3;
+  int metric_index = ui.comboBox_metric->currentIndex();
+  Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
+
+  // -----------------------------------
+  // Dispatch mesh process
+  // -----------------------------------
+  QApplication::setOverrideCursor(Qt::WaitCursor);
+
+  Anisotropic_meshing_thread* thread = NULL;
+
+  // POLYHEDRON -------------------------------------------------------------------------------
+
+  if ( NULL != poly_surf )
+  {
+    Anisotropic_mesh_parameters param;
+    Criteria* criteria = NULL;
+    typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
+    Metric_field* mf = NULL;
+
+    if( !keep_same_parameters ){
+      criteria = build_param_and_metric(poly_surf, param, mf, epsilon, approximation,
+                                        radius_edge_ratio, sliverity, circumradius,
+                                        distortion, beta, delta, max_times_to_try_in_picking_region,
+                                        dim, metric);
+
+      ssetitem->star_set().set_criteria(criteria);
+      {// can't handle metric changes for now
+        //ssetitem->star_set().set_metric_field(mf);
+        delete mf;
+      }
+      ssetitem->star_set().update_stars_criteria(); //update criteria in stars
+      ssetitem->star_set().fill_refinement_queue(); //reset and refill since criteria has been modified
+    }
+    else{
+      param.dim = dim;
+    }
+
+    typedef Anisotropic_mesh_function<Constrain_surface_polyhedral, Metric_field> AMesh_function;
+    AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set(), param,
+                                         ssetitem->star_set().criteria(),
+                                         ssetitem->star_set().metric_field(),
+                                         pick_valid_causes_stop, pick_valid_max_failures);
+
+    thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
+  }
+  //// FUNCTION -------------------------------------------------------------------------------
+  else if( NULL != function_surf )
+  {
+    Anisotropic_mesh_parameters param;
+    Criteria* criteria = NULL;
+    typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
+    Metric_field* mf = NULL;
+
+    if( !keep_same_parameters ){
+      criteria = build_param_and_metric(function_surf, param, mf, epsilon, approximation,
+                                        radius_edge_ratio, sliverity, circumradius,
+                                        distortion, beta, delta, max_times_to_try_in_picking_region,
+                                        dim, metric);
+
+      ssetitem->star_set().set_criteria(criteria);
+      {// can't handle metric changes for now
+        //ssetitem->star_set().set_metric_field(mf);
+        delete mf;
+      }
+      ssetitem->star_set().update_stars_criteria(); //update criteria in stars
+      ssetitem->star_set().fill_refinement_queue(); //reset and refill since criteria has been modified
+    }
+    else{
+      param.dim = dim;
+    }
+
+    typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
+    AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set(), param,
+                                         ssetitem->star_set().criteria(),
+                                         ssetitem->star_set().metric_field(),
+                                         pick_valid_causes_stop, pick_valid_max_failures);
+
+    thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
+  }
+
+  if ( NULL == thread )
+  {
+    QMessageBox::critical(mw,tr(""),tr("ERROR: no thread created"));
+    return;
+  }
+
+  // Launch thread
+  source_item_ = item;
+  launch_thread(thread, true /*resumed*/);
+  QApplication::restoreOverrideCursor();
 }
 
 void Anisotropic_mesh_3_plugin::view_one_star()
@@ -555,7 +803,8 @@ void Anisotropic_mesh_3_plugin::view_mesh_3(bool b)
 
 void
 Anisotropic_mesh_3_plugin::
-launch_thread(Anisotropic_meshing_thread* mesh_thread)
+launch_thread(Anisotropic_meshing_thread* mesh_thread,
+              const bool resumed /*= false*/)
 {
   // -----------------------------------
   // Create message box with stop button
@@ -575,21 +824,28 @@ launch_thread(Anisotropic_meshing_thread* mesh_thread)
   
   message_box_->show();
   
-  // -----------------------------------
+  // --------------------------------------
   // Connect main thread to meshing thread
-  // -----------------------------------
-  QObject::connect(mesh_thread, SIGNAL(done(Anisotropic_meshing_thread*)),
-                   this,        SLOT(meshing_done(Anisotropic_meshing_thread*)));
-  
+  // --------------------------------------
+
+  if(resumed)
+  {
+    QObject::connect(mesh_thread, SIGNAL(done(Anisotropic_meshing_thread*)),
+                     this, SLOT(meshing_done_resume(Anisotropic_meshing_thread*)));
+  }
+  else
+  {
+    QObject::connect(mesh_thread, SIGNAL(done(Anisotropic_meshing_thread*)),
+                     this, SLOT(meshing_done_nresume(Anisotropic_meshing_thread*)));
+  }
   QObject::connect(mesh_thread, SIGNAL(status_report(QString)),
-                   this,        SLOT(status_report(QString)));
+                   this, SLOT(status_report(QString)));
   
   // -----------------------------------
   // Launch mesher
   // -----------------------------------
   mesh_thread->start();
 }
-
 
 void
 Anisotropic_mesh_3_plugin::
@@ -600,10 +856,23 @@ status_report(QString str)
   message_box_->setInformativeText(str);
 }
 
+void
+Anisotropic_mesh_3_plugin::
+meshing_done_resume(Anisotropic_meshing_thread* thread)
+{
+  meshing_done(thread, true);
+}
 
 void
 Anisotropic_mesh_3_plugin::
-meshing_done(Anisotropic_meshing_thread* thread)
+meshing_done_nresume(Anisotropic_meshing_thread* thread)
+{
+  meshing_done(thread, false);
+}
+
+void
+Anisotropic_mesh_3_plugin::
+meshing_done(Anisotropic_meshing_thread* thread, const bool resumed)
 {
   // Print message in console
   QString str = QString("Anisotropic meshing of \"%1\" done in %2s<br>")
@@ -619,7 +888,7 @@ meshing_done(Anisotropic_meshing_thread* thread)
   
   // Treat new starset3 item
   Scene_starset3_item* result_item = thread->item();
-  treat_result(*source_item_, *result_item);
+  treat_result(*source_item_, *result_item, resumed);
   
   // close message box
   message_box_->close();
@@ -634,7 +903,8 @@ meshing_done(Anisotropic_meshing_thread* thread)
 void
 Anisotropic_mesh_3_plugin::
 treat_result(Scene_item& source_item,
-             Scene_starset3_item& result_item) const
+             Scene_starset3_item& result_item,
+             const bool replacing /*= false*/) const
 {
   result_item.setName(tr("%1 [3D Anisotropic Mesh]").arg(source_item.name()));
 
@@ -650,13 +920,19 @@ treat_result(Scene_item& source_item,
   result_item.set_data_item(&source_item);
   
   source_item.setVisible(false);
+  result_item.setVisible(true);
     
   const Scene_interface::Item_id index = scene->mainSelectionIndex();
   scene->itemChanged(index);
-    
-  Scene_interface::Item_id new_item_id = scene->addItem(&result_item);
-  scene->setSelectedItem(new_item_id);
 
+  if(replacing){
+    scene->replaceItem(index, &result_item);
+    scene->setSelectedItem(index);
+  }
+  else{
+    Scene_interface::Item_id new_item_id = scene->addItem(&result_item);
+    scene->setSelectedItem(new_item_id);
+  }
 }
 
 

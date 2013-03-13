@@ -458,7 +458,7 @@ public:
       typedef typename Base::FT                                FT;
       typedef typename Base::Vector_3                          Vector_3;
       typedef typename Base::Point_3                           Point_3;
-      typedef typename Base::Oriented_side		       Oriented_side;
+      typedef typename Base::Oriented_side                     Oriented_side;
 
       typedef typename std::vector<typename K::Point_3> Point_container;
 

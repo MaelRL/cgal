@@ -113,7 +113,7 @@ namespace CGAL{
       Traits *m_traits;
       Metric m_metric;
       const Constrain_surface* m_pConstrain;
-      const Stretched_criteria m_criteria;
+      Stretched_criteria* m_criteria;
       bool m_is_surface_star; // allows to handle stars with center on medial axis
 
     private:
@@ -172,6 +172,11 @@ namespace CGAL{
       Traits* traits() const            { return m_traits; }
       const Constrain_surface* constrain() const { return m_pConstrain; }
       const Stretched_criteria& criteria() const { return m_criteria; }
+      void set_criteria(const Criteria* criteria_)
+      {
+        delete m_criteria;
+        m_criteria = new Stretched_criteria(*m_traits, criteria_);
+      }
 
     public:
       Point_3& center_point()             { return m_center_point; }
@@ -374,39 +379,39 @@ public:
 
     public:
       inline FT compute_volume(const Cell_handle &cell) {
-        return m_criteria.compute_volume(cell->vertex(0)->point(), cell->vertex(1)->point(),
+        return m_criteria->compute_volume(cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
       inline FT compute_volume(const Facet &facet) {
-        return m_criteria.compute_volume(
+        return m_criteria->compute_volume(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
       inline FT compute_radius_edge_ratio_overflow(const Cell_handle &cell) {
-        return m_criteria.radius_edge_ratio_overflow(
+        return m_criteria->radius_edge_ratio_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
       inline FT compute_radius_edge_ratio_overflow(const Facet &facet) {
-        return m_criteria.radius_edge_ratio_overflow(
+        return m_criteria->radius_edge_ratio_overflow(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
       inline FT compute_squared_radius_edge_ratio(const Facet& facet) {
-        return m_criteria.compute_squared_radius_edge_ratio(
+        return m_criteria->compute_squared_radius_edge_ratio(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
       inline FT compute_circumradius_overflow(const Cell_handle &cell) {
-        return m_criteria.circumradius_overflow(
+        return m_criteria->circumradius_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
@@ -422,11 +427,11 @@ public:
         TPoint_3 tp = m_metric.transform(p);
         TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
         FT sqr = CGAL::squared_distance(tp, tp2);
-        return sqr - m_criteria.criteria.squared_circumradius;
+        return sqr - m_criteria->criteria->squared_circumradius;
       }
 
       inline FT compute_squared_circumradius(const Facet &facet) {
-        return m_criteria.compute_squared_circumradius(
+        return m_criteria->compute_squared_circumradius(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
@@ -436,11 +441,11 @@ public:
                                              const TPoint_3& p2,
                                              const TPoint_3& p3)
       {
-        return m_criteria.compute_squared_circumradius(p1, p2, p3);
+        return m_criteria->compute_squared_circumradius(p1, p2, p3);
       }
 
       inline FT compute_sliverity_overflow(const Cell_handle &cell) {
-        return m_criteria.sliverity_overflow(
+        return m_criteria->sliverity_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
@@ -1056,15 +1061,15 @@ public:
       //    assert(k == 3);
       //    for (int i = 0; i < 3; i++)
       //    {
-      //      FT sliver_overflow = m_criteria.sliverity_overflow(
+      //      FT sliver_overflow = m_criteria->sliverity_overflow(
       //        centerpoint, points[i], points[(i + 1) % 3], p);
       //      if (sliver_overflow <= 0.0)
       //        continue;
-      //      if (m_criteria.compute_volume(
+      //      if (m_criteria->compute_volume(
       //        centerpoint, points[i], points[(i + 1) % 3], p) < 1e-7)
       //        continue;
       //      // here, we have to check coplanar and colinear cases
-      //      if (m_criteria.compute_squared_circumradius(centerpoint, points[i],
+      //      if (m_criteria->compute_squared_circumradius(centerpoint, points[i],
       //        points[(i + 1) % 3], p) >= squared_radius_bound)
       //        continue;
       //      return true;
@@ -1993,14 +1998,14 @@ public:
       }
 
     public:
-      Stretched_Delaunay_3(const Criteria &criteria_,
+      Stretched_Delaunay_3(const Criteria* criteria_,
                            const Constrain_surface* pconstrain_surface,
                            const bool is_surface_star = true) :
         Base(*(m_traits = new Traits())),
         m_center_point(CGAL::ORIGIN),
         m_metric(),
         m_pConstrain(pconstrain_surface),
-        m_criteria(*m_traits, criteria_),
+        m_criteria(new Stretched_criteria(*m_traits, criteria_)),
         m_is_surface_star(is_surface_star),
         m_is_topological_disk(false),
         m_is_valid_topo_disk(false),
@@ -2015,7 +2020,7 @@ public:
         this->infinite_vertex()->info() = index_of_infinite_vertex;
       }
 
-      Stretched_Delaunay_3(const Criteria &criteria_,
+      Stretched_Delaunay_3(const Criteria* criteria_,
                            const Point_3 &centerpoint,
                            const int &index,
                            const Metric &metric_,
@@ -2025,7 +2030,7 @@ public:
         m_center_point(centerpoint),
         m_metric(metric_),
         m_pConstrain(pconstrain_surface),
-        m_criteria(*m_traits, criteria_),
+        m_criteria(new Stretched_criteria(*m_traits, criteria_)),
         m_is_surface_star(is_surface_star),
         m_is_topological_disk(false),
         m_is_valid_topo_disk(false),
@@ -2044,7 +2049,8 @@ public:
       ~Stretched_Delaunay_3()
       {
         delete m_traits;
-//        delete m_pConstrain;
+        delete m_criteria;
+        //delete m_pConstrain;
       }
     };
 

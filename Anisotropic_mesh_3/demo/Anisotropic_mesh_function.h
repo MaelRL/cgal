@@ -56,8 +56,8 @@ public:
   Anisotropic_mesh_function(Surface_star_set& starset,
                             //Domain* domain, 
                             const Anisotropic_mesh_parameters& p,
-                            Criteria* criteria,
-                            Metric_field* metrix_field,
+                            const Criteria* criteria,
+                            const Metric_field* metrix_field,
                             const bool pick_valid_causes_stop,
                             const int pick_valid_max_failures);
   // Note: 'this' takes the ownership of 'criteria' and 'metrix_field'.
@@ -85,8 +85,8 @@ private:
   
   SMesher* smesher_;
 
-  Criteria* criteria_;
-  Metric_field* metrix_field_;
+  const Criteria* criteria_;
+  const Metric_field* metrix_field_;
   bool pick_valid_causes_stop_;
   int pick_valid_max_failures_;
 
@@ -125,8 +125,8 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
   Surface_star_set& starset, 
 //  Domain* domain, 
   const Anisotropic_mesh_parameters& param,
-  Criteria* criteria,
-  Metric_field* metrix_field,
+  const Criteria* criteria,
+  const Metric_field* metrix_field,
   const bool pick_valid_causes_stop,
   const int pick_valid_max_failures)
 : starset_(starset) 
@@ -148,8 +148,6 @@ template < typename D_, typename Metric_field>
 Anisotropic_mesh_function<D_, Metric_field>::
 ~Anisotropic_mesh_function()
 {
-  delete metrix_field_;
-  delete criteria_;
   delete smesher_;
 //  delete domain_;
 //  delete tmesher_;

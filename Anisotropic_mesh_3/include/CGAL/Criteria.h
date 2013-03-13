@@ -25,14 +25,14 @@
 namespace CGAL {
 namespace Anisotropic_mesh_3 {
 
-#define FOUR_POINTS(TYPE)	const TYPE &p, const TYPE &q, const TYPE &r, const TYPE &s
-#define THREE_POINTS(TYPE)	const TYPE &p, const TYPE &q, const TYPE &r
+#define FOUR_POINTS(TYPE)  const TYPE &p, const TYPE &q, const TYPE &r, const TYPE &s
+#define THREE_POINTS(TYPE)  const TYPE &p, const TYPE &q, const TYPE &r
 
 template<typename K>
 class Criteria_base
 {
 public:
-    typedef typename K::FT	FT;
+    typedef typename K::FT  FT;
 public:
     const FT approximation;//if 0. : this criterion is not used
     const FT squared_approximation;
@@ -93,7 +93,7 @@ public:
 
 public:
     const Traits &traits;
-    const Criteria &criteria;
+    const Criteria* criteria;
 
 public:
     FT compute_squared_shortest_edge(FOUR_POINTS(Point_3)) const {
@@ -127,12 +127,12 @@ public:
     }
 
     FT radius_edge_ratio_overflow(FOUR_POINTS(Point_3)) const {
-        FT value = compute_squared_radius_edge_ratio(p, q, r, s) - criteria.squared_radius_edge_radio;
+        FT value = compute_squared_radius_edge_ratio(p, q, r, s) - criteria->squared_radius_edge_radio;
         return (value < 0.0) ? 0.0 : value;
     }
 
     FT radius_edge_ratio_overflow(THREE_POINTS(Point_3)) const {
-        FT value = compute_squared_radius_edge_ratio(p, q, r) - criteria.squared_radius_edge_radio;
+        FT value = compute_squared_radius_edge_ratio(p, q, r) - criteria->squared_radius_edge_radio;
         return (value < 0.0) ? 0.0 : value;
     }
 
@@ -152,27 +152,27 @@ public:
     }
 
     FT sliverity_overflow(FOUR_POINTS(Point_3)) const {
-        FT value = criteria.sliverity - compute_sliverity(p, q, r, s);
+        FT value = criteria->sliverity - compute_sliverity(p, q, r, s);
         return (value < 0.0) ? 0.0 : value;
     }
 
     FT circumradius_overflow(FOUR_POINTS(Point_3)) const {
-        FT value = compute_squared_circumradius(p, q, r, s) - criteria.squared_circumradius;
+        FT value = compute_squared_circumradius(p, q, r, s) - criteria->squared_circumradius;
         return (value < 0.0) ? 0.0 : value;
     }
 
     FT circumradius_overflow(THREE_POINTS(Point_3)) const {
-        FT value = compute_squared_circumradius(p, q, r) - criteria.squared_circumradius;
+        FT value = compute_squared_circumradius(p, q, r) - criteria->squared_circumradius;
         return (value < 0.0) ? 0.0 : value;
     }
 
 public:
-    Stretched_criteria(const Traits &traits_, const Criteria &criteria_)
+    Stretched_criteria(const Traits &traits_, const Criteria* criteria_)
         : traits(traits_), criteria(criteria_) { }
 };
 
-#undef	FOUR_POINTS
-#undef	TRHEE_POINTS
+#undef  FOUR_POINTS
+#undef  TRHEE_POINTS
 
 }
 }

@@ -113,8 +113,8 @@ namespace CGAL
       std::set<Point_3> poles;
       typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
-      const Metric_field &m_metric_field;
-      const Criteria &m_criteria;
+      const Metric_field* m_metric_field;
+      const Criteria* m_criteria;
       Star_vector m_stars;
       Refine_queue m_refine_queue;
       DT m_ch_triangulation;
@@ -152,6 +152,10 @@ private:
 
     public:
       const Constrain_surface* const constrain_surface() const { return m_pConstrain; }
+      const Criteria* criteria() const { return m_criteria; }
+      const Metric_field* metric_field() const { return m_metric_field; }
+      bool set_criteria(const Criteria* criteria_) { m_criteria = criteria_; }
+      bool set_metric_field(const Metric_field* metric_field_) { m_metric_field = metric_field_; }
 
     public:
       AABB_tree& aabb_tree() { return m_aabb_tree; }
@@ -757,10 +761,10 @@ private:
         TPoint_3 tccf = transform_to_star_point(center, star);
         TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
         FT sq_circumradius = star->traits()->compute_squared_distance_3_object()(tccf, tp2);
-        FT sq_radiusbound = m_criteria.beta * m_criteria.beta * sq_circumradius;
+        FT sq_radiusbound = m_criteria->beta * m_criteria->beta * sq_circumradius;
 
         // compute tools to pick random point in picking region
-        FT circumradius = m_criteria.delta * std::sqrt(sq_circumradius);
+        FT circumradius = m_criteria->delta * std::sqrt(sq_circumradius);
         Cell_handle cell = (! star->is_infinite(facet.first)) ? facet.first
                                       : facet.first->neighbor(facet.second);
         // in M_star
@@ -792,7 +796,7 @@ private:
             m_pick_valid_facet.clear();
             break;
           }
-          if((tried_times++) > m_criteria.max_times_to_try_in_picking_region) 
+          if((tried_times++) > m_criteria->max_times_to_try_in_picking_region)
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
@@ -1260,7 +1264,7 @@ public:
 
             // over distortion : 1
             bool b_continue = false;
-            if(m_criteria.distortion > 0.)
+            if(m_criteria->distortion > 0.)
             {
               for (int i = 0; i < 3; i++) 
               {
@@ -1268,7 +1272,7 @@ public:
                 int index_2 = (offset + (i + 1) % 3 + 1) % 4;
                 FT over_distortion =
                   m_stars[cell->vertex(index_1)->info()]->metric().compute_distortion(
-                  m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria.distortion;
+                  m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria->distortion;
                 if (over_distortion > 0) 
                 { // here, protect the edge
   #ifdef ANISO_DEBUG_REFINEMENT
@@ -1286,7 +1290,7 @@ public:
               if(b_continue) continue;
             }
             // too big : 2
-            if(m_criteria.circumradius > 0.)
+            if(m_criteria->circumradius > 0.)
             {
               FT over_circumradius = star->compute_circumradius_overflow(*fi);
               if (over_circumradius > 0) 
@@ -1296,7 +1300,7 @@ public:
               }
             }
             // bad shape : 3
-            if(m_criteria.radius_edge_ratio > 0.)
+            if(m_criteria->radius_edge_ratio > 0.)
             {
               FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
               if (over_radius_edge_ratio > 0) 
@@ -1306,9 +1310,9 @@ public:
               }
             }
             // bad approx : 4
-            if(m_criteria.approximation > 0.)
+            if(m_criteria->approximation > 0.)
             {
-              FT over_approx = std::sqrt(sq_distance_to_surface(*fi, star)) - m_criteria.approximation;
+              FT over_approx = std::sqrt(sq_distance_to_surface(*fi, star)) - m_criteria->approximation;
               if(over_approx > 0.)
               {
                 m_refine_queue.push_bad_approximation(star, *fi, over_approx);
@@ -1538,9 +1542,9 @@ public:
         std::clock_t start_time = clock();
 #endif
         if(surface_star)
-          star->reset(p, pid, m_metric_field.compute_metric(p), surface_star);
+          star->reset(p, pid, m_metric_field->compute_metric(p), surface_star);
         else
-          star->reset(p, pid, m_metric_field.uniform_metric(p), surface_star);
+          star->reset(p, pid, m_metric_field->uniform_metric(p), surface_star);
 
         
         typename Index_set::const_iterator si = modified_stars.begin();
@@ -1839,9 +1843,9 @@ public:
       {
         typename std::ofstream fx("report_surface.txt");
         fx << "[Parameters]" << std::endl << std::endl;
-        m_criteria.report(fx);
+        m_criteria->report(fx);
         fx << std::endl << "[Metric field]" << std::endl << std::endl;
-        m_metric_field.report(fx);
+        m_metric_field->report(fx);
         fx << std::endl << "[Statistics]" << std::endl << std::endl;
         fx << "elapsed time:       " << time(NULL) - start_time << " sec." << std::endl;
         fx << "number of vertices: " << m_stars.size() << std::endl;
@@ -2025,7 +2029,7 @@ public:
       //void output_metric_field_eigenvalues()
       //{
       //  typename std::ofstream fx("eigenvalues.txt");
-      //  m_metric_field.report(fx);
+      //  m_metric_field->report(fx);
       //  fx << std::endl;
 
       //  std::size_t i;
@@ -2090,6 +2094,12 @@ public:
       }
 
 public:
+      void update_stars_criteria(){
+        for(std::size_t i = 0; i < m_stars.size(); i++){
+          m_stars[i]->set_criteria(m_criteria);
+        }
+      }
+
       void clean_stars() //remove useless vertices
       {
         for(std::size_t i = 0; i < m_stars.size(); i++)
@@ -2503,8 +2513,8 @@ public:
 #endif
 
     public:
-      Surface_star_set_3(const Criteria &criteria_, 
-        const Metric_field &metric_field_, 
+      Surface_star_set_3(const Criteria* criteria_,
+        const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
         const RefinementCondition& rc_ = RefinementCondition())
@@ -2543,6 +2553,8 @@ public:
       
       ~Surface_star_set_3() 
       {
+        delete m_metric_field;
+        delete m_criteria;
         Star_iterator si = m_stars.begin();
         Star_iterator siend = m_stars.end();
         for (; si != siend; si++)

@@ -54,8 +54,8 @@ double complex_diag(const Scene_item* item)
 
 struct Scene_starset3_item_priv 
 {
-  Scene_starset3_item_priv(const Criteria& criteria,
-                           const Metric& metric,
+  Scene_starset3_item_priv(const Criteria* criteria,
+                           const Metric* metric,
                            const Constrain_surface* const surface,
                            const int nb_initial_points)
     : star_set(criteria, metric, surface, nb_initial_points)
@@ -67,8 +67,8 @@ struct Scene_starset3_item_priv
 
 
 Scene_starset3_item::
-Scene_starset3_item(const Criteria& criteria,
-                    const Metric& metric,
+Scene_starset3_item(const Criteria* criteria,
+                    const Metric* metric,
                     const Constrain_surface* const surface,
                     const int nb_initial_points)
   : d(new Scene_starset3_item_priv(criteria, metric, surface, nb_initial_points)),
@@ -85,7 +85,7 @@ Scene_starset3_item(const Criteria& criteria,
   m_draw_star_id(-1),
   m_draw_inconsistent_facets(false),
   m_draw_metric_field(false),
-  m_draw_metric_eps(metric.epsilon),
+  m_draw_metric_eps(metric->epsilon),
   m_draw_mesh_3(false)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));

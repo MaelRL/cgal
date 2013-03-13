@@ -15,7 +15,7 @@ public:
 
   // Points/Wireframe/Flat/Gouraud OpenGL drawing in a display list
   virtual void direct_draw() const = 0;
-  virtual void direct_draw_edges() const { draw(); };
+  virtual void direct_draw_edges() const { draw(); }
   // OpenGL drawing using a display list
   virtual void draw() const; 
   virtual void draw_edges() const;
