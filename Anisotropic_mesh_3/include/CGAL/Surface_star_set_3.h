@@ -2331,25 +2331,26 @@ public:
       void gl_draw_picked_points(const typename K::Plane_3& plane) const
       {
         typename std::vector<Point_3>::const_iterator it;
+        GLboolean light = (::glIsEnabled(GL_LIGHTING));
+
+        ::glPointSize(5.);
+        if(light)
+          ::glDisable(GL_LIGHTING);
+        ::glBegin(GL_POINTS);
         for(it = m_pick_valid_cache.begin(); it != m_pick_valid_cache.end(); ++it)
         {
-  //      if(!is_above_plane(plane, *it))
-  //        return;
-
-          GLboolean light = (::glIsEnabled(GL_LIGHTING));
-
-          ::glPointSize(5.);
-          ::glColor3f(0.14f, 0.87f, 0.14f);
+          // if(!is_above_plane(plane, *it))
+          //   continue;
           if( it == --(m_pick_valid_cache.end()) )
             ::glColor3f(0.87f, 0.14f, 0.14f);
-          if(light)
-            ::glDisable(GL_LIGHTING);
-          ::glBegin(GL_POINTS);
+          else
+            ::glColor3f(0.14f, 0.87f, 0.14f);
+
           ::glVertex3d((*it).x(), (*it).y(), (*it).z());
-          ::glEnd();
-          if(light)
-            ::glEnable(GL_LIGHTING);
         }
+        ::glEnd();
+        if(light)
+          ::glEnable(GL_LIGHTING);
         if(!m_pick_valid_facet.empty()){
           gl_draw_triangle<K>(m_pick_valid_facet[0],
                               m_pick_valid_facet[1],
@@ -2361,45 +2362,44 @@ public:
       {
         typename Constrain_surface::Pointset::const_iterator pi = initial_points.begin();
         typename Constrain_surface::Pointset::const_iterator pend = initial_points.end();
+        GLboolean light = (::glIsEnabled(GL_LIGHTING));
+
+        ::glPointSize(10.);
+        ::glColor3f(0.706f, 0.345f, 0.878f);
+        if(light)
+          ::glDisable(GL_LIGHTING);
+        ::glBegin(GL_POINTS);
         for (; pi != pend; pi++)
         {
-//        if(!is_above_plane(plane, *it))
-//          return;
+          // if(!is_above_plane(plane, *it))
+          //   continue;
 
-          GLboolean light = (::glIsEnabled(GL_LIGHTING));
-
-          ::glPointSize(10.);
-          ::glColor3f(0.706f, 0.345f, 0.878f);
-          if(light)
-            ::glDisable(GL_LIGHTING);
-          ::glBegin(GL_POINTS);
           ::glVertex3d((*pi).x(), (*pi).y(), (*pi).z());
-          ::glEnd();
-          if(light)
-            ::glEnable(GL_LIGHTING);
         }
+        ::glEnd();
+        if(light)
+          ::glEnable(GL_LIGHTING);
       }
 
       void gl_draw_poles(const typename K::Plane_3& plane) const
       {
+        GLboolean light = (::glIsEnabled(GL_LIGHTING));
+        ::glPointSize(5.);
+        ::glColor3f(0.98f, 0.757f, 0.137f);
+        if(light)
+          ::glDisable(GL_LIGHTING);
+
+        ::glBegin(GL_POINTS);
         typename std::set<Point_3>::const_iterator it;
         for(it = poles.begin(); it != poles.end(); ++it)
         {
-//        if(!is_above_plane(plane, *it))
-//          return;
-
-          GLboolean light = (::glIsEnabled(GL_LIGHTING));
-
-          ::glPointSize(5.);
-          ::glColor3f(0.98f, 0.757f, 0.137f);
-          if(light)
-            ::glDisable(GL_LIGHTING);
-          ::glBegin(GL_POINTS);
+          // if(!is_above_plane(plane, *it))
+          //   continue;
           ::glVertex3d((*it).x(), (*it).y(), (*it).z());
-          ::glEnd();
-          if(light)
-            ::glEnable(GL_LIGHTING);
         }
+        ::glEnd();
+        if(light)
+          ::glEnable(GL_LIGHTING);
       }
 
       void gl_draw_metric(const typename K::Plane_3& plane,
