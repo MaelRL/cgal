@@ -37,7 +37,7 @@
      <x>0</x>
      <y>0</y>
      <width>978</width>
-     <height>21</height>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -85,6 +85,8 @@
     <addaction name="actionMeshing"/>
     <addaction name="actionAnisotropicMeshing"/>
     <addaction name="separator"/>
+    <addaction name="actionResumeMeshing"/>
+    <addaction name="separator"/>
     <addaction name="menuGlobalOptimization"/>
     <addaction name="menuSliverRemoval"/>
    </widget>
@@ -106,8 +108,6 @@
      <addaction name="action_Copy_camera"/>
      <addaction name="action_Paste_camera"/>
     </widget>
-    <addaction name="actionRecenterScene"/>
-    <addaction name="action_Look_at"/>
     <widget class="QMenu" name="menuSurface_star_set">
      <property name="title">
       <string>&amp;Surface star set</string>
@@ -124,12 +124,14 @@
      <addaction name="actionDraw_inconsistent_facets"/>
      <addaction name="actionDraw_metric_field"/>
     </widget>
+    <addaction name="actionRecenterScene"/>
+    <addaction name="action_Look_at"/>
     <addaction name="actionAntiAliasing"/>
     <addaction name="actionDraw_two_sides"/>
     <addaction name="actionSetBackgroundColor"/>
     <addaction name="menuDockWindows"/>
-    <addaction name="menuSurface_star_set"/>
     <addaction name="menuCamera"/>
+    <addaction name="menuSurface_star_set"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -277,8 +279,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>545</width>
-            <height>178</height>
+            <width>554</width>
+            <height>169</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout">
@@ -670,7 +672,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>dual edges</string>
+    <string>dual &amp;edges</string>
    </property>
   </action>
   <action name="actionDraw_one_star">
@@ -678,7 +680,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>one star (from Id)</string>
+    <string>&amp;one star (from Id)</string>
    </property>
   </action>
   <action name="actionDraw_inconsistent_facets">
@@ -686,7 +688,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>inconsistent facets</string>
+    <string>inconsistent &amp;facets</string>
    </property>
   </action>
   <action name="actionDraw_surface_delaunay_balls">
@@ -694,7 +696,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>surface Delaunay balls</string>
+    <string>surface &amp;Delaunay balls</string>
    </property>
   </action>
   <action name="actionDraw_metric_field">
@@ -702,7 +704,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>metric field</string>
+    <string>metri&amp;c field</string>
    </property>
   </action>
   <action name="actionDraw_poles">
@@ -710,7 +712,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>poles</string>
+    <string>&amp;poles</string>
    </property>
   </action>
   <action name="actionDraw_initial_points">
@@ -718,7 +720,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>initial points</string>
+    <string>&amp;initial points</string>
    </property>
   </action>
   <action name="actionDraw_mesh_3">
@@ -726,7 +728,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Mesh_3 (poles)</string>
+    <string>&amp;Mesh_3 (poles)</string>
    </property>
   </action>
   <action name="actionDraw_surface_star_set">
@@ -737,7 +739,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Star set</string>
+    <string>&amp;Star set</string>
    </property>
   </action>
   <action name="actionDraw_cell">
@@ -745,7 +747,12 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Cells</string>
+    <string>&amp;Cells</string>
+   </property>
+  </action>
+  <action name="actionResumeMeshing">
+   <property name="text">
+    <string>&amp;Resume meshing</string>
    </property>
   </action>
  </widget>

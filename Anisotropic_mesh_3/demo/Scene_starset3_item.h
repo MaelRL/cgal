@@ -23,8 +23,8 @@ class SCENE_STARSET3_ITEM_EXPORT Scene_starset3_item
 public:
   typedef qglviewer::ManipulatedFrame ManipulatedFrame;
 
-  Scene_starset3_item(const Criteria& criteria,
-                      const Metric& metric,
+  Scene_starset3_item(const Criteria* criteria,
+                      const Metric* metric,
                       const Constrain_surface* const surface,
                       const int nb_initial_points);
   ~Scene_starset3_item();

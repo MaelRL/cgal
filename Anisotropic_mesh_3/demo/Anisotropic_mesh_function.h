@@ -56,9 +56,10 @@ public:
   Anisotropic_mesh_function(Surface_star_set& starset,
                             //Domain* domain, 
                             const Anisotropic_mesh_parameters& p,
-                            Criteria* criteria,
-                            Metric_field* metrix_field,
-                            const bool pick_valid_causes_stop);
+                            const Criteria* criteria,
+                            const Metric_field* metrix_field,
+                            const bool pick_valid_causes_stop,
+                            const int pick_valid_max_failures);
   // Note: 'this' takes the ownership of 'criteria' and 'metrix_field'.
   
   ~Anisotropic_mesh_function();
@@ -84,9 +85,10 @@ private:
   
   SMesher* smesher_;
 
-  Criteria* criteria_;
-  Metric_field* metrix_field_;
+  const Criteria* criteria_;
+  const Metric_field* metrix_field_;
   bool pick_valid_causes_stop_;
+  int pick_valid_max_failures_;
 
 //  TMesher* tmesher_;
 //  mutable typename Mesher::Mesher_status last_report_;
@@ -123,9 +125,10 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
   Surface_star_set& starset, 
 //  Domain* domain, 
   const Anisotropic_mesh_parameters& param,
-  Criteria* criteria,
-  Metric_field* metrix_field,
-  const bool pick_valid_causes_stop)
+  const Criteria* criteria,
+  const Metric_field* metrix_field,
+  const bool pick_valid_causes_stop,
+  const int pick_valid_max_failures)
 : starset_(starset) 
 , p_(param)
 , continue_(true)
@@ -133,6 +136,7 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
 , criteria_(criteria)
 , metrix_field_(metrix_field)
 , pick_valid_causes_stop_(pick_valid_causes_stop)
+, pick_valid_max_failures_(pick_valid_max_failures)
 //, domain_(domain)
 //, tmesher_(NULL)
 //, last_report_(0,0,0)
@@ -144,8 +148,6 @@ template < typename D_, typename Metric_field>
 Anisotropic_mesh_function<D_, Metric_field>::
 ~Anisotropic_mesh_function()
 {
-  delete metrix_field_;
-  delete criteria_;
   delete smesher_;
 //  delete domain_;
 //  delete tmesher_;
@@ -169,8 +171,7 @@ launch()
 //make sure to edit in the above file as well.
 
     const std::size_t max_count = (std::size_t) -1; //p_.max_times_to_try_in_picking_region);
-    const int max_pick_valid_fails = 100;
-    int pick_valid_failed = 0;
+    int pick_valid_failed_n = 0;
 
 #ifdef ANISO_VERBOSE
     std::cout << "\nRefine all...";
@@ -207,7 +208,7 @@ launch()
 #endif
        }
 
-       if(!smesher_->star_set.refine(pick_valid_causes_stop_, max_pick_valid_fails))
+       if(!smesher_->star_set.refine(pick_valid_failed_n, pick_valid_causes_stop_, pick_valid_max_failures_))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();
