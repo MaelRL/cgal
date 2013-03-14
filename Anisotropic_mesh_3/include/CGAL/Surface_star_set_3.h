@@ -154,8 +154,8 @@ private:
       const Constrain_surface* const constrain_surface() const { return m_pConstrain; }
       const Criteria* criteria() const { return m_criteria; }
       const Metric_field* metric_field() const { return m_metric_field; }
-      bool set_criteria(const Criteria* criteria_) { m_criteria = criteria_; }
-      bool set_metric_field(const Metric_field* metric_field_) { m_metric_field = metric_field_; }
+      void set_criteria(const Criteria* criteria_) { m_criteria = criteria_; }
+      void set_metric_field(const Metric_field* metric_field_) { m_metric_field = metric_field_; }
 
     public:
       AABB_tree& aabb_tree() { return m_aabb_tree; }

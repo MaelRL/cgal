@@ -465,6 +465,11 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   {
     t = IMPLICIT_SURFACE;
   }
+  else
+  {
+    QMessageBox::warning(mw,tr(""),tr("Unknown surface type"));
+    return;
+  }
 
   // ------------------
   // Create Mesh dialog
