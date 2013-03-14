@@ -68,8 +68,8 @@ private:
 public:
   Kd_tree_for_star_set(const std::vector<StarHandle>& stars, 
                        const std::size_t bs = 10) :
-    Base(boost::counting_iterator<std::size_t>(0),
-         boost::counting_iterator<std::size_t>(stars.size()),
+    Base(boost::counting_iterator<int>(0),//std::size_t>(0),
+         boost::counting_iterator<int>((int)stars.size()),//std::size_t>(stars.size()),
          typename Base::Splitter(),
          Traits(Star_pmap(stars))), 
     m_insertion_buffer_max_size(bs),

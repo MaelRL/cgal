@@ -305,7 +305,7 @@ Scene_starset3_item::compute_color_map(const QColor& c)
     double hue = c.hueF() + 1./nb_stars * i;
     if(hue > 1)
       hue -= 1.;
-    d->colors[i] = QColor::fromHsvF(hue, c.saturationF(), c.valueF());
+    d->colors[(int)i] = QColor::fromHsvF(hue, c.saturationF(), c.valueF());
   }
 }
 
