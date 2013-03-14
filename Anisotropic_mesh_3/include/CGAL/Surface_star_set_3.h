@@ -1670,8 +1670,6 @@ public:
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
         if(!success) 
           pick_valid_failed++;
-        if(pick_valid_failed % 100 == 0)
-          std::cout << pick_valid_failed << " failures!" << std::endl;
         if(pick_valid_causes_stop && pick_valid_failed >= max_pick_valid_fails)
           return false;
 
@@ -2467,10 +2465,8 @@ public:
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
 
-            if(is_above_plane(plane, pa, pb, pc)){
+            if(is_above_plane(plane, pa, pb, pc))
               gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 227,27,27);
-              std::cout << "facet inconsisten in star : " << i << std::endl;
-            }
           }
         }
         ::glDisable(GL_POLYGON_OFFSET_FILL);
