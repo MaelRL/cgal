@@ -41,7 +41,7 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
 
     ::glColor3f(0.,0.,0.);
     if(option == EDGES_ONLY)
-      ::glColor3f(r / 256., g / 256., b / 256.);
+      ::glColor3d(r / 256., g / 256., b / 256.);
     if(option == EDGES_AND_FACES) ::glLineWidth(2.f);
     else                          ::glLineWidth(1.f);
     ::glBegin(GL_LINE_LOOP);
