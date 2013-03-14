@@ -906,7 +906,10 @@ treat_result(Scene_item& source_item,
              Scene_starset3_item& result_item,
              const bool replacing /*= false*/) const
 {
-  result_item.setName(tr("%1 [3D Anisotropic Mesh]").arg(source_item.name()));
+  if(!replacing)
+    result_item.setName(tr("%1 [3D Anisotropic Mesh]").arg(source_item.name()));
+  else
+    result_item.setName(source_item.name());
 
   result_item.starset_changed();
   
