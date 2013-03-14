@@ -11,6 +11,7 @@
 #include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <Metric_field/Torus_metric_field.h>
+#include <Domain/Constrain_surface_3_torus.h>
 
 Criteria* build_param_and_metric(const Implicit_surface* p_domain,
                                  Anisotropic_mesh_parameters & param,
@@ -45,7 +46,10 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
   else if(metric == TORUS_NAIVE)
   {
     std::cout << "(Torus)" << std::endl;
-    mf = new Torus_metric_field<Kernel>(10., 1., epsilon);
+    typedef Constrain_surface_3_torus<Kernel> Torus;
+    const Torus* t = static_cast<const Torus*>(p_domain);
+
+    mf = new Torus_metric_field<Kernel>(t->get_R(), t->get_r(), epsilon);
   }
   else if(metric == IMPLICIT_CURVATURE)
   {

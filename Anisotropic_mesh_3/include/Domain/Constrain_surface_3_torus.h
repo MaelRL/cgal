@@ -22,8 +22,8 @@ public:
 
   void set_r(const FT& rr) { r = rr; }
   void set_R(const FT& rr) { R = rr; }
-  FT get_r() { return r; }
-  FT get_R() { return R; }
+  FT get_r() const { return r; }
+  FT get_R() const { return R; }
   
   virtual std::string name() const
   {
