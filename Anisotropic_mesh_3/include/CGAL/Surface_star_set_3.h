@@ -1672,10 +1672,13 @@ public:
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
         if(!success) 
+        {
           pick_valid_failed++;
-        if(pick_valid_failed % 100 == 0 && pick_valid_failed > 0)
-          std::cout << pick_valid_failed << " pick_valid failures!" << std::endl;
-        if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures){
+          if(pick_valid_failed % 100 == 0 && pick_valid_failed > 0)
+            std::cout << pick_valid_failed << " pick_valid failures!" << std::endl;
+        }
+        if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
+        {
           std::cout << "failed at star : " << bad_facet.star->center()->info() << std::endl;
           return false;
         }
