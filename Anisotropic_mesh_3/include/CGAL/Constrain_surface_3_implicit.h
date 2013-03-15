@@ -191,17 +191,6 @@ public:
                         double& v2, //eigenvalue corresponding to e2
                         const FT delta = 1e-5) const
       {
-         tensor_frame_eigen(p, e0, e1, e2, v1, v2, delta);
-      }
-
-      void tensor_frame_eigen(const Point_3 &p,
-                              Vector_3 &e0, //unit normal
-                              Vector_3 &e1, //unit eigenvector
-                              Vector_3 &e2, //unit eigenvector
-                              double& v1, //eigenvalue corresponding to e1
-                              double& v2, //eigenvalue corresponding to e2
-                              const FT delta = 1e-5) const
-      {
           // method in the book
           Vector_3 gx = gradient(p, delta);
           Eigen::Vector3d grad(gx.x(), gx.y(), gx.z());
