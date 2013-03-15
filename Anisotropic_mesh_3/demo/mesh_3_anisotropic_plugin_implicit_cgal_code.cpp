@@ -26,7 +26,8 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const Metric_options& metric)
+                                 const Metric_options& metric,
+                                 const double en_factor)
 {
   param.approximation = approximation;
   param.radius_edge_ratio = radius_edge_ratio;
@@ -40,21 +41,23 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
 
   if(metric == EUCLIDEAN)
   {
-    std::cout << "(Euclidean)." << std::endl;
-    mf = new CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel>(1., 1., 1., epsilon);
+    std::cout << "(Metric field : Euclidean)." << std::endl;
+    mf = new CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel>(1., 1., 1., epsilon, en_factor);
   }
   else if(metric == TORUS_NAIVE)
   {
-    std::cout << "(Torus)" << std::endl;
     typedef Constrain_surface_3_torus<Kernel> Torus;
     const Torus* t = static_cast<const Torus*>(p_domain);
+    double r = t->get_r();
+    double R = t->get_R();
 
-    mf = new Torus_metric_field<Kernel>(t->get_R(), t->get_r(), epsilon);
+    std::cout << "(Metric field : Torus r =" << r << ", R = "<< R <<")" << std::endl;
+    mf = new Torus_metric_field<Kernel>(R, r, epsilon, en_factor);
   }
   else if(metric == IMPLICIT_CURVATURE)
   {
     std::cout << "(Curvature metric field)." << std::endl;
-    mf = new Implicit_curvature_metric_field<Kernel>(*p_domain, epsilon);
+    mf = new Implicit_curvature_metric_field<Kernel>(*p_domain, epsilon, en_factor);
   }
 
   // @TODO, WARNING: memory leak to be corrected later: criteria and
@@ -79,7 +82,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
-                                 const int pick_valid_max_failures)
+                                 const int pick_valid_max_failures,
+                                 const double en_factor)
 {
   CGAL::default_random = CGAL::Random(0);
 
@@ -93,7 +97,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
 
   criteria = build_param_and_metric(p_domain, param, mf, epsilon, approximation, radius_edge_ratio,
                                     sliverity, circumradius, distortion, beta, delta,
-                                    max_times_to_try_in_picking_region, dim, metric);
+                                    max_times_to_try_in_picking_region, dim, metric, en_factor);
 
   Scene_starset3_item* p_new_item 
     = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points);

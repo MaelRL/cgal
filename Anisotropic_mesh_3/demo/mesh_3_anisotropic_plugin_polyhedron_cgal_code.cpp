@@ -28,7 +28,8 @@ Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surfa
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const Metric_options& metric)
+                                 const Metric_options& metric,
+                                 const double en_factor)
 {
   param.approximation = approximation;
   param.radius_edge_ratio = radius_edge_ratio;
@@ -44,14 +45,14 @@ Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surfa
 
   if(metric == EUCLIDEAN)
   {
-    std::cout << "(Euclidean)." << std::endl;
-    mf = new CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel>(1., 1., 1., epsilon);
+    std::cout << "(Metric : Euclidean)." << std::endl;
+    mf = new CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel>(1., 1., 1., epsilon, en_factor);
   }
   else if(metric == POLYHEDRON_CURVATURE)
   {
-    std::cout << "(Polyhedral)" << std::endl;
+    std::cout << "(Metric : Polyhedral)" << std::endl;
     typedef CGAL::Anisotropic_mesh_3::Polyhedral_curvature_metric_field<Kernel> PMF;
-    mf = new PMF(*p_domain);
+    mf = new PMF(*p_domain, en_factor);
   }
 
   // @TODO, WARNING: memory leak to be corrected later: criteria and
@@ -76,7 +77,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
-                                 const int pick_valid_max_failures)
+                                 const int pick_valid_max_failures,
+                                 const double en_factor)
 {
   CGAL::default_random = CGAL::Random(0);
 
@@ -93,7 +95,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
     //build
   criteria = build_param_and_metric(p_domain, param, mf, epsilon, approximation, radius_edge_ratio,
                                     sliverity, circumradius, distortion, beta, delta,
-                                    max_times_to_try_in_picking_region, dim, metric);
+                                    max_times_to_try_in_picking_region, dim, metric, en_factor);
 
   Scene_starset3_item* p_new_item 
     = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points);

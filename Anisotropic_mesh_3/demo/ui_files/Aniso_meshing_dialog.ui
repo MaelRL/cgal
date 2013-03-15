@@ -412,6 +412,26 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="1">
+       <widget class="QDoubleSpinBox" name="en_factor">
+        <property name="value">
+         <double>1.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="en_factor_label">
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>e_n = max(curv.) *</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -437,7 +457,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="maxTries_label">
         <property name="text">
-         <string>Max trials per Pick_valid</string>
+         <string>Max trials per pick_valid</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -460,14 +480,14 @@
       <item row="3" column="0">
        <widget class="QLabel" name="maxPickFailures_label">
         <property name="text">
-         <string>Max Pick_valid failures</string>
+         <string>Max pick_valid failures</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
+      <item row="1" column="1">
        <widget class="QCheckBox" name="pick_valid_causes_stop">
         <property name="minimumSize">
          <size>
@@ -476,7 +496,7 @@
          </size>
         </property>
         <property name="layoutDirection">
-         <enum>Qt::RightToLeft</enum>
+         <enum>Qt::LeftToRight</enum>
         </property>
         <property name="text">
          <string>Stop if pick_valid fails</string>

@@ -51,7 +51,8 @@ Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surfa
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const Metric_options& metric);
+                                 const Metric_options& metric,
+                                 const double en_factor);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const double epsilon,
@@ -67,7 +68,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
-                                 const int pick_valid_max_failures);
+                                 const int pick_valid_max_failures,
+                                 const double en_factor);
 
   //implicit functions
 Criteria* build_param_and_metric(const Implicit_surface* p_domain,
@@ -83,7 +85,8 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
                                  const double delta,
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
-                                 const Metric_options& metric);
+                                 const Metric_options& metric,
+                                 const double en_factor);
 
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
@@ -100,7 +103,8 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
-                                 const int pick_valid_max_failures);
+                                 const int pick_valid_max_failures,
+                                 const double en_factor);
 
 double get_approximate(double d, int precision, int& decimals);
 
@@ -334,7 +338,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.epsilon->setValue(0.1);
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
-
+  
   ui.comboBox_metric->addItem("Euclidean", EUCLIDEAN);
   if(t == POLYHEDRAL_SURFACE)
   {
@@ -353,6 +357,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.maxTries->setValue(60); // default value
   ui.dimension->setCurrentIndex(0);
   ui.nbInitialPoints->setValue(10);
+  ui.en_factor->setValue(1.);
 
   // -----------------------------------
   // Get values
@@ -380,6 +385,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const int nb_initial_points = ui.nbInitialPoints->value();
   int metric_index = ui.comboBox_metric->currentIndex();
   Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
+  const double en_factor = ui.en_factor->value();
 
   // -----------------------------------
   // Dispatch mesh process
@@ -401,7 +407,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric,
-      pick_valid_causes_stop, pick_valid_max_failures);
+      pick_valid_causes_stop, pick_valid_max_failures,
+      en_factor);
   }
   //// Function
   else if( NULL != function_item )
@@ -416,7 +423,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric,
-      pick_valid_causes_stop, pick_valid_max_failures);
+      pick_valid_causes_stop, pick_valid_max_failures,
+      en_factor);
   }
 
   if ( NULL == thread )
@@ -510,6 +518,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   ui.epsilon->setValue(0.1);
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
+  ui.en_factor->setValue(1.);
 
   ui.comboBox_metric->addItem("Euclidean", EUCLIDEAN);
   if(t == POLYHEDRAL_SURFACE)
@@ -557,6 +566,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
     dim = 3;
   int metric_index = ui.comboBox_metric->currentIndex();
   Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
+  const double en_factor = ui.en_factor->value();
 
   // -----------------------------------
   // Dispatch mesh process
@@ -578,7 +588,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
       criteria = build_param_and_metric(poly_surf, param, mf, epsilon, approximation,
                                         radius_edge_ratio, sliverity, circumradius,
                                         distortion, beta, delta, max_times_to_try_in_picking_region,
-                                        dim, metric);
+                                        dim, metric, en_factor);
 
       ssetitem->star_set().set_criteria(criteria);
       {// can't handle metric changes for now
@@ -612,7 +622,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
       criteria = build_param_and_metric(function_surf, param, mf, epsilon, approximation,
                                         radius_edge_ratio, sliverity, circumradius,
                                         distortion, beta, delta, max_times_to_try_in_picking_region,
-                                        dim, metric);
+                                        dim, metric, en_factor);
 
       ssetitem->star_set().set_criteria(criteria);
       {// can't handle metric changes for now
