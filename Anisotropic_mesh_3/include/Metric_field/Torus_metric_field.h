@@ -84,7 +84,7 @@ public:
     //FT e2 = std::max(1./r, this->epsilon);
 
     FT en = (std::max)(e1, e2);
-    return build_metric(n, v2, v1, en, e2, e1);
+    return this->build_metric(n, v2, v1, en, e2, e1);
   }
 
   Torus_metric_field(const FT& R_ = 0.7, 

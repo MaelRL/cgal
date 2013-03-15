@@ -41,8 +41,9 @@ namespace CGAL
         surface.tensor_frame(p, en, e1, e2, vp1, vp2);
 
         double vpn = surface.global_max_curvature();//global max of c_max
+        //double vpn = (std::max)(vp1, vp2);
 
-        return build_metric(en, e1, e2, vpn, vp1, vp2);
+        return this->build_metric(en, e1, e2, vpn, vp1, vp2);
       }
 
       Implicit_curvature_metric_field(const Constrain_surface &surface_, 
