@@ -42,12 +42,13 @@ namespace CGAL
 
         double vpn = surface.global_max_curvature();//global max of c_max
 
-        return Metric(en, e1, e2, vpn, vp1, vp2, this->epsilon);
+        return build_metric(en, e1, e2, vpn, vp1, vp2);
       }
 
       Implicit_curvature_metric_field(const Constrain_surface &surface_, 
-                                      const FT epsilon_ = 1.0) 
-        : Metric_field<K>(epsilon_), surface(surface_) { }
+                                      const FT epsilon_ = 1.0,
+                                      const double& en_factor_ = 1.) 
+        : Metric_field<K>(epsilon_, en_factor_), surface(surface_) { }
     };
 
   }

@@ -36,7 +36,7 @@ public:
     FT R, r;
 
 public:
-    virtual void report(typename std::ofstream &fx) const
+  virtual void report(typename std::ofstream &fx) const
   {
     fx << "type:   torus" << std::endl;
     fx << "eps:    " << this->epsilon << std::endl;
@@ -44,7 +44,7 @@ public:
     fx << "r:      " << r << std::endl;
   }
 
-    virtual Metric compute_metric(const Point_3 &p) const
+  virtual Metric compute_metric(const Point_3 &p) const
   {
     FT x = p.x(), y = p.y(), z = p.z();
     FT ll = sqrt(x * x + y * y);
@@ -84,11 +84,14 @@ public:
     //FT e2 = std::max(1./r, this->epsilon);
 
     FT en = (std::max)(e1, e2);
-    return Metric(n, v2, v1, en, e2, e1, this->epsilon);
+    return build_metric(n, v2, v1, en, e2, e1);
   }
 
-  Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3, FT epsilon_ = 1.0) 
-   : Metric_field<K>(epsilon_), R(R_), r(r_) { }
+  Torus_metric_field(const FT& R_ = 0.7, 
+                     const FT& r_ = 0.3, 
+                     const FT& epsilon_ = 1.0,
+                     const double& en_factor_ = 1.) 
+   : Metric_field<K>(epsilon_, en_factor_), R(R_), r(r_) { }
 };
 
 #endif //CGAL_ANISOTROPIC_MESH_3_TORUS_METRIC_FIELD

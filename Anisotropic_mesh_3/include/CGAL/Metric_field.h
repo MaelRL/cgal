@@ -38,24 +38,31 @@ namespace CGAL
 
     public:
       FT epsilon;
+      double en_factor;
 
-      virtual Metric compute_metric(const Point_3 &p) const 
-      {
-        return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., epsilon);
-      }
+      virtual Metric compute_metric(const Point_3 &p) const = 0;
 
       Metric uniform_metric(const Point_3& p) const
       {
-        return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., epsilon);
+        double eps = 0.;
+        return build_metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 
+                            1., 1., 1.);
+      }
+
+      Metric build_metric(const Vector_3& vn, const Vector_3& v1, const Vector_3& v2,
+                          const double& en, const double& e1, const double& e2) const
+      {
+        return Metric(vn, v1, v2, this->en_factor*en, e1, e2, epsilon);
       }
 
       // this function is used to report the setting of the metric
-      virtual void report(typename std::ofstream &fx) const 
-      {
-        fx << "type: default" << std::endl;
-      }
+      virtual void report(typename std::ofstream &fx) const = 0;
 
-      Metric_field(FT epsilon_ = 1.0):epsilon(epsilon_) { }
+      Metric_field(FT epsilon_ = 1.0,
+                   const double& en_factor_ = 1.)
+       : epsilon(epsilon_),
+         en_factor(en_factor_)
+      { }
 
       virtual ~Metric_field ( ) { }
     };

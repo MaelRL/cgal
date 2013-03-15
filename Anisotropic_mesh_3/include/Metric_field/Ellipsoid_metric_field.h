@@ -58,7 +58,7 @@ public:
     Vector_3 v2 = CGAL::cross_product(n, v1);
     // ----------------------------------------------------------
 
-    return Metric(n, v1, v2, en, e1, e2, this->epsilon);
+    return build_metric(n, v1, v2, en, e1, e2);
   }
 
   Ellipsoid_metric_field(FT a_, FT b_, FT c_, FT epsilon_ = 1e-3)

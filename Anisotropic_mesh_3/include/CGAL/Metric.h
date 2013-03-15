@@ -305,7 +305,7 @@ public:
     friend 
     std::ostream& operator<<(std::ostream& out, const Metric_base& x)
     {
-      out << "M  = " << x.m_eigen_transformation << std::endl;
+      out << "M  = " << x.eigen_transformation << std::endl;
       return out;
     }
 
@@ -338,7 +338,7 @@ public:
       if(std::abs(xx-1.) > 0.01 || std::abs(yy-1.) > 0.01 || std::abs(zz-1.) > 0.01)
         std::cout << "Warning : This sqnorm should be 1" << std::endl;
 #endif
-
+      
       if(std::abs(vpy) > std::abs(vpz))
         construct(axis_x, axis_y, axis_z, vpn, vpy, vpz, epsilon);
       else
