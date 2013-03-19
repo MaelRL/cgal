@@ -171,7 +171,7 @@ namespace CGAL{
       Metric metric() const             { return m_metric; }
       Traits* traits() const            { return m_traits; }
       const Constrain_surface* constrain() const { return m_pConstrain; }
-      const Stretched_criteria& criteria() const { return m_criteria; }
+      const Stretched_criteria* criteria() const { return m_criteria; }
       void set_criteria(const Criteria* criteria_)
       {
         delete m_criteria;
@@ -448,6 +448,24 @@ public:
         return m_criteria->sliverity_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
+      }
+
+      inline FT compute_sliverity_overflow(const Point_3& p1,
+                                           const Point_3& p2,
+                                           const Point_3& p3,
+                                           const Point_3& p4) const
+      {
+        return m_criteria->sliverity_overflow(
+          m_metric.transform(p1), m_metric.transform(p2), 
+          m_metric.transform(p1), m_metric.transform(p2));
+      }
+          
+      inline bool is_sliver(const Point_3& p1,
+                            const Point_3& p2,
+                            const Point_3& p3,
+                            const Point_3& p4) const
+      {
+        return (compute_sliverity_overflow(p1, p2, p3, p4) > 0.);
       }
 
     public:
@@ -1926,6 +1944,15 @@ public:
                 * (m_pConstrain->get_bounding_radius() * 10.0 / std::sqrt(r.to_vector() * r.to_vector())));
           else if(CGAL::assign(l, o))
             std::cout << "gl_draw_dual : line dual\n";
+
+          //experimental stuff
+          //Point_3 p;
+          //if(compute_dual_intersection(f, p))
+          //{
+          //  Point_3 centroid = CGAL::centroid(pa, pb, pc);
+          //  ::glColor3f(1.f,0.,0.);
+          //  gl_draw_segment<K>(p, centroid);
+          //}
         }
         if(was)
           ::glEnable(GL_LIGHTING);

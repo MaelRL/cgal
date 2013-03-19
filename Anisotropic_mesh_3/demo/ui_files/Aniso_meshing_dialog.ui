@@ -77,7 +77,7 @@
          <bool>true</bool>
         </property>
         <property name="checked">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -107,7 +107,7 @@
       <item row="1" column="1">
        <widget class="QDoubleSpinBox" name="sliverity">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="minimumSize">
          <size>

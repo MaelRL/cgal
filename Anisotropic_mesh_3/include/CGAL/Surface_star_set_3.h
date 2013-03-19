@@ -274,7 +274,10 @@ private:
         else
           create_star(p, id, modified_stars, new_star);
         
-        if(!check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound))
+//        bool is = check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound);
+        bool is = check_consistency_and_sliverity(to_be_refined, 
+          new_star, modified_stars, sq_radius_bound);
+        if(!is)
           new_star->invalidate();
 
         return is;
@@ -453,10 +456,19 @@ private:
         return facets.size();
       }
 
-      bool check_consistency(Star_handle to_be_refined, //facet to be refined belongs to this star
+      bool check_consistency_and_sliverity(Star_handle to_be_refined, //facet to be refined belongs to this star
                              Star_handle new_star,     //the newly created star
                              const Index_set& modified_stars, 
                              const double& sq_radius_bound) const
+      {
+        return check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound, true);
+      }
+
+      bool check_consistency(Star_handle to_be_refined, //facet to be refined belongs to this star
+                             Star_handle new_star,     //the newly created star
+                             const Index_set& modified_stars, 
+                             const double& sq_radius_bound,
+                             const bool do_check_sliverity) const
       {
         //list all facets that would be created by p's insertion
         Point_3 p = new_star->center_point();
@@ -472,6 +484,7 @@ private:
         typename std::map<Facet_ijk, int>::iterator itf;
         for(itf = facets.begin(); itf != facets.end(); itf++)
         {
+          std::size_t nmax = m_stars.size();
           if( (*itf).second != 3) // the face is not there 3 times
           {
             if((*itf).first.is_infinite()) // should not happen
@@ -479,7 +492,6 @@ private:
    
             TPoint_3 tp0, tp1, tp2;
             TPoint_3 tp = transform_to_star_point(new_star->center_point(), to_be_refined);
-            std::size_t nmax = m_stars.size();
 
             tp0 = ((*itf).first.vertex(0) == nmax) ? tp 
               : transform_to_star_point(m_stars[(*itf).first.vertex(0)]->center_point(),to_be_refined);
@@ -487,13 +499,36 @@ private:
               : transform_to_star_point(m_stars[(*itf).first.vertex(1)]->center_point(),to_be_refined);
             tp2 = ((*itf).first.vertex(2) == nmax) ? tp  
               : transform_to_star_point(m_stars[(*itf).first.vertex(2)]->center_point(),to_be_refined);
-            
+                       
             double sqr = to_be_refined->compute_squared_circumradius(tp0, tp1, tp2);
             if(sqr < sq_radius_bound)
+            {
+              CGAL_PROFILER("[is_valid failure : small inconsistency]");
               return false; // small inconsistency (radius) is forbidden
               // a big one is fine
+            }
+          }
+          //consistency ok, check sliverity now
+          else if(do_check_sliverity && m_criteria->sliverity > 0.) 
+          {
+            CGAL::cpp11::array<Point_3, 4> ps;
+            ps[0] = p;
+            int index = 1;
+            for(int i = 0; i < 4; ++i)
+            {
+              if((*itf).first.vertex(i) != nmax)
+                ps[index++] = m_stars[(*itf).first.vertex(2)]->center_point();
+            }
+            //todo : we should check sliverity in each star involved, 
+            // not only in new_star
+            if(new_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
+            {
+              CGAL_PROFILER("[is_valid failure : sliverity]");
+              return false;
+            }
           }
         }
+        CGAL_PROFILER("[is_valid success]");
         return true;
       }
 
