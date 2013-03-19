@@ -1259,7 +1259,6 @@ public:
       {
         if(Base::dimension() == 2)
         {
-          Point_3 p1, p2;
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           return make_object(Line_3(fc, tr.supporting_plane().orthogonal_vector()));
@@ -1499,7 +1498,8 @@ public:
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           Vector_3 n = tr.supporting_plane().orthogonal_vector();
 
-          bool b1 = false; bool b2 = false;
+          bool b1 = false;
+          bool b2 = false;
           if(constrain_ray_intersection(fc, fc-n).assign(p1)) b1 = true;
           if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
           if(b1 && b2)
@@ -1517,44 +1517,43 @@ public:
           Point_3 ps[3];
           get_inverse_transformed_points(ps, facet); 
           Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
-        
+
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
+
+          Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+          Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+          Vector_3 n = m_metric.inverse_transform(t_n);
+          n = std::sqrt(1./(n*n)) * n;
+
           if(f1)
           {
             if (f2)
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              if(m_pConstrain->intersection(cp1, cp2).assign(p))
+
+              if(cp1 == cp2){
+                p = cp1;
+                ret_val = true;
+              }
+              else if(m_pConstrain->intersection(cp1, cp2).assign(p))
                 ret_val = true;
             }
             else // !f2
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
 
-              //Triangle ttr = Base::triangle(facet);
-              //Plane_3 t_plane = ttr.supporting_plane();
-              //Vector_3 t_n = t_plane.orthogonal_vector();
-              Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
-              Vector_3 n = m_metric.inverse_transform(t_n);
+              CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], fc + n);
 
-
-              Vector_3 ps3_fc(ps3,fc);
-              if(ps3_fc * n  < 0.)
+              if(o1 == o2)
                 n = -n;
+
               if(constrain_ray_intersection(cp, cp+n).assign(p))
                 ret_val = true;
-              
-              //CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], ps3);
-              //CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
-              //if(o1 == o2 && constrain_ray_intersection(cp, fc).assign(p))
-              //  ret_val = true;
-              //else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-              //  ret_val = true;
             }
           }
           else // !f1
@@ -1562,28 +1561,16 @@ public:
             if (f2)
             {
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
 
-              //Triangle ttr = Base::triangle(facet);
-              //Plane_3 t_plane = ttr.supporting_plane();
-              //Vector_3 t_n = t_plane.orthogonal_vector();
-              Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+              CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], c2_ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], fc + n);
 
-              Vector_3 n = m_metric.inverse_transform(t_n);
-              Vector_3 ps3_fc(ps3,fc);
-              if(ps3_fc * n  < 0.)
+              if(o1 == o2)
                 n = -n;
+
               if(constrain_ray_intersection(cp, cp+n).assign(p))
                 ret_val = true;
-
-              //CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2],
-              //  m_metric.inverse_transform(facet.first->vertex(facet.second)->point()));
-              //CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
-
-              //if(o1 == o2 && constrain_ray_intersection(cp, fc).assign(p))
-              //  ret_val = true;
-              //else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-              //  ret_val = true;
             }
             else if(verbose)
               std::cout << "Oops! Impossible!" << std::endl;
