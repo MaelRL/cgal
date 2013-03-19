@@ -460,10 +460,10 @@ public:
           m_metric.transform(p1), m_metric.transform(p2));
       }
           
-      inline bool is_sliver(const Point_3& p1,
-                            const Point_3& p2,
-                            const Point_3& p3,
-                            const Point_3& p4) const
+      inline bool is_sliver(const TPoint_3& p1,
+                            const TPoint_3& p2,
+                            const TPoint_3& p3,
+                            const TPoint_3& p4) const
       {
         return (compute_sliverity_overflow(p1, p2, p3, p4) > 0.);
       }
