@@ -102,6 +102,7 @@ namespace CGAL{
     private:
       typedef typename KExact::Point_3                      Exact_Point_3;
       typedef typename KExact::Point_3                      Exact_TPoint_3;
+      typedef typename KExact::Vector_3                     Exact_Vector_3;
       typedef CGAL::Cartesian_converter<K, KExact> To_exact;
       typedef CGAL::Cartesian_converter<KExact, K> Back_from_exact;
       To_exact to_exact;
@@ -1277,16 +1278,24 @@ public:
       {
         if(Base::dimension() == 2)
         {
-          Point_3 p1, p2;
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           return make_object(Line_3(fc, tr.supporting_plane().orthogonal_vector()));
         }
 
+        Point_3 ps[3];
+        get_inverse_transformed_points(ps, facet);
+
         Cell_handle c1 = facet.first;
         Cell_handle c2 = c1->neighbor(facet.second);
         bool f1 = !is_infinite(c1);
         bool f2 = !is_infinite(c2);
+
+        Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+        Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+        Vector_3 n = m_metric.inverse_transform(t_n);
+        n = std::sqrt(1./(n*n)) * n;
+
         if(f1)
         {
           if (f2)
@@ -1298,16 +1307,15 @@ public:
           else // !f2
           {
             Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-            Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+            Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
 
-            Point_3 ps[3];
-            get_inverse_transformed_points(ps, facet);
-            CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2],
-              m_metric.inverse_transform(facet.first->vertex(facet.second)->point()));
-            CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
+            CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
+            CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
 
-            if(o1 == o2)      return make_object(Ray_3(cp, fc));
-            else if(o1 != o2) return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
+            if(o1 == o2)
+              return make_object(Ray_3(cp, cp - n));
+            else if(o1 != o2)
+              return make_object(Ray_3(cp, cp + n));
           }
         }
         else // !f1
@@ -1315,16 +1323,15 @@ public:
           if (f2)
           {
             Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-            Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+            Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); //4th pt of c2
 
-            Point_3 ps[3];
-            get_inverse_transformed_points(ps, facet);
-            CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2],
-              m_metric.inverse_transform(facet.first->vertex(facet.second)->point()));
-            CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
+            CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
+            CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
 
-            if(o1 == o2)      return make_object(Ray_3(cp, fc));
-            else if(o1 != o2) return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
+            if(o1 == o2)
+              return make_object(Ray_3(cp, cp - n));
+            else if(o1 != o2)
+              return make_object(Ray_3(cp, cp + n));
           }
         }
         return typename K::Object_3();
@@ -1359,6 +1366,12 @@ public:
           Cell_handle c2 = c1->neighbor(facet.second);
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
+
+          Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
+          Exact_Vector_3 t_n = to_exact(this->dual_support(facet.first, facet.second).to_vector());
+          Exact_Vector_3 n = m_metric.inverse_transform(t_n);
+          n = std::sqrt(1./(n*n)) * n;
+
           if(f1)
           {
             if (f2)
@@ -1371,20 +1384,19 @@ public:
             else // !f2
             {
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c1));
-              Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
+              Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
 
               CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
-                to_exact(ps[2]), to_exact(m_metric.inverse_transform(facet.first->vertex(facet.second)->point())));
+                                                       to_exact(ps[2]), to_exact(ps3));
               CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
-                to_exact(ps[2]), cp);
-              if(o1 == o2 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
+                                                       to_exact(ps[2]), fc + n);
+
+              if(o1 == o2)
+                n = -n;
+
+              Exact_Point_3 ep = cp + n;
+              if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
                 ret_val = true;
-              else if(o1 != o2)
-              {
-                Exact_Point_3 ep = cp + typename KExact::Vector_3(fc, cp);
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
-                  ret_val = true;
-              }
             }
           }
           else // !f1
@@ -1392,41 +1404,50 @@ public:
             if (f2)
             {
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c2));
-              Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
+              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); //4th pt of c2
 
               CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
-                to_exact(ps[2]), to_exact(m_metric.inverse_transform(facet.first->vertex(facet.second)->point())));
+                                                       to_exact(ps[2]), to_exact(c2_ps3));
               CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
-                to_exact(ps[2]), cp);
-              if(o1 == o2 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
+                                                       to_exact(ps[2]), fc + n);
+
+              if(o1 == o2)
+                n = -n;
+
+              Exact_Point_3 ep = cp + n;
+              if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
                 ret_val = true;
-              else if(o1 != o2)
-              {
-                Exact_Point_3 ep = cp + typename KExact::Vector_3(fc, cp);
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
-                  ret_val = true;
-              }
             }
           }
 
           if(ret_val)//do this in dimension 3 only (mirror_facet could crash, otherwise)
             set_facet_cache(facet, p);
-          else
+          else if(verbose)
           {
             std::cerr.precision(15);
             std::cerr << "Oops! no intersection [exact]" << std::endl;
             std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
             std::cerr << "Star:  " << m_center->info() << std::endl;
             std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " " << c1->vertex((facet.second + 1) % 4)->point() << std::endl;
-            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " " << c1->vertex((facet.second + 2) % 4)->point() << std::endl;
-            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " " << c1->vertex((facet.second + 3) % 4)->point() << std::endl;
-            std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
+            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((facet.second + 1) % 4)->point())) << std::endl;
+            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point())) << std::endl;
+            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point())) << std::endl;
+            std::cerr << c1->vertex(facet.second)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex(facet.second)->point()));
+            std::cerr << " (.second)" << std::endl;
+
             std::cerr << "Cell 2: " << std::endl;
-            std::cerr << c2->vertex(0)->info() << " " << c2->vertex(0)->point() << std::endl;
-            std::cerr << c2->vertex(1)->info() << " " << c2->vertex(1)->point() << std::endl;
-            std::cerr << c2->vertex(2)->info() << " " << c2->vertex(2)->point() << std::endl;
-            std::cerr << c2->vertex(3)->info() << " " << c2->vertex(3)->point() << std::endl;
+            std::cerr << c2->vertex(0)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(0)->point())) << std::endl;
+            std::cerr << c2->vertex(1)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(1)->point())) << std::endl;
+            std::cerr << c2->vertex(2)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(2)->point())) << std::endl;
+            std::cerr << c2->vertex(3)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(3)->point())) << std::endl;
           }
         }
 #ifdef USE_ANISO_TIMERS
@@ -1517,7 +1538,8 @@ public:
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           Vector_3 n = tr.supporting_plane().orthogonal_vector();
 
-          bool b1 = false; bool b2 = false;
+          bool b1 = false;
+          bool b2 = false;
           if(constrain_ray_intersection(fc, fc-n).assign(p1)) b1 = true;
           if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
           if(b1 && b2)
@@ -1533,46 +1555,45 @@ public:
         else
         {
           Point_3 ps[3];
-          get_inverse_transformed_points(ps, facet); 
-          Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
-        
+          get_inverse_transformed_points(ps, facet);
+
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
+
+          Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+          Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+          Vector_3 n = m_metric.inverse_transform(t_n);
+          n = std::sqrt(1./(n*n)) * n;
+
           if(f1)
           {
             if (f2)
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              if(m_pConstrain->intersection(cp1, cp2).assign(p))
+
+              if(cp1 == cp2){
+                p = cp1;
+                ret_val = true;
+              }
+              else if(m_pConstrain->intersection(cp1, cp2).assign(p))
                 ret_val = true;
             }
             else // !f2
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+              Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
 
-              //Triangle ttr = Base::triangle(facet);
-              //Plane_3 t_plane = ttr.supporting_plane();
-              //Vector_3 t_n = t_plane.orthogonal_vector();
-              Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
-              Vector_3 n = m_metric.inverse_transform(t_n);
+              CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], fc + n);
 
-
-              Vector_3 ps3_fc(ps3,fc);
-              if(ps3_fc * n  < 0.)
+              if(o1 == o2)
                 n = -n;
+
               if(constrain_ray_intersection(cp, cp+n).assign(p))
                 ret_val = true;
-              
-              //CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], ps3);
-              //CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
-              //if(o1 == o2 && constrain_ray_intersection(cp, fc).assign(p))
-              //  ret_val = true;
-              //else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-              //  ret_val = true;
             }
           }
           else // !f1
@@ -1580,57 +1601,46 @@ public:
             if (f2)
             {
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
 
-              //Triangle ttr = Base::triangle(facet);
-              //Plane_3 t_plane = ttr.supporting_plane();
-              //Vector_3 t_n = t_plane.orthogonal_vector();
-              Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+              CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], c2_ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], fc + n);
 
-              Vector_3 n = m_metric.inverse_transform(t_n);
-              Vector_3 ps3_fc(ps3,fc);
-              if(ps3_fc * n  < 0.)
+              if(o1 == o2)
                 n = -n;
+
               if(constrain_ray_intersection(cp, cp+n).assign(p))
                 ret_val = true;
-
-              //CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2],
-              //  m_metric.inverse_transform(facet.first->vertex(facet.second)->point()));
-              //CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], cp);
-
-              //if(o1 == o2 && constrain_ray_intersection(cp, fc).assign(p))
-              //  ret_val = true;
-              //else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-              //  ret_val = true;
             }
             else if(verbose)
               std::cout << "Oops! Impossible!" << std::endl;
           }
-          if(verbose && !ret_val)
+
+          if(ret_val)//do this in dimension 3 only (mirror_facet could crash, otherwise)
+            set_facet_cache(facet, p);
+          else if(verbose)
           {
             std::cerr.precision(15);
             std::cerr << "Oops! no intersection!" << std::endl;
             std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
             std::cerr << "Star:  " << m_center->info() << std::endl;
             std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " " << c1->vertex((facet.second + 1) % 4)->point() << std::endl;
-            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " " << c1->vertex((facet.second + 2) % 4)->point() << std::endl;
-            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " " << c1->vertex((facet.second + 3) % 4)->point() << std::endl;
+            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 1) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point()) << std::endl;
             std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
             std::cerr << "Cell 2: " << std::endl;
-            std::cerr << c2->vertex(0)->info() << " " << c2->vertex(0)->point() << std::endl;
-            std::cerr << c2->vertex(1)->info() << " " << c2->vertex(1)->point() << std::endl;
-            std::cerr << c2->vertex(2)->info() << " " << c2->vertex(2)->point() << std::endl;
-            std::cerr << c2->vertex(3)->info() << " " << c2->vertex(3)->point() << std::endl;
-          }
-
-          if(ret_val)//do this in dimension 3 only (mirror_facet could crash, otherwise)
-          {
-            Facet mf = this->mirror_facet(facet);
-            facet.first->set_facet_surface_center(facet.second, p);
-            mf.first->set_facet_surface_center(mf.second, p);
-            facet.first->set_facet_visited(facet.second);
-            mf.first->set_facet_visited(mf.second);
+            std::cerr << c2->vertex(0)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
+            std::cerr << c2->vertex(1)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(1)->point()) << std::endl;
+            std::cerr << c2->vertex(2)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(2)->point()) << std::endl;
+            std::cerr << c2->vertex(3)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
           }
         }
 #ifdef USE_ANISO_TIMERS
@@ -1983,7 +1993,7 @@ public:
         for(; fit != fend; fit++)
         {
           Facet f = *fit;
-          Point_3 c;
+          Point_3 ce;
           if(!is_above_plane(plane, f.first->vertex((f.second+1) % 4)->point(),
                                    f.first->vertex((f.second+2) % 4)->point(),
                                    f.first->vertex((f.second+3) % 4)->point()))
@@ -1991,13 +2001,38 @@ public:
 #ifdef ANISO_USE_EXACT
           this->compute_exact_dual_intersection(f, c);
 #else
-          this->compute_dual_intersection(f, c);
+          this->compute_dual_intersection(f, ce);
 #endif
           TPoint_3 tp2 = f.first->vertex((f.second+1) % 4)->point();
           Point_3 p2 = m_metric.inverse_transform(tp2);
 
-          FT sqr = CGAL::squared_distance(c, p2);
-          gl_draw_sphere<K>(typename K::Sphere_3(c, sqr));
+         FT sqr = CGAL::squared_distance(ce, p2);
+         gl_draw_sphere<K>(typename K::Sphere_3(ce, sqr));
+
+
+            // Get eigen values : e1 e2 e3
+          FT e_1 = 1/std::sqrt(m_metric.get_max_eigenvalue());
+          FT e_2 = 1/std::sqrt(m_metric.get_min_eigenvalue());
+          FT e_n = 1/std::sqrt(m_metric.get_third_eigenvalue());
+
+            //ellipsoid a, b & c
+          FT a = e_1*sqr;
+          FT b = e_2*sqr;
+          FT c = e_n*sqr;
+
+            //rotation to align on the eigenvectors (todo)
+          FT angle_1 = 0.;
+          FT angle_2 = 0.;
+          FT angle_n = 0.;
+
+          ::glPushMatrix();
+          ::glRotatef(angle_1, 1., 0., 0.);
+          ::glRotatef(angle_2, 0., 1., 0.);
+          ::glRotatef(angle_n, 0., 0., 1.);
+
+          //gl_draw_ellipsoid<K>(ce, 10, 10, a, b, c);
+
+          ::glPopMatrix();
         }
       }
 

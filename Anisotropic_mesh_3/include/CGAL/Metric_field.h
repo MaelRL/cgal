@@ -44,7 +44,6 @@ namespace CGAL
 
       Metric uniform_metric(const Point_3& p) const
       {
-        double eps = 0.;
         return build_metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 
                             1., 1., 1.);
       }
