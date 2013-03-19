@@ -261,17 +261,6 @@ class Constrain_surface_3_polyhedral :
                         double& v1,       //eigenvalue corresponding to e1
                         double& v2) const //eigenvalue corresponding to e2
       {
-         tensor_frame_eigen(p, e0, e1, e2, v0, v1, v2);
-      }
-
-      void tensor_frame_eigen(const Point_3 &p, 
-                              Vector_3 &e0, //unit eigenvector
-                              Vector_3 &e1, //unit eigenvector
-                              Vector_3 &e2, //unit eigenvector
-                              double& v0, //eigenvalue corresponding to e0
-                              double& v1, //eigenvalue corresponding to e1
-                              double& v2) const //eigenvalue corresponding to e2
-      {     
         //choose r_b for tensor blending
         Facet_handle facet = find_nearest_facet(p);
         std::vector<Vertex_handle> neighbors;
