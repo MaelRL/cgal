@@ -274,13 +274,9 @@ private:
         else
           create_star(p, id, modified_stars, new_star);
         
-        bool is = check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound);
-        if(!is)
-        {
+        if(!check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound))
           new_star->invalidate();
-          //delete new_star;
-          //new_star = NULL;
-        }
+
         return is;
       }
 
