@@ -2420,13 +2420,14 @@ public:
           m_stars[star_id]->gl_draw_metric(plane, coeff);
       }
 
-      void gl_draw_dual(const int star_id = -1) const
+      void gl_draw_dual(const typename K::Plane_3& plane,
+                        const int star_id = -1) const
       {
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
-            m_stars[i]->gl_draw_dual();
+            m_stars[i]->gl_draw_dual(plane);
         else
-          m_stars[star_id]->gl_draw_dual();
+          m_stars[star_id]->gl_draw_dual(plane);
       }
 
       void gl_draw_surface_delaunay_balls(const typename K::Plane_3& plane,

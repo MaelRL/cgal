@@ -1894,7 +1894,7 @@ public:
       //  }
       //}
 
-      void gl_draw_dual() const
+      void gl_draw_dual(const typename K::Plane_3& plane) const
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
         if(was)
@@ -1906,6 +1906,12 @@ public:
         {
           Facet f = *fit;
           if(!is_in_star(f)) continue;
+          const Point_3& pa = m_metric.inverse_transform(f.first->vertex((f.second+1)&3)->point());
+          const Point_3& pb = m_metric.inverse_transform(f.first->vertex((f.second+2)&3)->point());
+          const Point_3& pc = m_metric.inverse_transform(f.first->vertex((f.second+3)&3)->point());
+          if(!is_above_plane(plane, pa, pb, pc))
+            continue;
+
           if(is_restricted(f)) { ::glColor3f(0.,0.,1.f); ::glLineWidth(2.);}
           else                 { ::glColor3f(0.,0.,0.);  ::glLineWidth(1.);}
 
