@@ -458,7 +458,7 @@ public:
       {
         return m_criteria->sliverity_overflow(
           m_metric.transform(p1), m_metric.transform(p2), 
-          m_metric.transform(p1), m_metric.transform(p2));
+          m_metric.transform(p3), m_metric.transform(p4));
       }
           
       inline bool is_sliver(const TPoint_3& p1,
