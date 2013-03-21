@@ -491,7 +491,7 @@ private:
               return false;
    
             TPoint_3 tp0, tp1, tp2;
-            TPoint_3 tp = transform_to_star_point(new_star->center_point(), to_be_refined);
+            TPoint_3 tp = transform_to_star_point(p, to_be_refined);
 
             tp0 = ((*itf).first.vertex(0) == nmax) ? tp 
               : transform_to_star_point(m_stars[(*itf).first.vertex(0)]->center_point(),to_be_refined);
@@ -508,26 +508,110 @@ private:
               // a big one is fine
             }
           }
+
           //consistency ok, check sliverity now
-          else if(do_check_sliverity && m_criteria->sliverity > 0.) 
+
+          if(do_check_sliverity && m_criteria->sliverity > 0.)
           {
+/*
             CGAL::cpp11::array<Point_3, 4> ps;
-            ps[0] = p;
+            ps[0] = transform_to_star_point(p, to_be_refined);
             int index = 1;
-            for(int i = 0; i < 4; ++i)
+            for(int i = 0; i < 3; ++i)
             {
               if((*itf).first.vertex(i) != nmax)
-                ps[index++] = m_stars[(*itf).first.vertex(2)]->center_point();
+                ps[index++] = transform_to_star_point(m_stars[(*itf).first.vertex(i)]->center_point(), to_be_refined);
             }
-            //todo : we should check sliverity in each star involved, 
+*/
+            //
+            //ps[] here is missing a fourth point that can't be accessed since Facet_ijk always has p in it
+            //thus ps[3] not initialized
+            //
+
+            //todo : we should check sliverity in each star involved,
             // not only in new_star
+/*
             if(new_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
             {
               CGAL_PROFILER("[is_valid failure : sliverity]");
               return false;
             }
+*/
           }
         }
+
+#ifdef ANISO_SLIVERITY_USE_BRUTE_FORCE
+        if(do_check_sliverity && m_criteria->sliverity > 0.)
+        {
+          CGAL::cpp11::array<Point_3, 4> ps;
+
+            //fill set with all points involved
+          std::set<int> point_ids;
+          for(it = modified_stars.begin(); it != modified_stars.end(); it++){
+              point_ids.insert(*it);
+          }
+          //std::cout << "set has size : " << point_ids.size() << std::endl;
+
+            //pick three points from that set
+          for(std::set<int>::iterator it1 = point_ids.begin(); it1 != point_ids.end(); ++it1)
+          {
+            for(std::set<int>::iterator it2 = it1; ++it2 != point_ids.end();)
+            {
+              for(std::set<int>::iterator it3 = it2; ++it3 != point_ids.end();)
+              {
+                  //build the 4 points and check sliverity for three points + p in each star metric
+                //std::cout << "4 points : " << p_index << " " << *it1 << " " << *it2 << " " << *it3 << std::endl;
+                assert(p_index != *it1 && p_index != *it2 && p_index != *it3 &&
+                       *it1 != *it2 && *it1 != *it3 && it2 != *it3);
+
+                  //using modified stars' metrics
+                for(it = modified_stars.begin(); it != modified_stars.end(); it++)
+                {
+                  ps[0] = transform_to_star_point(p, m_stars[*it]);
+                  ps[1] = transform_to_star_point(m_stars[*it1]->center_point(), m_stars[*it]);
+                  ps[2] = transform_to_star_point(m_stars[*it2]->center_point(), m_stars[*it]);
+                  ps[3] = transform_to_star_point(m_stars[*it3]->center_point(), m_stars[*it]);
+
+                  if(m_stars[(*it)]->is_sliver(ps[0], ps[1], ps[2], ps[3]))
+                  {
+                    //std::cout << "failed for a modified star : " << *it << std::endl;
+                    CGAL_PROFILER("[is_valid failure : sliverity1]");
+                    return false;
+                  }
+                }
+
+                  //using to_be_refined's metric
+                ps[0] = transform_to_star_point(p, to_be_refined);
+                ps[1] = transform_to_star_point(m_stars[*it1]->center_point(), to_be_refined);
+                ps[2] = transform_to_star_point(m_stars[*it2]->center_point(), to_be_refined);
+                ps[3] = transform_to_star_point(m_stars[*it3]->center_point(), to_be_refined);
+
+                if(to_be_refined->is_sliver(ps[0], ps[1], ps[2], ps[3]))
+                {
+                  //std::cout << "failed for to_be_refined : " << to_be_refined->index_in_star_set() << std::endl;
+                  CGAL_PROFILER("[is_valid failure : sliverity2]");
+                  return false;
+                }
+
+                  //using new_star's metric
+                ps[0] = transform_to_star_point(p, new_star);
+                ps[1] = transform_to_star_point(m_stars[*it1]->center_point(), new_star);
+                ps[2] = transform_to_star_point(m_stars[*it2]->center_point(), new_star);
+                ps[3] = transform_to_star_point(m_stars[*it3]->center_point(), new_star);
+
+                if(new_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
+                {
+                  //std::cout << "failed for new_star : " << new_star->index_in_star_set() << std::endl;
+                  CGAL_PROFILER("[is_valid failure : sliverity3]");
+                  return false;
+                }
+
+              }
+            }
+          }
+        }
+#endif
+
         CGAL_PROFILER("[is_valid success]");
         return true;
       }
