@@ -79,6 +79,45 @@ void gl_draw_segment(const typename Kernel::Point_3& pa,
   ::glEnd();
 }
 
+
+template<typename Kernel>
+void gl_draw_ellipsoid(const typename Kernel::Point_3& p,
+                       int stacks, int slices, double a, double b, double c)
+{
+    double x = p.x();
+    double y = p.y();
+    double z = p.z();
+    double st = CGAL_PI / (double) stacks;
+    double sl = CGAL_PI / (double) slices;
+
+    GLboolean was = (::glIsEnabled(GL_LIGHTING));
+    if(!was)
+      ::glEnable(GL_LIGHTING);
+
+    ::glColor3d(1.0f, 1.0f, 0.0f);
+    ::glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    for(double u = -CGAL_PI/2.; u <= (CGAL_PI/2.); u += sl) // theta
+    {
+        ::glBegin(GL_TRIANGLE_STRIP);
+        for(double v = -CGAL_PI; v <= CGAL_PI; v += st) // phi
+        {
+          ::glVertex3d(x + a * std::cos(u) * std::cos(v),
+                       y + b * std::cos(u) * std::sin(v),
+                       z + c * std::sin(u));
+
+          ::glVertex3d(x + a * std::cos(u + sl) * std::cos(v),
+                       y + b * std::cos(u + sl) * std::sin(v),
+                       z + c * std::sin(u + sl));
+        }
+        ::glEnd();
+    }
+
+    if(!was)
+      ::glDisable(GL_LIGHTING);
+}
+
+
 template<typename Kernel>
 void gl_draw_sphere(const typename Kernel::Sphere_3& s)
 {

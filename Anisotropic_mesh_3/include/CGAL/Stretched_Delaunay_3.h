@@ -1852,17 +1852,17 @@ public:
 
         val = 1/std::sqrt(m_metric.get_min_eigenvalue());
         m_metric.get_min_eigenvector(vec);
-        ::glColor3f(0.,0.,250.);
+        ::glColor3f(0.,0.,1.f);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
 
         val = 1/std::sqrt(m_metric.get_max_eigenvalue());
         m_metric.get_max_eigenvector(vec);
-        ::glColor3f(250.,0.,0.);
+        ::glColor3f(1.f,0.,0.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
 
         val = 1/std::sqrt(m_metric.get_third_eigenvalue());
         m_metric.get_third_eigenvector(vec);
-        ::glColor3f(0.,250.,0.);
+        ::glColor3f(0.,1.f,0.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
       }
 
@@ -1956,13 +1956,18 @@ public:
             std::cout << "gl_draw_dual : line dual\n";
 
           //experimental stuff
-          //Point_3 p;
-          //if(compute_dual_intersection(f, p))
-          //{
-          //  Point_3 centroid = CGAL::centroid(pa, pb, pc);
-          //  ::glColor3f(1.f,0.,0.);
-          //  gl_draw_segment<K>(p, centroid);
-          //}
+          Point_3 p;
+          if(compute_dual_intersection(f, p))
+          {
+            ::glColor3f(1.f,0.,0.);
+            ::glPointSize(5.);
+            ::glBegin(GL_POINTS);
+            ::glVertex3d(p.x(),p.y(),p.z());
+            ::glEnd();
+
+            //Point_3 centroid = CGAL::centroid(pa, pb, pc);
+            //gl_draw_segment<K>(p, centroid);
+          }
         }
         if(was)
           ::glEnable(GL_LIGHTING);
@@ -1994,45 +1999,59 @@ public:
         {
           Facet f = *fit;
           Point_3 ce;
-          if(!is_above_plane(plane, f.first->vertex((f.second+1) % 4)->point(),
-                                   f.first->vertex((f.second+2) % 4)->point(),
-                                   f.first->vertex((f.second+3) % 4)->point()))
+          if(!is_above_plane(plane, m_metric.inverse_transform(f.first->vertex((f.second+1) % 4)->point()),
+                                    m_metric.inverse_transform(f.first->vertex((f.second+2) % 4)->point()),
+                                    m_metric.inverse_transform(f.first->vertex((f.second+3) % 4)->point())) )
             continue;
 #ifdef ANISO_USE_EXACT
           this->compute_exact_dual_intersection(f, c);
 #else
           this->compute_dual_intersection(f, ce);
 #endif
+          TPoint_3 tce = m_metric.transform(ce);
           TPoint_3 tp2 = f.first->vertex((f.second+1) % 4)->point();
-          Point_3 p2 = m_metric.inverse_transform(tp2);
+          //Point_3 p2 = m_metric.inverse_transform(tp2);
 
-         FT sqr = CGAL::squared_distance(ce, p2);
-         gl_draw_sphere<K>(typename K::Sphere_3(ce, sqr));
+          FT sqr = CGAL::squared_distance(tce, tp2);
+          //gl_draw_sphere<K>(typename K::Sphere_3(ce, sqr));
 
+            //ellipsoid's a, b & c
+          FT a = std::sqrt(sqr)/m_metric.get_max_eigenvalue();
+          FT b = std::sqrt(sqr)/m_metric.get_min_eigenvalue();
+          FT c = std::sqrt(sqr)/m_metric.get_third_eigenvalue();
 
-            // Get eigen values : e1 e2 e3
-          FT e_1 = 1/std::sqrt(m_metric.get_max_eigenvalue());
-          FT e_2 = 1/std::sqrt(m_metric.get_min_eigenvalue());
-          FT e_n = 1/std::sqrt(m_metric.get_third_eigenvalue());
+            //rotation to align on the eigenvectors
+          Vector_3 v1,v2,vn;
+          m_metric.get_max_eigenvector(v1);
+          m_metric.get_min_eigenvector(v2);
+          m_metric.get_third_eigenvector(vn);
 
-            //ellipsoid a, b & c
-          FT a = e_1*sqr;
-          FT b = e_2*sqr;
-          FT c = e_n*sqr;
+          ::GLdouble rot_mat[16];
+          rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = ce.x();
+          rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = ce.y();
+          rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = ce.z();
+          rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
 
-            //rotation to align on the eigenvectors (todo)
-          FT angle_1 = 0.;
-          FT angle_2 = 0.;
-          FT angle_n = 0.;
-
+          ::glMatrixMode (GL_MODELVIEW);
           ::glPushMatrix();
-          ::glRotatef(angle_1, 1., 0., 0.);
-          ::glRotatef(angle_2, 0., 1., 0.);
-          ::glRotatef(angle_n, 0., 0., 1.);
-
-          //gl_draw_ellipsoid<K>(ce, 10, 10, a, b, c);
-
+          ::glMultMatrixd(rot_mat);
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c);
           ::glPopMatrix();
+
+            //a b & c visu
+          ::glColor3f(1.f,0.,0.);
+          ::gl_draw_arrow<K>(ce, ce+a*v1);
+          ::glColor3f(0.,0.,1.f);
+          ::gl_draw_arrow<K>(ce, ce+b*v2);
+          ::glColor3f(0.,1.f,0.);
+          ::gl_draw_arrow<K>(ce, ce+c*vn);
+
+            //center
+          ::glColor3d(33,224,237);
+          ::glPointSize(10.);
+          ::glBegin(GL_POINTS);
+          ::glVertex3d(ce.x(),ce.y(),ce.z());
+          ::glEnd();
         }
       }
 
