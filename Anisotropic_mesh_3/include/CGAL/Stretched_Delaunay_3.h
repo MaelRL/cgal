@@ -2040,11 +2040,11 @@ public:
 
             //a b & c visu
           ::glColor3f(1.f,0.,0.);
-          ::gl_draw_arrow<K>(ce, ce+a*v1);
+          gl_draw_segment<K>(ce, ce+a*v1);
           ::glColor3f(0.,0.,1.f);
-          ::gl_draw_arrow<K>(ce, ce+b*v2);
+          gl_draw_segment<K>(ce, ce+b*v2);
           ::glColor3f(0.,1.f,0.);
-          ::gl_draw_arrow<K>(ce, ce+c*vn);
+          gl_draw_segment<K>(ce, ce+c*vn);
 
             //center
           ::glColor3d(33,224,237);
