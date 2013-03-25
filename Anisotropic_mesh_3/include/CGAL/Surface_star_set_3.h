@@ -475,11 +475,12 @@ private:
         int p_index = new_star->index_in_star_set();
 
         std::map<Facet_ijk, int> facets;
+        std::vector<Index> bfacets_quads; //used for sliverity check, three point index  + star index
         facets_created(new_star, facets);
 
         typename Index_set::const_iterator it;
         for(it = modified_stars.begin(); it != modified_stars.end(); it++)
-          facets_created(p, p_index, m_stars[(*it)], facets);
+          facets_created(p, p_index, m_stars[(*it)], facets, bfacets_quads);
 
         typename std::map<Facet_ijk, int>::iterator itf;
         for(itf = facets.begin(); itf != facets.end(); itf++)
@@ -508,35 +509,32 @@ private:
               // a big one is fine
             }
           }
+        }
 
-          //consistency ok, check sliverity now
-
-          if(do_check_sliverity && m_criteria->sliverity > 0.)
+        //consistency ok, check sliverity now
+        if(do_check_sliverity && m_criteria->sliverity > 0.)
+        {
+          typename std::vector<Index>::iterator itp;
+          for(itp = bfacets_quads.begin(); itp != bfacets_quads.end();)
           {
-/*
-            CGAL::cpp11::array<Point_3, 4> ps;
-            ps[0] = transform_to_star_point(p, to_be_refined);
+            CGAL::cpp11::array<TPoint_3, 4> ps;
+
+            Star_handle quad_star = m_stars[*itp++];
+            ps[0] = transform_to_star_point(p, quad_star);
+
             int index = 1;
             for(int i = 0; i < 3; ++i)
             {
-              if((*itf).first.vertex(i) != nmax)
-                ps[index++] = transform_to_star_point(m_stars[(*itf).first.vertex(i)]->center_point(), to_be_refined);
+              //std::cout << "index : " << index << " itp : " << *itp << std::endl;
+              ps[index++] = transform_to_star_point(m_stars[*itp++]->center_point(), quad_star);
             }
-*/
-            //
-            //ps[] here is missing a fourth point that can't be accessed since Facet_ijk always has p in it
-            //thus ps[3] not initialized
-            //
 
-            //todo : we should check sliverity in each star involved,
-            // not only in new_star
-/*
-            if(new_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
+            //todo : we should check sliverity in each star involved, not only in one star (?)
+            if(quad_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
             {
               CGAL_PROFILER("[is_valid failure : sliverity]");
               return false;
             }
-*/
           }
         }
 
@@ -549,8 +547,16 @@ private:
           std::set<int> point_ids;
           for(it = modified_stars.begin(); it != modified_stars.end(); it++){
               point_ids.insert(*it);
+
+              typename std::vector<Vertex_handle>::iterator nvi = m_stars[*it]->begin_neighboring_vertices();
+              typename std::vector<Vertex_handle>::iterator nviend = m_stars[*it]->end_neighboring_vertices();
+              for (; nvi != nviend; nvi++)
+              {
+                if (m_stars[*it]->is_infinite_vertex(*nvi))
+                  continue;
+                point_ids.insert((*nvi)->info());
+              }
           }
-          //std::cout << "set has size : " << point_ids.size() << std::endl;
 
             //pick three points from that set
           for(std::set<int>::iterator it1 = point_ids.begin(); it1 != point_ids.end(); ++it1)
@@ -649,14 +655,15 @@ private:
       void facets_created(const Point_3& p, // new point, not yet in the star set
                           const int p_id,   // index of p in star set
                           Star_handle star, 
-                          std::map<Facet_ijk, int>& facets) const
+                          std::map<Facet_ijk, int>& facets,
+                          std::vector<Index>& bfacets_quads) const
       {
         int center_id = star->index_in_star_set();
         if(center_id == p_id)
           return facets_created(star, facets);
         
         // find boundary facets of the conflict zone
-        std::vector<Facet> bfacets;
+        std::vector<Facet> local_bfacets;
         int dim = star->dimension();
         // dimension 1
         if(dim == 1)
@@ -680,12 +687,35 @@ private:
           }
         }
         // dimension 3
-        else if(dim == 3 && star->find_conflicts(p, std::back_inserter(bfacets)))
+        else if(dim == 3 && star->find_conflicts(p, std::back_inserter(local_bfacets)))
         { // get the circular set of edges/vertices around the center in 'boundary facets'
-          get_cycle(bfacets, edges_around_c, center_id);
+          get_cycle(local_bfacets, edges_around_c, center_id);
         }
         else std::cerr << "Warning : in 'facets_created', no conflict zone!\n";
         
+        //add new facets to the list of sliverity test facets
+        typename std::vector<Facet>::iterator it;
+        for(it = local_bfacets.begin(); it != local_bfacets.end(); it++)
+        {
+          Index p1 = ((*it).first->vertex( ((*it).second + 1)%4 ))->info();
+          Index p2 = ((*it).first->vertex( ((*it).second + 2)%4 ))->info();
+          Index p3 = ((*it).first->vertex( ((*it).second + 3)%4 ))->info();
+
+          if( p1 != star->infinite_vertex_index() &&
+              p2 != star->infinite_vertex_index() &&
+              p3 != star->infinite_vertex_index() )
+          {
+              //and center of the star to know the metric later on
+            bfacets_quads.push_back( star->index_in_star_set() );
+            assert(star->index_in_star_set() != -10);
+
+              //three points for the facet
+            bfacets_quads.push_back(p1);
+            bfacets_quads.push_back(p2);
+            bfacets_quads.push_back(p3);
+          }
+        }
+
         // get the set (circular if dim is 3) of vertices around the center
         std::set<int> vertices_around_c;
         get_vertices(edges_around_c, std::inserter(vertices_around_c, vertices_around_c.end()));
