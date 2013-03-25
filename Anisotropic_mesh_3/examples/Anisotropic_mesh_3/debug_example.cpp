@@ -152,51 +152,51 @@ int main()
 
   for(int i=0; i<point_nb; ++i){
 
-    points[i] = point_on_torus(R, r, 2.*i*CGAL_PI/point_nb, 0.49*CGAL_PI);
+    points[i] = point_on_torus(R, r, 2.*i*CGAL_PI/point_nb, 0.*CGAL_PI);
 
     std::cout << "Point n° " << i << " : " << R << " " << r << " 0.1 " << 2*i*CGAL_PI/point_nb << std::endl;
     std::cout << " coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
 
-    point_imp_metrics[i] = mf_implicit.compute_metric(points[i]);
-    //point_exp_metrics[i] = mf_torus.compute_metric(points[i]);
+//    point_imp_metrics[i] = mf_implicit.compute_metric(points[i]);
+    point_exp_metrics[i] = mf_torus.compute_metric(points[i]);
 
-    std::cout << "Implicit : " << std::endl;
-    std::cout << " e_min = " <<  (point_imp_metrics[i]).get_min_eigenvalue() << std::endl;
-    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_max_eigenvalue() << std::endl;
-    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_third_eigenvalue() << std::endl;
-    (point_imp_metrics[i]).get_min_eigenvector(v_min);
-    (point_imp_metrics[i]).get_max_eigenvector(v_max);
-    (point_imp_metrics[i]).get_third_eigenvector(v_en);
+//    std::cout << "Implicit : " << std::endl;
+//    std::cout << " e_min = " <<  (point_imp_metrics[i]).get_min_eigenvalue() << std::endl;
+//    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_max_eigenvalue() << std::endl;
+//    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_third_eigenvalue() << std::endl;
+//    (point_imp_metrics[i]).get_min_eigenvector(v_min);
+//    (point_imp_metrics[i]).get_max_eigenvector(v_max);
+//    (point_imp_metrics[i]).get_third_eigenvector(v_en);
+//    std::cout << " v_min = " << v_min << std::endl;
+//    std::cout << " v_max = " << v_max << std::endl;
+//    std::cout << " v_en = " << v_en << std::endl;
+
+    std::cout << "Explicit : " << std::endl;
+    std::cout << " e_min = " <<  (point_exp_metrics[i]).get_min_eigenvalue() << std::endl;
+    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_max_eigenvalue() << std::endl;
+    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_third_eigenvalue() << std::endl;
+    (point_exp_metrics[i]).get_min_eigenvector(v_min);
+    (point_exp_metrics[i]).get_max_eigenvector(v_max);
+    (point_exp_metrics[i]).get_third_eigenvector(v_en);
     std::cout << " v_min = " << v_min << std::endl;
     std::cout << " v_max = " << v_max << std::endl;
     std::cout << " v_en = " << v_en << std::endl;
-
-    //std::cout << "Explicit : " << std::endl;
-    //std::cout << " e_min = " <<  (point_exp_metrics[i]).get_min_eigenvalue() << std::endl;
-    //std::cout << " e_max = " <<  (point_exp_metrics[i]).get_max_eigenvalue() << std::endl;
-    //std::cout << " e_max = " <<  (point_exp_metrics[i]).get_third_eigenvalue() << std::endl;
-    //(point_exp_metrics[i]).get_min_eigenvector(v_min);
-    //(point_exp_metrics[i]).get_max_eigenvector(v_max);
-    //(point_exp_metrics[i]).get_third_eigenvector(v_en);
-    //std::cout << " v_min = " << v_min << std::endl;
-    //std::cout << " v_max = " << v_max << std::endl;
-    //std::cout << " v_en = " << v_en << std::endl;
   }
 
-  std::cout << std::endl << "Distortion Computations" << std::endl;
-  std::cout << "Implicit : " << std::endl;
+//  std::cout << std::endl << "Distortion Computations" << std::endl;
+//  std::cout << "Implicit : " << std::endl;
+//  for(int i=0; i<point_nb; ++i){
+//    int next_i = (i == (point_nb-1))?0:(i+1);
+//    double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
+//    std::cout << i << " " << next_i << " | " << d << std::endl;
+//  }
+
+  std::cout << "Explicit : " << std::endl;
   for(int i=0; i<point_nb; ++i){
     int next_i = (i == (point_nb-1))?0:(i+1);
-    double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
+    double d = (point_exp_metrics[i]).compute_distortion( (point_exp_metrics[next_i]) );
     std::cout << i << " " << next_i << " | " << d << std::endl;
   }
-
-  //std::cout << "Explicit : " << std::endl;
-  //for(int i=0; i<point_nb; ++i){
-  //  int next_i = (i == (point_nb-1))?0:(i+1);
-  //  double d = (point_exp_metrics[i]).compute_distortion( (point_exp_metrics[next_i]) );
-  //  std::cout << i << " " << next_i << " | " << d << std::endl;
-  //}
 
   // --------------------------------- ELLI STUFF --------------------------------
 

@@ -78,19 +78,21 @@ int main(int argc, char* argv[])
   typedef Is_between<K::Plane_3, K::Point_3> RCondition;
   RCondition condition(plane1, plane2, (xcondition == 1));
   
-  Criteria_base<K> criteria_curvature(3.0, //radius_edge_ratio_
-    0.2, //sliverity_
-    r0, //circumradius_ 0.1
-    gamma0, //distortion_ 1.3
-    2.5, //beta_
-    0.3, //delta_
-    60, //max tries in picking region
-    approx);//
+  Criteria_base<K>* criteria_curvature = new Criteria_base<K>(3.0, //radius_edge_ratio_
+                                                              0.2, //sliverity_
+                                                              r0, //circumradius_ 0.1
+                                                              gamma0, //distortion_ 1.3
+                                                              2.5, //beta_
+                                                              0.3, //delta_
+                                                              60, //max tries in picking region
+                                                              approx);
+
   fx << std::endl << "Criteria for curvature metric field : " << std::endl;
-  criteria_curvature.report(fx);
+  criteria_curvature->report(fx);
   fx << std::endl;
 
-  Implicit_curvature_metric_field<K> curvature_mf(*pdomain, lambda);
+  Implicit_curvature_metric_field<K>* curvature_mf =
+    new Implicit_curvature_metric_field<K>(*pdomain, lambda);
   Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, condition);
   curvature_mesh.refine_all();
   fx << "Aniso :\n";
@@ -101,19 +103,20 @@ int main(int argc, char* argv[])
   curvature_mesh.clear();
 
 
-  Criteria_base<K> criteria_euclidean(3.0, //radius_edge_ratio_
-    0.2, //sliverity_
-    r0, //circumradius_ 0.1
-    gamma0, //distortion_ 1.3
-    2.5, //beta_
-    0.3, //delta_
-    60, //max tries in picking region
-    approx);//
+  Criteria_base<K>* criteria_euclidean = new Criteria_base<K>(3.0, //radius_edge_ratio_
+                                                              0.2, //sliverity_
+                                                              r0, //circumradius_ 0.1
+                                                              gamma0, //distortion_ 1.3
+                                                              2.5, //beta_
+                                                              0.3, //delta_
+                                                              60, //max tries in picking region
+                                                              approx);
+
   fx << std::endl << "Criteria for euclidean metric field : " << std::endl;
-  criteria_euclidean.report(fx);
+  criteria_euclidean->report(fx);
   fx << std::endl;
   
-  Euclidean_metric_field<K> euclid_mf;
+  Euclidean_metric_field<K>* euclid_mf = new Euclidean_metric_field<K>();
   Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, condition);
   euclidean_mesh.refine_all(); 
   fx << "Iso :\n";

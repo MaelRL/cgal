@@ -15,7 +15,7 @@ add_definitions(
 #	-DANISO_DEBUG_METRIC
 	-DANISO_OUTPUT_MESH_FOR_POLES
 	-DANISO_DUMP_INTERMEDIATE_MESHES
-    -DANISO_APPROXIMATE_SPHERE_BBOX 
+	-DANISO_APPROXIMATE_SPHERE_BBOX 
 	-DANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR)
 
  
@@ -28,6 +28,10 @@ if ( CGAL_FOUND )
 
   include( CGAL_CreateSingleSourceCGALProgram )
 
+  # Find OpenGL
+  find_package(OpenGL)
+  link_libraries(${OPENGL_LIBRARIES})
+  
   # use Eigen if it is installed
   find_package(Eigen3 ) #(requires 3.1.0-alpha1 or greater)
   if (NOT EIGEN3_FOUND)
@@ -40,20 +44,20 @@ if ( CGAL_FOUND )
   find_package(LAPACK) 
   if(LAPACK_FOUND)
     include( ${LAPACK_USE_FILE} )
-	
-#   create_single_source_cgal_program("implicit_surface_with_specified_metric_field.cpp")
-#   create_single_source_cgal_program("implicit_surface_with_curvature_mf.cpp")
-#   create_single_source_cgal_program("ellipsoid_example.cpp")
-#   create_single_source_cgal_program("double_ellipsoid_example.cpp")
-   create_single_source_cgal_program("polyhedral_surface_with_curvature_mf.cpp")
-#   create_single_source_cgal_program("torus_example.cpp")
-#   create_single_source_cgal_program("cylinder_example.cpp")
-#	create_single_source_cgal_program("bench_parameters.cpp")
-#	create_single_source_cgal_program("chair_example.cpp")
-#   create_single_source_cgal_program("debug_example.cpp")	
-#	create_single_source_cgal_program("comparisons_example.cpp")	
-#	create_single_source_cgal_program("metric_field_experiment.cpp")	
-		
+
+  create_single_source_cgal_program("implicit_surface_with_specified_metric_field.cpp")
+  create_single_source_cgal_program("implicit_surface_with_curvature_mf.cpp")
+  create_single_source_cgal_program("ellipsoid_example.cpp")
+  create_single_source_cgal_program("double_ellipsoid_example.cpp")
+  create_single_source_cgal_program("polyhedral_surface_with_curvature_mf.cpp")
+  create_single_source_cgal_program("torus_example.cpp")
+  create_single_source_cgal_program("cylinder_example.cpp")
+  create_single_source_cgal_program("bench_parameters.cpp")
+  create_single_source_cgal_program("chair_example.cpp")
+  create_single_source_cgal_program("debug_example.cpp")
+  create_single_source_cgal_program("comparisons_example.cpp")
+  create_single_source_cgal_program("metric_field_experiment.cpp")
+
   else(LAPACK_FOUND)
 
     message(STATUS "NOTICE: Some of the executables in this directory need the LAPACK library and will not be compiled.")

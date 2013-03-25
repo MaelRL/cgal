@@ -68,12 +68,12 @@ int main(int argc, char* argv[])
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
   
-  Criteria_base<K> criteria(3.0, //radius_edge_ratio_
-    0.2,    //sliverity_
-    r0,     //circumradius_ 0.1
-    gamma0, //distortion_ 1.3
-    beta,   //beta_ 2.5
-    delta); //delta_ 0.3
+  Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
+                                                    0.2,    //sliverity_
+                                                    r0,     //circumradius_ 0.1
+                                                    gamma0, //distortion_ 1.3
+                                                    beta,   //beta_ 2.5
+                                                    delta); //delta_ 0.3
 
   fx << std::endl << "nbV" << "\t" << "time" << std::endl;
   timer.start();
@@ -81,8 +81,10 @@ int main(int argc, char* argv[])
   Constrain_surface_3_cylinder<K>* pdomain
      = new Constrain_surface_3_cylinder<K>(r, h);
 
-  //Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
-  Cylinder_metric_field<K> metric_field(r, h, epsilon);
+  //Implicit_curvature_metric_field<K>* metric_field =
+  //  new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
+  Cylinder_metric_field<K>* metric_field =
+    new Cylinder_metric_field<K>(r, h, epsilon);
 
   int xcondition = (argc > 9) ? atoi(argv[9]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 0., 1., -0.01*h);

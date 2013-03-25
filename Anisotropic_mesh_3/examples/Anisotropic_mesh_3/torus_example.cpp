@@ -18,7 +18,7 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
-//#include <CGAL/Implicit_curvature_metric_field.h>
+#include <CGAL/Implicit_curvature_metric_field.h>
 #include <CGAL/Euclidean_metric_field.h>
 #include <Metric_field/Torus_metric_field.h>
 
@@ -31,7 +31,7 @@
 
 using namespace CGAL::Anisotropic_mesh_3;
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel	K;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef CGAL::Timer Timer;
 
 
@@ -77,14 +77,14 @@ int main(int argc, char* argv[])
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
 
-  Criteria_base<K> criteria(rho0, //radius_edge_ratio_
-    0.2,    //sliverity_
-    r0,     //circumradius_ 0.1
-    gamma0, //distortion_ 1.3
-    beta,   //beta_ 2.5
-    delta,  //delta_ 0.3
-    60,     //max_times_to_try_in_picking_region_
-    approx); //approximation
+  Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
+                                                    0.2,    //sliverity_
+                                                    r0,     //circumradius_ 0.1
+                                                    gamma0, //distortion_ 1.3
+                                                    beta,   //beta_ 2.5
+                                                    delta,  //delta_ 0.3
+                                                    60,     //max_times_to_try_in_picking_region_
+                                                    approx); //approximation
 
   fx << std::endl << "nbV" << "\t" << "time" << std::endl;
   timer.start();
@@ -92,9 +92,10 @@ int main(int argc, char* argv[])
   Constrain_surface_3_torus<K>* pdomain
     = new Constrain_surface_3_torus<K>(R, r);
 
-  //Implicit_curvature_metric_field<K> metric_field(*pdomain, epsilon);
-  Torus_metric_field<K> metric_field(R, r, epsilon);
-  //Euclidean_metric_field<K> metric_field;
+  Implicit_curvature_metric_field<K>* metric_field =
+    new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
+  //Torus_metric_field<K>* metric_field = new Torus_metric_field<K>(R, r, epsilon);
+  //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
   K::FT y = (argc > 11) ? atof(argv[11]) : (0.5*(R + r));
   int xcondition = (argc > 12) ? atoi(argv[12]) : -1;//default : no condition on x

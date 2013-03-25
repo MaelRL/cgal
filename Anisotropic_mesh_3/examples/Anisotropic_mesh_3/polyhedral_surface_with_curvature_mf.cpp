@@ -51,22 +51,23 @@ int main(int argc, char *argv[])
   double approx = (argc > 4) ? atof(argv[4]) : 0.;
   double epsilon = (argc > 5) ? atof(argv[5]) : (0.1);
   
-  Criteria_base<K> criteria(0., //radius_edge_ratio_ //3.0
-                            0., //sliverity_ (not used)
-                            r0, //circumradius_ 
-                            gamma0, //distortion_   
-                            2.5, //beta_
-                            0.3, //delta_
-                            60, //nb tries in pick_valid
-                            approx);
+  Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_ //3.0
+                                                    0., //sliverity_ (not used)
+                                                    r0, //circumradius_
+                                                    gamma0, //distortion_
+                                                    2.5, //beta_
+                                                    0.3, //delta_
+                                                    60, //nb tries in pick_valid
+                                                    approx);
 
   Constrain_surface_3_polyhedral<K>* pdomain
-    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);  
+    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);
 
-  Polyhedral_curvature_metric_field<K> metric_field(*pdomain, epsilon);	
+  Polyhedral_curvature_metric_field<K>* metric_field =
+    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
   
-  //Criteria_base<K> criteria(3.0, 0.2, r0, gamma0, 2.5, 0.3, approx);
-  //Euclidean_metric_field<K> metric_field;
+  //Criteria_base<K>* criteria = new Criteria_base<K>(3.0, 0.2, r0, gamma0, 2.5, 0.3, approx);
+  //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
 

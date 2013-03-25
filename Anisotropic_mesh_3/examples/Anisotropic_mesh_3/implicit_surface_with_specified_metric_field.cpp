@@ -25,22 +25,24 @@ int main(int argc, char* argv[])
   K::FT gamma0 = (argc > 2) ? atof(argv[2]) : 1.3;
   K::FT epsilon = (argc > 3) ? atof(argv[3]) : 0.125;
 
-  Criteria_base<K> criteria(3.0, //radius_edge_ratio_
-                            0.2, //sliverity_
-                            r0, //circumradius_ 0.1
-                            gamma0, //distortion_ 1.3
-                            2.5, //beta_
-                            0.3);//delta_
+  Criteria_base<K>* criteria = new Criteria_base<K>*(3.0, //radius_edge_ratio_
+                                                     0.2, //sliverity_
+                                                     r0, //circumradius_ 0.1
+                                                     gamma0, //distortion_ 1.3
+                                                     2.5, //beta_
+                                                     0.3);//delta_
 
   Constrain_surface_3_sphere<K>* pdomain = new Constrain_surface_3_sphere<K>();
 
   //Constrain_surface_3_ellipse<K>* pdomain
   //  = new Constrain_surface_3_ellipse<K>(2., 2., 1.);
 
-  //Arctan_metric_field<K> metric_field(5.0, 0.2, 0.1);
-  Hyperbolic_shock_metric_field<K> metric_field(0.6, epsilon);
+  //Arctan_metric_field<K>* metric_field = new Arctan_metric_field<K>(5.0, 0.2, 0.1);
+  Hyperbolic_shock_metric_field<K>* metric_field =
+    new Hyperbolic_shock_metric_field<K>(0.6, epsilon);
+
   /*
-  Euclidean_metric_field<K> metric_field;
+  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
   if(argc > 1)
   {
     metric_field.a() = atof(argv[1]);
