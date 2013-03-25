@@ -172,6 +172,7 @@ launch()
 
     const std::size_t max_count = (std::size_t) -1; //p_.max_times_to_try_in_picking_region);
     int pick_valid_failed_n = 0;
+    int pick_valid_succeeded_n = 0;
 
 #ifdef ANISO_VERBOSE
     std::cout << "\nRefine all...";
@@ -208,7 +209,8 @@ launch()
 #endif
        }
 
-       if(!smesher_->star_set.refine(pick_valid_failed_n, pick_valid_causes_stop_, pick_valid_max_failures_))
+       if(!smesher_->star_set.refine(pick_valid_succeeded_n, pick_valid_failed_n,
+                                     pick_valid_causes_stop_, pick_valid_max_failures_))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();

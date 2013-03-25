@@ -312,7 +312,7 @@ private:
       struct Facet_ijk
       {
       private:
-        typename boost::tuple<int,int,int> m_facet;             
+        typename boost::tuple<int,int,int> m_facet;
       public :
         Facet_ijk(const Facet& f)
         {
@@ -1744,7 +1744,8 @@ public:
       }
 
 
-      bool refine(int & pick_valid_failed,
+      bool refine(int & pick_valid_succeeded,
+                  int & pick_valid_failed,
                   const bool pick_valid_causes_stop = false,
                   const int pick_valid_max_failures = 100)
       {
@@ -1787,10 +1788,16 @@ public:
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
         if(!success) 
-        {
           pick_valid_failed++;
-          if(pick_valid_failed % 100 == 0 && pick_valid_failed > 0)
-            std::cout << pick_valid_failed << " pick_valid failures!" << std::endl;
+        else
+          pick_valid_succeeded++;
+
+        if((pick_valid_failed % 100 == 0 && pick_valid_failed > 0) ||
+           (pick_valid_succeeded % 100 == 0 && pick_valid_succeeded > 0))
+        {
+          std::cout << "pick_valid : ";
+          std::cout << pick_valid_succeeded << " success and ";
+          std::cout << pick_valid_failed << " failures" << std::endl;
         }
         if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
         {
@@ -2254,6 +2261,7 @@ public:
         CGAL::Timer t;
         const int pick_valid_max_failures = 100;
         int pick_valid_failed_n = 0;
+        int pick_valid_succeeded_n = 0;
 
         t.start();
         fill_refinement_queue();         
@@ -2269,7 +2277,7 @@ public:
             t.start();
             clean_stars();//remove useless vertices
           }
-          if(!refine(pick_valid_failed_n, pick_valid_causes_stop, pick_valid_max_failures))
+          if(!refine(pick_valid_succeeded_n, pick_valid_failed_n, pick_valid_causes_stop, pick_valid_max_failures))
             break;
           nbv = m_stars.size();
         }
@@ -2288,6 +2296,7 @@ public:
 #endif        
         const int pick_valid_max_failures = 100;
         int pick_valid_failed_n = 0;
+        int pick_valid_succeeded_n = 0;
 
         fill_refinement_queue();
 
@@ -2317,7 +2326,7 @@ public:
 #endif
           }
           
-          if(!refine(pick_valid_failed_n, pick_valid_causes_stop, pick_valid_max_failures))
+          if(!refine(pick_valid_succeeded_n, pick_valid_failed_n, pick_valid_causes_stop, pick_valid_max_failures))
           {
             clean_stars();
             //debug_show_distortions();
