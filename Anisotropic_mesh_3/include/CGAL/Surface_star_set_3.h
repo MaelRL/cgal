@@ -1819,11 +1819,11 @@ public:
         bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
         if(!success) 
           pick_valid_failed++;
-        else
+        else if(need_picking_valid)
           pick_valid_succeeded++;
 
-        if((pick_valid_failed % 100 == 0 && pick_valid_failed > 0) ||
-           (pick_valid_succeeded % 100 == 0 && pick_valid_succeeded > 0))
+        if((!success && pick_valid_failed % 100 == 0 && pick_valid_failed > 0) ||
+           (success && need_picking_valid && pick_valid_succeeded % 100 == 0 && pick_valid_succeeded > 0))
         {
           std::cout << "pick_valid : ";
           std::cout << pick_valid_succeeded << " success and ";
