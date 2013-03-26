@@ -51,7 +51,7 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
     double r = t->get_r();
     double R = t->get_R();
 
-    std::cout << "(Metric field : Torus r =" << r << ", R = "<< R <<")" << std::endl;
+    std::cout << "(Metric field : Torus r = " << r << ", R = "<< R <<")" << std::endl;
     mf = new Torus_metric_field<Kernel>(R, r, epsilon, en_factor);
   }
   else if(metric == IMPLICIT_CURVATURE)
