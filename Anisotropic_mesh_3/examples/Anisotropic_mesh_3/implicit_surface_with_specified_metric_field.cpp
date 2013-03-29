@@ -25,12 +25,12 @@ int main(int argc, char* argv[])
   K::FT gamma0 = (argc > 2) ? atof(argv[2]) : 1.3;
   K::FT epsilon = (argc > 3) ? atof(argv[3]) : 0.125;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>*(3.0, //radius_edge_ratio_
-                                                     0.2, //sliverity_
-                                                     r0, //circumradius_ 0.1
-                                                     gamma0, //distortion_ 1.3
-                                                     2.5, //beta_
-                                                     0.3);//delta_
+  Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
+                                                    0.2, //sliverity_
+                                                    r0, //circumradius_ 0.1
+                                                    gamma0, //distortion_ 1.3
+                                                    2.5, //beta_
+                                                    0.3);//delta_
 
   Constrain_surface_3_sphere<K>* pdomain = new Constrain_surface_3_sphere<K>();
 
