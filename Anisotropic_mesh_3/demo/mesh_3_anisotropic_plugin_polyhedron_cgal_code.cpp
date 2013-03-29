@@ -11,6 +11,7 @@
 #include <CGAL/Constrain_surface_3_polyhedral.h>
 #include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
+#include <Metric_field/Hyperbolic_shock_metric_field.h>
 #include <CGAL/Criteria.h>
 
 #include <CGAL/Random.h>
@@ -53,6 +54,11 @@ Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surfa
     std::cout << "(Metric : Polyhedral)" << std::endl;
     typedef CGAL::Anisotropic_mesh_3::Polyhedral_curvature_metric_field<Kernel> PMF;
     mf = new PMF(*p_domain, en_factor);
+  }
+  else if(metric == HYPERBOLIC_SHOCK)
+  {
+    std::cout << "(Hyperbolic shock metric field)." << std::endl;
+    mf = new Hyperbolic_shock_metric_field<Kernel>(0.6, epsilon, en_factor);
   }
 
   // @TODO, WARNING: memory leak to be corrected later: criteria and

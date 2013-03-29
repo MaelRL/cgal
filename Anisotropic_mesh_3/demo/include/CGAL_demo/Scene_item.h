@@ -43,7 +43,7 @@ public:
   virtual bool supportsRenderingMode(RenderingMode m) const = 0;
   // Flat/Gouraud OpenGL drawing
   virtual void draw() const = 0;
-  virtual void draw(Viewer_interface*) const { draw(); };
+  virtual void draw(Viewer_interface*) const { draw(); }
   // Wireframe OpenGL drawing
   virtual void draw_edges() const { draw(); }
   virtual void draw_edges(Viewer_interface*) const { draw_edges(); }

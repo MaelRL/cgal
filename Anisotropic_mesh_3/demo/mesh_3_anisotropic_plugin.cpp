@@ -348,17 +348,20 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.beta->setValue(2.5);
   ui.delta->setValue(0.3);
   
+  ui.resume_memory->setEnabled(false);
+
   ui.comboBox_metric->addItem("Euclidean", EUCLIDEAN);
+  ui.comboBox_metric->addItem("Hyperbolic shock", HYPERBOLIC_SHOCK);
   if(t == POLYHEDRAL_SURFACE)
   {
     ui.comboBox_metric->addItem("Polyhedron curvature", POLYHEDRON_CURVATURE);
-    ui.comboBox_metric->setCurrentIndex(1);//polyhedron curvature
+    ui.comboBox_metric->setCurrentIndex(2);//polyhedron curvature
   }
   else //IMPLICIT_SURFACE
   {
     ui.comboBox_metric->addItem("Implicit curvature", IMPLICIT_CURVATURE);
     ui.comboBox_metric->addItem("Torus (1/r, 1/R)", TORUS_NAIVE);
-    ui.comboBox_metric->setCurrentIndex(1);//implicit curvature
+    ui.comboBox_metric->setCurrentIndex(2);//implicit curvature
   }
  
   ui.maxTries->setDecimals(0);
@@ -473,16 +476,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
       dynamic_cast<const Implicit_surface*>(ssetitem->star_set().constrain_surface());
 
   // Get item
-  Domain_type t;
-  if( NULL != poly_surf )
-  {
-    t = POLYHEDRAL_SURFACE;
-  }
-  else if( NULL != function_surf )
-  {
-    t = IMPLICIT_SURFACE;
-  }
-  else
+  if( NULL == poly_surf && NULL == function_surf)
   {
     QMessageBox::warning(mw,tr(""),tr("Unknown surface type"));
     return;
@@ -529,24 +523,14 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   ui.delta->setValue(0.3);
   ui.en_factor->setValue(1.);
 
-  ui.comboBox_metric->addItem("Euclidean", EUCLIDEAN);
-  if(t == POLYHEDRAL_SURFACE)
-  {
-    ui.comboBox_metric->addItem("Polyhedron curvature", POLYHEDRON_CURVATURE);
-    ui.comboBox_metric->setCurrentIndex(1);//polyhedron curvature
-  }
-  else //IMPLICIT_SURFACE
-  {
-    ui.comboBox_metric->addItem("Implicit curvature", IMPLICIT_CURVATURE);
-    ui.comboBox_metric->addItem("Torus (1/r, 1/R)", TORUS_NAIVE);
-    ui.comboBox_metric->setCurrentIndex(1);//implicit curvature
-  }
+  ui.comboBox_metric->setEnabled(false);
+  //disable the metric field when restarting : not yet implemented (todo?)
 
   ui.maxTries->setDecimals(0);
   ui.maxTries->setSingleStep(1);
   ui.maxTries->setValue(60); // default value
   ui.dimension->setCurrentIndex(0);
-  ui.nbInitialPoints->setValue(10);
+  ui.nbInitialPoints->setEnabled(false);
 
   // -----------------------------------
   // Get values
