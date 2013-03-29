@@ -98,6 +98,8 @@ public slots:
 public:
   int& draw_star()                 { return m_draw_star_id; }
   const int& draw_star() const     { return m_draw_star_id; }
+  int& draw_pickvalid_point()             { return m_draw_pickvalid_point_id; }
+  const int& draw_pickvalid_point() const { return m_draw_pickvalid_point_id; }
   bool& draw_cell()                { return m_draw_cell; }
   bool& draw_dual()                { return m_draw_dual; }
   bool& draw_poles()               { return m_draw_poles; }
@@ -128,6 +130,7 @@ private:
   bool m_draw_initial_points;
   bool m_draw_surface_delaunay_balls;
   int m_draw_star_id;
+  int m_draw_pickvalid_point_id;
   bool m_draw_inconsistent_facets;
   bool m_draw_metric_field;
   double m_draw_metric_eps;

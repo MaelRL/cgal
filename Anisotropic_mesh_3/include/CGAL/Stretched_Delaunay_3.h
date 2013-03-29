@@ -379,45 +379,52 @@ public:
       }
 
     public:
-      inline FT compute_volume(const Cell_handle &cell) {
+      inline FT compute_volume(const Cell_handle &cell)
+      {
         return m_criteria->compute_volume(cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
-      inline FT compute_volume(const Facet &facet) {
+      inline FT compute_volume(const Facet &facet)
+      {
         return m_criteria->compute_volume(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
-      inline FT compute_radius_edge_ratio_overflow(const Cell_handle &cell) {
+      inline FT compute_radius_edge_ratio_overflow(const Cell_handle &cell)
+      {
         return m_criteria->radius_edge_ratio_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
-      inline FT compute_radius_edge_ratio_overflow(const Facet &facet) {
+      inline FT compute_radius_edge_ratio_overflow(const Facet &facet)
+      {
         return m_criteria->radius_edge_ratio_overflow(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
-      inline FT compute_squared_radius_edge_ratio(const Facet& facet) {
+      inline FT compute_squared_radius_edge_ratio(const Facet& facet)
+      {
         return m_criteria->compute_squared_radius_edge_ratio(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
-      inline FT compute_circumradius_overflow(const Cell_handle &cell) {
+      inline FT compute_circumradius_overflow(const Cell_handle &cell)
+      {
         return m_criteria->circumradius_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
-      inline FT compute_circumradius_overflow(const Facet &facet) {
+      inline FT compute_circumradius_overflow(const Facet &facet)
+      {
         // surface Delaunay ball radius
         Point_3 p;
         compute_dual_intersection(facet,p);
@@ -431,7 +438,8 @@ public:
         return sqr - m_criteria->criteria->squared_circumradius;
       }
 
-      inline FT compute_squared_circumradius(const Facet &facet) {
+      inline FT compute_squared_circumradius(const Facet &facet)
+      {
         return m_criteria->compute_squared_circumradius(
           facet.first->vertex((facet.second + 1) % 4)->point(),
           facet.first->vertex((facet.second + 2) % 4)->point(),
@@ -445,7 +453,8 @@ public:
         return m_criteria->compute_squared_circumradius(p1, p2, p3);
       }
 
-      inline FT compute_sliverity_overflow(const Cell_handle &cell) {
+      inline FT compute_sliverity_overflow(const Cell_handle &cell)
+      {
         return m_criteria->sliverity_overflow(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
@@ -483,43 +492,53 @@ public:
 
     public:
       // star configuration
-      inline Facet_set_iterator begin_restricted_facets() const {
+      inline Facet_set_iterator begin_restricted_facets() const
+      {
         update_star_caches();
         return restricted_facets_cache.begin();
       }
-      inline Facet_set_iterator end_restricted_facets() const {
+      inline Facet_set_iterator end_restricted_facets() const
+      {
         return restricted_facets_cache.end();
       }
-      inline Cell_handle_handle begin_star_cells() const {
+      inline Cell_handle_handle begin_star_cells() const
+      {
         update_star_caches();
         return neighboring_cells_cache.begin();
       }
-      inline Cell_handle_handle end_star_cells() const {
+      inline Cell_handle_handle end_star_cells() const
+      {
         return neighboring_cells_cache.end();
       }
-      inline Cell_handle_handle begin_finite_star_cells() const {
+      inline Cell_handle_handle begin_finite_star_cells() const
+      {
         update_star_caches();
         return neighboring_finite_cells_cache.begin();
       }
-      inline Cell_handle_handle end_finite_star_cells() const {
+      inline Cell_handle_handle end_finite_star_cells() const
+      {
         return neighboring_finite_cells_cache.end();
       }
-      inline Vertex_handle_handle begin_neighboring_vertices() const {
+      inline Vertex_handle_handle begin_neighboring_vertices() const
+      {
         update_star_caches();
         return neighboring_vertices_cache.begin();
       }
-      inline Vertex_handle_handle end_neighboring_vertices() const {
+      inline Vertex_handle_handle end_neighboring_vertices() const
+      {
         return neighboring_vertices_cache.end();
       }
       //inline FT get_squared_bounding_radius() {
       //  update_star_caches();
       //  return squared_bounding_radius;
       //}
-      inline int get_finite_star_cell_count() const {
+      inline int get_finite_star_cell_count() const
+      {
         update_star_caches();
         return (int)neighboring_finite_cells_cache.size();
       }
-      inline bool is_boundary_star() const {
+      inline bool is_boundary_star() const
+      {
         update_star_caches();
         return (restricted_facets_cache.size() > 0);
       }
@@ -1729,7 +1748,7 @@ public:
         Sphere s(center, CGAL::squared_distance(center, pf));
         if(s.has_on_unbounded_side(steiner))
         {
-          std::cerr << "\nSteiner point ("
+          std::cout << "\nSteiner point ("
             <<steiner_point<< ") outside exact surface Delaunay ball";
           bug = true;
         }
@@ -1740,7 +1759,7 @@ public:
         Sphere s2(center2, CGAL::squared_distance(center2, pf));
         if(s2.has_on_unbounded_side(steiner))
         {
-          std::cerr << "\nSteiner point ("
+          std::cout << "\nSteiner point ("
             <<steiner_point<< ") outside inexact surface Delaunay ball";
           bug = true;
         }

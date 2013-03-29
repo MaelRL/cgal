@@ -118,6 +118,7 @@
      <addaction name="separator"/>
      <addaction name="actionDraw_dual_edges"/>
      <addaction name="actionDraw_one_star"/>
+     <addaction name="actionDraw_one_pickvalid_point"/>
      <addaction name="actionDraw_surface_delaunay_balls"/>
      <addaction name="actionDraw_initial_points"/>
      <addaction name="actionDraw_poles"/>
@@ -573,14 +574,6 @@
     <string>Ctrl+T</string>
    </property>
   </action>
-  <action name="actionRecenterScene">
-   <property name="text">
-    <string>Re&amp;center scene</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+C</string>
-   </property>
-  </action>
   <action name="actionSetBackgroundColor">
    <property name="text">
     <string>Change &amp;background color...</string>
@@ -704,7 +697,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>metri&amp;c field</string>
+    <string>me&amp;tric field</string>
    </property>
   </action>
   <action name="actionDraw_poles">
@@ -753,6 +746,22 @@
   <action name="actionResumeMeshing">
    <property name="text">
     <string>&amp;Resume meshing</string>
+   </property>
+  </action>
+  <action name="actionDraw_one_pickvalid_point">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>o&amp;ne point (pick_valid)</string>
+   </property>
+  </action>
+  <action name="actionRecenterScene">
+   <property name="text">
+    <string>Re&amp;center scene</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
    </property>
   </action>
  </widget>

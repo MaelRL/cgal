@@ -4,7 +4,7 @@
 template<typename C3T3, typename OutputIterator>
 void compute_triangulation_poles(const C3T3& c3t3,
                                  OutputIterator oit)
-{   
+{
   typedef typename C3T3::Triangulation Triangulation;
   typedef typename Triangulation::Geom_traits::Point_3 Point_3;
   typedef typename Triangulation::Geom_traits::Vector_3 Vector_3;

@@ -83,6 +83,7 @@ Scene_starset3_item(const Criteria* criteria,
   m_draw_initial_points(false),
   m_draw_surface_delaunay_balls(false),
   m_draw_star_id(-1),
+  m_draw_pickvalid_point_id(-1),
   m_draw_inconsistent_facets(false),
   m_draw_metric_field(false),
   m_draw_metric_eps(metric->epsilon),
@@ -205,7 +206,7 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_inconsistent_facets){
     star_set().gl_draw_inconsistent_facets(plane, m_draw_star_id);
     if(star_set().pick_valid_failed())
-      star_set().gl_draw_picked_points(plane);
+      star_set().gl_draw_picked_points(plane, m_draw_pickvalid_point_id);
   }
   if(m_draw_metric_field)
   {

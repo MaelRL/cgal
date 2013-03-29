@@ -109,6 +109,10 @@ namespace CGAL
       typedef typename Kd_tree::Box_query                         Kd_Box_query;
       typedef typename Kd_tree::key_type                          Kd_point_info;
 
+    public :
+      struct Facet_ijk;
+      struct Edge_ij;
+
     public:
       std::set<Point_3> poles;
       typename Constrain_surface::Pointset initial_points;
@@ -138,8 +142,11 @@ namespace CGAL
       Back_from_exact back_from_exact;
 
     private:
-      mutable std::vector<Point_3> m_pick_valid_facet;
-      mutable std::vector<Point_3> m_pick_valid_cache;
+      mutable std::vector<Point_3> m_pick_valid_facet; // facet f trying to be refined (for visu)
+      mutable std::vector<Point_3> m_pick_valid_cache; // the random points picked to refine f
+      //the correspondance between a random point and the n problematic facets in pick_valid
+      //the vector is made of n*2 points, since the third point is the key of the map
+      mutable std::map<Point_3,std::vector<int> > pickvalid_problematic_facets;
 
 #ifdef USE_ANISO_TIMERS
 private:
@@ -151,6 +158,7 @@ private:
 #endif
 
     public:
+      int pickvalid_problematic_facets_size() const {return pickvalid_problematic_facets.size();}
       const Constrain_surface* const constrain_surface() const { return m_pConstrain; }
       const Criteria* criteria() const { return m_criteria; }
       const Metric_field* metric_field() const { return m_metric_field; }
@@ -257,14 +265,15 @@ private:
       }
 
     public:
-      bool is_valid_point(const Point_3 &p, 
+      bool is_valid_point(const Point_3 &p,
                           const FT& sq_radius_bound, // in M_{star to_be_refined}
                           Star_handle to_be_refined,
-                          Star_handle& new_star) const
+                          Star_handle& new_star,
+                          std::vector<int>& problematic_facets) const
       {
         Index_set modified_stars;
-        int id = simulate_insert_to_stars(p, modified_stars);        
-        if(id < 0) 
+        int id = simulate_insert_to_stars(p, modified_stars);
+        if(id < 0)
           return false;
         else if(id < (int)m_stars.size())
         {
@@ -274,9 +283,8 @@ private:
         else
           create_star(p, id, modified_stars, new_star);
         
-//        bool is = check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound);
-        bool is = check_consistency_and_sliverity(to_be_refined, 
-          new_star, modified_stars, sq_radius_bound);
+        bool is = check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound, problematic_facets);
+
         if(!is)
           new_star->invalidate();
 
@@ -457,18 +465,20 @@ private:
       }
 
       bool check_consistency_and_sliverity(Star_handle to_be_refined, //facet to be refined belongs to this star
-                             Star_handle new_star,     //the newly created star
-                             const Index_set& modified_stars, 
-                             const double& sq_radius_bound) const
+                                           Star_handle new_star,     //the newly created star
+                                           const Index_set& modified_stars,
+                                           const double& sq_radius_bound,
+                                           std::vector<int>& problematic_facets) const
       {
-        return check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound, true);
+        return check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound, problematic_facets, true);
       }
 
       bool check_consistency(Star_handle to_be_refined, //facet to be refined belongs to this star
                              Star_handle new_star,     //the newly created star
-                             const Index_set& modified_stars, 
+                             const Index_set& modified_stars,
                              const double& sq_radius_bound,
-                             const bool do_check_sliverity) const
+                             std::vector<int>& problematic_facets,
+                             const bool do_check_sliverity = false) const
       {
         //list all facets that would be created by p's insertion
         Point_3 p = new_star->center_point();
@@ -490,7 +500,7 @@ private:
           {
             if((*itf).first.is_infinite()) // should not happen
               return false;
-   
+
             TPoint_3 tp0, tp1, tp2;
             TPoint_3 tp = transform_to_star_point(p, to_be_refined);
 
@@ -500,13 +510,18 @@ private:
               : transform_to_star_point(m_stars[(*itf).first.vertex(1)]->center_point(),to_be_refined);
             tp2 = ((*itf).first.vertex(2) == nmax) ? tp  
               : transform_to_star_point(m_stars[(*itf).first.vertex(2)]->center_point(),to_be_refined);
-                       
+
             double sqr = to_be_refined->compute_squared_circumradius(tp0, tp1, tp2);
             if(sqr < sq_radius_bound)
             {
               CGAL_PROFILER("[is_valid failure : small inconsistency]");
-              return false; // small inconsistency (radius) is forbidden
-              // a big one is fine
+              // small inconsistency (radius) is forbidden. A big one is fine.
+              for(int i=0; i<3; ++i)
+                if( (*itf).first.vertex(i) != nmax )
+                {
+                  assert((*itf).first.vertex(i) < nmax);
+                  problematic_facets.push_back( (*itf).first.vertex(i) );
+                }
             }
           }
         }
@@ -617,9 +632,13 @@ private:
           }
         }
 #endif
-
-        CGAL_PROFILER("[is_valid success]");
-        return true;
+        if(problematic_facets.empty())
+        {
+          CGAL_PROFILER("[is_valid success]");
+          return true;
+        }
+        else
+          return false;
       }
 
       template<typename Map>
@@ -923,17 +942,22 @@ private:
 
         std::size_t tried_times = 0;
         bool success = false;
+
+        pickvalid_problematic_facets.clear();
         m_pick_valid_cache.clear();
         m_pick_valid_facet.clear();
+
         Star_handle newstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
 
         while(true)
         {
           TPoint_3 random_point = random(tccf, tcccell, circumradius);
+          std::vector<int> problematic_facets;
+
           p = star->compute_steiner_dual_intersection(random_point, facet);
           m_pick_valid_cache.push_back(p);
 
-          if(is_valid_point(p, sq_radiusbound, star, newstar))
+          if(is_valid_point(p, sq_radiusbound, star, newstar, problematic_facets))
           {
             success = true;
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
@@ -941,14 +965,21 @@ private:
             m_pick_valid_facet.clear();
             break;
           }
+          else
+          {
+            assert(!problematic_facets.empty());
+            pickvalid_problematic_facets[p] = problematic_facets;
+          }
           if((tried_times++) > m_criteria->max_times_to_try_in_picking_region)
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
+
             m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+1)%4)->point(), star));
             m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+2)%4)->point(), star));
             m_pick_valid_facet.push_back(transform_from_star_point(facet.first->vertex((facet.second+3)%4)->point(), star));
             m_pick_valid_cache.push_back(p);
+
             break;
           }
         }
@@ -1832,6 +1863,26 @@ public:
         if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
         {
           std::cout << "failed at star : " << bad_facet.star->center()->info() << std::endl;
+
+          //print the problematic facet map
+          assert(m_pick_valid_cache.size() == pickvalid_problematic_facets.size());
+          for(std::size_t i = 0; i<m_pick_valid_cache.size(); ++i)
+          {
+            Point_3 pickvalid_point = m_pick_valid_cache[i];
+            std::cout << "id : " << i << " for the point " << pickvalid_point;
+            std::cout << " , " << pickvalid_problematic_facets[pickvalid_point].size()/2 << " facets in play" << std::endl;
+
+            std::vector<int> id_vector = pickvalid_problematic_facets[pickvalid_point];
+
+            assert(id_vector.size()%2 == 0);
+            for(std::size_t i=0; i<id_vector.size();)
+            {
+              std::cout << "(" << id_vector[i] << " " << id_vector[i+1] << "), ";
+              i+=2;
+            }
+            std::cout << std::endl;
+          }
+
           return false;
         }
 
@@ -1878,20 +1929,26 @@ public:
                 std::cout << "\tp"<< v2->info() <<" : " << v2->point() << std::endl;
                 std::cout << "\tp"<< v3->info() <<" : " << v3->point() << std::endl;
              
-                std::cerr << ", dim = " << bad_facet.star->dimension();
-                std::cerr << ", nbv = " << bad_facet.star->number_of_vertices();
-                std::cerr << ", pid = " << pid;
-                std::cerr << ", p = " << steiner_point;
-                std::cerr << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
-                std::cerr << std::endl;
+                std::cout << ", dim = " << bad_facet.star->dimension();
+                std::cout<< ", nbv = " << bad_facet.star->number_of_vertices();
+                std::cout << ", pid = " << pid;
+                std::cout << ", p = " << steiner_point;
+                std::cout << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
+                std::cout << std::endl;
                 bad_facet.star->debug_steiner_point(steiner_point, ff);
-                std::cerr << "(Exact)" << std::endl;
+                std::cout << "(Exact)" << std::endl;
               }
+              else
+                std::cout << "bad facet still in but not restricted anymore" << std::endl;
             }
             else
-              std::cerr << "Switching to exact succeeded" << std::endl;
+              std::cout << "Switching to exact succeeded" << std::endl;
 #endif
           }
+        }
+        else
+        {
+          //std::cout << "Facet " << v1->info() << " " << v2->info() << " " << v3->info() << " was dealt with" << std::endl;
         }
         //end debug
 
@@ -2485,33 +2542,75 @@ public:
           m_stars[star_id]->gl_draw_cell(plane);
       }
 
-      void gl_draw_picked_points(const typename K::Plane_3& plane) const
+      void gl_draw_picked_points(const typename K::Plane_3& plane,
+                                 const int point_id = -1/*only this one*/) const
       {
-        typename std::vector<Point_3>::const_iterator it;
-        GLboolean light = (::glIsEnabled(GL_LIGHTING));
-
-        ::glPointSize(5.);
-        if(light)
-          ::glDisable(GL_LIGHTING);
-        ::glBegin(GL_POINTS);
-        for(it = m_pick_valid_cache.begin(); it != m_pick_valid_cache.end(); ++it)
+        //facet trying to be refined
+        if(!m_pick_valid_facet.empty())
         {
-          // if(!is_above_plane(plane, *it))
-          //   continue;
-          if( it == --(m_pick_valid_cache.end()) )
-            ::glColor3f(0.87f, 0.14f, 0.14f);
-          else
-            ::glColor3f(0.14f, 0.87f, 0.14f);
-
-          ::glVertex3d((*it).x(), (*it).y(), (*it).z());
-        }
-        ::glEnd();
-        if(light)
-          ::glEnable(GL_LIGHTING);
-        if(!m_pick_valid_facet.empty()){
           gl_draw_triangle<K>(m_pick_valid_facet[0],
                               m_pick_valid_facet[1],
-                              m_pick_valid_facet[2], EDGES_AND_FACES, 84, 204, 204);
+                              m_pick_valid_facet[2],
+                              EDGES_AND_FACES, 84, 204, 204);
+        }
+        GLboolean light = (::glIsEnabled(GL_LIGHTING));
+        if(light)
+          ::glDisable(GL_LIGHTING);
+
+        //all pickvalid points that were tried
+        if(point_id < 0)
+        {
+          for(std::size_t i = 0; i<m_pick_valid_cache.size(); ++i)
+          {
+            Point_3 pickvalid_point = m_pick_valid_cache[i];
+
+            //keeping all these points independant of the cut plane
+            // if(!is_above_plane(plane, pickvalid_point))
+            //   continue;
+
+            double point_size = 5.;
+            //if(i != m_pick_valid_cache.size()-1) //point size depends of the number of problematic facets
+            //  point_size += ((pickvalid_problematic_facets[pickvalid_point]).size())/2;
+            ::glPointSize(point_size);
+
+            ::glBegin(GL_POINTS);
+            if( i == m_pick_valid_cache.size()-1 )
+              ::glColor3f(0.87f, 0.14f, 0.14f); //circumcenter in red
+            else
+              ::glColor3f(0.14f, 0.87f, 0.14f); //others in green
+
+            ::glVertex3d(pickvalid_point.x(), pickvalid_point.y(), pickvalid_point.z());
+            ::glEnd();
+          }
+
+          if(light)
+            ::glEnable(GL_LIGHTING);
+        }
+        else //only one
+        {
+          assert(point_id >= 0 && point_id < m_pick_valid_cache.size());
+          Point_3 picked_point = m_pick_valid_cache[point_id];
+          std::vector<int> picked_point_couples = pickvalid_problematic_facets[picked_point];
+
+          //the pickvalid point
+          ::glPointSize(5.);
+          ::glBegin(GL_POINTS);
+          ::glColor3f(0.14f, 0.87f, 0.14f);
+          ::glVertex3d(picked_point.x(), picked_point.y(), picked_point.z());
+          ::glEnd();
+
+          if(light)
+            ::glEnable(GL_LIGHTING);
+
+          //all its problematic facets
+          for(std::size_t i=0; i<picked_point_couples.size();)
+          {
+            gl_draw_triangle<K>(picked_point,
+                                m_stars[picked_point_couples[i]]->center_point(),
+                                m_stars[picked_point_couples[i+1]]->center_point(),
+                                EDGES_AND_FACES, 166, 247, 170);
+            i+=2;
+          }
         }
       }
 

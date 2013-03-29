@@ -119,7 +119,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   qt4_wrap_ui( ribUI_FILES  ui_files/Rib_dialog.ui)
   qt4_wrap_ui( funcUI_FILES  ui_files/Function_dialog.ui)
   qt4_wrap_ui( imgUI_FILES ui_files/Image_res_dialog.ui)
-  qt4_wrap_ui( anisoUI_FILES ui_files/Aniso_meshing_dialog.ui ui_files/Choose_star_dialog.ui)
+  qt4_wrap_ui( anisoUI_FILES ui_files/Aniso_meshing_dialog.ui ui_files/Choose_star_dialog.ui ui_files/Choose_pickvalid_point_dialog.ui)
 
   include(AddFileDependencies)
 

@@ -5,6 +5,7 @@
 #include <CGAL_demo/Messages_interface.h>
 #include "ui_Aniso_meshing_dialog.h"
 #include "ui_Choose_star_dialog.h"
+#include "ui_Choose_pickvalid_point_dialog.h"
 
 #include <QObject>
 #include <QAction>
@@ -165,6 +166,10 @@ public:
     if(actionDraw_one_star)
       connect(actionDraw_one_star, SIGNAL(triggered()), this, SLOT(view_one_star()));
 
+    actionDraw_one_pickvalid_point = this->getActionFromMainWindow(mw, "actionDraw_one_pickvalid_point");
+    if(actionDraw_one_pickvalid_point)
+      connect(actionDraw_one_pickvalid_point, SIGNAL(triggered()), this, SLOT(view_one_pickvalid_point()));
+
     actionDraw_inconsistent_facets = this->getActionFromMainWindow(mw, "actionDraw_inconsistent_facets");
     if(actionDraw_inconsistent_facets)
       connect(actionDraw_inconsistent_facets, SIGNAL(toggled(bool)), this, SLOT(view_inconsistent_facets(bool)));
@@ -213,6 +218,8 @@ public slots:
   void view_surface_delaunay_balls(bool);
   void view_one_star();
   void view_all_stars();
+  void view_one_pickvalid_point();
+  void view_all_pickvalid_point();
   void view_inconsistent_facets(bool);
   void view_metric_field(bool);
   void view_mesh_3(bool);
@@ -239,6 +246,7 @@ private:
   QAction* actionDraw_initial_points;
   QAction* actionDraw_surface_delaunay_balls;
   QAction* actionDraw_one_star;
+  QAction* actionDraw_one_pickvalid_point;
   QAction* actionDraw_inconsistent_facets;
   QAction* actionDraw_metric_field;
   QAction* actionDraw_mesh_3;
@@ -260,6 +268,7 @@ Anisotropic_mesh_3_plugin()
   , actionDraw_initial_points(NULL)
   , actionDraw_surface_delaunay_balls(NULL)
   , actionDraw_one_star(NULL)
+  , actionDraw_one_pickvalid_point(NULL)
   , actionDraw_inconsistent_facets(NULL)
   , msg(NULL)
   , message_box_(NULL)
@@ -700,11 +709,69 @@ void Anisotropic_mesh_3_plugin::view_one_star()
 void Anisotropic_mesh_3_plugin::view_all_stars()
 {
   const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_star() = -1;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_one_pickvalid_point()
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+
+  // Get item
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if( NULL == ssetitem )
+  {
+    QMessageBox::warning(mw,tr(""),tr("Selected object is not a star set."));
+    return;
+  }
+
+  if(!ssetitem->star_set().pick_valid_failed())
+  {
+    QMessageBox::warning(mw,tr(""),tr("Nothing has failed. Yet."));
+    return;
+  }
+
+  // Create dialog
+  QDialog dialog(mw);
+  Ui::Choose_pickvalid_point_dialog ui;
+  ui.setupUi(&dialog);
+  connect(ui.buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
+  connect(ui.buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
+  connect(ui.displayAll, SIGNAL(clicked()), this, SLOT(view_all_pickvalid_point()));
+  connect(ui.displayAll, SIGNAL(clicked()), &dialog, SLOT(reject()));
+
+   // Set default parameters
+  int indexMax = ssetitem->star_set().pickvalid_problematic_facets_size()-1;
+  ui.objectQuestion->setText(
+    tr("Which point do you want to display? (from 0 to %1)").arg(indexMax));
+  ui.PickvalidPointId->setDecimals(0);
+  ui.PickvalidPointId->setSingleStep(1);
+  ui.PickvalidPointId->setValue(0);
+  ui.PickvalidPointId->setMinimum(0);
+  ui.PickvalidPointId->setMaximum(indexMax);
+
+  // Get value and use it
+  int i = dialog.exec();
+  if(i != QDialog::Rejected)
+    ssetitem->draw_pickvalid_point() = (int)ui.PickvalidPointId->value();
+
+  ssetitem->starset_changed();
+}
+
+void Anisotropic_mesh_3_plugin::view_all_pickvalid_point()
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
   Scene_starset3_item* ssetitem = 
     qobject_cast<Scene_starset3_item*>(scene->item(index));
   if(ssetitem != NULL)
   {
-    ssetitem->draw_star() = -1; 
+    ssetitem->draw_pickvalid_point() = -1;
     ssetitem->starset_changed();
   }
 }
