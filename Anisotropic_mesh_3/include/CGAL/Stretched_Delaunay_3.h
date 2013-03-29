@@ -1869,17 +1869,17 @@ public:
         Vector_3 vec = CGAL::NULL_VECTOR;
         double val = 0.;
 
-        val = 1/std::sqrt(m_metric.get_min_eigenvalue());
+        val = 1/m_metric.get_min_eigenvalue();
         m_metric.get_min_eigenvector(vec);
         ::glColor3f(0.,0.,1.f);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
 
-        val = 1/std::sqrt(m_metric.get_max_eigenvalue());
+        val = 1/m_metric.get_max_eigenvalue();
         m_metric.get_max_eigenvector(vec);
         ::glColor3f(1.f,0.,0.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);
 
-        val = 1/std::sqrt(m_metric.get_third_eigenvalue());
+        val = 1/m_metric.get_third_eigenvalue();
         m_metric.get_third_eigenvector(vec);
         ::glColor3f(0.,1.f,0.);
         ::gl_draw_arrow<K>(p, p+val*coeff*vec);

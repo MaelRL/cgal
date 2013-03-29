@@ -2663,7 +2663,7 @@ public:
                           const int star_id = -1/*only this one*/) const 
       {
         double coeff = bbox_min/20.;
-        double glob_min = std::sqrt((std::max)(eps, m_pConstrain->global_min_curvature()));
+        double glob_min = (std::max)(eps, m_pConstrain->global_min_curvature());
         coeff *= glob_min;
 
         if(star_id < 0) // draw them all
