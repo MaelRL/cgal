@@ -940,7 +940,7 @@ private:
         typename Star::Traits::Compute_random_point_3 random = 
           star->traits()->compute_random_point_3_object();
 
-        std::size_t tried_times = 0;
+        std::size_t tried_times = 1;
         bool success = false;
 
         pickvalid_problematic_facets.clear();
@@ -970,7 +970,7 @@ private:
             assert(!problematic_facets.empty());
             pickvalid_problematic_facets[p] = problematic_facets;
           }
-          if((tried_times++) > m_criteria->max_times_to_try_in_picking_region)
+          if(++tried_times > m_criteria->max_times_to_try_in_picking_region)
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
