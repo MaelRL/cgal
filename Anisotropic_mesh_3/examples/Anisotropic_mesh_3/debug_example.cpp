@@ -41,7 +41,7 @@ int main()
 {
   K::FT R = 10.;
   K::FT r = 1.;
-  K::FT epsilon = 0.;
+  K::FT epsilon = 0.1;
 
   Constrain_surface_3_torus<K>* pdomain = new Constrain_surface_3_torus<K>(R, r);
 
@@ -138,8 +138,7 @@ int main()
   std::cout << "R : " << R << " r : " << r << " eps : " << epsilon << std::endl;
   std::cout << "1/R : " << 1./R << " | 1/r : " << 1./r << std::endl;
 
-
-  int point_nb = 10;
+  int point_nb = 20;
   double shift = 2.*CGAL_PI/(point_nb + 1.);
 
   std::cout << "shift : " << shift << std::endl;
@@ -150,15 +149,16 @@ int main()
 
   Vector_3 v_min, v_max, v_en;
 
-  for(int i=0; i<point_nb; ++i){
+  for(int i=0; i<point_nb; ++i)
+  {
 
-    points[i] = point_on_torus(R, r, 2.*i*CGAL_PI/point_nb, 0.*CGAL_PI);
+//    points[i] = point_on_torus(R, r, 0.*i*CGAL_PI/point_nb, 0.05*i*CGAL_PI);
 
-    std::cout << "Point n° " << i << " : " << R << " " << r << " 0.1 " << 2*i*CGAL_PI/point_nb << std::endl;
-    std::cout << " coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
+//    std::cout << "Point n° " << i << " : " << R << " " << r << " 0.1 " << 2*i*CGAL_PI/point_nb << std::endl;
+//    std::cout << " coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
 
 //    point_imp_metrics[i] = mf_implicit.compute_metric(points[i]);
-    point_exp_metrics[i] = mf_torus.compute_metric(points[i]);
+//    point_exp_metrics[i] = mf_torus.compute_metric(points[i]);
 
 //    std::cout << "Implicit : " << std::endl;
 //    std::cout << " e_min = " <<  (point_imp_metrics[i]).get_min_eigenvalue() << std::endl;
@@ -171,32 +171,133 @@ int main()
 //    std::cout << " v_max = " << v_max << std::endl;
 //    std::cout << " v_en = " << v_en << std::endl;
 
-    std::cout << "Explicit : " << std::endl;
-    std::cout << " e_min = " <<  (point_exp_metrics[i]).get_min_eigenvalue() << std::endl;
-    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_max_eigenvalue() << std::endl;
-    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_third_eigenvalue() << std::endl;
-    (point_exp_metrics[i]).get_min_eigenvector(v_min);
-    (point_exp_metrics[i]).get_max_eigenvector(v_max);
-    (point_exp_metrics[i]).get_third_eigenvector(v_en);
-    std::cout << " v_min = " << v_min << std::endl;
-    std::cout << " v_max = " << v_max << std::endl;
-    std::cout << " v_en = " << v_en << std::endl;
+//    std::cout << "Explicit : " << std::endl;
+//    std::cout << " e_min = " <<  (point_exp_metrics[i]).get_min_eigenvalue() << std::endl;
+//    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_max_eigenvalue() << std::endl;
+//    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_third_eigenvalue() << std::endl;
+//    (point_exp_metrics[i]).get_min_eigenvector(v_min);
+//    (point_exp_metrics[i]).get_max_eigenvector(v_max);
+//    (point_exp_metrics[i]).get_third_eigenvector(v_en);
+//    std::cout << " v_min = " << v_min << std::endl;
+//    std::cout << " v_max = " << v_max << std::endl;
+//    std::cout << " v_en = " << v_en << std::endl;
   }
 
 //  std::cout << std::endl << "Distortion Computations" << std::endl;
 //  std::cout << "Implicit : " << std::endl;
-//  for(int i=0; i<point_nb; ++i){
+//  for(int i=0; i<point_nb; ++i)
+//  {
 //    int next_i = (i == (point_nb-1))?0:(i+1);
 //    double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
 //    std::cout << i << " " << next_i << " | " << d << std::endl;
 //  }
 
-  std::cout << "Explicit : " << std::endl;
-  for(int i=0; i<point_nb; ++i){
-    int next_i = (i == (point_nb-1))?0:(i+1);
-    double d = (point_exp_metrics[i]).compute_distortion( (point_exp_metrics[next_i]) );
-    std::cout << i << " " << next_i << " | " << d << std::endl;
-  }
+//  std::cout << "Explicit : " << std::endl;
+//  for(int i=0; i<point_nb; ++i)
+//  {
+//    int next_i = (i == (point_nb-1))?0:(i+1);
+//    double d = (point_exp_metrics[i]).compute_distortion( (point_exp_metrics[next_i]) );
+//    std::cout << i << " " << next_i << " | " << d << std::endl;
+//  }
+
+  // --------------------------------- Six points on a torus ---------------------
+
+  //points
+  Point_3 A = point_on_torus(R, r, 0., 0.);
+  Point_3 B = point_on_torus(R, r, 0., 0.22*CGAL_PI);
+  Point_3 C = point_on_torus(R, r, 0., 0.45*CGAL_PI);
+  Point_3 D = point_on_torus(R, r, 0.3*CGAL_PI, 0.*CGAL_PI);
+  Point_3 E = point_on_torus(R, r, 0.3*CGAL_PI, 0.22*CGAL_PI);
+  Point_3 F = point_on_torus(R, r, 0.3*CGAL_PI, 0.45*CGAL_PI);
+
+  //metrics
+  Implicit_curvature_metric_field<K>::Metric imp_metric_A = mf_implicit.compute_metric(A);
+  Torus_metric_field<K>::Metric exp_metric_A = mf_torus.compute_metric(A);
+
+  Implicit_curvature_metric_field<K>::Metric imp_metric_B = mf_implicit.compute_metric(B);
+  Torus_metric_field<K>::Metric exp_metric_B = mf_torus.compute_metric(B);
+
+  Implicit_curvature_metric_field<K>::Metric imp_metric_C = mf_implicit.compute_metric(C);
+  Torus_metric_field<K>::Metric exp_metric_C = mf_torus.compute_metric(C);
+
+  Implicit_curvature_metric_field<K>::Metric imp_metric_D = mf_implicit.compute_metric(D);
+  Torus_metric_field<K>::Metric exp_metric_D = mf_torus.compute_metric(D);
+
+  Implicit_curvature_metric_field<K>::Metric imp_metric_E = mf_implicit.compute_metric(E);
+  Torus_metric_field<K>::Metric exp_metric_E = mf_torus.compute_metric(E);
+
+  Implicit_curvature_metric_field<K>::Metric imp_metric_F = mf_implicit.compute_metric(F);
+  Torus_metric_field<K>::Metric exp_metric_F = mf_torus.compute_metric(F);
+
+  //output
+  std::cout.precision(15);
+
+  std::cout << "Points : " << std::endl;
+  std::cout << " A : " << A << std::endl;
+  std::cout << " exp : " << exp_metric_A.get_max_eigenvalue() << " " << exp_metric_A.get_min_eigenvalue() << " " << exp_metric_A.get_third_eigenvalue() << std::endl;
+  std::cout << " imp : " << imp_metric_A.get_max_eigenvalue() << " " << imp_metric_A.get_min_eigenvalue() << " " << imp_metric_A.get_third_eigenvalue() << std::endl;
+  std::cout << " B : " << B << std::endl;
+  std::cout << " exp : " << exp_metric_B.get_max_eigenvalue() << " " << exp_metric_B.get_min_eigenvalue() << " " << exp_metric_B.get_third_eigenvalue() << std::endl;
+  std::cout << " imp : " << imp_metric_B.get_max_eigenvalue() << " " << imp_metric_B.get_min_eigenvalue() << " " << imp_metric_B.get_third_eigenvalue() << std::endl;
+  std::cout << " C : " << C << std::endl;
+  std::cout << " exp : " << exp_metric_C.get_max_eigenvalue() << " " << exp_metric_C.get_min_eigenvalue() << " " << exp_metric_C.get_third_eigenvalue() << std::endl;
+  std::cout << " imp : " << imp_metric_C.get_max_eigenvalue() << " " << imp_metric_C.get_min_eigenvalue() << " " << imp_metric_C.get_third_eigenvalue() << std::endl;
+  std::cout << " D : " << D << std::endl;
+  std::cout << " exp : " << exp_metric_D.get_max_eigenvalue() << " " << exp_metric_D.get_min_eigenvalue() << " " << exp_metric_D.get_third_eigenvalue() << std::endl;
+  std::cout << " imp : " << imp_metric_D.get_max_eigenvalue() << " " << imp_metric_D.get_min_eigenvalue() << " " << imp_metric_D.get_third_eigenvalue() << std::endl;
+  std::cout << " E : " << E << std::endl;
+  std::cout << " exp : " << exp_metric_E.get_max_eigenvalue() << " " << exp_metric_E.get_min_eigenvalue() << " " << exp_metric_E.get_third_eigenvalue() << std::endl;
+  std::cout << " imp : " << imp_metric_E.get_max_eigenvalue() << " " << imp_metric_E.get_min_eigenvalue() << " " << imp_metric_E.get_third_eigenvalue() << std::endl;
+  std::cout << " F : " << F << std::endl;
+  std::cout << " exp : " << exp_metric_F.get_max_eigenvalue() << " " << exp_metric_F.get_min_eigenvalue() << " " << exp_metric_F.get_third_eigenvalue() << std::endl;
+  std::cout << " imp : " << imp_metric_F.get_max_eigenvalue() << " " << imp_metric_F.get_min_eigenvalue() << " " << imp_metric_F.get_third_eigenvalue() << std::endl;
+
+  //computations
+  double exp_d, imp_d;
+
+  exp_d = exp_metric_A.compute_distortion( exp_metric_B );
+  imp_d = imp_metric_A.compute_distortion( imp_metric_B );
+  std::cout << "A-B exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_A.compute_distortion( exp_metric_D );
+  imp_d = imp_metric_A.compute_distortion( imp_metric_D );
+  std::cout << "A-D exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_A.compute_distortion( exp_metric_E );
+  imp_d = imp_metric_A.compute_distortion( imp_metric_E );
+  std::cout << "A-E exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_B.compute_distortion( exp_metric_D );
+  imp_d = imp_metric_B.compute_distortion( imp_metric_D );
+  std::cout << "B-D exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_B.compute_distortion( exp_metric_E );
+  imp_d = imp_metric_B.compute_distortion( imp_metric_E );
+  std::cout << "B-E exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_B.compute_distortion( exp_metric_C );
+  imp_d = imp_metric_B.compute_distortion( imp_metric_C );
+  std::cout << "B-C exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_B.compute_distortion( exp_metric_F );
+  imp_d = imp_metric_B.compute_distortion( imp_metric_F );
+  std::cout << "B-F exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_C.compute_distortion( exp_metric_E );
+  imp_d = imp_metric_C.compute_distortion( imp_metric_E );
+  std::cout << "C-E exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_C.compute_distortion( exp_metric_F );
+  imp_d = imp_metric_C.compute_distortion( imp_metric_F );
+  std::cout << "C-F exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_D.compute_distortion( exp_metric_E );
+  imp_d = imp_metric_D.compute_distortion( imp_metric_E );
+  std::cout << "D-E exp : " << exp_d << " imp : " << imp_d << std::endl;
+
+  exp_d = exp_metric_E.compute_distortion( exp_metric_F );
+  imp_d = imp_metric_E.compute_distortion( imp_metric_F );
+  std::cout << "E-F exp : " << exp_d << " imp : " << imp_d << std::endl;
 
   // --------------------------------- ELLI STUFF --------------------------------
 
