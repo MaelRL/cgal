@@ -56,7 +56,7 @@ namespace CGAL
       virtual Oriented_side side_of_constraint(const Point_3 &p) const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
       virtual std::set<Point_3>& compute_poles() const = 0;
-      virtual Pointset get_surface_points(unsigned int nb) const = 0;
+      virtual Pointset get_surface_points(unsigned int nb, double facet_distance_coeff = 0.05) const = 0;
       virtual std::string name() const  = 0;
 
       virtual double global_max_curvature() const = 0;

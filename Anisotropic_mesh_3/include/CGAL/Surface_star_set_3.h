@@ -1206,7 +1206,7 @@ public:
       }
      
       // insert p inside existing stars
-      Index insert_to_stars(const Point_3& p,  
+      Index insert_to_stars(const Point_3& p,
                             Index_set& modified_stars,
                             const bool conditional)
       {
@@ -1222,7 +1222,7 @@ public:
         
         id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, false);
         
-        target_stars.clear();        
+        target_stars.clear();
         infinite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end()));//convex hull
         id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, true);
                 
@@ -1252,7 +1252,7 @@ public:
           else if(vi->info() < this_id) // already in star set (should not happen)
           {
             std::cout << "Warning! Insertion of p"<< this_id 
-              << " (" << p << ") in S" << si->index_in_star_set() << " failed."<< std::endl;
+              << " (" << p << ") in S" << si->index_in_star_set() << " failed. vi->info() :"<< vi->info() << std::endl;
             if(v_in_ch != Vertex_handle())
               m_ch_triangulation.remove(v_in_ch);
             remove_from_stars(this_id, target_stars.begin(), ++it);
@@ -1573,11 +1573,16 @@ public:
       void initialize_stars(const int nb = 8) 
       {
 #ifdef ANISO_VERBOSE
-        std::cout << "Initialize "<< nb << " stars..."; 
+        std::cout << "Initialize "<< nb << " stars..." << std::endl;
 #endif
         //typename Constrain_surface::Pointset initial_points = m_pConstrain->initial_points(nb);
         initial_points.clear();
         initial_points = m_pConstrain->get_surface_points(2*nb);
+
+        initialize_medial_axis(); // poles
+
+        std::cout << "now inserting initial points" << std::endl;
+
         typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
         typename Constrain_surface::Pointset::iterator pend = initial_points.end();
 #ifdef ANISO_VERBOSE
@@ -1586,6 +1591,9 @@ public:
         int nbdone = 0;
         for (; pi != pend && nbdone < nb; pi++)
         {
+          if(nbdone % 100 == 0)
+            this->clean_stars();
+
           std::size_t this_id = m_stars.size();
           int id = -1;
           //if(m_refinement_condition(*pi))
@@ -1594,7 +1602,7 @@ public:
             nbdone++;
         }
 #ifdef ANISO_VERBOSE
-        std::cout << "done (" << m_stars.size() << " stars).\n";
+        std::cout << "done (" << m_stars.size() << " stars)." << std::endl;
 #endif
       }
 
@@ -1609,10 +1617,8 @@ public:
         poles.clear();
         poles = m_pConstrain->compute_poles();
 
-        std::cout << poles.size() << " poles" << std::endl;
-
 #ifdef ANISO_VERBOSE
-        std::cout << poles.size() << ")";
+        std::cout << poles.size() << ")" << std::endl;
 
         //insert them all in all stars
         std::cout << "(insert poles...";
@@ -1668,7 +1674,7 @@ public:
 #endif
         m_aabb_tree.rebuild(m_stars.begin(), m_stars.end());
 #ifdef ANISO_VERBOSE
-        std::cout << " done.\n";
+        std::cout << " done." << std::endl;
 #endif
       }
 
@@ -2784,9 +2790,7 @@ public:
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars)
       {
-        initialize_medial_axis();
-
-        initialize_stars(nb_initial_points); // initial points on surface         
+        initialize_stars(nb_initial_points); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
 
 #ifndef NO_USE_AABB_TREE_OF_BBOXES 

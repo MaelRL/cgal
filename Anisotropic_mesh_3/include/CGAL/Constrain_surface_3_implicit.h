@@ -335,31 +335,9 @@ public:
           w = p.base2();
         }
 
-      virtual std::set<Point_3>& compute_poles() const
-      {
-        Function fct = (Function)(&Self::implicit_function);
-        FT r = this->get_bounding_radius();
-        Function_wrapper fw(this, fct);
-        Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
-        Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
-                               CGAL::parameters::facet_size = r * 0.05,//1,//05,
-                               CGAL::parameters::facet_distance = r * 0.01);
-                               // cell criteria are ignored
-        // run Mesh_3
-        m_c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
-                                         CGAL::parameters::no_perturb(),
-                                         CGAL::parameters::no_exude());
-#ifdef ANISO_OUTPUT_MESH_FOR_POLES
-        std::ofstream out("mesh_3_temp.mesh");
-        m_c3t3.output_to_medit(out);
-#endif
-        m_poles.clear();
-        compute_triangulation_poles(m_c3t3,
-          std::inserter(m_poles, m_poles.end()));
-        return m_poles;
-      }
 
-      virtual Pointset get_surface_points(unsigned int nb) const
+      virtual Pointset get_surface_points(unsigned int nb,
+                                          double facet_distance_coeff /*= 0.05*/) const
       {
         std::vector<Point_3> all_points;
         typename C3t3::Triangulation::Finite_vertices_iterator v;
@@ -370,10 +348,43 @@ public:
           if(m_c3t3.in_dimension(v) == 1 || m_c3t3.in_dimension(v) == 2)
             all_points.push_back(v->point());
         }
-        std::random_shuffle(all_points.begin(), all_points.end());
 
-        std::size_t n = (std::min)(std::size_t(nb), all_points.size());
-        return Pointset(all_points.begin(), (all_points.begin() + n));
+        if(std::size_t(nb) > all_points.size())
+        {
+#ifdef ANISO_VERBOSE
+          std::cout << "C3T3 mesh did not contain enough points (" << all_points.size();
+          std::cout << "). Generating a new c3t3..." << std::endl;
+#endif
+          //not enough points on the c3t3 to fill the initial_points vector. Generating a new denser c3t3.
+          Function fct = (Function)(&Self::implicit_function);
+          FT r = this->get_bounding_radius();
+          Function_wrapper fw(this, fct);
+          Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
+
+          Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
+                                 CGAL::parameters::facet_size = r * 0.05,
+                                 CGAL::parameters::facet_distance = r * facet_distance_coeff);
+                                 // cell criteria are ignored
+          // run Mesh_3
+          m_c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
+                                           CGAL::parameters::no_perturb(),
+                                           CGAL::parameters::no_exude());
+#ifdef ANISO_OUTPUT_MESH_FOR_POLES
+        std::ofstream out("mesh_3_temp.mesh");
+        m_c3t3.output_to_medit(out);
+#endif
+          return get_surface_points(nb, facet_distance_coeff/3.);
+        }
+
+        std::random_shuffle(all_points.begin(), all_points.end());
+        return Pointset(all_points.begin(), (all_points.begin() + nb));
+      }
+
+        virtual std::set<Point_3>& compute_poles() const
+      {
+        m_poles.clear();
+        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()));
+        return m_poles;
       }
 
       virtual double global_max_curvature() const

@@ -71,7 +71,7 @@ namespace CGAL
       virtual std::string name() const  = 0;
 
       virtual std::set<Point_3>& compute_poles() const = 0;
-      virtual Pointset get_surface_points(unsigned int nb) const = 0;
+      virtual Pointset get_surface_points(unsigned int nb, double facet_distance_coeff = 0.05) const = 0;
 
       virtual FT compute_sq_approximation(const Point_3& p) const = 0;
       

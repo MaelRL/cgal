@@ -253,7 +253,7 @@ class Constrain_surface_3_polyhedral :
       //  return a * b / (std::sqrt(a*a) * std::sqrt(b*b));
       //}
 
-      void tensor_frame(const Point_3 &p, 
+      void tensor_frame(const Point_3 &p,
                         Vector_3 &e0,     //unit normal 
                         Vector_3 &e1,     //unit eigenvector
                         Vector_3 &e2,     //unit eigenvector
@@ -279,9 +279,9 @@ class Constrain_surface_3_polyhedral :
         // blend
         Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
         FT wsum = 0.;
-        for (std::size_t i = 0; i < neighbors.size(); ++i) 
+        for (std::size_t i = 0; i < neighbors.size(); ++i)
         { 
-          FT w = std::exp(-wpp_inv * sq_distances[i]);     
+          FT w = std::exp(-wpp_inv * sq_distances[i]);
           wsum += w;
           std::size_t index = neighbors[i]->tag();
           for(int j = 0; j < 3; j++)
@@ -313,11 +313,11 @@ class Constrain_surface_3_polyhedral :
         Halfedge_handle he1 = facet->halfedge();
         Halfedge_handle he2 = he1->next();
         Halfedge_handle he3 = he2->next();
-        neighbors.push_back(he1->vertex());        
+        neighbors.push_back(he1->vertex());
         neighbors.push_back(he1->opposite()->vertex());
-        neighbors.push_back(he2->vertex());        
+        neighbors.push_back(he2->vertex());
         neighbors.push_back(he2->opposite()->vertex());
-        neighbors.push_back(he3->vertex());        
+        neighbors.push_back(he3->vertex());
         neighbors.push_back(he3->opposite()->vertex());
       }
 
@@ -579,26 +579,14 @@ class Constrain_surface_3_polyhedral :
 
       virtual std::set<Point_3>& compute_poles() const
       {
-        FT r = this->get_bounding_radius();
-        // run Mesh_3
-        Mesh_criteria criteria(CGAL::parameters::facet_angle = 25., 
-          CGAL::parameters::facet_size = r * 0.02,//0.15, 
-          CGAL::parameters::facet_distance = r * 0.05);//0.008,
-        // cell criteria are ignored
-        m_c3t3 = CGAL::make_mesh_3<C3t3>(*domain, criteria, 
-          CGAL::parameters::no_perturb(), 
-          CGAL::parameters::no_exude());
-#ifdef ANISO_OUTPUT_MESH_FOR_POLES
-        std::ofstream out("mesh_3_temp.mesh");
-        m_c3t3.output_to_medit(out);
-#endif
         m_poles.clear();
         compute_triangulation_poles(m_c3t3, 
           std::inserter(m_poles, m_poles.end()));
         return m_poles;
       }
 
-      virtual Pointset get_surface_points(unsigned int nb) const
+      virtual Pointset get_surface_points(unsigned int nb,
+                                          double facet_distance_coeff /*= 0.05*/) const
       {
         std::vector<Point_3> all_points;
         typename C3t3::Triangulation::Finite_vertices_iterator v;
@@ -609,10 +597,32 @@ class Constrain_surface_3_polyhedral :
           if(m_c3t3.in_dimension(v) == 1 || m_c3t3.in_dimension(v) == 2)
             all_points.push_back(v->point());
         }
-        std::random_shuffle(all_points.begin(), all_points.end());
 
-        std::size_t n = (std::max)(std::size_t(nb), all_points.size());
-        return Pointset(all_points.begin(), (all_points.begin() + n));
+        if(std::size_t(nb) > all_points.size())
+        {
+#ifdef ANISO_VERBOSE
+          std::cout << "C3T3 mesh did not contain enough points (" << all_points.size();
+          std::cout << "). Generating a new c3t3..." << std::endl;
+#endif
+          FT r = this->get_bounding_radius();
+          // run Mesh_3
+          Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
+                                 CGAL::parameters::facet_size = r * 0.05,
+                                 CGAL::parameters::facet_distance = r * facet_distance_coeff);
+                                 // cell criteria are ignored
+
+          m_c3t3 = CGAL::make_mesh_3<C3t3>(*domain, criteria,
+                                           CGAL::parameters::no_perturb(),
+                                           CGAL::parameters::no_exude());
+#ifdef ANISO_OUTPUT_MESH_FOR_POLES
+          std::ofstream out("mesh_3_temp.mesh");
+          m_c3t3.output_to_medit(out);
+#endif
+          return get_surface_points(nb, facet_distance_coeff/3.);
+        }
+
+        std::random_shuffle(all_points.begin(), all_points.end());
+        return Pointset(all_points.begin(), (all_points.begin() + nb));
       }
 
       virtual double global_max_curvature() const
