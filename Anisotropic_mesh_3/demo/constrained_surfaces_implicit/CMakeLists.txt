@@ -109,6 +109,11 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND)
   LIST(REMOVE_AT ELLIPSOID_SRC_FILES 0) 
   polyhedron_demo_plugin(ellipsoid_constrained_surface_plugin Ellipsoid_function ${ELLIPSOID_SRC_FILES})
   
+  set(DOUBLE_ELLIPSOID_SRC_FILES "Double_ellipsoid_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" DOUBLE_ELLIPSOID_SRC_FILES)
+  LIST(REMOVE_AT DOUBLE_ELLIPSOID_SRC_FILES 0) 
+  polyhedron_demo_plugin(double_ellipsoid_constrained_surface_plugin Double_ellipsoid_function ${DOUBLE_ELLIPSOID_SRC_FILES})
+  
 else (CGAL_Qt4_FOUND AND QT4_FOUND)
 
   set(MESH_3_MISSING_DEPS "")
