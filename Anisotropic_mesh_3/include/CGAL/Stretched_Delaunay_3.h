@@ -1650,7 +1650,8 @@ public:
             std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point()) << std::endl;
             std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
             std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
+            std::cerr << c1->vertex(facet.second)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex(facet.second)->point()) << " (.second)" << std::endl;
             std::cerr << "Cell 2: " << std::endl;
             std::cerr << c2->vertex(0)->info() << " ";
             std::cerr << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
@@ -2023,7 +2024,7 @@ public:
                                     m_metric.inverse_transform(f.first->vertex((f.second+3) % 4)->point())) )
             continue;
 #ifdef ANISO_USE_EXACT
-          this->compute_exact_dual_intersection(f, c);
+          this->compute_exact_dual_intersection(f, ce);
 #else
           this->compute_dual_intersection(f, ce);
 #endif
