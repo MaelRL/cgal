@@ -59,6 +59,7 @@ public:
                             const Criteria* criteria,
                             const Metric_field* metrix_field,
                             const bool pick_valid_causes_stop,
+                            const bool pick_valid_use_cube_probing,
                             const int pick_valid_max_failures);
   // Note: 'this' takes the ownership of 'criteria' and 'metrix_field'.
   
@@ -88,6 +89,7 @@ private:
   const Criteria* criteria_;
   const Metric_field* metrix_field_;
   bool pick_valid_causes_stop_;
+  bool pick_valid_use_cube_probing_;
   int pick_valid_max_failures_;
 
 //  TMesher* tmesher_;
@@ -128,6 +130,7 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
   const Criteria* criteria,
   const Metric_field* metrix_field,
   const bool pick_valid_causes_stop,
+  const bool pick_valid_use_cube_probing,
   const int pick_valid_max_failures)
 : starset_(starset) 
 , p_(param)
@@ -136,6 +139,7 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
 , criteria_(criteria)
 , metrix_field_(metrix_field)
 , pick_valid_causes_stop_(pick_valid_causes_stop)
+, pick_valid_use_cube_probing_(pick_valid_use_cube_probing)
 , pick_valid_max_failures_(pick_valid_max_failures)
 //, domain_(domain)
 //, tmesher_(NULL)
@@ -210,7 +214,8 @@ launch()
        }
 
        if(!smesher_->star_set.refine(pick_valid_succeeded_n, pick_valid_failed_n,
-                                     pick_valid_causes_stop_, pick_valid_max_failures_))
+                                     pick_valid_causes_stop_, pick_valid_max_failures_,
+                                     pick_valid_use_cube_probing_))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();

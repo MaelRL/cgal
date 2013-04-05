@@ -88,6 +88,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
+                                 const bool pick_valid_use_cube_probing,
                                  const int pick_valid_max_failures,
                                  const double en_factor)
 {
@@ -109,8 +110,11 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
     = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points);
 
   typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
-  AMesh_function* p_mesh_function 
-    = new AMesh_function(p_new_item->star_set(), param, criteria, mf, pick_valid_causes_stop, pick_valid_max_failures);
+  AMesh_function* p_mesh_function = new AMesh_function(p_new_item->star_set(),
+                                                       param, criteria, mf,
+                                                       pick_valid_causes_stop,
+                                                       pick_valid_use_cube_probing,
+                                                       pick_valid_max_failures);
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 
