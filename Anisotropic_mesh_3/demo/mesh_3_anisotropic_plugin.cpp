@@ -183,6 +183,10 @@ public:
     actionDraw_mesh_3 = this->getActionFromMainWindow(mw, "actionDraw_mesh_3");
     if(actionDraw_mesh_3)
       connect(actionDraw_mesh_3, SIGNAL(toggled(bool)), this, SLOT(view_mesh_3(bool)));
+
+    actionDraw_distortion = this->getActionFromMainWindow(mw, "actionDraw_distortion");
+    if(actionDraw_distortion)
+      connect(actionDraw_distortion, SIGNAL(toggled(bool)), this, SLOT(view_distortion(bool)));
   }
 
   virtual QList<QAction*> actions() const
@@ -225,6 +229,7 @@ public slots:
   void view_inconsistent_facets(bool);
   void view_metric_field(bool);
   void view_mesh_3(bool);
+  void view_distortion(bool);
   //others
   void meshing_done_resume(Anisotropic_meshing_thread* t);
   void meshing_done_nresume(Anisotropic_meshing_thread* t);
@@ -252,6 +257,7 @@ private:
   QAction* actionDraw_inconsistent_facets;
   QAction* actionDraw_metric_field;
   QAction* actionDraw_mesh_3;
+  QAction* actionDraw_distortion;
 
   Messages_interface* msg;
   QMessageBox* message_box_;
@@ -272,6 +278,7 @@ Anisotropic_mesh_3_plugin()
   , actionDraw_one_star(NULL)
   , actionDraw_one_pickvalid_point(NULL)
   , actionDraw_inconsistent_facets(NULL)
+  , actionDraw_distortion(NULL)
   , msg(NULL)
   , message_box_(NULL)
   , source_item_(NULL)
@@ -737,7 +744,7 @@ void Anisotropic_mesh_3_plugin::view_one_pickvalid_point()
   connect(ui.displayAll, SIGNAL(clicked()), &dialog, SLOT(reject()));
 
    // Set default parameters
-  int indexMax = ssetitem->star_set().pickvalid_problematic_facets_size()-1;
+  int indexMax = ((int)ssetitem->star_set().pickvalid_problematic_facets_size())-1;
   ui.objectQuestion->setText(
     tr("Which point do you want to display? (from 0 to %1)").arg(indexMax));
   ui.PickvalidPointId->setDecimals(0);
@@ -844,9 +851,22 @@ void Anisotropic_mesh_3_plugin::view_inconsistent_facets(bool b)
   Scene_starset3_item* ssetitem = 
     qobject_cast<Scene_starset3_item*>(scene->item(index));
   if(ssetitem != NULL)
+  {
     ssetitem->draw_inconsistent_facets() = b;
+    ssetitem->starset_changed();
+  }
+}
 
-  ssetitem->starset_changed();
+void Anisotropic_mesh_3_plugin::view_distortion(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem = 
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_distortion() = b;
+    ssetitem->starset_changed();
+  }
 }
 
 void Anisotropic_mesh_3_plugin::view_metric_field(bool b)

@@ -37,7 +37,7 @@
      <x>0</x>
      <y>0</y>
      <width>978</width>
-     <height>27</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -124,6 +124,7 @@
      <addaction name="actionDraw_poles"/>
      <addaction name="actionDraw_inconsistent_facets"/>
      <addaction name="actionDraw_metric_field"/>
+     <addaction name="actionDraw_distortion"/>
     </widget>
     <addaction name="actionRecenterScene"/>
     <addaction name="action_Look_at"/>
@@ -280,8 +281,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>554</width>
-            <height>169</height>
+            <width>540</width>
+            <height>177</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout">
@@ -762,6 +763,14 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionDraw_distortion">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>distortion</string>
    </property>
   </action>
  </widget>

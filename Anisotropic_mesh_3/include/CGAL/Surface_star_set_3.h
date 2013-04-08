@@ -163,7 +163,7 @@ private:
 #endif
 
     public:
-      int pickvalid_problematic_facets_size() const {return pickvalid_problematic_facets.size();}
+      std::size_t pickvalid_problematic_facets_size() const {return pickvalid_problematic_facets.size();}
       const Constrain_surface* const constrain_surface() const { return m_pConstrain; }
       const Criteria* criteria() const { return m_criteria; }
       const Metric_field* metric_field() const { return m_metric_field; }
@@ -2748,9 +2748,9 @@ public:
             ::glEnable(GL_LIGHTING);
         }
 
-        double point_size = 5.;
+        float point_size = 5.;
         if(!red_points.empty() || !orange_points.empty() || !yellow_points.empty() || !green_points.empty())
-         point_size = 0.01;
+         point_size = 0.01f;
 
         //all pickvalid points that were tried
         if(point_id < 0)
@@ -2899,6 +2899,61 @@ public:
         const Side sb = plane.oriented_side(pb);
         const Side sc = plane.oriented_side(pc);
         return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
+      }
+
+      void gl_draw_distortion(const typename K::Plane_3& plane,
+                              const int star_id = -1) const
+      {
+        std::cout << "gl_draw_distortion" << std::endl;
+        GLboolean was = (::glIsEnabled(GL_LIGHTING));
+        if(!was)
+          ::glEnable(GL_LIGHTING);
+
+        ::glPolygonOffset(1.f, 0.1f);
+        ::glEnable(GL_POLYGON_OFFSET_FILL);
+        ::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        bool draw_all = (star_id < 0);
+        std::size_t start = draw_all ? 0 : star_id;
+        std::size_t N = draw_all ? m_stars.size() : (star_id + 1);
+        
+        std::set<Facet_ijk> done;
+        for(std::size_t i = start; i < N; i++)
+        {
+          Star_handle star = m_stars[i];
+          typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+          typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+          for(; fit != fitend; fit++)
+          {
+            Facet f = *fit;
+            if(done.find(Facet_ijk(f)) != done.end())
+              continue;
+            done.insert(Facet_ijk(f));
+
+            const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
+            const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
+            const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
+            if(!is_above_plane(plane, pa, pb, pc))
+              continue;
+  
+            FT max_distortion = 0.;
+            for (int i = 0; i < 3; i++) 
+            {
+              int index_1 = (f.second + i + 1) % 4;
+              int index_2 = (f.second + (i + 1) % 3 + 1) % 4;
+              FT distortion = m_stars[f.first->vertex(index_1)->info()]->metric().compute_distortion(
+                 m_stars[f.first->vertex(index_2)->info()]->metric());
+              max_distortion = (std::max)(distortion, max_distortion);
+            }
+            max_distortion = 60.*(max_distortion - 1.);
+            double rg = (std::max)(255., max_distortion);
+            float rgf = static_cast<float>(rg);
+            gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, rgf, rgf, 255);
+          }        
+        }
+        ::glDisable(GL_POLYGON_OFFSET_FILL);
+        if(!was)
+          ::glDisable(GL_LIGHTING);
       }
 
       void gl_draw_inconsistent_facets(const typename K::Plane_3& plane,

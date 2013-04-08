@@ -110,6 +110,7 @@ public:
   double draw_metric_eps() const { return m_draw_metric_eps; }
   bool& draw_mesh_3()              { return m_draw_mesh_3; }
   bool& draw_surface_star_set()    { return m_draw_surface_star_set; }
+  bool& draw_distortion()          { return m_draw_distortion; }
 
 protected:
   Scene_starset3_item_priv* d;
@@ -135,6 +136,7 @@ private:
   bool m_draw_metric_field;
   double m_draw_metric_eps;
   bool m_draw_mesh_3;
+  bool m_draw_distortion;
 };
 
 inline
