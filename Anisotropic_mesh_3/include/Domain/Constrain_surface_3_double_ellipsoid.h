@@ -42,9 +42,9 @@ public:
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
     // a bit brutal
-    FT aa = 0.5; //std::max(a,d) + std::abs(s_center.x());
-    FT bb = 0.3; //std::max(b,e) + std::abs(s_center.y());
-    FT cc = 0.4; //std::max(c,f) + std::abs(s_center.z());
+    FT aa = 6.; //std::max(a,d) + std::abs(s_center.x());
+    FT bb = 3.; //std::max(b,e) + std::abs(s_center.y());
+    FT cc = 4.; //std::max(c,f) + std::abs(s_center.z());
     aa *= 1.1; bb *= 1.1; cc *= 1.1;
 
     return CGAL::Bbox_3(-aa, -bb, -cc, aa, bb, cc);
@@ -57,7 +57,7 @@ public:
     FT zz = z - s_center.z();
     FT first_elli = x*x/(a*a) + y*y/(b*b) + z*z/(c*c) - 1.0;
     FT second_elli = xx*xx/(d*d) + yy*yy/(e*e) + zz*zz/(f*f) - 1.0;
-    return  std::exp(-0.7*first_elli) + std::exp(-0.7*second_elli) - 1.0;
+    return  1.0 - std::exp(-0.7*first_elli) - std::exp(-0.7*second_elli);
   }
 
 //  virtual double global_max_curvature() const
@@ -84,14 +84,14 @@ public:
     return new Constrain_surface_3_double_ellipsoid(*this);
   }
 
-  Constrain_surface_3_double_ellipsoid(const FT a_ = 0.15, const FT b_ = 0.25, const FT c_ = 0.35,
-                                       const FT d_ = 0.15, const FT e_ = 0.25, const FT f_ = 0.35,
-                                       const Point_3 P = Point_3(0.35,0.0,0.0)) :
+  Constrain_surface_3_double_ellipsoid(const FT a_ = 1.5, const FT b_ = 2.5, const FT c_ = 3.5,
+                                       const FT d_ = 1.5, const FT e_ = 2.5, const FT f_ = 3.5,
+                                       const Point_3 P = Point_3(3.5,0.0,0.0)) :
       a(a_), b(b_), c(c_), d(d_), e(e_), f(f_), s_center(P)
   {
     FT dist_to_s_center = std::abs(s_center.x()*s_center.x() + s_center.y()*s_center.y() + s_center.z()*s_center.z());
     FT all_max = (std::max)((std::max)((std::max)((std::max)((std::max)(a_, b_), c_),d_),e_),f_);
-    bounding_radius = 0.6;//dist_to_s_center + all_max * 1.1;
+    bounding_radius = 6.;//dist_to_s_center + all_max * 1.1;
   }
 
   Constrain_surface_3_double_ellipsoid(const Constrain_surface_3_double_ellipsoid& de)
@@ -101,7 +101,7 @@ public:
   {
     FT dist_to_s_center = std::abs(s_center.x()*s_center.x() + s_center.y()*s_center.y() + s_center.z()*s_center.z());
     FT all_max = (std::max)((std::max)((std::max)((std::max)((std::max)(a, b), c),d),e),f);
-    bounding_radius = 0.6;//dist_to_s_center + all_max * 1.1;
+    bounding_radius = 6.;//dist_to_s_center + all_max * 1.1;
   }
 
   ~Constrain_surface_3_double_ellipsoid() { }

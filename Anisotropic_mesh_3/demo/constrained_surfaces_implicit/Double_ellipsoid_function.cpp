@@ -19,7 +19,7 @@ public:
   virtual QString name() const
   {
     std::ostringstream o;
-    o << "Double ellipsoid ( all the get to fill later )";
+    o << "Double ellipsoid ( Parameters : see code )";
     return QString(o.str().data());
   }
 
