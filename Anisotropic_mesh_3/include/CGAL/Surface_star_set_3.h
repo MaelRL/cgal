@@ -287,7 +287,7 @@ private:
         }
         else
           create_star(p, id, modified_stars, new_star);
-        
+
         bool is = check_consistency(to_be_refined, new_star, modified_stars, sq_radius_bound, problematic_facets);
 
         if(!is)
@@ -963,13 +963,13 @@ private:
         std::pair<int,int> A_n, B_n, C_n; // the three points forming ABC the triangle we want to study in cube mode
 
         // define the cube dimensions
-        int cube_points_on_edge_n = 15;
+        int cube_points_on_edge_n = 10;
         CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
         double cube_half_edge_size = 0.020*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
 
         // define the vector of points to be tested
         std::vector<TPoint_3> probing_points;
-        probing_points.push_back(TPoint_3(1,1,1)); //dummy point
+        probing_points.push_back(Point_3(1,1,1)); //dummy point
 
         while(true && !probing_points.empty())
         {
@@ -1011,7 +1011,7 @@ private:
             //check for 3 inconsistences within four points
             if(cube_probing)
             {
-              //check which points are involved in the inconsistences
+              //check which facets are involved in these inconsistences
               bool A_n_involved = false, B_n_involved = false, C_n_involved = false;
               bool others_involved = false;
 
@@ -1856,7 +1856,7 @@ public:
                        const Index_set& modified_stars,//by p's insertion
                        Star_handle& star,
                        const bool surface_star = true) const//o.w. center is inside volume
-      {         
+      {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
 #endif
