@@ -53,7 +53,7 @@ Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surfa
   {
     std::cout << "(Metric : Polyhedral)" << std::endl;
     typedef CGAL::Anisotropic_mesh_3::Polyhedral_curvature_metric_field<Kernel> PMF;
-    mf = new PMF(*p_domain, en_factor);
+    mf = new PMF(*p_domain, epsilon, en_factor);
   }
   else if(metric == HYPERBOLIC_SHOCK)
   {
