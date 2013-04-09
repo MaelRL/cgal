@@ -37,7 +37,6 @@
 #include <CGAL/helpers/combinatorics_helper.h>
 #include <CGAL/gl_draw/drawing_helper.h>
 
-
 namespace CGAL{
   namespace Anisotropic_mesh_3{
 
@@ -1311,7 +1310,7 @@ public:
         bool f2 = !is_infinite(c2);
 
         Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-        Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+        Vector_3 t_n = this->dual_support(c1, facet.second).to_vector();
         Vector_3 n = m_metric.inverse_transform(t_n);
         n = std::sqrt(1./(n*n)) * n;
 
@@ -1326,15 +1325,28 @@ public:
           else // !f2
           {
             Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-            Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
+            Point_3 ps3 = m_metric.inverse_transform(c1->vertex(facet.second)->point());
 
             CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
             CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
+            CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
 
-            if(o1 == o2)
-              return make_object(Ray_3(cp, cp - n));
-            else if(o1 != o2)
+            if(o3 == COPLANAR) //fc = cp
+            {
+              if(fc != cp)
+              {
+                std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                std::cerr << "fc : " << fc << std::endl;
+                std::cerr << "cp : " << cp << std::endl;
+              }
+              if(o1 == o2) //n points towards ps3
+                n = -n;
               return make_object(Ray_3(cp, cp + n));
+            }
+            else if(o1 == o3)
+              return make_object(Ray_3(cp, fc));
+            else if(o1 != o3)
+              return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
           }
         }
         else // !f1
@@ -1346,11 +1358,24 @@ public:
 
             CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
             CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
+            CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
 
-            if(o1 == o2)
-              return make_object(Ray_3(cp, cp - n));
-            else if(o1 != o2)
+            if(o3 == COPLANAR) //fc = cp
+            {
+              if(fc != cp)
+              {
+                std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                std::cerr << "fc : " << fc << std::endl;
+                std::cerr << "cp : " << cp << std::endl;
+              }
+              if(o1 == o2) //n points towards c2_ps3
+                n = -n;
               return make_object(Ray_3(cp, cp + n));
+            }
+            else if(o1 == o3)
+              return make_object(Ray_3(cp, fc));
+            else if(o1 != o3)
+              return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
           }
         }
         return typename K::Object_3();
@@ -1387,7 +1412,7 @@ public:
           bool f2 = !is_infinite(c2);
 
           Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
-          Exact_Vector_3 t_n = to_exact(this->dual_support(facet.first, facet.second).to_vector());
+          Exact_Vector_3 t_n = to_exact(this->dual_support(c1, facet.second).to_vector());
           Exact_Vector_3 n = m_metric.inverse_transform(t_n);
           n = std::sqrt(1./(n*n)) * n;
 
@@ -1403,19 +1428,37 @@ public:
             else // !f2
             {
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c1));
-              Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
+              Point_3 ps3 = m_metric.inverse_transform(c1->vertex(facet.second)->point());
 
-              CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
+              CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
                                                        to_exact(ps[2]), to_exact(ps3));
-              CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
+              CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
                                                        to_exact(ps[2]), fc + n);
+              CGAL::Orientation o3 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
+                                                       to_exact(ps[2]), cp);
 
-              if(o1 == o2)
-                n = -n;
-
-              Exact_Point_3 ep = cp + n;
-              if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
+              if(o3 == COPLANAR) //fc = cp
+              {
+                if(fc != cp)
+                {
+                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                  std::cerr << "fc : " << fc << std::endl;
+                  std::cerr << "cp : " << cp << std::endl;
+                }
+                if(o1 == o2) //n points towards ps3
+                  n = -n;
+                Exact_Point_3 ep = cp + n;
+                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
+                  ret_val = true;
+              }
+              else if(o1 == o3 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
                 ret_val = true;
+              else if(o1 != o3)
+              {
+                Exact_Point_3 target(cp + Exact_Vector_3(fc, cp));
+                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target)).assign(p))
+                  ret_val = true;
+              }
             }
           }
           else // !f1
@@ -1425,17 +1468,35 @@ public:
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c2));
               Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); //4th pt of c2
 
-              CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
+              CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
                                                        to_exact(ps[2]), to_exact(c2_ps3));
-              CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]),to_exact(ps[1]),
+              CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
                                                        to_exact(ps[2]), fc + n);
+              CGAL::Orientation o3 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
+                                                       to_exact(ps[2]), cp);
 
-              if(o1 == o2)
-                n = -n;
-
-              Exact_Point_3 ep = cp + n;
-              if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
+              if(o3 == COPLANAR) //fc = cp
+              {
+                if(fc != cp)
+                {
+                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                  std::cerr << "fc : " << fc << std::endl;
+                  std::cerr << "cp : " << cp << std::endl;
+                }
+                if(o1 == o2) //n points towards c2_ps3
+                  n = -n;
+                Exact_Point_3 ep = cp + n;
+                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
+                  ret_val = true;
+              }
+              else if(o1 == o3 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
                 ret_val = true;
+              else if(o1 != o3)
+              {
+                Exact_Point_3 target(cp + Exact_Vector_3(fc, cp));
+                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target)).assign(p))
+                  ret_val = true;
+              }
             }
           }
 
@@ -1559,8 +1620,8 @@ public:
 
           bool b1 = false;
           bool b2 = false;
-          if(constrain_ray_intersection(fc, fc-n).assign(p1)) b1 = true;
-          if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
+          if(constrain_ray_intersection(fc, fc - n).assign(p1)) b1 = true;
+          if(constrain_ray_intersection(fc, fc + n).assign(p2)) b2 = true;
           if(b1 && b2)
           {
             if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
@@ -1582,7 +1643,7 @@ public:
           bool f2 = !is_infinite(c2);
 
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-          Vector_3 t_n = this->dual_support(facet.first, facet.second).to_vector();
+          Vector_3 t_n = this->dual_support(c1, facet.second).to_vector();
           Vector_3 n = m_metric.inverse_transform(t_n);
           n = std::sqrt(1./(n*n)) * n;
 
@@ -1603,15 +1664,28 @@ public:
             else // !f2
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
+              Point_3 ps3 = m_metric.inverse_transform(c1->vertex(facet.second)->point());
 
-              CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], ps3);
-              CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], fc + n);
+              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
+              CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
 
-              if(o1 == o2)
-                n = -n;
-
-              if(constrain_ray_intersection(cp, cp+n).assign(p))
+              if(o3 == COPLANAR) //fc = cp
+              {
+                if(fc != cp)
+                {
+                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                  std::cerr << "fc : " << fc << std::endl;
+                  std::cerr << "cp : " << cp << std::endl;
+                }
+                if(o1 == o2) //n points towards ps3
+                  n = -n;
+                if(constrain_ray_intersection(cp, cp + n).assign(p))
+                  ret_val = true;
+              }
+              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+                ret_val = true;
+              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
                 ret_val = true;
             }
           }
@@ -1622,13 +1696,26 @@ public:
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
               Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
 
-              CGAL::Orientation o1 = CGAL::orientation(ps[0],ps[1],ps[2], c2_ps3);
-              CGAL::Orientation o2 = CGAL::orientation(ps[0],ps[1],ps[2], fc + n);
+              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
+              CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
 
-              if(o1 == o2)
-                n = -n;
-
-              if(constrain_ray_intersection(cp, cp+n).assign(p))
+              if(o3 == COPLANAR) //fc = cp
+              {
+                if(fc != cp)
+                {
+                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                  std::cerr << "fc : " << fc << std::endl;
+                  std::cerr << "cp : " << cp << std::endl;
+                }
+                if(o1 == o2) //n points towards c2_ps3
+                  n = -n;
+                if(constrain_ray_intersection(cp, cp + n).assign(p))
+                  ret_val = true;
+              }
+              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+                ret_val = true;
+              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
                 ret_val = true;
             }
             else if(verbose)
@@ -1669,7 +1756,9 @@ public:
         return ret_val;
       }
 
-      Point_3 compute_steiner_dual_intersection(const TPoint_3 &tfacetp, const Facet &facet) const
+      Point_3 compute_steiner_dual_intersection(const TPoint_3 &tfacetp,
+                                                const Facet &facet,
+                                                const bool verbose = true) const
       {
         CGAL_PROFILER("[compute_steiner_dual_intersection]");
         Point_3 p;
@@ -1678,14 +1767,28 @@ public:
         {
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           Vector_3 n = tr.supporting_plane().orthogonal_vector();
-          if(constrain_ray_intersection(facetp, facetp-n).assign(p)
-             || constrain_ray_intersection(facetp, facetp+n).assign(p))
+          if(constrain_ray_intersection(facetp, facetp - n).assign(p)
+             || constrain_ray_intersection(facetp, facetp + n).assign(p))
             return p;
         }
         else
         {
+          Point_3 ps[3];
+          get_inverse_transformed_points(ps, facet);
+
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
+
+          TPoint_3 fc = compute_circumcenter(facet);
+          if(fc == tfacetp)
+          {
+            Point_3 p;
+            if(compute_dual_intersection(facet, p))
+              return p;
+            else
+              std::cerr << "No intersection! [with point on facet] and random point is fc" << std::endl;
+          }
+
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
           if (f1)
@@ -1699,38 +1802,62 @@ public:
               if (m_pConstrain->intersection(facetp, cp2).assign(p))
                 return p;
             }
-            else
+            else // !f2
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              if (constrain_ray_intersection(cp, facetp).assign(p))
+              Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
+
+              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
+
+              if(o1 == o2 && constrain_ray_intersection(cp, facetp).assign(p))
+                return p;
+              else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(facetp, cp))).assign(p))
                 return p;
             }
           }
-          else
+          else // !f1
           {
             if (f2)
             {
               Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              if (constrain_ray_intersection(cp, facetp).assign(p))
+              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
+
+              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
+              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
+
+              if(o1 == o2 && constrain_ray_intersection(cp, facetp).assign(p))
+                return p;
+              else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(facetp, cp))).assign(p))
                 return p;
             }
             else // oops, impossible
               std::cerr << "Oops! Impossible!\n";
           }
-
-          std::cerr << "Oops! no intersection! [with point on facet]" << facetp << std::endl;
-          std::cerr << "Star:  " << m_center->info() << std::endl;
-          std::cerr << "Facet 1: " << std::endl;
-          std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " " << c1->vertex((facet.second + 1) % 4)->point() << std::endl;
-          std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " " << c1->vertex((facet.second + 2) % 4)->point() << std::endl;
-          std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " " << c1->vertex((facet.second + 3) % 4)->point() << std::endl;
-          std::cerr << c1->vertex(facet.second)->info() << " " << c1->vertex(facet.second)->point() << " (.second)" << std::endl;
-          std::cerr << "Cell 2: " << std::endl;
-          std::cerr << c2->vertex(0)->info() << " " << c2->vertex(0)->point() << std::endl;
-          std::cerr << c2->vertex(1)->info() << " " << c2->vertex(1)->point() << std::endl;
-          std::cerr << c2->vertex(2)->info() << " " << c2->vertex(2)->point() << std::endl;
-          std::cerr << c2->vertex(3)->info() << " " << c2->vertex(3)->point() << std::endl;
-          throw "Oops! no intersection!";
+          if(verbose)
+          {
+            std::cerr << "Oops! no intersection! [with point on facet]" << facetp << std::endl;
+            std::cerr << "Star:  " << m_center->info() << std::endl;
+            std::cerr << "Facet 1: " << std::endl;
+            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 1) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex(facet.second)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex(facet.second)->point()) << " (.second)" << std::endl;
+            std::cerr << "Cell 2: " << std::endl;
+            std::cerr << c2->vertex(0)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
+            std::cerr << c2->vertex(1)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(1)->point()) << std::endl;
+            std::cerr << c2->vertex(2)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(2)->point()) << std::endl;
+            std::cerr << c2->vertex(3)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
+            throw "Oops! no intersection!";
+          }
         }
         return p;
       }
