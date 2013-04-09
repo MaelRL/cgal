@@ -1,0 +1,4 @@
+distortion, Ro_o, R_o, etc. not used (only inconsistencies)
+eps = 0
+r = 1, R = 10
+metric (1/r, 1/R)

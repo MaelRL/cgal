@@ -59,7 +59,11 @@ class Point_set_demo_normal_estimation_dialog : public QDialog, private Ui::Norm
 {
   Q_OBJECT
   public:
+<<<<<<< HEAD
     Point_set_demo_normal_estimation_dialog(QWidget* = 0)
+=======
+    Point_set_demo_normal_estimation_dialog(QWidget *parent = 0)
+>>>>>>> Anisotropic_mesh_3-jtournois-old
     {
       setupUi(this);
     }

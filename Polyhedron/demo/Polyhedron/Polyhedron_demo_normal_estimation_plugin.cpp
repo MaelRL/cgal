@@ -132,7 +132,11 @@ void Polyhedron_demo_normal_estimation_plugin::on_actionNormalEstimation_trigger
       // Mark all normals as unoriented
       first_unoriented_point = points->begin();
 
+<<<<<<< HEAD
       std::size_t memory = CGAL::Memory_sizer().virtual_size();
+=======
+      long memory = CGAL::Memory_sizer().virtual_size();
+>>>>>>> Anisotropic_mesh_3-jtournois-old
       std::cerr << "Estimates normal direction: " << task_timer.time() << " seconds, "
                                                   << (memory>>20) << " Mb allocated"
                                                   << std::endl;
@@ -150,7 +154,11 @@ void Polyhedron_demo_normal_estimation_plugin::on_actionNormalEstimation_trigger
       // Mark all normals as unoriented
       first_unoriented_point = points->begin();
 
+<<<<<<< HEAD
       std::size_t memory = CGAL::Memory_sizer().virtual_size();
+=======
+      long memory = CGAL::Memory_sizer().virtual_size();
+>>>>>>> Anisotropic_mesh_3-jtournois-old
       std::cerr << "Estimates normal direction: " << task_timer.time() << " seconds, "
                                                   << (memory>>20) << " Mb allocated"
                                                   << std::endl;
@@ -170,7 +178,11 @@ void Polyhedron_demo_normal_estimation_plugin::on_actionNormalEstimation_trigger
                               dialog.orientationNbNeighbors());
 
     std::size_t nb_unoriented_normals = std::distance(first_unoriented_point, points->end());
+<<<<<<< HEAD
     std::size_t memory = CGAL::Memory_sizer().virtual_size();
+=======
+    long memory = CGAL::Memory_sizer().virtual_size();
+>>>>>>> Anisotropic_mesh_3-jtournois-old
     std::cerr << "Orient normals: " << nb_unoriented_normals << " point(s) with an unoriented normal are selected ("
                                     << task_timer.time() << " seconds, "
                                     << (memory>>20) << " Mb allocated)"

@@ -95,7 +95,11 @@ void Polyhedron_demo_point_set_outliers_removal_plugin::on_actionOutlierRemoval_
                             removed_percentage);
 
     std::size_t nb_points_to_remove = std::distance(first_point_to_remove, points->end());
+<<<<<<< HEAD
     std::size_t memory = CGAL::Memory_sizer().virtual_size();
+=======
+    long memory = CGAL::Memory_sizer().virtual_size();
+>>>>>>> Anisotropic_mesh_3-jtournois-old
     std::cerr << "Simplification: " << nb_points_to_remove << " point(s) are selected ("
                                     << task_timer.time() << " seconds, "
                                     << (memory>>20) << " Mb allocated)"
