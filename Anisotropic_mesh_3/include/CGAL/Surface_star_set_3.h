@@ -2906,8 +2906,7 @@ public:
       {
         std::cout << "gl_draw_distortion" << std::endl;
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
-        if(!was)
-          ::glEnable(GL_LIGHTING);
+        ::glDisable(GL_LIGHTING);
 
         ::glPolygonOffset(1.f, 0.1f);
         ::glEnable(GL_POLYGON_OFFSET_FILL);
@@ -2945,15 +2944,14 @@ public:
                  m_stars[f.first->vertex(index_2)->info()]->metric());
               max_distortion = (std::max)(distortion, max_distortion);
             }
-            max_distortion = 60.*(max_distortion - 1.);
-            double rg = (std::max)(255., max_distortion);
-            float rgf = static_cast<float>(rg);
+            max_distortion = 120.*(max_distortion - 1.);
+            float rgf = static_cast<float>((std::max)(0., 255. - max_distortion));
             gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, rgf, rgf, 255);
           }        
         }
         ::glDisable(GL_POLYGON_OFFSET_FILL);
-        if(!was)
-          ::glDisable(GL_LIGHTING);
+        if(was)
+          ::glEnable(GL_LIGHTING);
       }
 
       void gl_draw_inconsistent_facets(const typename K::Plane_3& plane,
