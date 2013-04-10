@@ -90,8 +90,9 @@ public:
       a(a_), b(b_), c(c_), d(d_), e(e_), f(f_), s_center(P)
   {
     FT dist_to_s_center = std::abs(s_center.x()*s_center.x() + s_center.y()*s_center.y() + s_center.z()*s_center.z());
-    FT all_max = (std::max)((std::max)((std::max)((std::max)((std::max)(a_, b_), c_),d_),e_),f_);
-    bounding_radius = 6.;//dist_to_s_center + all_max * 1.1;
+    FT max_elli1 = (std::max)((std::max)(a_, b_), c_);
+    FT max_elli2 = (std::max)((std::max)(d_, e_), f_);
+    bounding_radius = 6.0; //(dist_to_s_center + max_elli1 + max_elli2) * 1.1;
   }
 
   Constrain_surface_3_double_ellipsoid(const Constrain_surface_3_double_ellipsoid& de)
@@ -100,8 +101,9 @@ public:
         s_center((de.get_s_center()))
   {
     FT dist_to_s_center = std::abs(s_center.x()*s_center.x() + s_center.y()*s_center.y() + s_center.z()*s_center.z());
-    FT all_max = (std::max)((std::max)((std::max)((std::max)((std::max)(a, b), c),d),e),f);
-    bounding_radius = 6.;//dist_to_s_center + all_max * 1.1;
+    FT max_elli1 = (std::max)((std::max)(a, b), c);
+    FT max_elli2 = (std::max)((std::max)(d, e), f);
+    bounding_radius = 6.0; //(dist_to_s_center + max_elli1 + max_elli2) * 1.1;
   }
 
   ~Constrain_surface_3_double_ellipsoid() { }
