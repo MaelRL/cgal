@@ -3,7 +3,8 @@
 
 template<typename C3T3, typename OutputIterator>
 void compute_triangulation_poles(const C3T3& c3t3,
-                                 OutputIterator oit)
+                                 OutputIterator oit,
+                                 CGAL::Bbox_3 bbox)
 {
   typedef typename C3T3::Triangulation Triangulation;
   typedef typename Triangulation::Geom_traits::Point_3 Point_3;
@@ -46,7 +47,7 @@ void compute_triangulation_poles(const C3T3& c3t3,
     }
     if(max_sqd == 0.) //no pole could be found
       continue;
-    else
+    else if(CGAL::do_intersect(bbox, pole))
       *oit++ = pole;
 
     // loop (2/2) : collect, among cc's, the other side poles 
@@ -63,7 +64,7 @@ void compute_triangulation_poles(const C3T3& c3t3,
         min_scal_prod = scal_prod;
       }
     }
-    if(min_scal_prod < 0.)
+    if(min_scal_prod < 0. && CGAL::do_intersect(bbox, pole))
       *oit++ = pole;
   }
 }

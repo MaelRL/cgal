@@ -588,7 +588,8 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
     typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
     Metric_field* mf = NULL;
 
-    if( !keep_same_parameters ){
+    if( !keep_same_parameters )
+    {
       criteria = build_param_and_metric(poly_surf, param, mf, epsilon, approximation,
                                         radius_edge_ratio, sliverity, circumradius,
                                         distortion, beta, delta, max_times_to_try_in_picking_region,
@@ -602,7 +603,8 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
       ssetitem->star_set().update_stars_criteria(); //update criteria in stars
       ssetitem->star_set().fill_refinement_queue(); //reset and refill since criteria has been modified
     }
-    else{
+    else
+    {
       param.dim = dim;
     }
 
@@ -623,7 +625,8 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
     typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
     Metric_field* mf = NULL;
 
-    if( !keep_same_parameters ){
+    if( !keep_same_parameters )
+    {
       criteria = build_param_and_metric(function_surf, param, mf, epsilon, approximation,
                                         radius_edge_ratio, sliverity, circumradius,
                                         distortion, beta, delta, max_times_to_try_in_picking_region,
@@ -637,7 +640,8 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
       ssetitem->star_set().update_stars_criteria(); //update criteria in stars
       ssetitem->star_set().fill_refinement_queue(); //reset and refill since criteria has been modified
     }
-    else{
+    else
+    {
       param.dim = dim;
     }
 

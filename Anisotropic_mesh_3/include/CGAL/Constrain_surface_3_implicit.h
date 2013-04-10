@@ -383,7 +383,7 @@ public:
         virtual std::set<Point_3>& compute_poles() const
       {
         m_poles.clear();
-        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()));
+        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
         return m_poles;
       }
 
