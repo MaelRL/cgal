@@ -63,8 +63,8 @@ public:
       return transform(p, typename Kernel_traits<Object>::Kernel());
     }
 
-    template<typename Object>
-    Object transform(const Object &p, K k_) const 
+    template<typename Object, typename Kernel>
+    Object transform(const Object &p, Kernel k_) const 
     {
       Eigen::Vector3d ep(p.x(),p.y(),p.z());
       ep = eigen_transformation * ep;
