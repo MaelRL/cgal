@@ -601,7 +601,7 @@ class Constrain_surface_3_polyhedral :
         {
 #ifdef ANISO_VERBOSE
           std::cout << "C3T3 mesh did not contain enough points (" << all_points.size();
-          std::cout << "). Generating a new c3t3..." << std::endl;
+          std::cout << "). Generating a new c3t3...";
 #endif
           FT r = this->get_bounding_radius();
           // run Mesh_3
@@ -609,10 +609,12 @@ class Constrain_surface_3_polyhedral :
                                  CGAL::parameters::facet_size = r * 0.05,
                                  CGAL::parameters::facet_distance = r * facet_distance_coeff);
                                  // cell criteria are ignored
-
           m_c3t3 = CGAL::make_mesh_3<C3t3>(*domain, criteria,
                                            CGAL::parameters::no_perturb(),
                                            CGAL::parameters::no_exude());
+#ifdef ANISO_VERBOSE
+         std::cout << " done." << std::endl;
+#endif
 #ifdef ANISO_OUTPUT_MESH_FOR_POLES
           std::ofstream out("mesh_3_temp.mesh");
           m_c3t3.output_to_medit(out);
