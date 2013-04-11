@@ -16,6 +16,8 @@
 #include <CGAL/Default_configuration.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Robust_circumcenter_traits_3.h>
+
 #include <CGAL/Constrain_surface_3_polyhedral.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
 #include <CGAL/Anisotropic_surface_mesher_3.h>
@@ -28,7 +30,9 @@
 
 using namespace CGAL::Anisotropic_mesh_3;
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel	K;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel	Epick;
+typedef CGAL::Robust_circumcenter_traits_3<Epick> K;
+
 typedef Anisotropic_surface_mesher_3<K> Mesher;
 
 
