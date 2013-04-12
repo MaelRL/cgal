@@ -59,19 +59,14 @@ public:
 public:
   // Transform
     template <typename Object>
-    Object transform(const Object &p) const {
-      return transform(p, typename Kernel_traits<Object>::Kernel());
-    }
-
-    template<typename Object, typename Kernel>
-    Object transform(const Object &p, Kernel k_) const 
+    Object transform(const Object &p) const 
     {
       Eigen::Vector3d ep(p.x(),p.y(),p.z());
       ep = eigen_transformation * ep;
       Object result(ep[0],ep[1],ep[2]);
       return result;
     }
-
+        
     /* transformation_exact doesn't exist anymore
 #ifdef ANISO_USE_EXACT
     template<typename Object>
@@ -83,8 +78,13 @@ public:
 
     // Inverse transform
     template <typename Object>
-    Object inverse_transform(const Object &p) const {
-      return inverse_transform(p, typename Kernel_traits<Object>::Kernel());
+    Object inverse_transform(const Object &p) const 
+    {
+      Eigen::Vector3d ep(p.x(),p.y(),p.z());
+      ep = eigen_inverse_transformation * ep;
+      
+      Object result(ep[0],ep[1],ep[2]);
+      return result;
     }
 
 
@@ -161,25 +161,6 @@ public:
                    *(xmm.second), *(ymm.second), *(zmm.second));
   }
 
-    template<typename Object, typename K_obj>
-    Object inverse_transform(const Object &p, K_obj k_obj) const 
-    {
-      Eigen::Vector3d ep(p.x(),p.y(),p.z());
-      ep = eigen_inverse_transformation * ep;
-      
-      Object result(ep[0],ep[1],ep[2]);
-      return result;
-    }
-
-    template<typename Object>
-    Object inverse_transform(const Object &p, K k_) const
-    {
-      Eigen::Vector3d ep(p.x(),p.y(),p.z());
-      ep = eigen_inverse_transformation * ep;
-      
-      Object result(ep[0],ep[1],ep[2]);
-      return result;
-    }
 
     /* inverse_transformation_exact doesn't exist anymore
 #ifdef ANISO_USE_EXACT
