@@ -29,13 +29,11 @@ void compute_triangulation_poles(const C3T3& c3t3,
     Point_3 pole;
     // loop (1/2) : collect circumcenters and one-side poles
     std::vector<Cell_handle> cells;
-    tr.incident_cells(v, std::back_inserter(cells));
+    tr.finite_incident_cells(v, std::back_inserter(cells));
     double max_sqd = 0.;
     for(unsigned int i = 0; i < cells.size(); ++i)
     {
       Cell_handle c = cells[i];
-      if(tr.is_infinite(c))
-        continue;
       Point_3 cc = c->circumcenter();
       candidates.push_back(cc);
       double sqd = CGAL::squared_distance(pi, cc);

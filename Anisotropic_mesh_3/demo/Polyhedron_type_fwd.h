@@ -10,6 +10,9 @@ namespace CGAL {
 
   class Epick;
   
+  template<typename K> 
+  class Robust_circumcenter_traits_3;
+
   class Polyhedron_items_3;
 
 #ifndef CGAL_CFG_NO_TMPL_IN_TMPL_PARAM
@@ -37,7 +40,7 @@ namespace CGAL {
 
 // kernel
 
-typedef CGAL::Epick Kernel;
+typedef CGAL::Robust_circumcenter_traits_3<CGAL::Epick> Kernel;
 
 // surface mesh
 typedef CGAL::Polyhedron_3<Kernel,

@@ -4,8 +4,10 @@
 // CGAL
 // kernel
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Robust_circumcenter_traits_3.h>
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel Epick;
+typedef CGAL::Robust_circumcenter_traits_3<Epick> Kernel;
 
 
 // surface mesh

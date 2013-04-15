@@ -5,6 +5,9 @@ namespace CGAL {
 
   class Epick;
 
+  template<typename K> 
+  class Robust_circumcenter_traits_3;
+
   namespace Anisotropic_mesh_3 {
 
     template<typename K>
@@ -14,7 +17,7 @@ namespace CGAL {
 
 } // end namespace CGAL
 
-typedef CGAL::Epick Kernel;
+typedef CGAL::Robust_circumcenter_traits_3<CGAL::Epick> Kernel;
 typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_implicit<Kernel> Implicit_surface;
 
 #endif // IMPLICIT_SURFACE_TYPE_FWD_H
