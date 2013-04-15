@@ -1840,16 +1840,27 @@ public:
 
       Metric intersection(Metric metric_p, Metric metric_q) const
       {
-        std::cout << "now intersecting..." << std::endl;
-        std::cout << "p" << std::endl << metric_p.get_transformation() << std::endl;
-        std::cout << "p^-1" << std::endl << metric_p.get_inverse_transformation() << std::endl;
-        std::cout << "q" << std::endl << metric_q.get_transformation() << std::endl;
-
         Eigen::Matrix3d eigen_transformation_p = metric_p.get_transformation();
-        Eigen::Matrix3d eigen_inverse_transformation_p = metric_p.get_inverse_transformation();
         Eigen::Matrix3d eigen_transformation_q = metric_q.get_transformation();
+        Eigen::Matrix3d M_p = eigen_transformation_p.transpose()*eigen_transformation_p;
+        Eigen::Matrix3d M_q = eigen_transformation_q.transpose()*eigen_transformation_q;
 
-        Eigen::Matrix3d N = eigen_inverse_transformation_p * eigen_transformation_q;
+        Eigen::Matrix3d inverse_M_p;
+        //brute force inverse computation : probably more efficient to use the fact the eigenvectors
+        //are the same for the inverse and the eigenvalues are the inverses. (todo)
+        bool invertible;
+        M_p.computeInverseWithCheck(inverse_M_p, invertible);
+        if(!invertible)
+          std::cout << "M_p not invertible..." << std::endl;
+
+        std::cout << "now intersecting..." << std::endl;
+        std::cout << "p" << std::endl << eigen_transformation_p << std::endl;
+        std::cout << "q" << std::endl << eigen_transformation_q << std::endl;
+        std::cout << "M_p" << std::endl << M_p << std::endl;
+        std::cout << "M_p^-1" << std::endl << inverse_M_p << std::endl;
+        std::cout << "M_q" << std::endl << M_q << std::endl;
+
+        Eigen::Matrix3d N = inverse_M_p * M_q;
 
         std::cout << "matrix N : " << std::endl << N << std::endl;
 
@@ -1862,13 +1873,13 @@ public:
         Eigen::Vector3d v1 = vecs.col(1).real();
         Eigen::Vector3d v2 = vecs.col(2).real();
 
-        double lambda_0 = v0.transpose() * eigen_transformation_p * v0;
-        double lambda_1 = v1.transpose() * eigen_transformation_p * v1;
-        double lambda_2 = v2.transpose() * eigen_transformation_p * v2;
+        double lambda_0 = v0.transpose() * M_p * v0;
+        double lambda_1 = v1.transpose() * M_p * v1;
+        double lambda_2 = v2.transpose() * M_p * v2;
 
-        double mu_0 = v0.transpose() * eigen_transformation_q * v0;
-        double mu_1 = v1.transpose() * eigen_transformation_q * v1;
-        double mu_2 = v2.transpose() * eigen_transformation_q * v2;
+        double mu_0 = v0.transpose() * M_q * v0;
+        double mu_1 = v1.transpose() * M_q * v1;
+        double mu_2 = v2.transpose() * M_q * v2;
 
         double e0 = (std::max)(lambda_0, mu_0);
         double e1 = (std::max)(lambda_1, mu_1);
@@ -1887,7 +1898,6 @@ public:
 
         Eigen::Matrix3d real_vecs = vecs.real();
         Eigen::Matrix3d inverse_real_vecs;
-        bool invertible;
         real_vecs.computeInverseWithCheck(inverse_real_vecs, invertible);
         if(!invertible)
           std::cout << "errrrr...." << std::endl;
@@ -1908,9 +1918,9 @@ public:
         Vector_3 intersected_v0 = get_eigenvector(intersected_vecs.col(0));
         Vector_3 intersected_v1 = get_eigenvector(intersected_vecs.col(1));
         Vector_3 intersected_v2 = get_eigenvector(intersected_vecs.col(2));
-        double e_0 = std::abs(std::real(intersected_vals[0]));
-        double e_1 = std::abs(std::real(intersected_vals[1]));
-        double e_2 = std::abs(std::real(intersected_vals[2]));
+        double e_0 = std::sqrt(std::abs(std::real(intersected_vals[0]))); // sqrt since those are evalues of M and we want F
+        double e_1 = std::sqrt(std::abs(std::real(intersected_vals[1])));
+        double e_2 = std::sqrt(std::abs(std::real(intersected_vals[2])));
 
         //return Metric(intersected_eigen_transformation);
         Metric temp_p(intersected_v0, intersected_v1, intersected_v2, e_0, e_1, e_2, m_metric_field->epsilon);
@@ -2198,7 +2208,7 @@ public:
 
         if(!success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
         {
-          std::cout << "smooth jazz is now playing : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
+          std::cout << "smooth mode : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
           smoothing = true;
         }
         else if(!success)
