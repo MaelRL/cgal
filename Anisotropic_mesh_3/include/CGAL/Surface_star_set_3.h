@@ -2859,8 +2859,8 @@ public:
         Vector_3 e1(1, 0, 0);
         Vector_3 e2(0, 1, 0);
         Vector_3 e3(0, 0, 1);
-        Vector_3 e4(1./std::sqrt(2), 1./std::sqrt(2), 0);
-        Vector_3 e5(-1./std::sqrt(2), 1./std::sqrt(2), 0);
+        Vector_3 e4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 e5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
         Vector_3 e6(-1, 0, 0);
         Vector_3 v1, v2, vn;
 
