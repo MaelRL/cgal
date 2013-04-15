@@ -1933,7 +1933,6 @@ public:
 #endif
       }
 
-
       std::set<Facet_ijk> restricted_facets(Star_handle star)
       {
         std::set<Facet_ijk> facets;
@@ -1947,6 +1946,49 @@ public:
         return facets;
       }
 
+      bool pick_valid_output(const bool need_picking_valid,
+                             int & pick_valid_succeeded,
+                             int & pick_valid_failed,
+                             const bool pick_valid_causes_stop,
+                             const int pick_valid_max_failures,
+                             const bool success)
+      {
+        if(!success)
+          pick_valid_failed++;
+        else if(need_picking_valid)
+          pick_valid_succeeded++;
+
+        if((!success && pick_valid_failed % 100 == 0 && pick_valid_failed > 0) ||
+           (success && need_picking_valid && pick_valid_succeeded % 100 == 0 && pick_valid_succeeded > 0))
+        {
+          std::cout << "pick_valid : ";
+          std::cout << pick_valid_succeeded << " success and ";
+          std::cout << pick_valid_failed << " failures" << std::endl;
+        }
+        if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
+        {
+          //print the problematic facet map
+          assert(m_pick_valid_cache.size() == pickvalid_problematic_facets.size());
+          for(std::size_t i = 0; i<m_pick_valid_cache.size(); ++i)
+          {
+            Point_3 pickvalid_point = m_pick_valid_cache[i];
+            std::cout << "id : " << i << " for the point " << pickvalid_point;
+            std::cout << " , " << pickvalid_problematic_facets[pickvalid_point].size()/2 << " facets in play" << std::endl;
+
+            std::vector<int> id_vector = pickvalid_problematic_facets[pickvalid_point];
+
+            assert(id_vector.size()%2 == 0);
+            for(std::size_t i=0; i<id_vector.size();)
+            {
+              std::cout << "(" << id_vector[i] << " " << id_vector[i+1] << "), ";
+              i+=2;
+            }
+            std::cout << std::endl;
+          }
+          return false;
+        }
+        return true;
+      }
 
       bool refine(int & pick_valid_succeeded,
                   int & pick_valid_failed,
@@ -1994,42 +2036,10 @@ public:
         bool success = compute_steiner_point(bad_facet.star, f,
                                              need_picking_valid, steiner_point,
                                              pick_valid_use_cube_probing);
-        if(!success) 
-          pick_valid_failed++;
-        else if(need_picking_valid)
-          pick_valid_succeeded++;
 
-        if((!success && pick_valid_failed % 100 == 0 && pick_valid_failed > 0) ||
-           (success && need_picking_valid && pick_valid_succeeded % 100 == 0 && pick_valid_succeeded > 0))
-        {
-          std::cout << "pick_valid : ";
-          std::cout << pick_valid_succeeded << " success and ";
-          std::cout << pick_valid_failed << " failures" << std::endl;
-        }
-        if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
-        {
-          std::cout << "failed at star : " << bad_facet.star->center()->info() << std::endl;
-
-          //print the problematic facet map
-          assert(m_pick_valid_cache.size() == pickvalid_problematic_facets.size());
-          for(std::size_t i = 0; i<m_pick_valid_cache.size(); ++i)
-          {
-            Point_3 pickvalid_point = m_pick_valid_cache[i];
-            std::cout << "id : " << i << " for the point " << pickvalid_point;
-            std::cout << " , " << pickvalid_problematic_facets[pickvalid_point].size()/2 << " facets in play" << std::endl;
-
-            std::vector<int> id_vector = pickvalid_problematic_facets[pickvalid_point];
-
-            assert(id_vector.size()%2 == 0);
-            for(std::size_t i=0; i<id_vector.size();)
-            {
-              std::cout << "(" << id_vector[i] << " " << id_vector[i+1] << "), ";
-              i+=2;
-            }
-            std::cout << std::endl;
-          }
+        if(!pick_valid_output(need_picking_valid, pick_valid_succeeded, pick_valid_failed,
+                              pick_valid_causes_stop, pick_valid_max_failures, success))
           return false;
-        }
 
 #ifdef ANISO_DEBUG_REFINEMENT
         if(bad_facet.star->debug_steiner_point(steiner_point, f))
@@ -2904,18 +2914,14 @@ public:
       void gl_draw_distortion(const typename K::Plane_3& plane,
                               const int star_id = -1) const
       {
-        std::cout << "gl_draw_distortion" << std::endl;
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
-        ::glDisable(GL_LIGHTING);
-
-        ::glPolygonOffset(1.f, 0.1f);
-        ::glEnable(GL_POLYGON_OFFSET_FILL);
-        ::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        if(was)
+          ::glDisable(GL_LIGHTING);
 
         bool draw_all = (star_id < 0);
         std::size_t start = draw_all ? 0 : star_id;
         std::size_t N = draw_all ? m_stars.size() : (star_id + 1);
-        
+
         std::set<Facet_ijk> done;
         for(std::size_t i = start; i < N; i++)
         {
@@ -2946,10 +2952,9 @@ public:
             }
             max_distortion = 120.*(max_distortion - 1.);
             float rgf = static_cast<float>((std::max)(0., 255. - max_distortion));
-            gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, rgf, rgf, 255);
-          }        
+            gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, rgf, rgf, 255);
+          }
         }
-        ::glDisable(GL_POLYGON_OFFSET_FILL);
         if(was)
           ::glEnable(GL_LIGHTING);
       }

@@ -219,10 +219,7 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_mesh_3)
     star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
   if(m_draw_distortion)
-  {
-    std::cout <<"ehoh!" <<std::endl;
     star_set().gl_draw_distortion(plane,m_draw_star_id);
-  }
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
   if(lighting)

@@ -34,7 +34,7 @@ void gl_draw_triangle(const typename Kernel::Point_3& pa,
   }
   //draw edges
   if(option != FACES_ONLY)
-  {    
+  {
     GLboolean was = (::glIsEnabled(GL_LIGHTING));
     if(was)
       ::glDisable(GL_LIGHTING);
@@ -82,7 +82,8 @@ void gl_draw_segment(const typename Kernel::Point_3& pa,
 
 template<typename Kernel>
 void gl_draw_ellipsoid(const typename Kernel::Point_3& p,
-                       int stacks, int slices, double a, double b, double c)
+                       int stacks, int slices, double a, double b, double c,
+                       const float cr = 205., const float cg = 175., const float cb = 149.)
 {
     double x = p.x();
     double y = p.y();
@@ -94,7 +95,7 @@ void gl_draw_ellipsoid(const typename Kernel::Point_3& p,
     if(!was)
       ::glEnable(GL_LIGHTING);
 
-    ::glColor3d(1.0f, 1.0f, 0.0f);
+    ::glColor3d(cr / 256., cg / 256., cb / 256.);
     ::glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     for(double u = -CGAL_PI/2.; u <= (CGAL_PI/2.); u += sl) // theta
