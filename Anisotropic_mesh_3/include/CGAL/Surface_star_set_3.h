@@ -1186,9 +1186,10 @@ public:
       }
 
 private:
-      Index insert(const Point_3& p,  
+      Index insert(const Point_3& p,
                    Index_set& modified_stars, // should be empty, except in special cases
-                   const bool conditional)
+                   const bool conditional,
+                   const bool smoothing = false)
       {         
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -1198,12 +1199,12 @@ private:
         if(id < 0 || id < (int)m_stars.size())
           return id;
         
-        Star_handle star = create_star(p, id, modified_stars);
+        Star_handle star = create_star(p, id, modified_stars, smoothing);
 
         if(star->index_in_star_set() != m_stars.size())
           std::cout << "WARNING in insert..." << std::endl;
 
-        m_stars.push_back(star);             
+        m_stars.push_back(star);
         modified_stars.insert(star->index_in_star_set());
         m_kd_tree.insert(star->index_in_star_set());
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
@@ -1753,7 +1754,6 @@ public:
 #endif
         poles.clear();
         poles = m_pConstrain->compute_poles();
-
 #ifdef ANISO_VERBOSE
         std::cout << poles.size() << ")" << std::endl;
 
@@ -1833,12 +1833,129 @@ public:
         }
       }
 
+      Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType::ConstColXpr& v) const
+      {
+        return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
+      }
+
+      Metric intersection(Metric metric_p, Metric metric_q) const
+      {
+        std::cout << "now intersecting..." << std::endl;
+        std::cout << "p" << std::endl << metric_p.get_transformation() << std::endl;
+        std::cout << "p^-1" << std::endl << metric_p.get_inverse_transformation() << std::endl;
+        std::cout << "q" << std::endl << metric_q.get_transformation() << std::endl;
+
+        Eigen::Matrix3d eigen_transformation_p = metric_p.get_transformation();
+        Eigen::Matrix3d eigen_inverse_transformation_p = metric_p.get_inverse_transformation();
+        Eigen::Matrix3d eigen_transformation_q = metric_q.get_transformation();
+
+        Eigen::Matrix3d N = eigen_inverse_transformation_p * eigen_transformation_q;
+
+        std::cout << "matrix N : " << std::endl << N << std::endl;
+
+        Eigen::EigenSolver<Eigen::Matrix3d> es(N, true);
+        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
+
+        std::cout << "vecs : " << std::endl << vecs << std::endl;
+
+        Eigen::Vector3d v0 = vecs.col(0).real();
+        Eigen::Vector3d v1 = vecs.col(1).real();
+        Eigen::Vector3d v2 = vecs.col(2).real();
+
+        double lambda_0 = v0.transpose() * eigen_transformation_p * v0;
+        double lambda_1 = v1.transpose() * eigen_transformation_p * v1;
+        double lambda_2 = v2.transpose() * eigen_transformation_p * v2;
+
+        double mu_0 = v0.transpose() * eigen_transformation_q * v0;
+        double mu_1 = v1.transpose() * eigen_transformation_q * v1;
+        double mu_2 = v2.transpose() * eigen_transformation_q * v2;
+
+        double e0 = (std::max)(lambda_0, mu_0);
+        double e1 = (std::max)(lambda_1, mu_1);
+        double e2 = (std::max)(lambda_2, mu_2);
+
+        std::cout << "lambdas, mu" << std::endl;
+        std::cout << lambda_0 << " " << lambda_1 << " " << lambda_2 << std::endl;
+        std::cout << mu_0 << " " << mu_1 << " " << mu_2 << std::endl;
+
+        Eigen::Matrix3d intersected_eigen_diag = Eigen::Matrix3d::Zero();
+        intersected_eigen_diag(0,0) = e0;
+        intersected_eigen_diag(1,1) = e1;
+        intersected_eigen_diag(2,2) = e2;
+
+        std::cout << "intersected eigen diag : " << std::endl << intersected_eigen_diag << std::endl;
+
+        Eigen::Matrix3d real_vecs = vecs.real();
+        Eigen::Matrix3d inverse_real_vecs;
+        bool invertible;
+        real_vecs.computeInverseWithCheck(inverse_real_vecs, invertible);
+        if(!invertible)
+          std::cout << "errrrr...." << std::endl;
+
+        std::cout << "real vecs : " << std::endl << real_vecs << std::endl;
+        std::cout << "inverse real vecs : " << std::endl << inverse_real_vecs << std::endl;
+
+        Eigen::Matrix3d intersected_eigen_transformation = inverse_real_vecs.transpose() * intersected_eigen_diag * inverse_real_vecs;
+        std::cout << "intersected : " << std::endl << intersected_eigen_transformation << std::endl;
+
+        Eigen::EigenSolver<Eigen::Matrix3d> intersected_es(intersected_eigen_transformation, true);
+        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& intersected_vecs = intersected_es.eigenvectors();
+        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& intersected_vals = intersected_es.eigenvalues();
+
+        std::cout << "intersected vecs : " << std::endl << intersected_vecs << std::endl;
+        std::cout << "intersected ev : " << std::endl << intersected_vals << std::endl;
+
+        Vector_3 intersected_v0 = get_eigenvector(intersected_vecs.col(0));
+        Vector_3 intersected_v1 = get_eigenvector(intersected_vecs.col(1));
+        Vector_3 intersected_v2 = get_eigenvector(intersected_vecs.col(2));
+        double e_0 = std::abs(std::real(intersected_vals[0]));
+        double e_1 = std::abs(std::real(intersected_vals[1]));
+        double e_2 = std::abs(std::real(intersected_vals[2]));
+
+        //return Metric(intersected_eigen_transformation);
+        Metric temp_p(intersected_v0, intersected_v1, intersected_v2, e_0, e_1, e_2, m_metric_field->epsilon);
+
+        std::cout << "temp p : " << std::endl << temp_p.get_transformation() << std::endl;
+
+        return temp_p;
+      }
+
+      Metric build_smoothed_metric(const Point_3& p, const Index_set& modified_stars) const
+      {
+        typename Index_set::const_iterator si = modified_stars.begin();
+        typename Index_set::const_iterator siend = modified_stars.end();
+
+        Star_handle star_i = get_star(si++);
+
+        std::cout << "first star is : " << star_i->index_in_star_set() << std::endl;
+
+        Metric metric_p = (star_i->metric()).scale_to(star_i->center_point(), p);
+
+        for (; si != siend; si++)
+        {
+          star_i = get_star(si);
+          std::cout << "star : " << star_i->index_in_star_set() << "---------------------------------------------" << std::endl;
+
+          Metric scaled_metric_i = (star_i->metric()).scale_to(star_i->center_point(), p);
+          metric_p = intersection(scaled_metric_i, metric_p);
+
+          std::cout << "intersected in buildsmooth : " << std::endl <<  metric_p.get_transformation() << std::endl;
+        }
+
+        Metric theoritical_at_p = m_metric_field->compute_metric(p);
+        std::cout << "final metric at p : " << std::endl << metric_p.get_transformation() << std::endl << metric_p.get_inverse_transformation() << std::endl;
+        std::cout << "theoritical at p was : " << std::endl << theoritical_at_p.get_transformation() << std::endl << theoritical_at_p.get_inverse_transformation() << std::endl;
+
+        return metric_p;
+      }
+
       Star_handle create_star(const Point_3 &p, 
                               int pid,
-                              const Index_set& modified_stars) const //by p's insertion
+                              const Index_set& modified_stars,
+                              const bool smoothing = false) const //by p's insertion
       {
         Star_handle star = new Star(m_criteria, m_pConstrain, true/*surface*/);
-        create_star(p, pid, modified_stars, star, true/*surface*/);
+        create_star(p, pid, modified_stars, star, true/*surface*/, smoothing);
         return star;
       }
 
@@ -1855,17 +1972,43 @@ public:
                        int pid,
                        const Index_set& modified_stars,//by p's insertion
                        Star_handle& star,
-                       const bool surface_star = true) const//o.w. center is inside volume
+                       const bool surface_star = true, //o.w. center is inside volume
+                       const bool smoothing = false) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
 #endif
-        if(surface_star)
+        if(smoothing)
+        {
+          //check for poles in modified_stars
+          Index_set modified_stars_without_poles;
+          typename Index_set::const_iterator si = modified_stars.begin();
+          typename Index_set::const_iterator siend = modified_stars.end();
+          for (; si != siend; si++)
+            if((get_star(si))->is_surface_star())
+              modified_stars_without_poles.insert(*si);
+
+          if(modified_stars_without_poles.empty())
+          {
+            std::cout << "can't smooth with an empty modified_stars_without_poles. ";
+            std::cout << "Using default metric instead." << std::endl;
+            std::cout << "modified_stars was empty : " << modified_stars.empty() << std::endl;
+            star->reset(p, pid, m_metric_field->compute_metric(p), surface_star);
+          }
+          else
+          {
+            std::cout << "modified stars without poles : " << modified_stars_without_poles.size() << std::endl;
+            std::cout << "modified stars : " << modified_stars.size() << std::endl;
+            std::cout << "point P is : " << p << std::endl;
+            Metric M = build_smoothed_metric(p, modified_stars_without_poles);
+            star->reset(p, pid, M, surface_star);
+          }
+        }
+        else if(surface_star)
           star->reset(p, pid, m_metric_field->compute_metric(p), surface_star);
         else
           star->reset(p, pid, m_metric_field->uniform_metric(p), surface_star);
 
-        
         typename Index_set::const_iterator si = modified_stars.begin();
         typename Index_set::const_iterator siend = modified_stars.end();
         for (; si != siend; si++) 
@@ -2048,7 +2191,22 @@ public:
         if(!m_refinement_condition(steiner_point))
           return true; //note false would stop refinement
 
-        int pid = insert(steiner_point, modified_stars, true/*conditional*/);
+        //check if the facet trying to be refined is too small + success = false => enter metric smoothing
+        bool smoothing = false;
+        CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
+        double max_sq_circumradius = 0.05*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
+
+        if(!success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
+        {
+          std::cout << "smooth jazz is now playing : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
+          smoothing = true;
+        }
+        else if(!success)
+        {
+          std::cout << "compute_squared_circumradius : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
+        }
+
+        int pid = insert(steiner_point, modified_stars, true/*conditional*/, smoothing);
         
         //check if f has been destroyed
         // begin debug
@@ -2697,6 +2855,87 @@ public:
       void gl_draw_cell(const typename K::Plane_3& plane,
                    const int star_id = -1/*only this one*/) const
       {
+        Point_3 debug_a(5, 5, 5);
+        Vector_3 e1(1, 0, 0);
+        Vector_3 e2(0, 1, 0);
+        Vector_3 e3(0, 0, 1);
+        Vector_3 e4(1./std::sqrt(2), 1./std::sqrt(2), 0);
+        Vector_3 e5(-1./std::sqrt(2), 1./std::sqrt(2), 0);
+        Vector_3 e6(-1, 0, 0);
+        Vector_3 v1, v2, vn;
+
+        Metric debug_ma(e3, e1, e2, 1.0, 0.4, 1.2, 0);
+        Metric debug_mb(e3, e4, e5, 0.4, 0.1, 4, 0);
+
+        Metric debug_mp = intersection(debug_ma, debug_mb);
+        FT ma_a = 1./debug_ma.get_max_eigenvalue();
+        FT ma_b = 1./debug_ma.get_min_eigenvalue();
+        FT ma_c = 1./debug_ma.get_third_eigenvalue();
+
+        FT mb_a = 1./debug_mb.get_max_eigenvalue();
+        FT mb_b = 1./debug_mb.get_min_eigenvalue();
+        FT mb_c = 1./debug_mb.get_third_eigenvalue();
+
+        FT mp_a = 1./debug_mp.get_max_eigenvalue();
+        FT mp_b = 1./debug_mp.get_min_eigenvalue();
+        FT mp_c = 1./debug_mp.get_third_eigenvalue();
+
+        //A
+        debug_ma.get_max_eigenvector(v1);
+        debug_ma.get_min_eigenvector(v2);
+        debug_ma.get_third_eigenvector(vn);
+
+        ::GLdouble rot_mat[16];
+        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
+        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
+        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
+        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
+
+        ::glMatrixMode (GL_MODELVIEW);
+        ::glPushMatrix();
+        ::glMultMatrixd(rot_mat);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, ma_a, ma_b, ma_c, 240, 20, 20);
+        ::glPopMatrix();
+
+        //B
+        debug_mb.get_max_eigenvector(v1);
+        debug_mb.get_min_eigenvector(v2);
+        debug_mb.get_third_eigenvector(vn);
+
+        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
+        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
+        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
+        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
+
+        ::glMatrixMode (GL_MODELVIEW);
+        ::glPushMatrix();
+        ::glMultMatrixd(rot_mat);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mb_a, mb_b, mb_c, 20, 240, 20);
+        ::glPopMatrix();
+
+        //P
+        debug_mp.get_max_eigenvector(v1);
+        debug_mp.get_min_eigenvector(v2);
+        debug_mp.get_third_eigenvector(vn);
+
+        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
+        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
+        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
+        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
+
+        ::glMatrixMode (GL_MODELVIEW);
+        ::glPushMatrix();
+        ::glMultMatrixd(rot_mat);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mp_a, mp_b, mp_c, 20, 20, 240);
+        ::glPopMatrix();
+
+        ::glPointSize(5.);
+        ::glBegin(GL_POINTS);
+        ::glColor3f(0.87f, 0.14f, 0.14f);
+        ::glVertex3d(debug_a.x(), debug_a.y(), debug_a.z());
+        ::glEnd();
+
+
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
             m_stars[i]->gl_draw_cell(plane);
@@ -2773,7 +3012,7 @@ public:
             // if(!is_above_plane(plane, pickvalid_point))
             //   continue;
 
-            //if(i != m_pick_valid_cache.size()-1) //point size depends of the number of problematic facets
+            //if(i != m_pick_valid_cache.size()-1) //point size depends on the number of problematic facets
             //  point_size += ((pickvalid_problematic_facets[pickvalid_point]).size())/2;
             ::glPointSize(point_size);
 
@@ -2940,7 +3179,7 @@ public:
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
             if(!is_above_plane(plane, pa, pb, pc))
               continue;
-  
+
             FT max_distortion = 0.;
             for (int i = 0; i < 3; i++) 
             {
