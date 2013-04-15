@@ -318,21 +318,14 @@ public:
 
     bool invertible;
     double determinant;
-    try
+    eigen_transformation.computeInverseAndDetWithCheck(eigen_inverse_transformation, determinant, invertible);
+    if(invertible)
     {
-      eigen_transformation.computeInverseAndDetWithCheck(eigen_inverse_transformation, determinant, invertible);
-      if(invertible)
-      {
-        std::cout << "It is invertible, and its inverse is:" << std::endl << eigen_inverse_transformation << std::endl;
-      }
-      else
-      {
-        std::cout << "It is not invertible." << std::endl;
-        throw determinant;
-      }
+      std::cout << "It is invertible, and its inverse is:" << std::endl << eigen_inverse_transformation << std::endl;
     }
-    catch(double d)
+    else
     {
+      std::cout << "It is not invertible." << std::endl;
       std::cout << "Welp! determinant was " << determinant << std::endl;
     }
   }
