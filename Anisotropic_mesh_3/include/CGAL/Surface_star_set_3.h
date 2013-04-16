@@ -2059,7 +2059,8 @@ public:
                   int & pick_valid_failed,
                   const bool pick_valid_causes_stop = false,
                   const int pick_valid_max_failures = 100,
-                  const bool pick_valid_use_cube_probing = false)
+                  const bool pick_valid_use_cube_probing = false,
+                  const bool metric_smoothing = false)
       {
         int queue_type = 0;
         Refine_facet bad_facet;
@@ -2119,13 +2120,13 @@ public:
         double max_sq_circumradius = 0.001*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
         max_sq_circumradius = max_sq_circumradius*max_sq_circumradius;
 
-        if(!success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
+        if(metric_smoothing && !success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
         {
           std::cout << "smooth mode : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
           smoothing = true;
           vertex_with_smoothing_counter++;
         }
-        else if(!success)
+        else if(metric_smoothing && !success)
         {
           std::cout << "compute_squared_circumradius : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
           vertex_without_smoothing_counter++;

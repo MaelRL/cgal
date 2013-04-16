@@ -60,7 +60,8 @@ public:
                             const Metric_field* metrix_field,
                             const bool pick_valid_causes_stop,
                             const bool pick_valid_use_cube_probing,
-                            const int pick_valid_max_failures);
+                            const int pick_valid_max_failures,
+                            const bool metric_smoothing);
   // Note: 'this' takes the ownership of 'criteria' and 'metrix_field'.
   
   ~Anisotropic_mesh_function();
@@ -91,6 +92,7 @@ private:
   bool pick_valid_causes_stop_;
   bool pick_valid_use_cube_probing_;
   int pick_valid_max_failures_;
+  bool metric_smoothing_;
 
 //  TMesher* tmesher_;
 //  mutable typename Mesher::Mesher_status last_report_;
@@ -131,7 +133,8 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
   const Metric_field* metrix_field,
   const bool pick_valid_causes_stop,
   const bool pick_valid_use_cube_probing,
-  const int pick_valid_max_failures)
+  const int pick_valid_max_failures,
+  const bool metric_smoothing)
 : starset_(starset) 
 , p_(param)
 , continue_(true)
@@ -141,6 +144,7 @@ Anisotropic_mesh_function<D_, Metric_field>::Anisotropic_mesh_function(
 , pick_valid_causes_stop_(pick_valid_causes_stop)
 , pick_valid_use_cube_probing_(pick_valid_use_cube_probing)
 , pick_valid_max_failures_(pick_valid_max_failures)
+, metric_smoothing_(metric_smoothing)
 //, domain_(domain)
 //, tmesher_(NULL)
 //, last_report_(0,0,0)
@@ -215,7 +219,7 @@ launch()
 
        if(!smesher_->star_set.refine(pick_valid_succeeded_n, pick_valid_failed_n,
                                      pick_valid_causes_stop_, pick_valid_max_failures_,
-                                     pick_valid_use_cube_probing_))
+                                     pick_valid_use_cube_probing_, metric_smoothing_))
        {
          smesher_->star_set.clean_stars();
          //debug_show_distortions();
