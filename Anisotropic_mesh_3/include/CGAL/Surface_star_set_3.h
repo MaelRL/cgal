@@ -2205,6 +2205,7 @@ public:
         bool smoothing = false;
         CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
         double max_sq_circumradius = 0.05*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
+        max_sq_circumradius = max_sq_circumradius*max_sq_circumradius;
 
         if(!success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
         {
