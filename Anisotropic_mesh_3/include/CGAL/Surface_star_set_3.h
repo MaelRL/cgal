@@ -132,6 +132,8 @@ namespace CGAL
       mutable int vertex_with_picking_count;
       mutable int vertex_without_picking_count;
       mutable time_t start_time;
+      mutable int vertex_with_smoothing_counter;
+      mutable int vertex_without_smoothing_counter;
      
     private:
       typedef typename KExact::Point_3                      Exact_Point_3;
@@ -2115,15 +2117,18 @@ public:
         bool smoothing = false;
         CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
         double max_sq_circumradius = 0.001*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
+        max_sq_circumradius = max_sq_circumradius*max_sq_circumradius;
 
         if(!success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
         {
           std::cout << "smooth mode : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
           smoothing = true;
+          vertex_with_smoothing_counter++;
         }
         else if(!success)
         {
           std::cout << "compute_squared_circumradius : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
+          vertex_without_smoothing_counter++;
         }
 
         int pid = insert(steiner_point, modified_stars, true/*conditional*/, smoothing);
@@ -2295,9 +2300,11 @@ public:
         fx << std::endl << "[Statistics]" << std::endl << std::endl;
         fx << "elapsed time:       " << time(NULL) - start_time << " sec." << std::endl;
         fx << "number of vertices: " << m_stars.size() << std::endl;
-        fx << "vertex via picking: " << vertex_with_picking_count << std::endl;
-        fx << "vertex non-picking: " << vertex_without_picking_count << std::endl;
+        fx << "vertices via picking: " << vertex_with_picking_count << std::endl;
+        fx << "vertices non-picking: " << vertex_without_picking_count << std::endl;
         fx << "picking rate:       " << (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        fx << "vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
+        fx << "vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
         fx.close();
 
         typename std::ofstream fe("report_times_surface.txt", std::ios_base::app);
@@ -2625,9 +2632,9 @@ public:
 
         fill_refinement_queue();
 
-#ifdef ANISO_VERBOSE
         vertex_with_picking_count = 0;
         vertex_without_picking_count = (int)m_stars.size();
+#ifdef ANISO_VERBOSE
         std::cout << "There are " << count_restricted_facets() << " restricted facets.\n";
 #endif
         std::size_t nbv = m_stars.size();
@@ -2674,10 +2681,12 @@ public:
           std::cout << "Triangulation is not consistent.\n";
 
         std::cout << "Vertices via picking: " << vertex_with_picking_count << std::endl;
-        std::cout << "Vertex non-picking: " << vertex_without_picking_count << std::endl;
-        std::cout << "picking rate:       " << (double)vertex_with_picking_count / 
+        std::cout << "Vertex non-picking:   " << vertex_without_picking_count << std::endl;
+        std::cout << "picking rate:         " << (double)vertex_with_picking_count / 
           (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
         std::cout << "Approximation error : " << compute_approximation_error() << std::endl;
+        std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
+        std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
         
         report();
         histogram_vertices_per_star<Self>(*this);
@@ -2779,8 +2788,8 @@ public:
         Vector_3 e1(1, 0, 0);
         Vector_3 e2(0, 1, 0);
         Vector_3 e3(0, 0, 1);
-        Vector_3 e4(1./std::sqrt(2), 1./std::sqrt(2), 0);
-        Vector_3 e5(-1./std::sqrt(2), 1./std::sqrt(2), 0);
+        Vector_3 e4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 e5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
         Vector_3 v1, v2, vn;
 
         Metric debug_ma(e3, e1, e2, 1.0, 0.4, 1.2, 0);
@@ -3196,7 +3205,9 @@ public:
         m_ch_triangulation(),
         m_refinement_condition(rc_),
         m_aabb_tree(100/*insertion buffer size*/),
-        m_kd_tree(m_stars)
+        m_kd_tree(m_stars),
+        vertex_with_smoothing_counter(0),
+        vertex_without_smoothing_counter(0)
       {
         initialize_stars(nb_initial_points); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
