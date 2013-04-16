@@ -199,26 +199,6 @@ public:
     return max(eigen_dis1, eigen_dis2);
   }
 
-  //"this" is the metric at point si. The function scales it to the point p
-  Metric_base scale_to(const Point_3 & si, const Point_3 & p)
-  {
-    std::cout << "scaling from " << si << " to " << p << std::endl;
-    double beta = 1.3; // later to be moved as member of metric_base or somewhere else.
-    Eigen::Vector3d si_p(p.x()-si.x(), p.y()-si.y(), p.z()-si.z());
-    Eigen::RowVector3d tsi_p = si_p.transpose();
-    double sq_dist = tsi_p * eigen_transformation * si_p;
-    double scale_value = 1 + std::sqrt(sq_dist)*std::log10(beta);
-    scale_value = 1./(scale_value * scale_value);
-
-    std::cout << "sq dist " << sq_dist << std::endl;
-    std::cout << "scale value " << scale_value << std::endl;
-    std::cout << "matrix at si : " << std::endl << eigen_transformation << std::endl;
-
-    Eigen::Matrix3d scaled_transformation = scale_value * eigen_transformation;
-
-    return Metric_base(scaled_transformation);
-  }
-
   void construct(const Vector_3 &axis_x, //normal
                  const Vector_3 &axis_y,
                  const Vector_3 &axis_z,
@@ -318,23 +298,11 @@ public:
 
     bool invertible;
     double determinant;
-    try
-    {
-      eigen_transformation.computeInverseAndDetWithCheck(eigen_inverse_transformation, determinant, invertible);
-      if(invertible)
-      {
-        std::cout << "It is invertible, and its inverse is:" << std::endl << eigen_inverse_transformation << std::endl;
-      }
-      else
-      {
-        std::cout << "It is not invertible." << std::endl;
-        throw determinant;
-      }
-    }
-    catch(double d)
-    {
-      std::cout << "Welp! determinant was " << determinant << std::endl;
-    }
+    eigen_transformation.computeInverseAndDetWithCheck(eigen_inverse_transformation, determinant, invertible);
+    if(invertible)
+      std::cout << "It is invertible, and its inverse is:" << std::endl << eigen_inverse_transformation << std::endl;
+    else
+      std::cout << "Not invertible and determinant was : " << determinant << std::endl;
   }
 
   Metric_base(const Vector_3 &axis_x,  //normal (unit)
