@@ -1335,7 +1335,7 @@ public:
             {
               if(fc != cp)
               {
-                std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                std::cerr << "fc != cp with cp on the facet...[dual "<<f1<< " "<<f2 <<"]" << std::endl;
                 std::cerr << "fc : " << fc << std::endl;
                 std::cerr << "cp : " << cp << std::endl;
               }
@@ -1364,7 +1364,7 @@ public:
             {
               if(fc != cp)
               {
-                std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                std::cerr << "fc != cp with cp on the facet...[dual "<<f1<< " "<<f2 <<"]" << std::endl;
                 std::cerr << "fc : " << fc << std::endl;
                 std::cerr << "cp : " << cp << std::endl;
               }
@@ -1441,7 +1441,7 @@ public:
               {
                 if(fc != cp)
                 {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                  std::cerr << "fc != cp with cp on the facet...[exact "<<f1<< " "<<f2 <<"]" << std::endl;
                   std::cerr << "fc : " << fc << std::endl;
                   std::cerr << "cp : " << cp << std::endl;
                 }
@@ -1479,7 +1479,7 @@ public:
               {
                 if(fc != cp)
                 {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
+                  std::cerr << "fc != cp with cp on the facet...[exact "<<f1<< " "<<f2 <<"]" << std::endl;
                   std::cerr << "fc : " << fc << std::endl;
                   std::cerr << "cp : " << cp << std::endl;
                 }
@@ -1668,25 +1668,28 @@ public:
 
               CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
               CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
-              CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
-
-              if(o3 == COPLANAR) //fc = cp
-              {
-                if(fc != cp)
-                {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
-                }
-                if(o1 == o2) //n points towards ps3
-                  n = -n;
-                if(constrain_ray_intersection(cp, cp + n).assign(p))
-                  ret_val = true;
-              }
-              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+              //CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
+              if(o1 == o2) //n points towards ps3
+                n = -n;
+              
+              //if(o3 == COPLANAR) //fc = cp
+              //{
+              //  if(fc != cp)
+              //  {
+              //    std::cerr << "fc != cp with cp on the facet...[ "<<f1<< " "<<f2 <<"]" << std::endl;
+              //    std::cerr << "fc : " << fc << std::endl;
+              //    std::cerr << "cp : " << cp << std::endl;
+              //  }
+              //  if(constrain_ray_intersection(cp, cp + n).assign(p))
+              //    ret_val = true;
+              //}
+              //else               
+              if(constrain_ray_intersection(cp, cp+n).assign(p))
                 ret_val = true;
-              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-                ret_val = true;
+              //else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+              //  ret_val = true;
+              //else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
+              //  ret_val = true;
             }
           }
           else // !f1
@@ -1698,25 +1701,28 @@ public:
 
               CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
               CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
-              CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
+              //CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
+              if(o1 == o2) //n points towards c2_ps3
+                n = -n;
 
-              if(o3 == COPLANAR) //fc = cp
-              {
-                if(fc != cp)
-                {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
-                }
-                if(o1 == o2) //n points towards c2_ps3
-                  n = -n;
-                if(constrain_ray_intersection(cp, cp + n).assign(p))
-                  ret_val = true;
-              }
-              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+              //if(o3 == COPLANAR) //fc = cp
+              //{
+              //  if(fc != cp)
+              //  {
+              //    std::cerr << "fc != cp with cp on the facet...["<<f1<< " "<<f2 <<"]" << std::endl;
+              //    std::cerr << "fc : " << fc << std::endl;
+              //    std::cerr << "cp : " << cp << std::endl;
+              //  }
+              //  if(constrain_ray_intersection(cp, cp + n).assign(p))
+              //    ret_val = true;
+              //}
+              //else 
+              if(constrain_ray_intersection(cp, cp + n).assign(p))
                 ret_val = true;
-              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-                ret_val = true;
+              //else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+              //  ret_val = true;
+              //else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
+              //  ret_val = true;
             }
             else if(verbose)
               std::cout << "Oops! Impossible!" << std::endl;
