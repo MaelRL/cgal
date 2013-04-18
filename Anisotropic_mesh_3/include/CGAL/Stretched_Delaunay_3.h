@@ -122,6 +122,8 @@ namespace CGAL{
       mutable Bbox m_bbox;
       mutable bool m_is_valid_bbox;
 
+    public:
+      bool red_ellipsoid;
 #ifdef USE_ANISO_TIMERS
     public:
       static double m_compute_dual_intersection_timer;
@@ -2188,7 +2190,10 @@ public:
           ::glMatrixMode (GL_MODELVIEW);
           ::glPushMatrix();
           ::glMultMatrixd(rot_mat);
-          gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c);
+          if(red_ellipsoid)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 232, 67, 183);
+          else
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 245, 230, 93);
           ::glPopMatrix();
 
             //a b & c visu
@@ -2255,6 +2260,7 @@ public:
         neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
+        red_ellipsoid = false;
         m_center = Vertex_handle();
         m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
         this->infinite_vertex()->info() = index_of_infinite_vertex;
@@ -2280,6 +2286,7 @@ public:
         neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
+        red_ellipsoid = false;
         m_center = Base::insert(m_metric.transform(centerpoint));
         m_center->info() = index;
         m_bbox = m_pConstrain->get_bbox(); // in M_euclidean

@@ -444,7 +444,7 @@
    <item>
     <widget class="QGroupBox" name="groupBox_2">
      <property name="title">
-      <string>Random</string>
+      <string>Pick Valid</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,0">
       <item row="0" column="1">
@@ -526,6 +526,16 @@
      </property>
      <property name="text">
       <string>Keep previous parameters when resuming</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="metric_smoothing">
+     <property name="layoutDirection">
+      <enum>Qt::RightToLeft</enum>
+     </property>
+     <property name="text">
+      <string>Metric smoothing</string>
      </property>
     </widget>
    </item>
