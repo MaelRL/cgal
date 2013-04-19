@@ -155,7 +155,7 @@ namespace CGAL
       mutable std::vector<Point_3> yellow_points;
       mutable std::vector<Point_3> green_points;
 
-      mutable Metric metricA, metricB, metricP;
+      mutable Metric metricA, metricB, metricP, metricPtheo;
 
 #ifdef USE_ANISO_TIMERS
 private:
@@ -1174,7 +1174,7 @@ private:
                    Index_set& modified_stars, // should be empty, except in special cases
                    const bool conditional,
                    const bool smoothing = false)
-      {         
+      {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
 #endif
@@ -1189,6 +1189,25 @@ private:
           std::cout << "WARNING in insert..." << std::endl;
 
         m_stars.push_back(star);
+
+        if(smoothing)
+        {
+          std::cout << "pushed back in mstars, now adding p again to the modified_stars..." << std::endl;
+          std::cout << "number of stars : " << number_of_stars() << std::endl;
+          typename Index_set::const_iterator si = modified_stars.begin();
+          typename Index_set::const_iterator siend = modified_stars.end();
+
+          std::cout << "adding p to : " << modified_stars.size() << " modified stars" << std::endl;
+
+          for (; si != siend; si++)
+          {
+            std::cout << "inserting point : " << p << " in " << *si << " index in starset is : " << star->index_in_star_set() << std::endl;
+            Star_handle star_i = get_star(si);
+            star_i->insert_to_star(star->center_point(), star->index_in_star_set(), false/*conditional*/);
+            star_i->clean();
+          }
+        }
+
         modified_stars.insert(star->index_in_star_set());
         m_kd_tree.insert(star->index_in_star_set());
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
@@ -1341,13 +1360,13 @@ public:
           finite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end())); // aabb tree/exhaustive
         else
           all_stars(std::inserter(target_stars, target_stars.end()));
-        
+
         id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, false);
-        
+
         target_stars.clear();
         infinite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end()));//convex hull
         id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, true);
-                
+
         return id;
       }
 
@@ -1844,13 +1863,92 @@ public:
         }
 
         Metric theoritical_at_p = m_metric_field->compute_metric(p);
+        metricPtheo = theoritical_at_p;
         std::cout << "final metric at p : " << std::endl << metric_p.get_transformation() << std::endl << metric_p.get_inverse_transformation() << std::endl;
         std::cout << "theoritical at p was : " << std::endl << theoritical_at_p.get_transformation() << std::endl << theoritical_at_p.get_inverse_transformation() << std::endl;
 
         return metric_p;
       }
 
-      Star_handle create_star(const Point_3 &p, 
+      void reciprocal_metric_smoothing(const Metric& M, const Point_3& p, const Index_set& modified_stars_without_poles) const
+      {
+        typename Index_set::const_iterator si = modified_stars_without_poles.begin();
+        typename Index_set::const_iterator siend = modified_stars_without_poles.end();
+
+        for (; si != siend; si++)
+        {
+          Star_handle star_i = get_star(si);
+          Metric scaled_M = m_metric_field->scale_metric_to_point(M, p, star_i->center_point());
+          Metric new_metric_in_star_i = m_metric_field->intersection(scaled_M, star_i->metric());
+
+          //get the pts from star_i
+          Index_set star_i_pts;
+          typename std::vector<Vertex_handle>::iterator nvi = star_i->begin_neighboring_vertices();
+          typename std::vector<Vertex_handle>::iterator nviend = star_i->end_neighboring_vertices();
+          for (; nvi != nviend; nvi++)
+            star_i_pts.insert((*nvi)->info());
+
+          //reset & clear
+          star_i->reset(star_i->center_point(), star_i->index_in_star_set(), new_metric_in_star_i, true/*surface_star*/);
+          star_i->ellipsoid_color = 2;
+
+          std::cout << "new metric : " << new_metric_in_star_i.get_transformation() << std::endl;
+
+          //reinsert
+          typename Index_set::const_iterator sj = star_i_pts.begin();
+          typename Index_set::const_iterator sjend = star_i_pts.end();
+
+          std::cout << "pts to reinsert : " << star_i_pts.size() << " and nos is : " << number_of_stars() << std::endl;
+
+          for (; sj != sjend; sj++)
+          {
+            if(*sj == number_of_stars() || *sj == star_i->infinite_vertex_index())
+            {
+              std::cout << "not dealing with : " << *sj << std::endl;
+              continue;
+            }
+            std::cout << "inserting point : " << *sj << " in " << star_i->index_in_star_set() << std::endl;
+            Star_handle star_j = get_star(sj);
+            star_i->insert_to_star(star_j->center_point(), star_j->index_in_star_set(), false/*conditional*/);
+          }
+
+          //check if there are new points for the star_i
+          typename Star::Bbox bbox = star_i->bbox();
+          Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
+          Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
+          Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
+          std::set<Kd_point_info> indices;
+          m_kd_tree.search(std::inserter(indices, indices.end()), query);
+
+          if(indices.size() != star_i_pts.size())
+          {
+            std::cout << "new points in star_i! mstars has size : " << number_of_stars() << std::endl;
+            Index_set diff;
+            std::set_difference(indices.begin(), indices.end(),
+              star_i_pts.begin(), star_i_pts.end(), std::inserter(diff, diff.end()));
+            typename Index_set::iterator it = diff.begin();
+            while(it != diff.end())
+            {
+              std::cout << "inserting point : " << *it << " in " << star_i->index_in_star_set() << std::endl;
+              if(*it == star_i->index_in_star_set() || *it == number_of_stars())
+              {
+                std::cout << "skipped : " << *it << std::endl;
+                ++it;
+              }
+              else
+              {
+                Star_handle sit = get_star(it++);
+                std::cout << "coordinates : " << sit->center_point() << " and check : " << sit->index_in_star_set() << std::endl;
+                star_i->insert_to_star(sit->center_point(), sit->index_in_star_set(), true/*conditional*/);
+                star_i->clean();
+              }
+            }
+          }
+          std::cout << "done for star_i : " << star_i->index_in_star_set() << std::endl;
+        }
+      }
+
+      Star_handle create_star(const Point_3 &p,
                               int pid,
                               const Index_set& modified_stars,
                               const bool smoothing = false) const //by p's insertion
@@ -1901,9 +1999,11 @@ public:
             std::cout << "modified stars without poles : " << modified_stars_without_poles.size() << std::endl;
             std::cout << "modified stars : " << modified_stars.size() << std::endl;
             std::cout << "point P is : " << p << std::endl;
-            Metric M = build_smoothed_metric(p, modified_stars_without_poles);
-            star->reset(p, pid, M, surface_star);
-            star->red_ellipsoid = true;
+            Metric smoothed_metric_at_p = build_smoothed_metric(p, modified_stars_without_poles);
+            reciprocal_metric_smoothing(smoothed_metric_at_p, p, modified_stars_without_poles);
+            std::cout << "reciprocal done" << std::endl;
+            star->reset(p, pid, smoothed_metric_at_p, surface_star);
+            star->ellipsoid_color = 1;
           }
         }
         else if(surface_star)
@@ -1939,7 +2039,6 @@ public:
             star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
           }
         }
-
 
 #ifdef ANISO_DEBUG
         typename Star::Facet_set_iterator it = star->begin_restricted_facets();
@@ -2108,18 +2207,21 @@ public:
         //check if the facet trying to be refined is too small + success = false => enter metric smoothing
         bool smoothing = false;
         CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
-        double max_sq_circumradius = 0.001*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
-        max_sq_circumradius = max_sq_circumradius*max_sq_circumradius;
+        double min_sq_circumradius = 0.005*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
+        min_sq_circumradius = min_sq_circumradius*min_sq_circumradius;
+        double min_facet_volume = 0.01;
+        double min_criteria = min_facet_volume; //min_sq_circumradius; //
+        double smooth_test = (bad_facet.star)->compute_volume(f); //(bad_facet.star)->compute_squared_circumradius(f); //
 
-        if(metric_smoothing && !success && (bad_facet.star)->compute_squared_circumradius(f) < max_sq_circumradius)
+        if(metric_smoothing && !success && smooth_test < min_criteria)
         {
-          std::cout << "smooth mode : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
+          std::cout << "smooth mode : " << smooth_test << " allowed : " << min_criteria << std::endl;
           smoothing = true;
           vertex_with_smoothing_counter++;
         }
         else if(metric_smoothing && !success)
         {
-          std::cout << "compute_squared_circumradius : " << (bad_facet.star)->compute_squared_circumradius(f) << " allowed : " << max_sq_circumradius << std::endl;
+          std::cout << "not smooth mode : " << smooth_test << " allowed : " << min_criteria << std::endl;
           vertex_without_smoothing_counter++;
         }
 
@@ -2784,8 +2886,8 @@ public:
         Vector_3 e5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
         Vector_3 v1, v2, vn;
 
-        Metric debug_ma(e3, e1, e2, 1.0, 0.4, 1.2, 0);
-        Metric debug_mb(e3, e4, e5, 0.4, 0.1, 4, 0);
+        Metric debug_ma = m_metric_field->build_metric(e3, e1, e2, 1.0, 0.4, 1.2);
+        Metric debug_mb = m_metric_field->build_metric(e3, e4, e5, 0.4, 0.1, 4);
         Metric debug_mp = m_metric_field->intersection(debug_ma, debug_mb);
 
         debug_ma = metricA;
@@ -2803,6 +2905,10 @@ public:
         FT mp_a = 1./debug_mp.get_max_eigenvalue();
         FT mp_b = 1./debug_mp.get_min_eigenvalue();
         FT mp_c = 1./debug_mp.get_third_eigenvalue();
+
+        FT mptheo_a = 1./metricPtheo.get_max_eigenvalue();
+        FT mptheo_b = 1./metricPtheo.get_min_eigenvalue();
+        FT mptheo_c = 1./metricPtheo.get_third_eigenvalue();
 
         //A
         debug_ma.get_max_eigenvector(v1);
@@ -2853,12 +2959,27 @@ public:
         gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mp_a, mp_b, mp_c, 20, 20, 240);
         ::glPopMatrix();
 
+        //P theo
+        metricPtheo.get_max_eigenvector(v1);
+        metricPtheo.get_min_eigenvector(v2);
+        metricPtheo.get_third_eigenvector(vn);
+
+        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
+        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
+        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
+        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
+
+        ::glMatrixMode (GL_MODELVIEW);
+        ::glPushMatrix();
+        ::glMultMatrixd(rot_mat);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mptheo_a, mptheo_b, mptheo_c, 240, 240, 20);
+        ::glPopMatrix();
+
         ::glPointSize(5.);
         ::glBegin(GL_POINTS);
         ::glColor3f(0.87f, 0.14f, 0.14f);
         ::glVertex3d(debug_a.x(), debug_a.y(), debug_a.z());
         ::glEnd();
-
 
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)

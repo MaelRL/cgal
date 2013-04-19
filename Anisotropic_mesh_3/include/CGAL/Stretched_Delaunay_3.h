@@ -123,7 +123,8 @@ namespace CGAL{
       mutable bool m_is_valid_bbox;
 
     public:
-      bool red_ellipsoid;
+      int ellipsoid_color;
+
 #ifdef USE_ANISO_TIMERS
     public:
       static double m_compute_dual_intersection_timer;
@@ -2184,26 +2185,33 @@ public:
           ::glMatrixMode (GL_MODELVIEW);
           ::glPushMatrix();
           ::glMultMatrixd(rot_mat);
-          if(red_ellipsoid)
+          if(ellipsoid_color == 1)
             gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 232, 67, 183);
+          else if(ellipsoid_color == 2)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 20, 20, 233);
           else
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 245, 230, 93);
+          {
+            //gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 245, 230, 93);
+          }
           ::glPopMatrix();
 
             //a b & c visu
-          ::glColor3f(1.f,0.,0.);
-          gl_draw_segment<K>(ce, ce+a*v1);
-          ::glColor3f(0.,0.,1.f);
-          gl_draw_segment<K>(ce, ce+b*v2);
-          ::glColor3f(0.,1.f,0.);
-          gl_draw_segment<K>(ce, ce+c*vn);
+          if(ellipsoid_color == 1 || ellipsoid_color == 2)
+          {
+            ::glColor3f(1.f,0.,0.);
+            gl_draw_segment<K>(ce, ce+a*v1);
+            ::glColor3f(0.,0.,1.f);
+            gl_draw_segment<K>(ce, ce+b*v2);
+            ::glColor3f(0.,1.f,0.);
+            gl_draw_segment<K>(ce, ce+c*vn);
 
-            //center
-          ::glColor3d(33,224,237);
-          ::glPointSize(10.);
-          ::glBegin(GL_POINTS);
-          ::glVertex3d(ce.x(),ce.y(),ce.z());
-          ::glEnd();
+              //center
+            ::glColor3d(33,224,237);
+            ::glPointSize(10.);
+            ::glBegin(GL_POINTS);
+            ::glVertex3d(ce.x(),ce.y(),ce.z());
+            ::glEnd();
+          }
         }
       }
 
@@ -2254,7 +2262,7 @@ public:
         neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
-        red_ellipsoid = false;
+        ellipsoid_color = 0;
         m_center = Vertex_handle();
         m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
         this->infinite_vertex()->info() = index_of_infinite_vertex;
@@ -2280,7 +2288,7 @@ public:
         neighboring_cells_cache(),
         neighboring_finite_cells_cache()
       {
-        red_ellipsoid = false;
+        ellipsoid_color = 0;
         m_center = Base::insert(m_metric.transform(centerpoint));
         m_center->info() = index;
         m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
