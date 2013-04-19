@@ -5,6 +5,7 @@
 #include <CGAL/IO/Polyhedron_iostream.h>
 
 #include <Domain/Constrain_surface_3_torus.h>
+#include <Domain/Constrain_surface_3_ellipse.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <Metric_field/Torus_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
@@ -39,45 +40,31 @@ Point_3 point_on_ellipsoid  (double a, double b, double c, //radii
 
 int main()
 {
+/*
   K::FT R = 10.;
   K::FT r = 1.;
   K::FT epsilon = 0.1;
 
   Constrain_surface_3_torus<K>* pdomain = new Constrain_surface_3_torus<K>(R, r);
 
-  //char* filename = "fertility.off";//"torus_original.off";
-
-  /*torus polyhedron*/
-  //std::ifstream input(filename);
-  //if(!input)
-  //{
-  //  std::cout << "\nError : file does not exist\n";
-  //  return 0;
-  //}
-  //Polyhedron poly;
-  //input >> poly;
-
-
-  /*Estimation of curvature on implicit torus*/
+    //Estimation of curvature on implicit torus
   Implicit_curvature_metric_field<K> mf_implicit(*pdomain, epsilon);
 
-  //std::ofstream file_implicit_min("vectors_implicit_min.txt");
-  //std::ofstream file_implicit_max("vectors_implicit_max.txt");
-
-  /*Explicit curvature on implicit torus*/
+    //Explicit curvature on implicit torus
   Torus_metric_field<K> mf_torus(R, r, epsilon);
 
+    //Estimation of curvature on polyhedral torus
+  //char* filename = "fertility.off";//"torus_original.off";
+  Constrain_surface_3_polyhedral<K>* p_poly = new Constrain_surface_3_polyhedral<K>(filename, epsilon);
+  Polyhedral_curvature_metric_field<K> mf_poly(*p_poly, epsilon);
+*/
+
+  //------------------------ BAD STUFF ------------------------------
+/*
+  //std::ofstream file_implicit_min("vectors_implicit_min.txt");
+  //std::ofstream file_implicit_max("vectors_implicit_max.txt");
   //std::ofstream file_torus_min("vectors_torus_min.txt");
   //std::ofstream file_torus_max("vectors_torus_max.txt");
-
-  /*Estimation of curvature on polyhedral torus*/
-
-/*
-  ------------------------ BAD STUFF ------------------------------
-
-  Constrain_surface_3_polyhedral<K>* p_poly = new Constrain_surface_3_polyhedral<K>(filename);
-  Polyhedral_curvature_metric_field<K> mf_poly(*p_poly, epsilon);
-
   std::ofstream file_poly_min("vectors_poly_min.txt");
   std::ofstream file_poly_max("vectors_poly_max.txt");
   std::ofstream file_poly_third("vectors_poly_third.txt");
@@ -132,7 +119,7 @@ int main()
 */
 
   // --------------------------------- TORUS STUFF --------------------------------
-
+/*
   std::cout << "\nEigenvalues, Eigenvectors & stuff :\n";
 
   std::cout << "R : " << R << " r : " << r << " eps : " << epsilon << std::endl;
@@ -151,57 +138,56 @@ int main()
 
   for(int i=0; i<point_nb; ++i)
   {
+    points[i] = point_on_torus(R, r, 0.*i*CGAL_PI/point_nb, 0.05*i*CGAL_PI);
 
-//    points[i] = point_on_torus(R, r, 0.*i*CGAL_PI/point_nb, 0.05*i*CGAL_PI);
+    std::cout << "Point n° " << i << " : " << R << " " << r << " 0.1 " << 2*i*CGAL_PI/point_nb << std::endl;
+    std::cout << " coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
 
-//    std::cout << "Point n° " << i << " : " << R << " " << r << " 0.1 " << 2*i*CGAL_PI/point_nb << std::endl;
-//    std::cout << " coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
+    point_imp_metrics[i] = mf_implicit.compute_metric(points[i]);
+    point_exp_metrics[i] = mf_torus.compute_metric(points[i]);
 
-//    point_imp_metrics[i] = mf_implicit.compute_metric(points[i]);
-//    point_exp_metrics[i] = mf_torus.compute_metric(points[i]);
+    std::cout << "Implicit : " << std::endl;
+    std::cout << " e_min = " <<  (point_imp_metrics[i]).get_min_eigenvalue() << std::endl;
+    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_max_eigenvalue() << std::endl;
+    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_third_eigenvalue() << std::endl;
+    (point_imp_metrics[i]).get_min_eigenvector(v_min);
+    (point_imp_metrics[i]).get_max_eigenvector(v_max);
+    (point_imp_metrics[i]).get_third_eigenvector(v_en);
+    std::cout << " v_min = " << v_min << std::endl;
+    std::cout << " v_max = " << v_max << std::endl;
+    std::cout << " v_en = " << v_en << std::endl;
 
-//    std::cout << "Implicit : " << std::endl;
-//    std::cout << " e_min = " <<  (point_imp_metrics[i]).get_min_eigenvalue() << std::endl;
-//    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_max_eigenvalue() << std::endl;
-//    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_third_eigenvalue() << std::endl;
-//    (point_imp_metrics[i]).get_min_eigenvector(v_min);
-//    (point_imp_metrics[i]).get_max_eigenvector(v_max);
-//    (point_imp_metrics[i]).get_third_eigenvector(v_en);
-//    std::cout << " v_min = " << v_min << std::endl;
-//    std::cout << " v_max = " << v_max << std::endl;
-//    std::cout << " v_en = " << v_en << std::endl;
-
-//    std::cout << "Explicit : " << std::endl;
-//    std::cout << " e_min = " <<  (point_exp_metrics[i]).get_min_eigenvalue() << std::endl;
-//    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_max_eigenvalue() << std::endl;
-//    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_third_eigenvalue() << std::endl;
-//    (point_exp_metrics[i]).get_min_eigenvector(v_min);
-//    (point_exp_metrics[i]).get_max_eigenvector(v_max);
-//    (point_exp_metrics[i]).get_third_eigenvector(v_en);
-//    std::cout << " v_min = " << v_min << std::endl;
-//    std::cout << " v_max = " << v_max << std::endl;
-//    std::cout << " v_en = " << v_en << std::endl;
+    std::cout << "Explicit : " << std::endl;
+    std::cout << " e_min = " <<  (point_exp_metrics[i]).get_min_eigenvalue() << std::endl;
+    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_max_eigenvalue() << std::endl;
+    std::cout << " e_max = " <<  (point_exp_metrics[i]).get_third_eigenvalue() << std::endl;
+    (point_exp_metrics[i]).get_min_eigenvector(v_min);
+    (point_exp_metrics[i]).get_max_eigenvector(v_max);
+    (point_exp_metrics[i]).get_third_eigenvector(v_en);
+    std::cout << " v_min = " << v_min << std::endl;
+    std::cout << " v_max = " << v_max << std::endl;
+    std::cout << " v_en = " << v_en << std::endl;
   }
 
-//  std::cout << std::endl << "Distortion Computations" << std::endl;
-//  std::cout << "Implicit : " << std::endl;
-//  for(int i=0; i<point_nb; ++i)
-//  {
-//    int next_i = (i == (point_nb-1))?0:(i+1);
-//    double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
-//    std::cout << i << " " << next_i << " | " << d << std::endl;
-//  }
+  std::cout << std::endl << "Distortion Computations" << std::endl;
+  std::cout << "Implicit : " << std::endl;
+  for(int i=0; i<point_nb; ++i)
+  {
+    int next_i = (i == (point_nb-1))?0:(i+1);
+    double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
+    std::cout << i << " " << next_i << " | " << d << std::endl;
+  }
 
-//  std::cout << "Explicit : " << std::endl;
-//  for(int i=0; i<point_nb; ++i)
-//  {
-//    int next_i = (i == (point_nb-1))?0:(i+1);
-//    double d = (point_exp_metrics[i]).compute_distortion( (point_exp_metrics[next_i]) );
-//    std::cout << i << " " << next_i << " | " << d << std::endl;
-//  }
-
+  std::cout << "Explicit : " << std::endl;
+  for(int i=0; i<point_nb; ++i)
+  {
+    int next_i = (i == (point_nb-1))?0:(i+1);
+    double d = (point_exp_metrics[i]).compute_distortion( (point_exp_metrics[next_i]) );
+    std::cout << i << " " << next_i << " | " << d << std::endl;
+  }
+*/
   // --------------------------------- Six points on a torus ---------------------
-
+/*
   //points
   Point_3 A = point_on_torus(R, r, 0., 0.);
   Point_3 B = point_on_torus(R, r, 0., 0.22*CGAL_PI);
@@ -298,11 +284,10 @@ int main()
   exp_d = exp_metric_E.compute_distortion( exp_metric_F );
   imp_d = imp_metric_E.compute_distortion( imp_metric_F );
   std::cout << "E-F exp : " << exp_d << " imp : " << imp_d << std::endl;
-
+*/
   // --------------------------------- ELLI STUFF --------------------------------
 
-/*
-  K::FT a = 10.;
+  K::FT a = 100.;
   K::FT b = 1.;
   K::FT c = 1.;
   K::FT epsilon = 0.;
@@ -314,41 +299,41 @@ int main()
 
   std::cout << "a : " << a << " b : " << b << " c : " << c << " eps : " << epsilon << std::endl;
 
-  int point_nb = 10;
+  int point_nb = 100;
   std::vector<Point_3> points(point_nb);
   std::vector<Implicit_curvature_metric_field<K>::Metric> point_imp_metrics(point_nb);
 
   Vector_3 v_min, v_max, v_en;
 
-  for(int i=0; i<point_nb; ++i){
-    points[i] = point_on_ellipsoid(a, b, c,-0.5*CGAL_PI + i/point_nb*CGAL_PI, -CGAL_PI + 0.3);
+  for(int i=0; i<point_nb; ++i)
+  {
+    double u = 0.*CGAL_PI + i/(20.*point_nb)*CGAL_PI;
+    double v = 0;
+    points[i] = point_on_ellipsoid(a, b, c, u, v);
     //u is in [-pi/2;pi/2] & v is in [-pi;pi]
 
-    std::cout << "Point n° " << i << " : " << R << " " << r << " 0.1 " << 2*i*CGAL_PI/point_nb << std::endl;
-    std::cout << " coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
+//    std::cout << "Point n° " << i << " : " << a << " " << b << " " << c << " " << u << " " << v << " ||| ";
+//    std::cout << "coordinates : " << points[i].x() << " " << points[i].y() << " " << points[i].z() << std::endl;
 
     point_imp_metrics[i] = mf_implicit.compute_metric(points[i]);
 
-    std::cout << "Implicit : " << std::endl;
-    std::cout << " e_min = " <<  (point_imp_metrics[i]).get_min_eigenvalue() << std::endl;
-    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_max_eigenvalue() << std::endl;
-    std::cout << " e_max = " <<  (point_imp_metrics[i]).get_third_eigenvalue() << std::endl;
+    std::cout << u << " ";
+    std::cout << (point_imp_metrics[i]).get_max_eigenvalue() << " ";
+    std::cout << (point_imp_metrics[i]).get_min_eigenvalue() << " ";
+    std::cout << (point_imp_metrics[i]).get_third_eigenvalue() << std::endl;
     (point_imp_metrics[i]).get_min_eigenvector(v_min);
     (point_imp_metrics[i]).get_max_eigenvector(v_max);
     (point_imp_metrics[i]).get_third_eigenvector(v_en);
-    std::cout << " v_min = " << v_min << std::endl;
-    std::cout << " v_max = " << v_max << std::endl;
-    std::cout << " v_en = " << v_en << std::endl;
+    //std::cout << " v_min = " << v_min << " v_max = " << v_max << " v_en = " << v_en << std::endl;
   }
 
   std::cout << std::endl << "Distortion Computations" << std::endl;
-  std::cout << "Implicit : " << std::endl;
-  for(int i=0; i<point_nb; ++i){
+  for(int i=0; i<point_nb; ++i)
+  {
     int next_i = (i == (point_nb-1))?0:(i+1);
     double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
     std::cout << i << " " << next_i << " | " << d << std::endl;
   }
-*/
 
   return 0;
 }

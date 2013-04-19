@@ -69,7 +69,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
-                                 const bool pick_valid_use_cube_probing,
+                                 const bool pick_valid_use_probing,
                                  const int pick_valid_max_failures,
                                  const double en_factor,
                                  const bool metric_smoothing);
@@ -106,7 +106,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const int nb_initial_points,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
-                                 const bool pick_valid_use_cube_probing,
+                                 const bool pick_valid_use_probing,
                                  const int pick_valid_max_failures,
                                  const double en_factor,
                                  const bool metric_smoothing);
@@ -399,7 +399,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
   const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
-  const bool pick_valid_use_cube_probing = ui.cube_probing->isChecked();
+  const bool pick_valid_use_probing = ui.pick_valid_probing->isChecked();
   const bool metric_smoothing = ui.metric_smoothing->isChecked();
   const int pick_valid_max_failures = ui.maxPickFailures->value();
   int dim = -1;
@@ -432,7 +432,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric, pick_valid_causes_stop,
-      pick_valid_use_cube_probing, pick_valid_max_failures,
+      pick_valid_use_probing, pick_valid_max_failures,
       en_factor, metric_smoothing);
   }
   //// Function
@@ -448,7 +448,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       approximation, radius_edge_ratio, sliverity, circumradius,
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric, pick_valid_causes_stop,
-      pick_valid_use_cube_probing, pick_valid_max_failures,
+      pick_valid_use_probing, pick_valid_max_failures,
       en_factor, metric_smoothing);
   }
 
@@ -564,7 +564,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
   const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
-  const bool pick_valid_use_cube_probing = ui.cube_probing->isChecked();
+  const bool pick_valid_use_probing = ui.pick_valid_probing->isChecked();
   const bool metric_smoothing = ui.metric_smoothing->isChecked();
   const int pick_valid_max_failures = ui.maxPickFailures->value();
   int dim = -1;
@@ -616,7 +616,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
     AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set(), param,
                                          ssetitem->star_set().criteria(),
                                          ssetitem->star_set().metric_field(),
-                                         pick_valid_causes_stop, pick_valid_use_cube_probing,
+                                         pick_valid_causes_stop, pick_valid_use_probing,
                                          pick_valid_max_failures, metric_smoothing);
 
     thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
@@ -653,7 +653,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
     AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set(), param,
                                          ssetitem->star_set().criteria(),
                                          ssetitem->star_set().metric_field(),
-                                         pick_valid_causes_stop, pick_valid_use_cube_probing,
+                                         pick_valid_causes_stop, pick_valid_use_probing,
                                          pick_valid_max_failures, metric_smoothing);
 
     thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);

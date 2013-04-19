@@ -54,11 +54,11 @@ namespace CGAL
         return Metric(vn, v1, v2, this->en_factor*en, e1, e2, epsilon);
       }
 
-      //"this" is the metric at point si. The function scales it to the point p
+      //metric_si is the metric at point si. The function scales it to the point p
       Metric scale_metric_to_point(const Metric metric_si, const Point_3 & si, const Point_3 & p) const
       {
         std::cout << "scaling from " << si << " to " << p << std::endl;
-        double beta = 1.3; // later to be moved as member of metric_base or somewhere else.
+        double beta = 2.; // later to be moved as member of metric_base or somewhere else.
         Eigen::Vector3d si_p(p.x()-si.x(), p.y()-si.y(), p.z()-si.z());
         Eigen::RowVector3d tsi_p = si_p.transpose();
         double sq_dist = tsi_p * metric_si.get_transformation() * si_p;
