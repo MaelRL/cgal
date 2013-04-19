@@ -965,9 +965,10 @@ private:
         //probing mode
         bool probing = false;
         std::pair<int,int> A_n, B_n, C_n; // the three facets we want to study in probing mode
+        Point_3 successful_point_mem;
 
         //zone caracteristics :
-        int probing_points_n = 200;
+        int probing_points_n = 600;
         FT dilated_circumradius = 5.*circumradius;
 
         // define the vector of points to be tested
@@ -999,7 +1000,10 @@ private:
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
 
             if(probing)
+            {
               green_points.push_back(p);
+              successful_point_mem = p;
+            }
             else
             {
               pickvalid_problematic_facets.clear();
@@ -1083,21 +1087,23 @@ private:
             }
             pickvalid_problematic_facets[p] = problematic_facets;
           }
-          if(++tried_times > m_criteria->max_times_to_try_in_picking_region || probing_points.empty())
+          if(++tried_times > m_criteria->max_times_to_try_in_picking_region)
           {
             p = compute_insert_or_snap_point(star, facet);
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             m_pick_valid_cache.push_back(p);
-
-            if(probing)
-            {
-              std::cout << red_points.size() << " red points" << std::endl;
-              std::cout << orange_points.size() << " orange points" << std::endl;
-              std::cout << yellow_points.size() << " yellow points" << std::endl;
-              std::cout << green_points.size() << " green points" << std::endl;
-              std::cout << "-------------------------------------" << std::endl;
-            }
-
+            break;
+          }
+          if(probing_points.empty()) // probing is true
+          {
+            if(success)
+              p = successful_point_mem;
+            m_pick_valid_cache.push_back(p);
+            std::cout << red_points.size() << " red points" << std::endl;
+            std::cout << orange_points.size() << " orange points" << std::endl;
+            std::cout << yellow_points.size() << " yellow points" << std::endl;
+            std::cout << green_points.size() << " green points" << std::endl;
+            std::cout << "-------------------------------------" << std::endl;
             break;
           }
         }
