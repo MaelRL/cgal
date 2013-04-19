@@ -920,7 +920,7 @@ private:
       bool pick_valid(const Star_handle star, //to be refined
                       const Facet &facet,
                       Point_3& p,
-                      const bool pick_valid_use_cube_probing = false) const //belongs to star and should be refined
+                      const bool pick_valid_use_probing = false) const //belongs to star and should be refined
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -962,14 +962,13 @@ private:
 
         Star_handle newstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
 
-        //cube mode
-        bool cube_probing = false;
-        std::pair<int,int> A_n, B_n, C_n; // the three points forming ABC the triangle we want to study in cube mode
+        //probing mode
+        bool probing = false;
+        std::pair<int,int> A_n, B_n, C_n; // the three facets we want to study in probing mode
 
-        // define the cube dimensions
-        int cube_points_on_edge_n = 10;
-        CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
-        double cube_half_edge_size = 0.020*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()),m_bbox.zmax()-m_bbox.zmin()));
+        //zone caracteristics :
+        int probing_points_n = 200;
+        FT dilated_circumradius = 5.*circumradius;
 
         // define the vector of points to be tested
         std::vector<TPoint_3> probing_points;
@@ -977,15 +976,16 @@ private:
 
         while(true && !probing_points.empty())
         {
-          if(cube_probing)
+          TPoint_3 next_point;
+          if(probing)
           {
             tried_times = 0;
-            p = probing_points.back();
+            next_point = probing_points.back();
+            p = star->compute_steiner_dual_intersection(next_point, facet);
             probing_points.pop_back();
           }
           else
           {
-            TPoint_3 next_point;
             next_point = random(tccf, tcccell, circumradius);
             p = star->compute_steiner_dual_intersection(next_point, facet);
           }
@@ -998,7 +998,7 @@ private:
             success = true;
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
 
-            if(cube_probing)
+            if(probing)
               green_points.push_back(p);
             else
             {
@@ -1013,7 +1013,7 @@ private:
             assert(!problematic_facets.empty());
 
             //check for 3 inconsistences within four points
-            if(cube_probing)
+            if(probing)
             {
               //check which facets are involved in these inconsistences
               bool A_n_involved = false, B_n_involved = false, C_n_involved = false;
@@ -1043,7 +1043,7 @@ private:
               else
                 yellow_points.push_back(p);
             }
-            else if(pick_valid_use_cube_probing &&
+            else if(pick_valid_use_probing &&
                     problematic_facets.size() == 6 && //three facets
                     pickvalid_problematic_facets.empty()) //first problematic facet (not really needed)
             {
@@ -1051,8 +1051,8 @@ private:
               if(point_set.size() == 3)
               {
                 //three facets & three points only are involved
-                //enter cube_probing!
-                cube_probing = true;
+                //enter probing!
+                probing = true;
                 p = compute_insert_or_snap_point(star, facet);
 
                 //clear the containers up and deactivate tried_times
@@ -1064,41 +1064,21 @@ private:
                  green_points.clear();
                  tried_times = 0;
 
-                //compute lower left back of the cube coordinates
-                double x0 = p.x() - cube_half_edge_size;
-                double y0 = p.y() - cube_half_edge_size;
-                double z0 = p.z() - cube_half_edge_size;
-
                 //fill probing points
                 probing_points.clear(); //clear the dummy
-                std::cout << "New cube :" << std::endl;
-                double x, y, z;
-                double step = 2*cube_half_edge_size/((double) cube_points_on_edge_n);
-                for(int i=0; i<cube_points_on_edge_n; ++i) //x
-                {
-                  x = x0 + i*step;
-                  for(int j=0; j<cube_points_on_edge_n; ++j) //y
-                  {
-                    y = y0 + j*step;
-                    for(int k=0; k<cube_points_on_edge_n; ++k) //z
-                    {
-                      z = z0 + k*step;
-                      probing_points.push_back(Point_3(x,y,z));
-                    }
-                  }
-                }
+                std::cout << "New probing zone :" << std::endl;
+                for(int i=0; i<probing_points_n; ++i)
+                  probing_points.push_back(random(tccf, tcccell, dilated_circumradius));
 
                 //fill A_n, B_n, C_n
                 A_n = std::pair<int,int>(problematic_facets[0],problematic_facets[1]);
                 B_n = std::pair<int,int>(problematic_facets[2],problematic_facets[3]);
                 C_n = std::pair<int,int>(problematic_facets[4],problematic_facets[5]);
 
-                std::cout << "entered cube probing in : " << star->index_in_star_set() << std::endl;
+                std::cout << "entered probing in : " << star->index_in_star_set() << std::endl;
                 std::cout << "ABC : " << A_n.first << " " << A_n.second << " " << B_n.first << " " << B_n.second << " " << C_n.first << " " << C_n.second << std::endl;
-                std::cout << "The cube has " << probing_points.size() << " points to test" << std::endl;
+                std::cout << "The zone has " << probing_points.size() << " points to test" << std::endl;
                 std::cout << "it is centered on : " << p << std::endl;
-                std::cout << "points on edge : " << cube_points_on_edge_n << " half_edge : " << cube_half_edge_size;
-                std::cout << " step : " << step << std::endl;
               }
             }
             pickvalid_problematic_facets[p] = problematic_facets;
@@ -1109,7 +1089,7 @@ private:
             CGAL_HISTOGRAM_PROFILER("[iterations for pick_valid]", tried_times);
             m_pick_valid_cache.push_back(p);
 
-            if(cube_probing)
+            if(probing)
             {
               std::cout << red_points.size() << " red points" << std::endl;
               std::cout << orange_points.size() << " orange points" << std::endl;
@@ -1125,8 +1105,8 @@ private:
 #ifdef USE_ANISO_TIMERS
         m_pick_valid_timer += duration(start_time);
 #endif
-        if(pick_valid_use_cube_probing)
-          return !cube_probing;
+        if(pick_valid_use_probing)
+          return !probing;
         else
           return success;
       }
@@ -2033,6 +2013,7 @@ public:
         if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
         {
           //print the problematic facet map
+          std::map<std::pair<int,int>, int > facet_apparition_counter;
           assert(m_pick_valid_cache.size() == pickvalid_problematic_facets.size());
           for(std::size_t i = 0; i<m_pick_valid_cache.size(); ++i)
           {
@@ -2046,10 +2027,20 @@ public:
             for(std::size_t i=0; i<id_vector.size();)
             {
               std::cout << "(" << id_vector[i] << " " << id_vector[i+1] << "), ";
+              facet_apparition_counter[std::pair<int,int>(id_vector[i],id_vector[i+1])]++;
               i+=2;
             }
             std::cout << std::endl;
           }
+
+          std::cout << "apparition of facets : " << std::endl;
+          std::cout << facet_apparition_counter.size() << " different facets." << std::endl;
+          for(std::map<std::pair<int,int>, int>::iterator it=facet_apparition_counter.begin();
+                                                          it!=facet_apparition_counter.end(); ++it)
+          {
+            std::cout << "Facet : (" << (*it).first.first << ", " << (*it).first.second << ") appears " << (*it).second << " times." << std::endl;
+          }
+
           return false;
         }
         return true;
@@ -2059,7 +2050,7 @@ public:
                   int & pick_valid_failed,
                   const bool pick_valid_causes_stop = false,
                   const int pick_valid_max_failures = 100,
-                  const bool pick_valid_use_cube_probing = false,
+                  const bool pick_valid_use_probing = false,
                   const bool metric_smoothing = false)
       {
         int queue_type = 0;
@@ -2101,7 +2092,7 @@ public:
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f,
                                              need_picking_valid, steiner_point,
-                                             pick_valid_use_cube_probing);
+                                             pick_valid_use_probing);
 
         if(!pick_valid_output(need_picking_valid, pick_valid_succeeded, pick_valid_failed,
                               pick_valid_causes_stop, pick_valid_max_failures, success))
@@ -2212,7 +2203,7 @@ public:
                                  const Facet& f, //facet to be refined
                                  const bool need_picking_valid,
                                  Point_3& steiner,
-                                 const bool pick_valid_use_cube_probing = false) const
+                                 const bool pick_valid_use_probing = false) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
@@ -2221,7 +2212,7 @@ public:
         if (need_picking_valid) 
         {            
           vertex_with_picking_count++;
-          success = pick_valid(to_be_refined, f, steiner, pick_valid_use_cube_probing);
+          success = pick_valid(to_be_refined, f, steiner, pick_valid_use_probing);
         } 
         else 
         {
@@ -2585,7 +2576,7 @@ public:
                       const double& starttime,
                       const int max_count = INT_MAX,
                       const bool pick_valid_causes_stop = false,
-                      const bool pick_valid_use_cube_probing = false)
+                      const bool pick_valid_use_probing = false)
       {
         //if you modify this, do not forget to also modify the demo
         CGAL::Timer t;
@@ -2609,7 +2600,7 @@ public:
           }
           if(!refine(pick_valid_succeeded_n, pick_valid_failed_n,
                      pick_valid_causes_stop, pick_valid_max_failures,
-                     pick_valid_use_cube_probing))
+                     pick_valid_use_probing))
             break;
           nbv = m_stars.size();
         }
@@ -2620,7 +2611,7 @@ public:
 public:
       void refine_all(const int max_count = INT_MAX,
                       const bool pick_valid_causes_stop = false,
-                      const bool pick_valid_use_cube_probing = false)
+                      const bool pick_valid_use_probing = false)
       {
         //if you modify this, do not forget to also modify the demo
 #ifdef ANISO_VERBOSE
@@ -2661,7 +2652,7 @@ public:
           
           if(!refine(pick_valid_succeeded_n, pick_valid_failed_n,
                      pick_valid_causes_stop, pick_valid_max_failures,
-                     pick_valid_use_cube_probing))
+                     pick_valid_use_probing))
           {
             clean_stars();
             //debug_show_distortions();
@@ -2893,7 +2884,7 @@ public:
 
 
         if(!red_points.empty() || !orange_points.empty() || !yellow_points.empty() || !green_points.empty())
-        {//cube probing
+        {//zone probing
           ::glPointSize(5.);
           ::glBegin(GL_POINTS);
 

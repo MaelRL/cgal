@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>510</width>
-    <height>851</height>
+    <width>508</width>
+    <height>878</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -510,9 +510,9 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QCheckBox" name="cube_probing">
+       <widget class="QCheckBox" name="pick_valid_probing">
         <property name="text">
-         <string>With cube probing</string>
+         <string>With probing</string>
         </property>
        </widget>
       </item>
