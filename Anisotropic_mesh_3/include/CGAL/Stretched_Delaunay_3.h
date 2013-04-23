@@ -2223,9 +2223,9 @@ public:
         invalidate_cache();
       }
 
-      bool is_valid() const
+      bool is_valid(const bool verbose = false) const
       {
-        return (m_center != Vertex_handle()) && Base::is_valid();
+        return (m_center != Vertex_handle()) && Base::is_valid(verbose);
       }
 
       void reset(const Point_3 &centerpoint,

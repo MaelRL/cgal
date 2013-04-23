@@ -118,6 +118,7 @@ namespace CGAL {
       {
         return (queue_type >= start_pick_valid);
       }
+
       bool empty() 
       {
         for (int i = 0; i < nb_queues; i++)
@@ -125,6 +126,7 @@ namespace CGAL {
             return false;
         return true;
       }
+
       unsigned int size()
       {
         unsigned int nb = 0;
@@ -132,6 +134,7 @@ namespace CGAL {
           nb += queues[i]->size();
         return nb;
       }
+
       Refine_facet top(int &queue_type) 
       {
         for (int i = 0; i < nb_queues; i++)
@@ -142,16 +145,17 @@ namespace CGAL {
           }
           return Refine_facet();
       }
-      bool top(Refine_facet &facet, int &queue_type) 
+
+      bool top(Refine_facet &facet, int &queue_type)
       {
         for (int i = 0; i < nb_queues; i++)
-          if (!queues[i]->empty()) 
+          if(!queues[i]->empty())
           {
             queue_type = i;
             facet = queues[i]->top();
             return true;
           }
-          return false;
+        return false;
       }
 
       bool pop() 
