@@ -105,7 +105,7 @@ namespace CGAL
       typedef CGAL::AABB_bbox_primitive<Star> AABB_primitive;
 
       typedef CGAL::Kd_tree_for_star_set<K, Star_handle> Kd_tree;
-      typedef typename Kd_tree::Traits                            Kd_traits;         
+      typedef typename Kd_tree::Traits                            Kd_traits;
       typedef typename Kd_tree::Box_query                         Kd_Box_query;
       typedef typename Kd_tree::key_type                          Kd_point_info;
 
@@ -222,7 +222,7 @@ private:
         {
           Star_handle s = get_star(it);
           if(!s->is_surface_star())
-            continue;                    
+            continue;
           typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
           typename Star::Facet_set_iterator fend = s->end_restricted_facets();
           for(; fit != fend; ++fit)
@@ -236,7 +236,7 @@ private:
             FT sqd = sq_distance_to_surface(f, s);
             //FT d = std::sqrt(sqd);
             //histogram[std::floor(100*d)]++;
-            sq_approx = (std::max)(sq_approx, sqd);   
+            sq_approx = (std::max)(sq_approx, sqd);
           }
         }
         //std::cout << "Histogram : " << std::endl;
@@ -468,7 +468,7 @@ private:
           typename Star::Facet_set_iterator fit = m_stars[i]->begin_restricted_facets();
           typename Star::Facet_set_iterator fitend = m_stars[i]->end_restricted_facets();
           for(; fit != fitend; fit++)
-            facets.insert(Facet_ijk(*fit));          
+            facets.insert(Facet_ijk(*fit));
         }
         return facets.size();
       }
@@ -1160,7 +1160,8 @@ private:
         Star_iterator si = m_stars.begin();
         Star_iterator siend = m_stars.end();
         typename Constrain_surface::EdgeIterator encroached_edge;
-        for (; si != siend; si++) {
+        for (; si != siend; si++)
+        {
           if ((*si)->is_encroached(p, encroached_edge))
             return compute_insert_or_snap_point(encroached_edge);
         }
@@ -1246,7 +1247,7 @@ private:
 //        if(new_star->index_in_star_set() != m_stars.size())
 //          std::cout << "WARNING in insert..." << std::endl;
 //
-//        m_stars.push_back(new_star);             
+//        m_stars.push_back(new_star);
 //        modified_stars.insert(new_star->index_in_star_set());
 //        m_kd_tree.insert(new_star->index_in_star_set());
 //#ifndef NO_USE_AABB_TREE_OF_BBOXES
@@ -1274,7 +1275,7 @@ private:
         if(star->index_in_star_set() != m_stars.size())
           std::cout << "WARNING in insert_in_domain..." << std::endl;
 
-        m_stars.push_back(star);    
+        m_stars.push_back(star);
         modified_stars.insert(star->index_in_star_set());
         m_kd_tree.insert(star->index_in_star_set());
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
@@ -1316,7 +1317,7 @@ public:
       //void debug_check_topological_disks()
       //{
       //  std::cout << "Check topological disks...";
-      //  bool all_ok = true;   
+      //  bool all_ok = true;
       //  for(unsigned int i = 0; i < m_stars.size(); i++)
       //  {
       //    if(!m_stars[i]->is_topological_disk())
@@ -1410,7 +1411,7 @@ public:
 
             si->print_vertices(true);
             si->print_faces();
-            std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;           
+            std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
             return vi->info();
           }
           else // inserted, standard configuration
@@ -1457,8 +1458,8 @@ public:
 //        update_bboxes();
 
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
-        //bigger set of stars       
-        m_aabb_tree.all_intersected_primitives(p, oit);  
+        //bigger set of stars
+        m_aabb_tree.all_intersected_primitives(p, oit);
 #else
         //exact set
         for(unsigned int i = 0; i < m_stars.size(); i++)
@@ -1661,7 +1662,7 @@ public:
                 break;
               }
             }
-            if(b_continue) continue; //useless but safer if we add another criterion       
+            if(b_continue) continue; //useless but safer if we add another criterion
           } // facet
         } // star
 #ifdef USE_ANISO_TIMERS
@@ -2055,7 +2056,7 @@ public:
 
         typename Star::Bbox bbox = star->bbox(); // volume bbox when star is not a topo_disk
         Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
-        Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());          
+        Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
         Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
         std::set<Kd_point_info> indices;
         m_kd_tree.search(std::inserter(indices, indices.end()), query);
@@ -2442,7 +2443,7 @@ public:
         std::ostringstream nbs;
         nbs << (m_stars.size());
         
-        std::string title("dump.off");        
+        std::string title("dump.off");
         std::cout << "Write " << title << " (" << nbs.str() << " vertices)...";
 
         std::ofstream fx(title.c_str());
@@ -2514,7 +2515,7 @@ public:
               *oit++ = DualType(r.source(), r.source() + r.to_vector() 
                 * (m_pConstrain->get_bounding_radius() * 2.0 / std::sqrt(r.to_vector() * r.to_vector())));
             else if(CGAL::assign(l, o))
-              *oit++ = DualType(Point_3(0.,0.,0.),Point_3(0.,0.,0.));            
+              *oit++ = DualType(Point_3(0.,0.,0.),Point_3(0.,0.,0.));
           }
         }
       }
@@ -2553,7 +2554,7 @@ public:
         std::map<Index, int> match_indices;//because we won't use all of them
         int off_index = 0; // the corresponding index in .off 
         std::vector<Point_3> points;
-        Output_facets output_facets;       
+        Output_facets output_facets;
 
         Star_iterator si = m_stars.begin();
         Star_iterator siend = m_stars.end();
@@ -2780,7 +2781,7 @@ public:
         while(nbv < max_count) 
         {
           if(nbv == 4) //dimension 3 reached
-            update_bboxes();         
+            update_bboxes();
           if(nbv % 100 == 0)
           { 
             t.stop();

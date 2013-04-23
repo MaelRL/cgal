@@ -232,7 +232,7 @@ launch()
     double time = smesher_->star_set.duration(start_time);
     std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
     if(smesher_->star_set.pick_valid_failed())
-      std::cout << "Pick valid failed and stopped mesher!" << std::endl;  
+      std::cout << "Pick valid failed and stopped mesher!" << std::endl;
     
     if(smesher_->star_set.is_consistent(true/*verbose*/))
       std::cout << "Triangulation is consistent.\n";
