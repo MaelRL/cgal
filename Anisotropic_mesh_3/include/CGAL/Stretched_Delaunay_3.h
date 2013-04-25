@@ -1713,10 +1713,6 @@ public:
             return false;
 
           if(constrain_segment_intersection(candidate_1, candidate_2).assign(p))
-              //std::cout << "[f " << f1 << " " << f2 << "]\n";
-              //std::cerr << "[o " << o1 << " " << o2 << "]\n";
-              //std::cerr << "[cp : " << cp << "]\n";
-              //std::cerr << "[facetp : " << facetp << "]\n";
           {
             //check if not too far away from the intersection of the dual & surface (should never happen)
             TPoint_3 tccf = m_metric.transform(ccf);
