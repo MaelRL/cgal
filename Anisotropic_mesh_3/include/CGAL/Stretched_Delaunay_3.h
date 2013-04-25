@@ -1807,10 +1807,6 @@ public:
                                                 const Facet &facet,
                                                 const bool verbose = true) const
       {
-//#ifdef ANISO_DEBUG_REFINEMENT
-//        if(verbose)
-//          check_coplanarity(facet, tfacetp);
-//#endif
         CGAL_PROFILER("[compute_steiner_dual_intersection]");
         Point_3 p;
         Point_3 facetp = m_metric.inverse_transform(tfacetp);
