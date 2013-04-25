@@ -1738,13 +1738,12 @@ public:
 
         initialize_medial_axis(); // poles
 
-        std::cout << "now inserting initial points" << std::endl;
-
-        typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
-        typename Constrain_surface::Pointset::iterator pend = initial_points.end();
 #ifdef ANISO_VERBOSE
+        std::cout << "now inserting initial points" << std::endl;
         std::cout << "(" << initial_points.size() << " initial points) ";
 #endif
+        typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
+        typename Constrain_surface::Pointset::iterator pend = initial_points.end();
         int nbdone = 0;
         for (; pi != pend && nbdone < nb; pi++)
         {
