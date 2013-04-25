@@ -1426,6 +1426,13 @@ public:
           Exact_Vector_3 n = m_metric.inverse_transform(t_n);
           n = std::sqrt(1./(n*n)) * n;
 
+          if(!f1 && f2)
+          {
+            Cell_handle tmp = c2;
+            c2 = c1;    f2 = false;
+            c1 = tmp;   f1 = true;
+          }
+
           if(f1)
           {
             if (f2)
@@ -1475,44 +1482,6 @@ public:
                 std::cerr << "\t(cp " << cp << ")\n";
                 std::cerr << "\t(fc " << fc << ")\n";
                 std::cerr << "\t(returns " << ret_val << ")\n";
-              }
-            }
-          }
-          else // !f1
-          {
-            if (f2)
-            {
-              Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c2));
-              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); //4th pt of c2
-
-              CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
-                                                       to_exact(ps[2]), to_exact(c2_ps3));
-              CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
-                                                       to_exact(ps[2]), fc + n);
-              CGAL::Orientation o3 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
-                                                       to_exact(ps[2]), cp);
-
-              if(o3 == COPLANAR) //fc = cp
-              {
-                if(fc != cp)
-                {
-                  std::cerr << "fc != cp with cp on the facet...[exact "<<f1<< " "<<f2 <<"]" << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
-                }
-                if(o1 == o2) //n points towards c2_ps3
-                  n = -n;
-                Exact_Point_3 ep = cp + n;
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
-                  ret_val = true;
-              }
-              else if(o1 == o3 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
-                ret_val = true;
-              else if(o1 != o3)
-              {
-                Exact_Point_3 target(cp + Exact_Vector_3(fc, cp));
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target)).assign(p))
-                  ret_val = true;
               }
             }
           }
@@ -1670,6 +1639,14 @@ public:
           Vector_3 n = m_metric.inverse_transform(t_n);
           n = std::sqrt(1./(n*n)) * n;
 
+          if(!f1 && f2)
+          {
+            Cell_handle tmp = c2;
+            c2 = c1;    f2 = false;
+            c1 = tmp;   f1 = true;
+          }
+
+
           if(f1)
           {
             if (f2)
@@ -1716,38 +1693,6 @@ public:
                 std::cerr << "(cp " << cp << ")";
               }
             }
-          }
-          else // !f1
-          {
-            if (f2)
-            {
-              Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
-
-              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
-              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
-              CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
-
-              if(o3 == COPLANAR) //fc = cp
-              {
-                if(fc != cp)
-                {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
-                }
-                if(o1 == o2) //n points towards c2_ps3
-                  n = -n;
-                if(constrain_ray_intersection(cp, cp + n).assign(p))
-                  ret_val = true;
-              }
-              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
-                ret_val = true;
-              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-                ret_val = true;
-            }
-            else if(verbose)
-              std::cout << "Oops! Impossible!" << std::endl;
           }
 
           if(ret_val)//do this in dimension 3 only (mirror_facet could crash, otherwise)
