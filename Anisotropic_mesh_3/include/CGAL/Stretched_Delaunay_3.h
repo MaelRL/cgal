@@ -1251,6 +1251,24 @@ public:
         else return typename K::Object_3();
       }
 
+      typename K::Object_3 constrain_segment_intersection(const Point_3 &p1, //point1
+                                                          const Point_3 &p2) const //point2
+      {
+        if(p1 == p2)
+        {
+#ifdef ANISO_VERBOSE
+          std::cout << "CONSTRAIN_SEGMENT_INTERSECTION : source cannot be == target ";
+          std::cout << " ("<< p1 << ")" << std::endl;
+#endif
+          return typename K::Object_3();
+        }
+        Point_3 res;
+        typename K::Segment_3 seg(p1, p2);
+        if (m_pConstrain->intersection(make_object(seg)).assign(res))
+          return make_object(res);
+        else return typename K::Object_3();
+      }
+
       //typename KExact::Object_3 constrain_ray_intersection(const Exact_Point_3 &p1, //source
       //                                                     const Exact_Point_3 &p2) const //target
       //{
@@ -1759,110 +1777,66 @@ public:
         return ret_val;
       }
 
-      Point_3 compute_steiner_dual_intersection(const TPoint_3 &tfacetp,
-                                                const Facet &facet,
-                                                const bool verbose = true) const
+      bool compute_steiner_dual_intersection(Point_3 &p,
+                                             const TPoint_3 &tcandidate_1, // first point within the ball
+                                             const TPoint_3 &tcandidate_2, // second point within the ball
+                                             const Facet &facet,
+                                             const FT circumradius,
+                                             const bool verbose = true) const
       {
         CGAL_PROFILER("[compute_steiner_dual_intersection]");
-        Point_3 p;
-        Point_3 facetp = m_metric.inverse_transform(tfacetp);
-        if(Base::dimension() == 2)
+
+        Point_3 candidate_1 = m_metric.inverse_transform(tcandidate_1);
+        Point_3 candidate_2 = m_metric.inverse_transform(tcandidate_2);
+        Point_3 ccf;
+        compute_dual_intersection(facet, ccf);
+
+        if(Base::dimension() == 2) //need to check if correct todo
         {
+          TPoint_3 tfacetp = compute_circumcenter(facet);
+          Point_3 facetp = m_metric.inverse_transform(tfacetp);
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           Vector_3 n = tr.supporting_plane().orthogonal_vector();
-          if(constrain_ray_intersection(facetp, facetp - n).assign(p)
-             || constrain_ray_intersection(facetp, facetp + n).assign(p))
-            return p;
+          return (constrain_ray_intersection(facetp, facetp - n).assign(p)
+                 || constrain_ray_intersection(facetp, facetp + n).assign(p));
         }
         else
         {
-          Point_3 ps[3];
-          get_inverse_transformed_points(ps, facet);
+          if(candidate_1 == candidate_2) // just in case
+            return false;
 
-          Cell_handle c1 = facet.first;
-          Cell_handle c2 = c1->neighbor(facet.second);
-
-          TPoint_3 fc = compute_circumcenter(facet);
-          if(fc == tfacetp)
+          if(constrain_segment_intersection(candidate_1, candidate_2).assign(p))
           {
-            Point_3 p;
-            if(compute_dual_intersection(facet, p))
-              return p;
+            //check if not too far away from the intersection of the dual & surface (should never happen)
+            TPoint_3 tccf = m_metric.transform(ccf);
+            TPoint_3 tp = m_metric.transform(p);
+            if(std::sqrt(CGAL::squared_distance(tccf, tp)) > circumradius)
+            {
+              std::cout << "intersection point outside of picking ball in compute_steiner_dual_intersection" << std::endl;
+              std::cout << "that should not happen !" << std::endl;
+              std::cout << "candidates : " << std::endl;
+              std::cout << tcandidate_1 << std::endl << tcandidate_2 << std::endl;
+              std::cout << "tccf : " << tccf << std::endl;
+              std::cout << "p : " << p << std::endl;
+              std::cout << "dist : " << std::sqrt(CGAL::squared_distance(tccf, tp)) << " and circumradius : " << circumradius << std::endl;
+              return false;
+            }
             else
-              std::cerr << "No intersection! [with point on facet] and random point is fc" << std::endl;
+              return true;
           }
-
-          bool f1 = !is_infinite(c1);
-          bool f2 = !is_infinite(c2);
-          if (f1)
+          else
           {
-            if (f2)
-            {
-              Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              if (m_pConstrain->intersection(facetp, cp1).assign(p))
-                return p;
-              if (m_pConstrain->intersection(facetp, cp2).assign(p))
-                return p;
-            }
-            else // !f2
-            {
-              Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              Point_3 ps3 = m_metric.inverse_transform(facet.first->vertex(facet.second)->point());
-
-              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
-              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
-
-              if(o1 == o2 && constrain_ray_intersection(cp, facetp).assign(p))
-                return p;
-              else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(facetp, cp))).assign(p))
-                return p;
-            }
-          }
-          else // !f1
-          {
-            if (f2)
-            {
-              Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
-
-              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
-              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
-
-              if(o1 == o2 && constrain_ray_intersection(cp, facetp).assign(p))
-                return p;
-              else if(o1 != o2 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(facetp, cp))).assign(p))
-                return p;
-            }
-            else // oops, impossible
-              std::cerr << "Oops! Impossible!\n";
-          }
-          if(verbose)
-          {
-            std::cerr << "Oops! no intersection! [with point on facet]" << facetp << std::endl;
-            std::cerr << "Star:  " << m_center->info() << std::endl;
-            std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 1) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex(facet.second)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex(facet.second)->point()) << " (.second)" << std::endl;
-            std::cerr << "Cell 2: " << std::endl;
-            std::cerr << c2->vertex(0)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
-            std::cerr << c2->vertex(1)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(1)->point()) << std::endl;
-            std::cerr << c2->vertex(2)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(2)->point()) << std::endl;
-            std::cerr << c2->vertex(3)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
-            throw "Oops! no intersection!";
+//            double eval1 = candidate_1.x()*candidate_1.x()/100. + candidate_1.y()*candidate_1.y() + candidate_1.z()*candidate_1.z() - 1.0;
+//            double eval2 = candidate_2.x()*candidate_2.x()/100. + candidate_2.y()*candidate_2.y() + candidate_2.z()*candidate_2.z() - 1.0;
+//            double evalc = ccf.x()*ccf.x()/100. + ccf.y()*ccf.y() + ccf.z()*ccf.z() - 1.0;
+//            std::cout << "no intersection..." << std::endl;
+//            std::cout << "candidate_1 : " << candidate_1 << " " << eval1 << std::endl;
+//            std::cout << "candidate_2 : " << candidate_2 << " " << eval2 << std::endl;
+//            std::cout << "ccf : " << ccf << " " << evalc << std::endl;
+//            std::cout << "circum : " << circumradius << std::endl;
+            return false;
           }
         }
-        return p;
       }
 
       bool debug_steiner_point(const Point_3& steiner_point,
@@ -1935,7 +1909,7 @@ public:
         else
         {
           ::glPointSize(3.);
-          ::glColor3f(139., 137., 137.);
+          ::glColor3f(0.5f, 0.5f, 0.5f);
         }
         ::glBegin(GL_POINTS);
         ::glVertex3d(m_center_point.x(), m_center_point.y(), m_center_point.z());

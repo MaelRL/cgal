@@ -917,7 +917,40 @@ private:
                   transform_to_star_point(p3, here)), here);
 #endif
       }
-      
+
+      Point_3 compute_random_steiner_point(const Star_handle star,
+                                            const Facet &facet,
+                                            const TPoint_3 &tccf,
+                                            const FT circumradius) const
+      {
+        typename Star::Traits::Compute_random_point_3 random =
+                 star->traits()->compute_random_point_3_object();
+
+        bool found_acceptable_steiner_point = false;
+        int fail_counter = 0;
+        TPoint_3 steiner_point;
+        TPoint_3 random_point_within_sphere_1;
+        TPoint_3 random_point_within_sphere_2;
+
+        while(!found_acceptable_steiner_point)
+        {
+          if(++fail_counter > 100)
+            std::cout << "fail_counter is getting big : " << fail_counter << std::endl;
+
+          random_point_within_sphere_1 = random(tccf, circumradius);
+          random_point_within_sphere_2 = random(tccf, circumradius);
+
+          found_acceptable_steiner_point =
+                star->compute_steiner_dual_intersection(steiner_point,
+                                                        random_point_within_sphere_1,
+                                                        random_point_within_sphere_2,
+                                                        facet,
+                                                        circumradius);
+        }
+
+        return steiner_point;
+      }
+
       bool pick_valid(const Star_handle star, //to be refined
                       const Facet &facet,
                       Point_3& p,
@@ -934,22 +967,12 @@ private:
         star->compute_dual_intersection(facet, center);
 #endif
         TPoint_3 tccf = transform_to_star_point(center, star);
+
+        // pick_valid region radius
         TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
         FT sq_circumradius = star->traits()->compute_squared_distance_3_object()(tccf, tp2);
         FT sq_radiusbound = m_criteria->beta * m_criteria->beta * sq_circumradius;
-
-        // compute tools to pick random point in picking region
         FT circumradius = m_criteria->delta * std::sqrt(sq_circumradius);
-        Cell_handle cell = (! star->is_infinite(facet.first)) ? facet.first
-                                      : facet.first->neighbor(facet.second);
-        // in M_star
-#ifdef ANISO_USE_EXACT
-        TPoint_3 tcccell = back_from_exact(star->compute_exact_circumcenter(cell));
-#else
-        TPoint_3 tcccell = star->compute_circumcenter(cell);
-#endif
-        typename Star::Traits::Compute_random_point_3 random = 
-          star->traits()->compute_random_point_3_object();
 
         std::size_t tried_times = 1;
         bool success = false;
@@ -963,34 +986,29 @@ private:
 
         Star_handle newstar = new Star(m_criteria, m_pConstrain, true/*surface*/);
 
-        //probing mode
+        //probing mode variables -----------------------------------
         bool probing = false;
         std::pair<int,int> A_n, B_n, C_n; // the three facets we want to study in probing mode
         Point_3 successful_point_mem;
 
-        //zone caracteristics :
+        //probing zone caracteristics :
         int probing_points_n = 600;
         FT dilated_circumradius = 5.*circumradius;
 
-        // define the vector of points to be tested
-        std::vector<TPoint_3> probing_points;
+        // define the vector of probing points to be tested
+        std::vector<Point_3> probing_points;
         probing_points.push_back(Point_3(1,1,1)); //dummy point
 
-        while(true && !probing_points.empty())
+        while(!probing_points.empty())
         {
-          TPoint_3 next_point;
           if(probing)
           {
             tried_times = 0;
-            next_point = probing_points.back();
-            p = star->compute_steiner_dual_intersection(next_point, facet);
+            p = probing_points.back();
             probing_points.pop_back();
           }
           else
-          {
-            next_point = random(tccf, tcccell, circumradius);
-            p = star->compute_steiner_dual_intersection(next_point, facet);
-          }
+            p = compute_random_steiner_point(star, facet, tccf, circumradius);
 
           std::vector<int> problematic_facets; //2*nb of facets : two points + p = one facet
           m_pick_valid_cache.push_back(p);
@@ -1024,7 +1042,7 @@ private:
               bool A_n_involved = false, B_n_involved = false, C_n_involved = false;
               bool others_involved = false;
 
-              for(std::size_t i=0; i<problematic_facets.size();)
+              for(std::size_t i=0; i<problematic_facets.size(); i += 2)
               {
                 int i1 = problematic_facets[i];
                 int i2 = problematic_facets[i+1];
@@ -1037,8 +1055,6 @@ private:
                   C_n_involved = true;
                 else
                   others_involved = true;
-
-                i += 2;
               }
 
               if(A_n_involved && B_n_involved && C_n_involved && !others_involved)
@@ -1073,7 +1089,10 @@ private:
                 probing_points.clear(); //clear the dummy
                 std::cout << "New probing zone :" << std::endl;
                 for(int i=0; i<probing_points_n; ++i)
-                  probing_points.push_back(random(tccf, tcccell, dilated_circumradius));
+                {
+                  Point_3 probing_point = compute_random_steiner_point(star, facet, tccf, dilated_circumradius);
+                  probing_points.push_back(probing_point);
+                }
 
                 //fill A_n, B_n, C_n
                 A_n = std::pair<int,int>(problematic_facets[0],problematic_facets[1]);
@@ -1581,7 +1600,7 @@ public:
             {
               bool relative = false;
               for (int i = 1; i <= 3; i++)
-                if (relative_point == cell->vertex((offset + i) % 4)->info()) 
+                if (relative_point == cell->vertex((offset + i) % 4)->info())
                 {
                   relative = true;
                   break;
@@ -2158,11 +2177,10 @@ public:
             std::vector<int> id_vector = pickvalid_problematic_facets[pickvalid_point];
 
             assert(id_vector.size()%2 == 0);
-            for(std::size_t i=0; i<id_vector.size();)
+            for(std::size_t i=0; i<id_vector.size(); i+=2)
             {
               std::cout << "(" << id_vector[i] << " " << id_vector[i+1] << "), ";
               facet_apparition_counter[std::pair<int,int>(id_vector[i],id_vector[i+1])]++;
-              i+=2;
             }
             std::cout << std::endl;
           }
@@ -3180,13 +3198,12 @@ public:
             ::glEnable(GL_LIGHTING);
 
           //all its problematic facets
-          for(std::size_t i=0; i<picked_point_couples.size();)
+          for(std::size_t i=0; i<picked_point_couples.size(); i+=2)
           {
             gl_draw_triangle<K>(picked_point,
                                 m_stars[picked_point_couples[i]]->center_point(),
                                 m_stars[picked_point_couples[i+1]]->center_point(),
                                 EDGES_AND_FACES, 166, 247, 170);
-            i+=2;
           }
         }
       }
