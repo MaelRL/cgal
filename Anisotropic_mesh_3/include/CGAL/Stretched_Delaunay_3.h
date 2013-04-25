@@ -430,10 +430,6 @@ public:
         // surface Delaunay ball radius
         Point_3 p;
         compute_dual_intersection(facet,p);
-//        Point_3 p2 = m_metric.inverse_transform(
-//          facet.first->vertex((facet.second + 1) % 4)->point());
-//        FT sqr = CGAL::squared_distance(p, p2);
-
         TPoint_3 tp = m_metric.transform(p);
         TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
         FT sqr = CGAL::squared_distance(tp, tp2);
@@ -1176,31 +1172,7 @@ public:
       TPoint_3 compute_circumcenter(Cell_handle cell) const
       {
         return compute_exact_circumcenter(cell);
-        //TPoint_3 ps[4];
-        //get_points(ps, cell);
-        //typename KExact::Point_3 ecc = m_traits->construct_circumcenter_3_object()(
-        //  to_exact(ps[0]), to_exact(ps[1]), to_exact(ps[2]), to_exact(ps[3]));
-        //return back_from_exact(ecc);
       }
-
-      //TPoint_3 compute_circumcenter(const TPoint_3 &p0, const TPoint_3 &p1) const
-      //{
-      //  typename KExact::Point_3 ecc = m_traits->construct_circumcenter_3_object()(
-      //    to_exact(p0), to_exact(p1));
-      //  return back_from_exact(ecc);
-      //}
-
-      //TPoint_3 compute_circumcenter(const TPoint_3 &p0, const TPoint_3 &p1,
-      //                              const TPoint_3 &p2, const TPoint_3 &p3) const
-      //{
-      //  return m_traits->construct_circumcenter_3_object()(p0, p1, p2, p3);
-      //}
-
-      //Exact_TPoint_3 compute_circumcenter(const Exact_TPoint_3 &p0, const Exact_TPoint_3 &p1,
-      //                                    const Exact_TPoint_3 &p2, const Exact_TPoint_3 &p3) const
-      //{
-      //  return m_traits->construct_circumcenter_3_object()(p0, p1, p2, p3);
-      //}
 
       template<typename TPoint> //exact or not
       TPoint compute_circumcenter(const TPoint &p0, const TPoint &p1,
@@ -1250,22 +1222,6 @@ public:
           return make_object(res);
         else return typename K::Object_3();
       }
-
-      //typename KExact::Object_3 constrain_ray_intersection(const Exact_Point_3 &p1, //source
-      //                                                     const Exact_Point_3 &p2) const //target
-      //{
-      //  if(p1 == p2)
-      //    std::cout << "CONSTRAIN_RAY_INTERSECTION : source cannot be == target ";
-      //  Exact_Point_3 res;
-      //  typename KExact::Ray_3 ray(p1, p2);
-      //  if(m_pConstrain->intersection(make_object(ray)).assign(res))
-      //    return make_object(res);
-      //  else return typename KExact::Object_3();
-      //}
-
-      //typename K::Object_3 constrain_line_intersection(const Point_3& p1, const Point_3& p2) const {
-      //  return constrain_ray_intersection(p1, p2);
-      //}
 
       bool is_restricted_2_in_3(const Facet& f,
                                 Point_3& surface_delaunay_ball_center,
@@ -1580,26 +1536,6 @@ public:
         bool ret_val = false;
         CGAL_PROFILER("[compute_dual_intersection]");
 
-        //////new
-        ////Vector_3 tn = this->dual_support(facet.first, facet.second).to_vector();
-        ////Vector_3 n = m_metric.inverse_transform(tn);
-        ////Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-        ////
-        ////Point_3 p1, p2;
-        ////bool b1 = false; bool b2 = false;
-        ////if(constrain_ray_intersection(fc, fc-n).assign(p1)) b1 = true;
-        ////if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
-        ////if(b1 && b2)
-        ////{
-        ////  if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
-        ////    p = p2;
-        ////  else p = p1;
-        ////  ret_val = true;
-        ////}
-        ////else if(b1 && !b2) { p = p1 ; ret_val = true; }
-        ////else if(!b1 && b2) { p = p2 ; ret_val = true; }
-        //////end new
-
         if(Base::dimension() == 2)
         {
           Point_3 p1, p2;
@@ -1645,8 +1581,7 @@ public:
             c2 = c1;    f2 = false;
             c1 = tmp;   f1 = true;
           }
-
-
+          
           if(f1)
           {
             if (f2)
@@ -1729,23 +1664,6 @@ public:
         m_compute_dual_intersection_timer += (clock()-start+0.) / ((double)CLOCKS_PER_SEC);
 #endif
         return ret_val;
-      }
-
-      void check_coplanarity(const Facet& f,
-                             const TPoint_3& tp) const
-      {
-        const TPoint_3& tp1 = f.first->vertex((f.second+1) % 4)->point();
-        const TPoint_3& tp2 = f.first->vertex((f.second+2) % 4)->point();
-        const TPoint_3& tp3 = f.first->vertex((f.second+3) % 4)->point();
-        if(CGAL::orientation(tp, tp1, tp2, tp3) != CGAL::COPLANAR)
-        {
-          std::cerr << "ERROR in check_coplanarity" << std::endl;
-          std::cerr << "  points are not coplanar" << std::endl;
-          typename K::Plane_3 p = this->triangle(f).supporting_plane();
-          TPoint_3 tproj = p.projection(tp);
-          double d = std::sqrt(CGAL::squared_distance(tp,tproj));
-          std::cerr << "  p is at distance " << d << " from triangle" << std::endl;
-        }
       }
 
       Point_3 compute_steiner_dual_intersection(const TPoint_3 &tfacetp,
