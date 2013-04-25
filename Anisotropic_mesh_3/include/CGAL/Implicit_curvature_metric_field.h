@@ -43,7 +43,7 @@ namespace CGAL
         //double vpn = surface.global_max_curvature();//global max of c_max
         double vpn = (std::max)(vp1, vp2);
 
-        return this->build_metric(en, e1, e2, vpn, vp1, vp2);
+        return this->build_metric(en, e1, e2, std::sqrt(vpn), std::sqrt(vp1), std::sqrt(vp2));
       }
 
       Implicit_curvature_metric_field(const Constrain_surface &surface_, 
