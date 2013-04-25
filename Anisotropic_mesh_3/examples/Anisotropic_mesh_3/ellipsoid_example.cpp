@@ -52,10 +52,10 @@ int main(int argc, char* argv[])
   K::FT b = (argc > 2) ? atof(argv[2]) : 1.;
   K::FT c = (argc > 3) ? atof(argv[3]) : 1.;
 
-  K::FT epsilon = (argc > 4) ? atof(argv[4]) : 1.0;
+  K::FT epsilon = (argc > 4) ? atof(argv[4]) : 0.;
 
-  K::FT r0 = (argc > 5) ? atof(argv[5]) : 1.0/*default*/;
-  K::FT gamma0 = (argc > 6) ? atof(argv[6]) : 1.5;
+  K::FT r0 = (argc > 5) ? atof(argv[5]) : 0./*default*/;
+  K::FT gamma0 = (argc > 6) ? atof(argv[6]) : 0.;
 
   int nb = (argc > 7) ? atoi(argv[7]) : 10;
 
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
   
-  Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
+  Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_
                                                     0.2,    //sliverity_
                                                     r0,     //circumradius_ 0.1
                                                     gamma0, //distortion_ 1.3

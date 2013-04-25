@@ -1013,6 +1013,11 @@ private:
           std::vector<int> problematic_facets; //2*nb of facets : two points + p = one facet
           m_pick_valid_cache.push_back(p);
 
+#ifdef ANISO_DEBUG_REFINEMENT
+          //std::cout << "<? check pick_valid\n";
+          star->debug_steiner_point(p, facet, false);
+          //std::cout << "?>\n";
+#endif
           if(is_valid_point(p, sq_radiusbound, star, newstar, problematic_facets))
           {
             success = true;
@@ -1752,13 +1757,12 @@ public:
 
         initialize_medial_axis(); // poles
 
-        std::cout << "now inserting initial points" << std::endl;
-
-        typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
-        typename Constrain_surface::Pointset::iterator pend = initial_points.end();
 #ifdef ANISO_VERBOSE
+        std::cout << "now inserting initial points" << std::endl;
         std::cout << "(" << initial_points.size() << " initial points) ";
 #endif
+        typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
+        typename Constrain_surface::Pointset::iterator pend = initial_points.end();
         int nbdone = 0;
         for (; pi != pend && nbdone < nb; pi++)
         {
@@ -2255,10 +2259,6 @@ public:
                               pick_valid_causes_stop, pick_valid_max_failures, success))
           return false;
 
-#ifdef ANISO_DEBUG_REFINEMENT
-        if(bad_facet.star->debug_steiner_point(steiner_point, f))
-          std::cerr << "(Not exact)" << std::endl;
-#endif
         if(!m_refinement_condition(steiner_point))
           return true; //note false would stop refinement
 
@@ -2366,13 +2366,14 @@ public:
                 std::cout << "\tp"<< v2->info() <<" : " << v2->point() << std::endl;
                 std::cout << "\tp"<< v3->info() <<" : " << v3->point() << std::endl;
              
-                std::cout << ", dim = " << bad_facet.star->dimension();
-                std::cout<< ", nbv = " << bad_facet.star->number_of_vertices();
+                std::cout << "\tdim = " << bad_facet.star->dimension();
+                std::cout << ", nbv = " << bad_facet.star->number_of_vertices();
                 std::cout << ", pid = " << pid;
                 std::cout << ", p = " << steiner_point;
                 std::cout << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
-                std::cout << std::endl;
-                bad_facet.star->debug_steiner_point(steiner_point, ff);
+                std::cout << ", picking : " << need_picking_valid;
+                std::cout << std::endl << "\t";
+                bad_facet.star->debug_steiner_point(steiner_point, ff, true);
                 std::cout << "(Exact)" << std::endl;
               }
               else

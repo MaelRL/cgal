@@ -430,10 +430,6 @@ public:
         // surface Delaunay ball radius
         Point_3 p;
         compute_dual_intersection(facet,p);
-//        Point_3 p2 = m_metric.inverse_transform(
-//          facet.first->vertex((facet.second + 1) % 4)->point());
-//        FT sqr = CGAL::squared_distance(p, p2);
-
         TPoint_3 tp = m_metric.transform(p);
         TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
         FT sqr = CGAL::squared_distance(tp, tp2);
@@ -1176,31 +1172,7 @@ public:
       TPoint_3 compute_circumcenter(Cell_handle cell) const
       {
         return compute_exact_circumcenter(cell);
-        //TPoint_3 ps[4];
-        //get_points(ps, cell);
-        //typename KExact::Point_3 ecc = m_traits->construct_circumcenter_3_object()(
-        //  to_exact(ps[0]), to_exact(ps[1]), to_exact(ps[2]), to_exact(ps[3]));
-        //return back_from_exact(ecc);
       }
-
-      //TPoint_3 compute_circumcenter(const TPoint_3 &p0, const TPoint_3 &p1) const
-      //{
-      //  typename KExact::Point_3 ecc = m_traits->construct_circumcenter_3_object()(
-      //    to_exact(p0), to_exact(p1));
-      //  return back_from_exact(ecc);
-      //}
-
-      //TPoint_3 compute_circumcenter(const TPoint_3 &p0, const TPoint_3 &p1,
-      //                              const TPoint_3 &p2, const TPoint_3 &p3) const
-      //{
-      //  return m_traits->construct_circumcenter_3_object()(p0, p1, p2, p3);
-      //}
-
-      //Exact_TPoint_3 compute_circumcenter(const Exact_TPoint_3 &p0, const Exact_TPoint_3 &p1,
-      //                                    const Exact_TPoint_3 &p2, const Exact_TPoint_3 &p3) const
-      //{
-      //  return m_traits->construct_circumcenter_3_object()(p0, p1, p2, p3);
-      //}
 
       template<typename TPoint> //exact or not
       TPoint compute_circumcenter(const TPoint &p0, const TPoint &p1,
@@ -1268,22 +1240,6 @@ public:
           return make_object(res);
         else return typename K::Object_3();
       }
-
-      //typename KExact::Object_3 constrain_ray_intersection(const Exact_Point_3 &p1, //source
-      //                                                     const Exact_Point_3 &p2) const //target
-      //{
-      //  if(p1 == p2)
-      //    std::cout << "CONSTRAIN_RAY_INTERSECTION : source cannot be == target ";
-      //  Exact_Point_3 res;
-      //  typename KExact::Ray_3 ray(p1, p2);
-      //  if(m_pConstrain->intersection(make_object(ray)).assign(res))
-      //    return make_object(res);
-      //  else return typename KExact::Object_3();
-      //}
-
-      //typename K::Object_3 constrain_line_intersection(const Point_3& p1, const Point_3& p2) const {
-      //  return constrain_ray_intersection(p1, p2);
-      //}
 
       bool is_restricted_2_in_3(const Facet& f,
                                 Point_3& surface_delaunay_ball_center,
@@ -1405,13 +1361,17 @@ public:
       bool compute_exact_dual_intersection(const Facet &facet,
                                            Point_3& p,
                                            const bool use_cache = false,
-                                           const bool verbose = true) const
+                                           const bool verbose = true,
+                                           const bool super_verbose = false) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start = clock();
 #endif
         if(!is_restricted(facet))// point is not computed here
           return false;
+
+        if(super_verbose)
+          facet_indices(facet);
 
         if(use_cache && facet.first->is_facet_visited(facet.second))
         {
@@ -1432,10 +1392,20 @@ public:
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
 
+          if(super_verbose)
+            std::cerr << "(case " << f1 << " " << f2 << ")";
+
           Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
           Exact_Vector_3 t_n = to_exact(this->dual_support(c1, facet.second).to_vector());
           Exact_Vector_3 n = m_metric.inverse_transform(t_n);
           n = std::sqrt(1./(n*n)) * n;
+
+          if(!f1 && f2)
+          {
+            Cell_handle tmp = c2;
+            c2 = c1;    f2 = false;
+            c1 = tmp;   f1 = true;
+          }
 
           if(f1)
           {
@@ -1480,43 +1450,12 @@ public:
                 if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target)).assign(p))
                   ret_val = true;
               }
-            }
-          }
-          else // !f1
-          {
-            if (f2)
-            {
-              Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c2));
-              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); //4th pt of c2
-
-              CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
-                                                       to_exact(ps[2]), to_exact(c2_ps3));
-              CGAL::Orientation o2 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
-                                                       to_exact(ps[2]), fc + n);
-              CGAL::Orientation o3 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
-                                                       to_exact(ps[2]), cp);
-
-              if(o3 == COPLANAR) //fc = cp
+              if(super_verbose)
               {
-                if(fc != cp)
-                {
-                  std::cerr << "fc != cp with cp on the facet...[exact "<<f1<< " "<<f2 <<"]" << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
-                }
-                if(o1 == o2) //n points towards c2_ps3
-                  n = -n;
-                Exact_Point_3 ep = cp + n;
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
-                  ret_val = true;
-              }
-              else if(o1 == o3 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
-                ret_val = true;
-              else if(o1 != o3)
-              {
-                Exact_Point_3 target(cp + Exact_Vector_3(fc, cp));
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target)).assign(p))
-                  ret_val = true;
+                std::cerr << "\t(o " << o1 << " " << o2 << " " << o3 << ")\n";
+                std::cerr << "\t(cp " << cp << ")\n";
+                std::cerr << "\t(fc " << fc << ")\n";
+                std::cerr << "\t(returns " << ret_val << ")\n";
               }
             }
           }
@@ -1550,6 +1489,8 @@ public:
             std::cerr << c2->vertex(3)->info() << " ";
             std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(3)->point())) << std::endl;
           }
+          if(super_verbose)
+            std::cerr << "Normal ("<< n <<")" << std::endl;
         }
 #ifdef USE_ANISO_TIMERS
         m_compute_dual_intersection_timer += (clock()-start+0.) / ((double)CLOCKS_PER_SEC);
@@ -1596,7 +1537,8 @@ public:
       bool compute_dual_intersection(const Facet &facet,
                                      Point_3& p,
                                      const bool use_cache = true,
-                                     const bool verbose = true) const
+                                     const bool verbose = true,
+                                     const bool super_verbose = false) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start = clock();
@@ -1611,26 +1553,6 @@ public:
         }
         bool ret_val = false;
         CGAL_PROFILER("[compute_dual_intersection]");
-
-        //////new
-        ////Vector_3 tn = this->dual_support(facet.first, facet.second).to_vector();
-        ////Vector_3 n = m_metric.inverse_transform(tn);
-        ////Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-        ////
-        ////Point_3 p1, p2;
-        ////bool b1 = false; bool b2 = false;
-        ////if(constrain_ray_intersection(fc, fc-n).assign(p1)) b1 = true;
-        ////if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
-        ////if(b1 && b2)
-        ////{
-        ////  if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
-        ////    p = p2;
-        ////  else p = p1;
-        ////  ret_val = true;
-        ////}
-        ////else if(b1 && !b2) { p = p1 ; ret_val = true; }
-        ////else if(!b1 && b2) { p = p2 ; ret_val = true; }
-        //////end new
 
         if(Base::dimension() == 2)
         {
@@ -1663,11 +1585,21 @@ public:
           bool f1 = !is_infinite(c1);
           bool f2 = !is_infinite(c2);
 
+          if(super_verbose)
+            std::cerr << "(case " << f1 << " " << f2 << ")";
+
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
           Vector_3 t_n = this->dual_support(c1, facet.second).to_vector();
           Vector_3 n = m_metric.inverse_transform(t_n);
           n = std::sqrt(1./(n*n)) * n;
 
+          if(!f1 && f2)
+          {
+            Cell_handle tmp = c2;
+            c2 = c1;    f2 = false;
+            c1 = tmp;   f1 = true;
+          }
+          
           if(f1)
           {
             if (f2)
@@ -1708,39 +1640,12 @@ public:
                 ret_val = true;
               else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
                 ret_val = true;
-            }
-          }
-          else // !f1
-          {
-            if (f2)
-            {
-              Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); // 4th pt of c2
-
-              CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
-              CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
-              CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
-
-              if(o3 == COPLANAR) //fc = cp
+              if(super_verbose)
               {
-                if(fc != cp)
-                {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
-                }
-                if(o1 == o2) //n points towards c2_ps3
-                  n = -n;
-                if(constrain_ray_intersection(cp, cp + n).assign(p))
-                  ret_val = true;
+                std::cerr << "(o " << o1 << " " << o2 << " " << o3 << ")";
+                std::cerr << "(cp " << cp << ")";
               }
-              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
-                ret_val = true;
-              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
-                ret_val = true;
             }
-            else if(verbose)
-              std::cout << "Oops! Impossible!" << std::endl;
           }
 
           if(ret_val)//do this in dimension 3 only (mirror_facet could crash, otherwise)
@@ -1770,6 +1675,8 @@ public:
             std::cerr << c2->vertex(3)->info() << " ";
             std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
           }
+          if(super_verbose)
+            std::cerr << "Normal ("<< n <<")" << std::endl;
         }
 #ifdef USE_ANISO_TIMERS
         m_compute_dual_intersection_timer += (clock()-start+0.) / ((double)CLOCKS_PER_SEC);
@@ -1806,6 +1713,10 @@ public:
             return false;
 
           if(constrain_segment_intersection(candidate_1, candidate_2).assign(p))
+              //std::cout << "[f " << f1 << " " << f2 << "]\n";
+              //std::cerr << "[o " << o1 << " " << o2 << "]\n";
+              //std::cerr << "[cp : " << cp << "]\n";
+              //std::cerr << "[facetp : " << facetp << "]\n";
           {
             //check if not too far away from the intersection of the dual & surface (should never happen)
             TPoint_3 tccf = m_metric.transform(ccf);
@@ -1839,12 +1750,24 @@ public:
         }
       }
 
-      bool debug_steiner_point(const Point_3& steiner_point,
-                               const Facet& f) const
+      void facet_indices(const Facet& f) const
       {
+        std::cout << "Facet[";
+        Vertex_handle v1 = f.first->vertex((f.second+1)%4);
+        Vertex_handle v2 = f.first->vertex((f.second+2)%4);
+        Vertex_handle v3 = f.first->vertex((f.second+3)%4);
+        std::cout << v1->info() << " " << v2->info() << " " << v3->info();
+        std::cout << "]";
+      }
+
+      bool debug_steiner_point(const Point_3& steiner_point,
+                               const Facet& f,
+                               const bool more = false) const
+      {
+        //std::cout << "<-debug_steiner_point\n";
         bool bug = false;
         Point_3 p;
-        compute_exact_dual_intersection(f,p);
+        compute_exact_dual_intersection(f,p, false, true, more);
 
         const TPoint_3& pf = f.first->vertex((f.second+1)&3)->point();
         const TPoint_3& center = m_metric.transform(p);
@@ -1853,22 +1776,25 @@ public:
         Sphere s(center, CGAL::squared_distance(center, pf));
         if(s.has_on_unbounded_side(steiner))
         {
-          std::cout << "\nSteiner point ("
-            <<steiner_point<< ") outside exact surface Delaunay ball";
+          facet_indices(f);
+          std::cout << "\n\tSteiner point ("
+            <<steiner_point<< ") outside exact surface Delaunay ball\n";
+          std::cout << "\tp is " << p << std::endl;
           bug = true;
         }
 
-        Point_3 p2;
-        compute_dual_intersection(f,p2);
-        const TPoint_3& center2 = m_metric.transform(p);
-        Sphere s2(center2, CGAL::squared_distance(center2, pf));
-        if(s2.has_on_unbounded_side(steiner))
-        {
-          std::cout << "\nSteiner point ("
-            <<steiner_point<< ") outside inexact surface Delaunay ball";
-          bug = true;
-        }
-
+        //Point_3 p2;
+        //compute_dual_intersection(f,p2, false,true,more);
+        //const TPoint_3& center2 = m_metric.transform(p);
+        //Sphere s2(center2, CGAL::squared_distance(center2, pf));
+        //if(s2.has_on_unbounded_side(steiner))
+        //{
+        //  facet_indices(f);
+        //  std::cout << "\n\tSteiner point ("
+        //    <<steiner_point<< ") outside inexact surface Delaunay ball\n";
+        //  bug = true;
+        //}
+        //std::cout << "->\n";        
         return bug;
       }
 

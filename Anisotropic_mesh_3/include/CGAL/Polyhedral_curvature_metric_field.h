@@ -41,7 +41,7 @@ namespace CGAL
         double vp0, vp1, vp2;
         ((Constrain_surface *)(m_pConstrain))->tensor_frame(p, e0, e1, e2, vp0, vp1, vp2);
       
-        return this->build_metric(e0, e1, e2, vp0, vp1, vp2);
+        return this->build_metric(e0, e1, e2, std::sqrt(vp0), std::sqrt(vp1), std::sqrt(vp2));
       }
 
       Polyhedral_curvature_metric_field(const Constrain_surface& surface_, 
