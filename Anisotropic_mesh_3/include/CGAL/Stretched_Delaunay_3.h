@@ -467,7 +467,21 @@ public:
           m_metric.transform(p1), m_metric.transform(p2), 
           m_metric.transform(p3), m_metric.transform(p4));
       }
-          
+
+      inline FT compute_element_quality(const Cell_handle & cell) const
+      {
+        return m_criteria->element_quality(
+          cell->vertex(0)->point(), cell->vertex(1)->point(),
+          cell->vertex(2)->point(), cell->vertex(3)->point());
+      }
+
+      inline FT compute_element_quality(const Point_3& p1,
+                                        const Point_3& p2,
+                                        const Point_3& p3) const
+      {
+        return m_criteria->element_quality(p1, p2, p3);
+      }
+
       inline bool is_sliver(const TPoint_3& p1,
                             const TPoint_3& p2,
                             const TPoint_3& p3,
@@ -1689,7 +1703,7 @@ public:
                                              const TPoint_3 &tcandidate_2, // second point within the ball
                                              const Facet &facet,
                                              const FT circumradius,
-                                             const bool verbose = true) const
+                                             const int failcounter = 0) const
       {
         CGAL_PROFILER("[compute_steiner_dual_intersection]");
 
@@ -1712,7 +1726,7 @@ public:
           if(candidate_1 == candidate_2) // just in case
             return false;
 
-          if(constrain_segment_intersection(candidate_1, candidate_2).assign(p))
+          if(m_pConstrain->intersection(candidate_1, candidate_2).assign(p))
           {
             //check if not too far away from the intersection of the dual & surface (should never happen)
             TPoint_3 tccf = m_metric.transform(ccf);
@@ -1724,7 +1738,9 @@ public:
               std::cout << "candidates : " << std::endl;
               std::cout << tcandidate_1 << std::endl << tcandidate_2 << std::endl;
               std::cout << "tccf : " << tccf << std::endl;
-              std::cout << "p : " << p << std::endl;
+              std::cout << "tp : " << tp << std::endl;
+              std::cout << "checking dist 1 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_1)) << std::endl;
+              std::cout << "checking dist 2 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_2)) << std::endl;
               std::cout << "dist : " << std::sqrt(CGAL::squared_distance(tccf, tp)) << " and circumradius : " << circumradius << std::endl;
               return false;
             }
@@ -1733,14 +1749,17 @@ public:
           }
           else
           {
-//            double eval1 = candidate_1.x()*candidate_1.x()/100. + candidate_1.y()*candidate_1.y() + candidate_1.z()*candidate_1.z() - 1.0;
-//            double eval2 = candidate_2.x()*candidate_2.x()/100. + candidate_2.y()*candidate_2.y() + candidate_2.z()*candidate_2.z() - 1.0;
-//            double evalc = ccf.x()*ccf.x()/100. + ccf.y()*ccf.y() + ccf.z()*ccf.z() - 1.0;
-//            std::cout << "no intersection..." << std::endl;
-//            std::cout << "candidate_1 : " << candidate_1 << " " << eval1 << std::endl;
-//            std::cout << "candidate_2 : " << candidate_2 << " " << eval2 << std::endl;
-//            std::cout << "ccf : " << ccf << " " << evalc << std::endl;
-//            std::cout << "circum : " << circumradius << std::endl;
+            if(failcounter > 100)
+            {
+              double eval1 = candidate_1.x()*candidate_1.x()/100. + candidate_1.y()*candidate_1.y() + candidate_1.z()*candidate_1.z() - 1.0;
+              double eval2 = candidate_2.x()*candidate_2.x()/100. + candidate_2.y()*candidate_2.y() + candidate_2.z()*candidate_2.z() - 1.0;
+              double evalc = ccf.x()*ccf.x()/100. + ccf.y()*ccf.y() + ccf.z()*ccf.z() - 1.0;
+              std::cout << "no intersection..." << std::endl;
+              std::cout << "candidate_1 : " << tcandidate_1 << " " << eval1 << std::endl;
+              std::cout << "candidate_2 : " << tcandidate_2 << " " << eval2 << std::endl;
+              std::cout << "tccf : " << m_metric.transform(ccf) << " " << evalc << std::endl;
+              std::cout << "circum : " << circumradius << std::endl;
+            }
             return false;
           }
         }

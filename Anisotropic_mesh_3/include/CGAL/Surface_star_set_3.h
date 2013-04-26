@@ -945,7 +945,8 @@ private:
                                                         random_point_within_sphere_1,
                                                         random_point_within_sphere_2,
                                                         facet,
-                                                        circumradius);
+                                                        circumradius,
+                                                        fail_counter);
         }
 
         return steiner_point;
@@ -3344,6 +3345,70 @@ public:
             max_distortion = 120.*(max_distortion - 1.);
             float rgf = static_cast<float>((std::max)(0., 255. - max_distortion));
             gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, rgf, rgf, 255);
+          }
+        }
+        if(was)
+          ::glEnable(GL_LIGHTING);
+      }
+
+      void gl_draw_metric_honoring(const typename K::Plane_3& plane,
+                                  const int star_id = -1) const
+      {
+        GLboolean was = (::glIsEnabled(GL_LIGHTING));
+        if(was)
+          ::glDisable(GL_LIGHTING);
+
+        bool draw_all = (star_id < 0);
+        std::size_t start = draw_all ? 0 : star_id;
+        std::size_t N = draw_all ? m_stars.size() : (star_id + 1);
+
+        std::set<Facet_ijk> done;
+        for(std::size_t i = start; i < N; i++)
+        {
+          Star_handle star = m_stars[i];
+          if(!star->is_surface_star())
+            continue;
+
+          Facet_set_iterator fit = star->begin_restricted_facets();
+          Facet_set_iterator fend = star->end_restricted_facets();
+          for(; fit != fend; fit++)
+          {
+            Facet f = *fit;
+            if(done.find(Facet_ijk(f)) != done.end())
+              continue;
+            done.insert(Facet_ijk(f));
+
+            const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
+            const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
+            const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
+
+            if(!is_above_plane(plane, pa, pb, pc))
+              continue;
+
+            Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
+            Star_handle star_b = m_stars[f.first->vertex((f.second+2)%4)->info()];
+            Star_handle star_c = m_stars[f.first->vertex((f.second+3)%4)->info()];
+
+            const TPoint_3& tpa_a = transform_to_star_point(pa, star_a);
+            const TPoint_3& tpb_a = transform_to_star_point(pb, star_a);
+            const TPoint_3& tpc_a = transform_to_star_point(pc, star_a);
+
+            FT qualityf_in_a = 255.*star_a->compute_element_quality(tpa_a, tpb_a, tpc_a);
+
+            const TPoint_3& tpa_b = transform_to_star_point(pa, star_b);
+            const TPoint_3& tpb_b = transform_to_star_point(pb, star_b);
+            const TPoint_3& tpc_b = transform_to_star_point(pc, star_b);
+
+            FT qualityf_in_b = 255.*star_b->compute_element_quality(tpa_b, tpb_b, tpc_b);
+
+            const TPoint_3& tpa_c = transform_to_star_point(pa, star_c);
+            const TPoint_3& tpb_c = transform_to_star_point(pb, star_c);
+            const TPoint_3& tpc_c = transform_to_star_point(pc, star_c);
+
+            FT qualityf_in_c = 255.*star_c->compute_element_quality(tpa_c, tpb_c, tpc_c);
+            FT qualityf = std::min(std::min(qualityf_in_a, qualityf_in_b),qualityf_in_c);
+
+            gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, qualityf, 255., qualityf);
           }
         }
         if(was)

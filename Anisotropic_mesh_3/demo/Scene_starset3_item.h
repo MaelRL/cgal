@@ -111,6 +111,7 @@ public:
   bool& draw_mesh_3()              { return m_draw_mesh_3; }
   bool& draw_surface_star_set()    { return m_draw_surface_star_set; }
   bool& draw_distortion()          { return m_draw_distortion; }
+  bool& draw_metric_honoring()          { return m_draw_metric_honoring; }
 
 protected:
   Scene_starset3_item_priv* d;
@@ -137,6 +138,7 @@ private:
   double m_draw_metric_eps;
   bool m_draw_mesh_3;
   bool m_draw_distortion;
+  bool m_draw_metric_honoring;
 };
 
 inline

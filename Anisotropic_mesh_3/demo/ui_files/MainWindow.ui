@@ -124,6 +124,7 @@
      <addaction name="actionDraw_poles"/>
      <addaction name="actionDraw_inconsistent_facets"/>
      <addaction name="actionDraw_metric_field"/>
+     <addaction name="actionDraw_metric_honoring"/>
      <addaction name="actionDraw_distortion"/>
     </widget>
     <addaction name="actionRecenterScene"/>
@@ -771,6 +772,14 @@
    </property>
    <property name="text">
     <string>disto&amp;rtion</string>
+   </property>
+  </action>
+  <action name="actionDraw_metric_honoring">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>metric honorin&amp;g</string>
    </property>
   </action>
  </widget>
