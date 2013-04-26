@@ -51,6 +51,13 @@ int main(int argc, char* argv[])
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 
+  if(argc == 2)
+  {
+    std::cout << "torus_example parameters :" << std::endl;
+    std::cout << "R r epsilon r0 gamma0 rho0 approx nb beta delta y condition gamma1" << std::endl;
+    return 0;
+  }
+  
   K::FT R = (argc > 1) ? atof(argv[1]) : 10.;
   K::FT r = (argc > 2) ? atof(argv[2]) : 1.;
 
@@ -101,17 +108,24 @@ int main(int argc, char* argv[])
   int xcondition = (argc > 12) ? atoi(argv[12]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 1., 0., 0.);
   K::Plane_3 plane2(1.0, 0.0001, 0., 0.);
-
   typedef Is_between<K::Plane_3, K::Point_3> RCondition;
-
   RCondition condition(plane1, plane2, (xcondition == 1));
-  //Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, condition);
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
+  //m_distortion_bound_avoid_pick_valid
+  K::FT distortion_bound = (argc > 13) ? atof(argv[13]) : 2.;
+
+  Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, 
+                                            condition,
+                                            distortion_bound);
+  
   timer.stop();
-
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
+  
+  timer.start();
   starset.refine_all(/*max nb of points*/);
+  timer.stop();
+  fx << "end : " << std::endl;
+  fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
 
   //starset.refine_all(fx, starttime);
   //timer.stop();
