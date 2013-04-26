@@ -166,6 +166,31 @@ public:
         return (value < 0.0) ? 0.0 : value;
     }
 
+    FT element_quality(FOUR_POINTS(Point_3)) const {
+        FT alpha = 216.*std::sqrt(3.);
+        FT V = compute_volume(p, q, r, s);
+        FT a = compute_volume(p, q, r);
+        FT b = compute_volume(p, q, s);
+        FT c = compute_volume(p, r, s);
+        FT d = compute_volume(q, r, s);
+        FT denom = (a+b+c+d);
+        FT quality = alpha*V*V/(denom*denom*denom);
+
+        return quality;
+    }
+
+    FT element_quality(THREE_POINTS(Point_3)) const {
+        FT alpha = 4.*std::sqrt(3.);
+        FT A = compute_volume(p, q, r);
+        FT a = CGAL::squared_distance(p, q);
+        FT b = CGAL::squared_distance(p, r);
+        FT c = CGAL::squared_distance(q, r);
+        FT quality = alpha*A/(a+b+c);
+
+        return quality;
+    }
+
+
 public:
     Stretched_criteria(const Traits &traits_, const Criteria* criteria_)
         : traits(traits_), criteria(criteria_) { }

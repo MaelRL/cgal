@@ -467,7 +467,21 @@ public:
           m_metric.transform(p1), m_metric.transform(p2), 
           m_metric.transform(p3), m_metric.transform(p4));
       }
-          
+
+      inline FT compute_element_quality(const Cell_handle & cell) const
+      {
+        return m_criteria->element_quality(
+          cell->vertex(0)->point(), cell->vertex(1)->point(),
+          cell->vertex(2)->point(), cell->vertex(3)->point());
+      }
+
+      inline FT compute_element_quality(const Point_3& p1,
+                                        const Point_3& p2,
+                                        const Point_3& p3) const
+      {
+        return m_criteria->element_quality(p1, p2, p3);
+      }
+
       inline bool is_sliver(const TPoint_3& p1,
                             const TPoint_3& p2,
                             const TPoint_3& p3,

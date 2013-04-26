@@ -220,6 +220,8 @@ Scene_starset3_item::direct_draw() const
     star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
   if(m_draw_distortion)
     star_set().gl_draw_distortion(plane,m_draw_star_id);
+  if(m_draw_metric_honoring)
+    star_set().gl_draw_metric_honoring(plane, m_draw_star_id);
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
   if(lighting)

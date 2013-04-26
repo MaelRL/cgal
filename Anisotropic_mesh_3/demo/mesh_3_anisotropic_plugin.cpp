@@ -189,6 +189,10 @@ public:
     actionDraw_distortion = this->getActionFromMainWindow(mw, "actionDraw_distortion");
     if(actionDraw_distortion)
       connect(actionDraw_distortion, SIGNAL(toggled(bool)), this, SLOT(view_distortion(bool)));
+
+    actionDraw_metric_honoring = this->getActionFromMainWindow(mw, "actionDraw_metric_honoring");
+    if(actionDraw_metric_honoring)
+      connect(actionDraw_metric_honoring, SIGNAL(toggled(bool)), this, SLOT(view_metric_honoring(bool)));
   }
 
   virtual QList<QAction*> actions() const
@@ -232,6 +236,7 @@ public slots:
   void view_metric_field(bool);
   void view_mesh_3(bool);
   void view_distortion(bool);
+  void view_metric_honoring(bool);
   //others
   void meshing_done_resume(Anisotropic_meshing_thread* t);
   void meshing_done_nresume(Anisotropic_meshing_thread* t);
@@ -260,6 +265,7 @@ private:
   QAction* actionDraw_metric_field;
   QAction* actionDraw_mesh_3;
   QAction* actionDraw_distortion;
+  QAction* actionDraw_metric_honoring;
 
   Messages_interface* msg;
   QMessageBox* message_box_;
@@ -281,6 +287,7 @@ Anisotropic_mesh_3_plugin()
   , actionDraw_one_pickvalid_point(NULL)
   , actionDraw_inconsistent_facets(NULL)
   , actionDraw_distortion(NULL)
+  , actionDraw_metric_honoring(NULL)
   , msg(NULL)
   , message_box_(NULL)
   , source_item_(NULL)
@@ -873,6 +880,18 @@ void Anisotropic_mesh_3_plugin::view_distortion(bool b)
   if(ssetitem != NULL)
   {
     ssetitem->draw_distortion() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_metric_honoring(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_metric_honoring() = b;
     ssetitem->starset_changed();
   }
 }
