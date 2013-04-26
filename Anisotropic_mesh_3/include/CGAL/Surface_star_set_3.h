@@ -945,7 +945,8 @@ private:
                                                         random_point_within_sphere_1,
                                                         random_point_within_sphere_2,
                                                         facet,
-                                                        circumradius);
+                                                        circumradius,
+                                                        fail_counter);
         }
 
         return steiner_point;
@@ -3405,9 +3406,8 @@ public:
             const TPoint_3& tpc_c = transform_to_star_point(pc, star_c);
 
             FT qualityf_in_c = 255.*star_c->compute_element_quality(tpa_c, tpb_c, tpc_c);
-
             FT qualityf = std::min(std::min(qualityf_in_a, qualityf_in_b),qualityf_in_c);
-            std::cout << "qualityf : " << qualityf << std::endl;
+
             gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, qualityf, 255., qualityf);
           }
         }
