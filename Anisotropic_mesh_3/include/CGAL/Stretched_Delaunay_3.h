@@ -1768,10 +1768,12 @@ public:
       void facet_indices(const Facet& f) const
       {
         std::cout << "Facet[";
-        Vertex_handle v1 = f.first->vertex((f.second+1)%4);
-        Vertex_handle v2 = f.first->vertex((f.second+2)%4);
-        Vertex_handle v3 = f.first->vertex((f.second+3)%4);
-        std::cout << v1->info() << " " << v2->info() << " " << v3->info();
+        std::vector<int> indices;
+        indices.push_back(f.first->vertex((f.second+1)%4)->info());
+        indices.push_back(f.first->vertex((f.second+2)%4)->info());
+        indices.push_back(f.first->vertex((f.second+3)%4)->info());
+        std::sort(indices.begin(), indices.end());
+        std::cout << indices[0] << " " << indices[1] << " " << indices[2];
         std::cout << "]";
       }
 
