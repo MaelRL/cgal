@@ -927,15 +927,15 @@ private:
                  star->traits()->compute_random_point_3_object();
 
         bool found_acceptable_steiner_point = false;
-        int fail_counter = 0;
+        int failures_count = 0;
         Point_3 steiner_point;
         TPoint_3 random_point_within_sphere_1;
         TPoint_3 random_point_within_sphere_2;
 
         while(!found_acceptable_steiner_point)
         {
-          if(++fail_counter > 100)
-            std::cout << "fail_counter is getting big : " << fail_counter << std::endl;
+          if(++failures_count > 100)
+            std::cout << "failures_count is getting big : " << failures_count << std::endl;
 
           random_point_within_sphere_1 = random(tccf, circumradius);
           random_point_within_sphere_2 = random(tccf, circumradius);
@@ -946,7 +946,7 @@ private:
                                                         random_point_within_sphere_2,
                                                         facet,
                                                         circumradius,
-                                                        fail_counter);
+                                                        failures_count);
         }
 
         return steiner_point;

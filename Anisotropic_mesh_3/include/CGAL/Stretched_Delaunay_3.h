@@ -1703,7 +1703,7 @@ public:
                                              const TPoint_3 &tcandidate_2, // second point within the ball
                                              const Facet &facet,
                                              const FT circumradius,
-                                             const int failcounter = 0) const
+                                             const int failures_count = 0) const
       {
         CGAL_PROFILER("[compute_steiner_dual_intersection]");
 
@@ -1733,15 +1733,17 @@ public:
             TPoint_3 tp = m_metric.transform(p);
             if(std::sqrt(CGAL::squared_distance(tccf, tp)) > circumradius)
             {
-              std::cout << "intersection point outside of picking ball in compute_steiner_dual_intersection" << std::endl;
+              std::cerr << "intersection point outside of picking ball in compute_steiner_dual_intersection" << std::endl;
+#ifdef ANISO_DEBUG_STEINER_DUAL
               std::cout << "that should not happen !" << std::endl;
               std::cout << "candidates : " << std::endl;
               std::cout << tcandidate_1 << std::endl << tcandidate_2 << std::endl;
               std::cout << "tccf : " << tccf << std::endl;
               std::cout << "tp : " << tp << std::endl;
-              std::cout << "checking dist 1 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_1)) << std::endl;
-              std::cout << "checking dist 2 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_2)) << std::endl;
-              std::cout << "dist : " << std::sqrt(CGAL::squared_distance(tccf, tp)) << " and circumradius : " << circumradius << std::endl;
+              std::cout << "checking dist tccf-tcandi1 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_1)) << std::endl;
+              std::cout << "checking dist tccf-tcandi2 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_2)) << std::endl;
+              std::cout << "dist tccf-tp : " << std::sqrt(CGAL::squared_distance(tccf, tp)) << " and circumradius : " << circumradius << std::endl;
+#endif
               return false;
             }
             else
@@ -1749,17 +1751,24 @@ public:
           }
           else
           {
-            if(failcounter > 100)
+#ifdef ANISO_DEBUG_STEINER_DUAL
+            if(failures_count > 50)
             {
-              double eval1 = candidate_1.x()*candidate_1.x()/100. + candidate_1.y()*candidate_1.y() + candidate_1.z()*candidate_1.z() - 1.0;
-              double eval2 = candidate_2.x()*candidate_2.x()/100. + candidate_2.y()*candidate_2.y() + candidate_2.z()*candidate_2.z() - 1.0;
-              double evalc = ccf.x()*ccf.x()/100. + ccf.y()*ccf.y() + ccf.z()*ccf.z() - 1.0;
+              TPoint_3 tccf = m_metric.transform(ccf);
+              double eval1 = m_pConstrain->side_of_constraint(candidate_1);
+              double eval2 = m_pConstrain->side_of_constraint(candidate_2);
+              double evalc = m_pConstrain->side_of_constraint(ccf);
               std::cout << "no intersection..." << std::endl;
-              std::cout << "candidate_1 : " << tcandidate_1 << " " << eval1 << std::endl;
-              std::cout << "candidate_2 : " << tcandidate_2 << " " << eval2 << std::endl;
-              std::cout << "tccf : " << m_metric.transform(ccf) << " " << evalc << std::endl;
+              std::cout << "tcandidate_1 : " << tcandidate_1 << std::endl;
+              std::cout << "tcandidate_2 : " << tcandidate_2 << std::endl;
+              std::cout << "candidate_1 : " << candidate_1 << " side of constraint : " << eval1 << std::endl;
+              std::cout << "candidate_2 : " << candidate_2 << " side of constraint : " << eval2 << std::endl;
+              std::cout << "checking dist 1 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_1)) << std::endl;
+              std::cout << "checking dist 2 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_2)) << std::endl;
+              std::cout << "tccf : " << tccf << " side of constraint for ccf : " << evalc << std::endl;
               std::cout << "circum : " << circumradius << std::endl;
             }
+#endif
             return false;
           }
         }
