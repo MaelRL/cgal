@@ -1675,20 +1675,9 @@ public:
             }
 
             // inconsistency : 5
-            b_continue = false;
-            for (int i = 1; i <= 3; i++) 
-            {
-              int vi = cell->vertex((offset + i) % 4)->info();
-              if (star->index_in_star_set() == vi)
-                continue;
-              if (!m_stars[vi]->has_facet(*fi)) 
-              {
-                m_refine_queue.push_inconsistent(star, *fi, star->compute_volume(*fi));
-                b_continue = true;
-                break;
-              }
-            }
-            if(b_continue) continue; //useless but safer if we add another criterion
+            if(!is_consistent(*fi))
+              m_refine_queue.push_inconsistent(star, *fi, star->compute_volume(*fi));
+            
           } // facet
         } // star
 #ifdef USE_ANISO_TIMERS
