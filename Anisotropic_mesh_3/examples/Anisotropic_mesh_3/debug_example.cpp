@@ -307,7 +307,7 @@ int main()
 
   for(int i=0; i<point_nb; ++i)
   {
-    double u = 0.*CGAL_PI + i/(20.*point_nb)*CGAL_PI;
+    double u = 0.*CGAL_PI + i/(2.*point_nb)*CGAL_PI;
     double v = 0;
     points[i] = point_on_ellipsoid(a, b, c, u, v);
     //u is in [-pi/2;pi/2] & v is in [-pi;pi]
