@@ -1870,7 +1870,7 @@ public:
           if (!m_refine_queue.top(refine_facet, queue_type))
             return false;
           m_refine_queue.pop();
-          if (refine_facet.star->has_facet_ref(refine_facet.vertices, facet))
+          if (refine_facet.star->has_facet(refine_facet.vertices, facet))
           {
             need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
             return true;
@@ -2664,7 +2664,7 @@ public:
             break;
           m_refine_queue.pop();
           
-          if (refine_facet.star->has_facet_ref(refine_facet.vertices, facet)) 
+          if (refine_facet.star->has_facet(refine_facet.vertices, facet)) 
           {
             Facet_ijk f(facet);
             vertices.insert(f.vertex(0));

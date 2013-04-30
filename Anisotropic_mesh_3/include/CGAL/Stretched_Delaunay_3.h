@@ -692,7 +692,7 @@ public:
         }
         return false;
       }
-      bool has_cell_ref(int *vertices, Cell_handle &cell)
+      bool has_cell(int *vertices, Cell_handle &cell)
       {
         int dids[4];
         Cell_handle_handle ci = begin_star_cells();
@@ -709,7 +709,7 @@ public:
         return false;
       }
 
-      bool has_facet_ref(int *vertices, Facet &facet) const
+      bool has_facet(int *vertices, Facet &facet) const
       {
         int dids[3];
         Facet_set_iterator fi = begin_restricted_facets();
