@@ -127,6 +127,10 @@ namespace CGAL
       AABB_tree m_aabb_tree; //bboxes of stars
       Kd_tree m_kd_tree;     //stars* centers for box queries
 
+      //speed-up heuristic
+      const FT m_distortion_bound_avoid_pick_valid;
+      mutable int avoid_pick_valid_count;
+
       // the following global variables are only 
       // for debugging or benchmark
       mutable int vertex_with_picking_count;
@@ -134,7 +138,18 @@ namespace CGAL
       mutable time_t start_time;
       mutable int vertex_with_smoothing_counter;
       mutable int vertex_without_smoothing_counter;
-     
+
+      mutable std::vector<Point_3> m_pick_valid_facet; // facet f trying to be refined (for visu)
+      mutable std::vector<Point_3> m_pick_valid_cache; // the random points picked to refine f
+      //the correspondance between a random point and the n problematic facets in pick_valid
+      //the vector is made of n*2 points, since the third point is the key of the map
+      mutable std::map<Point_3,std::vector<int> > pickvalid_problematic_facets;
+      mutable std::vector<Point_3> red_points;
+      mutable std::vector<Point_3> orange_points;
+      mutable std::vector<Point_3> yellow_points;
+      mutable std::vector<Point_3> green_points;
+      mutable Metric metricA, metricB, metricP, metricPtheo;
+
     private:
       typedef typename KExact::Point_3                      Exact_Point_3;
       typedef typename KExact::Point_3                      Exact_TPoint_3;
@@ -142,20 +157,6 @@ namespace CGAL
       typedef CGAL::Cartesian_converter<KExact, K> Back_from_exact;
       To_exact to_exact;
       Back_from_exact back_from_exact;
-
-    private:
-      mutable std::vector<Point_3> m_pick_valid_facet; // facet f trying to be refined (for visu)
-      mutable std::vector<Point_3> m_pick_valid_cache; // the random points picked to refine f
-      //the correspondance between a random point and the n problematic facets in pick_valid
-      //the vector is made of n*2 points, since the third point is the key of the map
-      mutable std::map<Point_3,std::vector<int> > pickvalid_problematic_facets;
-
-      mutable std::vector<Point_3> red_points;
-      mutable std::vector<Point_3> orange_points;
-      mutable std::vector<Point_3> yellow_points;
-      mutable std::vector<Point_3> green_points;
-
-      mutable Metric metricA, metricB, metricP, metricPtheo;
 
 #ifdef USE_ANISO_TIMERS
 private:
@@ -1588,9 +1589,6 @@ public:
         for (; si != siend; si++) 
         {
           Star_handle star = get_star(si);
-          if(!star->is_surface_star())
-            continue;
-
           Facet_set_iterator fi = star->begin_restricted_facets();
           Facet_set_iterator fiend = star->end_restricted_facets();
           for (; fi != fiend; fi++) 
@@ -1616,31 +1614,14 @@ public:
             }
 
             // over distortion : 1
-            bool b_continue = false;
             if(m_criteria->distortion > 0.)
             {
-              for (int i = 0; i < 3; i++) 
+              FT over_distortion = compute_distortion(*fi) - m_criteria->distortion;
+              if(over_distortion > 0.)
               {
-                int index_1 = (offset + i + 1) % 4;
-                int index_2 = (offset + (i + 1) % 3 + 1) % 4;
-                FT over_distortion =
-                  m_stars[cell->vertex(index_1)->info()]->metric().compute_distortion(
-                  m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria->distortion;
-                if (over_distortion > 0) 
-                { // here, protect the edge
-  #ifdef ANISO_DEBUG_REFINEMENT
-                  Index im1 = cell->vertex(index_1)->info();
-                  Index im2 = cell->vertex(index_2)->info();
-                  typename Star::Metric m1 = m_stars[im1]->metric();
-                  typename Star::Metric m2 = m_stars[im2]->metric();
-  #endif
-
-                  m_refine_queue.push_over_distortion(star, *fi, over_distortion);
-                  b_continue = true;
-                  break;
-                }
+                m_refine_queue.push_over_distortion(star, *fi, over_distortion);
+                continue;
               }
-              if(b_continue) continue;
             }
             // too big : 2
             if(m_criteria->circumradius > 0.)
@@ -1672,27 +1653,31 @@ public:
                 continue;
               }
             }
-
             // inconsistency : 5
-            b_continue = false;
-            for (int i = 1; i <= 3; i++) 
-            {
-              int vi = cell->vertex((offset + i) % 4)->info();
-              if (star->index_in_star_set() == vi)
-                continue;
-              if (!m_stars[vi]->has_facet(*fi)) 
-              {
-                m_refine_queue.push_inconsistent(star, *fi, star->compute_volume(*fi));
-                b_continue = true;
-                break;
-              }
-            }
-            if(b_continue) continue; //useless but safer if we add another criterion
+            if(!is_consistent(*fi))
+              m_refine_queue.push_inconsistent(star, *fi, star->compute_volume(*fi));
+            
           } // facet
         } // star
 #ifdef USE_ANISO_TIMERS
         m_fill_queue_timer += duration(start_time);
 #endif
+      }
+
+      FT compute_distortion(const Facet& f) const
+      {
+        FT distortion = 1.;
+        int index = f.second;
+        Cell_handle c = f.first;
+        for (int i = 0; i < 3; i++) 
+        {
+          int i1 = (index + i + 1) % 4;
+          int i2 = (index + (i + 1) % 3 + 1) % 4;
+          distortion = (std::max)(distortion,
+                  m_stars[c->vertex(i1)->info()]->metric().compute_distortion(
+                  m_stars[c->vertex(i2)->info()]->metric()));
+        }
+        return distortion;
       }
 
       bool is_consistent(const Facet& f,
@@ -1710,9 +1695,8 @@ public:
             {
               if(!facet_told)
               {
-                std::cout << "f(" << f.first->vertex((f.second+1)%4)->info()
-                          << " "  << f.first->vertex((f.second+2)%4)->info()
-                          << " "  << f.first->vertex((f.second+3)%4)->info() << ") inconsistent : ";
+                m_stars[index]->facet_indices(f);
+                std::cout << " inconsistent : ";
                 facet_told = true;
               }
               std::cout << "f not in S_" << index << ", ";
@@ -1781,7 +1765,7 @@ public:
 
           std::size_t this_id = m_stars.size();
           int id = -1;
-          //if(m_refinement_condition(*pi))
+          if(m_refinement_condition(*pi))
             id = insert(*pi, false/*under no condition*/);
           if(this_id == id)
             nbdone++;
@@ -1817,11 +1801,11 @@ public:
 
           bool conditional = (i % 10 != 0); //let's put 1/10 with no condition
                                             //(poles are sorted so geometry should be covered)
-          //if(m_refinement_condition(*it))
-          //{
+          if(m_refinement_condition(*it))
+          {
             insert_in_domain(*it, conditional);
             ++done;
-          //}
+          }
         }
         this->clean_stars();
 #ifdef ANISO_VERBOSE
@@ -1872,7 +1856,7 @@ public:
           if (!m_refine_queue.top(refine_facet, queue_type))
             return false;
           m_refine_queue.pop();
-          if (refine_facet.star->has_facet_ref(refine_facet.vertices, facet))
+          if (refine_facet.star->has_facet(refine_facet.vertices, facet))
           {
             need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
             return true;
@@ -2260,6 +2244,13 @@ public:
           return true; //note false would stop refinement
         } 
          
+        if(m_distortion_bound_avoid_pick_valid > 0.
+          && need_picking_valid
+          && compute_distortion(f) > m_distortion_bound_avoid_pick_valid)
+        {
+          need_picking_valid = false;
+          avoid_pick_valid_count++;
+        }
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f,
                                              need_picking_valid, steiner_point,
@@ -2512,7 +2503,9 @@ public:
         fx << "number of vertices: " << m_stars.size() << std::endl;
         fx << "vertices via picking: " << vertex_with_picking_count << std::endl;
         fx << "vertices non-picking: " << vertex_without_picking_count << std::endl;
-        fx << "picking rate:       " << (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        fx << "picking rate:       " << 
+          (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        fx << "picking avoided:      " << avoid_pick_valid_count << std::endl;
         fx << "vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         fx << "vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
         fx.close();
@@ -2657,7 +2650,7 @@ public:
             break;
           m_refine_queue.pop();
           
-          if (refine_facet.star->has_facet_ref(refine_facet.vertices, facet)) 
+          if (refine_facet.star->has_facet(refine_facet.vertices, facet)) 
           {
             Facet_ijk f(facet);
             vertices.insert(f.vertex(0));
@@ -2846,6 +2839,7 @@ public:
 
         vertex_with_picking_count = 0;
         vertex_without_picking_count = (int)m_stars.size();
+        avoid_pick_valid_count = 0;
 #ifdef ANISO_VERBOSE
         std::cout << "There are " << count_restricted_facets() << " restricted facets.\n";
 #endif
@@ -2884,7 +2878,7 @@ public:
 #ifdef ANISO_VERBOSE
         double time = duration(start_time);
         std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
-        if(pick_valid_failed())
+        if(pick_valid_causes_stop && pick_valid_failed())
           std::cout << "Pick valid failed and stopped mesher!" << std::endl;
         
         if(is_consistent(true/*verbose*/))
@@ -2896,6 +2890,7 @@ public:
         std::cout << "Vertex non-picking:   " << vertex_without_picking_count << std::endl;
         std::cout << "picking rate:         " << (double)vertex_with_picking_count / 
           (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        std::cout << "Picking avoided:      " << avoid_pick_valid_count << std::endl;
         std::cout << "Approximation error : " << compute_approximation_error() << std::endl;
         std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
@@ -2996,6 +2991,7 @@ public:
       void gl_draw_cell(const typename K::Plane_3& plane,
                    const int star_id = -1/*only this one*/) const
       {
+/*
         Point_3 debug_a(5, 5, 5);
         Vector_3 e1(1, 0, 0);
         Vector_3 e2(0, 1, 0);
@@ -3098,6 +3094,7 @@ public:
         ::glColor3f(0.87f, 0.14f, 0.14f);
         ::glVertex3d(debug_a.x(), debug_a.y(), debug_a.z());
         ::glEnd();
+*/
 
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
@@ -3415,7 +3412,7 @@ public:
             const TPoint_3& tpc_c = transform_to_star_point(pc, star_c);
 
             FT qualityf_in_c = 255.*star_c->compute_element_quality(tpa_c, tpb_c, tpc_c);
-            FT qualityf = std::min(std::min(qualityf_in_a, qualityf_in_b),qualityf_in_c);
+            FT qualityf = (std::min)((std::min)(qualityf_in_a, qualityf_in_b),qualityf_in_c);
 
             gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, qualityf, 255., qualityf);
           }
@@ -3505,7 +3502,8 @@ public:
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
-        const RefinementCondition& rc_ = RefinementCondition())
+        const FT& distortion_pickvalid_bound = 2.,
+        const RefinementCondition& rc_ = No_condition<Point_3>())
         :
         m_pConstrain(pconstrain_),
         m_metric_field(metric_field_), 
@@ -3516,6 +3514,7 @@ public:
         m_refinement_condition(rc_),
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars),
+        m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0)
       {

@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
   K::FT r0 = 0.1;
   K::FT gamma0 = 1.5;
   int nb_initial_pts = 10;
+  K::FT gamma1 = 2.;
 
   K::FT betas[] = {2., 3., 4., 5.};
   K::FT deltas[] = {0.1, 0.3, 0.5};
@@ -60,7 +61,8 @@ int main(int argc, char* argv[])
                                                         deltas[j]); //delta_ 0.3
       timer.reset();
       timer.start();
-      Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb_initial_pts, condition);
+      Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb_initial_pts,
+                                                gamma1, condition);
       //Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb_initial_pts);
       starset.refine_all();
       timer.stop();

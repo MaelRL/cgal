@@ -51,6 +51,14 @@ int main(int argc, char* argv[])
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 
+  if(argc == 2)
+  {
+    std::cout << "torus_example parameters :" << std::endl;
+    std::cout << "R=10 r=1 epsilon=1 r0=1 gamma0=1.5 rho0=3 approx=0";
+    std::cout << " nb=20 beta=2.5 delta=0.3 gamma1=2 y=5.5 xcondition=-1 " << std::endl;
+    return 0;
+  }
+  
   K::FT R = (argc > 1) ? atof(argv[1]) : 10.;
   K::FT r = (argc > 2) ? atof(argv[2]) : 1.;
 
@@ -65,6 +73,17 @@ int main(int argc, char* argv[])
 
   K::FT beta = (argc > 9) ? atof(argv[9]) : 2.5;
   K::FT delta = (argc > 10) ? atof(argv[10]) : 0.3;
+  //m_distortion_bound_avoid_pick_valid
+  K::FT distortion_bound = (argc > 11) ? atof(argv[11]) : 2.;
+
+  Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
+                                                    0.2,    //sliverity_
+                                                    r0,     //circumradius_ 0.1
+                                                    gamma0, //distortion_ 1.3
+                                                    beta,   //beta_ 2.5
+                                                    delta,  //delta_ 0.3
+                                                    60,     //max_times_to_try_in_picking_region_
+                                                    approx); //approximation
 
   fx << "Torus :" << std::endl;
   fx << "\tR = " << R << std::endl;
@@ -76,49 +95,55 @@ int main(int argc, char* argv[])
   fx << "\tapprox = " << approx << std::endl;
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
-
-  Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
-                                                    0.2,    //sliverity_
-                                                    r0,     //circumradius_ 0.1
-                                                    gamma0, //distortion_ 1.3
-                                                    beta,   //beta_ 2.5
-                                                    delta,  //delta_ 0.3
-                                                    60,     //max_times_to_try_in_picking_region_
-                                                    approx); //approximation
-
-  fx << std::endl << "nbV" << "\t" << "time" << std::endl;
-  timer.start();
-
+  fx << "\tgamma1 = " << distortion_bound << std::endl;
+  
   Constrain_surface_3_torus<K>* pdomain
     = new Constrain_surface_3_torus<K>(R, r);
-
   Implicit_curvature_metric_field<K>* metric_field =
     new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
   //Torus_metric_field<K>* metric_field = new Torus_metric_field<K>(R, r, epsilon);
   //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
-  K::FT y = (argc > 11) ? atof(argv[11]) : (0.5*(R + r));
-  int xcondition = (argc > 12) ? atoi(argv[12]) : -1;//default : no condition on x
-  K::Plane_3 plane1(0., 1., 0., 0.);
-  K::Plane_3 plane2(1.0, 0.0001, 0., 0.);
-
-  typedef Is_between<K::Plane_3, K::Point_3> RCondition;
-
-  RCondition condition(plane1, plane2, (xcondition == 1));
-  //Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, condition);
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
-
-  timer.stop();
-
-  fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
-  starset.refine_all(/*max nb of points*/);
-
-  //starset.refine_all(fx, starttime);
-  //timer.stop();
-  //std::cerr << timer.time() << " seconds" << std::endl;
-
   std::string file = output_filename(R, r);
-  starset.output(file.c_str());
+  if(argc > 12)
+  {
+    K::FT y = (argc > 12) ? atof(argv[12]) : (0.5*(R + r));
+    int xcondition = (argc > 13) ? atoi(argv[13]) : -1;//default : no condition on x
+    K::Plane_3 plane1(0., 1., 0., 0.);
+    K::Plane_3 plane2(1.0, 0.0001, 0., 0.);
+    typedef Is_between<K::Plane_3, K::Point_3> RCondition;
+    RCondition condition(plane1, plane2, (xcondition == 1));
+
+    fx << "\ty_condition = " << y << std::endl;
+    fx << "\tx_condition = " << (xcondition == 1) << std::endl;
+    fx << std::endl << "nbV" << "\t" << "time" << std::endl;
+    timer.start();
+    Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb,                                               
+                                              distortion_bound, condition); 
+    timer.stop();
+    fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
+  
+    timer.start();
+    starset.refine_all(/*max nb of points*/);
+    timer.stop();
+    fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
+  
+    starset.output(file.c_str());
+  }
+  else
+  {
+    timer.start();
+    Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb, distortion_bound); 
+    timer.stop();
+    fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
+  
+    timer.start();
+    starset.refine_all(/*max nb of points*/);
+    timer.stop();
+    fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
+    
+    starset.output(file.c_str());
+  }
 
   delete pdomain;
   return 0;
