@@ -932,7 +932,7 @@ private:
 
         bool found_acceptable_steiner_point = false;
         int fail_counter = 0;
-        TPoint_3 steiner_point;
+        Point_3 steiner_point;
         TPoint_3 random_point_within_sphere_1;
         TPoint_3 random_point_within_sphere_2;
 

@@ -88,7 +88,8 @@ Scene_starset3_item(const Criteria* criteria,
   m_draw_metric_field(false),
   m_draw_metric_eps(metric->epsilon),
   m_draw_mesh_3(false),
-  m_draw_distortion(false)
+  m_draw_distortion(false),
+  m_draw_metric_honoring(false)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));
   starset_changed();
