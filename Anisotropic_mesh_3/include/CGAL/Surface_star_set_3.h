@@ -1881,7 +1881,7 @@ public:
         std::cout << "first star is : " << star_i->index_in_star_set() << std::endl;
 
         Metric metric_i = star_i->metric();
-        Metric metric_p = m_metric_field->scale_metric_to_point(metric_i, star_i->center_point(), p);
+        Metric metric_p = m_metric_field->scale_metric_to_point(metric_i, star_i->center_point(), p, 1.3);
 
         for (; si != siend; si++)
         {
@@ -1890,7 +1890,7 @@ public:
 
           metricA = metric_p;
           metric_i = star_i->metric();
-          Metric scaled_metric_i = m_metric_field->scale_metric_to_point(metric_i, star_i->center_point(), p);
+          Metric scaled_metric_i = m_metric_field->scale_metric_to_point(metric_i, star_i->center_point(), p, 1.3);
           metricB = star_i->metric();
           metric_p = m_metric_field->intersection(metric_p, scaled_metric_i);
           metricP = metric_p;
@@ -1912,7 +1912,7 @@ public:
       {
         std::cout << "star_i_ind is " << star_i_ind << std::endl;
         Star_handle star_i = get_star(star_i_ind);
-        Metric scaled_M = m_metric_field->scale_metric_to_point(M, p, star_i->center_point());
+        Metric scaled_M = m_metric_field->scale_metric_to_point(M, p, star_i->center_point(), 1.3);
         Metric new_metric_in_star_i = m_metric_field->intersection(scaled_M, star_i->metric());
 
         //get the pts from star_i
@@ -1978,7 +1978,7 @@ public:
             {
               Star_handle sit = get_star(it++);
               std::cout << "inserting point : " << *it << " in " << star_i->index_in_star_set();
-              std::cout << " oordinates : " << sit->center_point() << " and check : " << sit->index_in_star_set() << std::endl;
+              std::cout << "coordinates : " << sit->center_point() << " and check : " << sit->index_in_star_set() << std::endl;
               star_i->insert_to_star(sit->center_point(), sit->index_in_star_set(), false/*conditional*/);
               star_i->clean();
             }
@@ -1986,7 +1986,7 @@ public:
         }
         std::cout << "done for star_i : " << star_i->index_in_star_set() << std::endl;
 
-        std::cout << "propagation to nearby of star_i" << std::endl;
+        std::cout << "propagation to nearby stars of star_i" << std::endl;
         nvi = star_i->begin_neighboring_vertices();
         nviend = star_i->end_neighboring_vertices();
         std::cout << "(*nvi)->info( ) 2 ";
