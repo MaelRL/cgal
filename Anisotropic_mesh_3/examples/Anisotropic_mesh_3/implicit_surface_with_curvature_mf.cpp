@@ -34,9 +34,10 @@ int main(int argc, char* argv[])
                                                     0.); //approximation
 
   const double epsilon = (argc > 1) ? atof(argv[1]) : 1e-2;
+  const double en_factor = (argc > 2) ? atof(argv[2]) : 1.;
 
   Implicit_curvature_metric_field<K>* metric_field =
-    new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
+    new Implicit_curvature_metric_field<K>(*pdomain, epsilon, en_factor);
   //Spherical_metric_field<K>* metric_field = new Spherical_metric_field<K>(epsilon);
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
