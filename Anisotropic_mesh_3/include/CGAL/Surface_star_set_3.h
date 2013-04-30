@@ -1722,6 +1722,7 @@ public:
           int index = f.first->vertex((f.second + i) % 4)->info();
           if(!m_stars[index]->has_facet(f))
           {
+            retval = false;
             if(verbose)
             {
               if(!facet_told)
@@ -1732,7 +1733,8 @@ public:
               }
               std::cout << "f not in S_" << index << ", ";
             }
-            retval = false;
+            else
+              return false;
           }
         }
         if(verbose && !retval) std::cout << "." << std::endl;
