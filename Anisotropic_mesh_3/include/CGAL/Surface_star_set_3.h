@@ -1696,6 +1696,7 @@ public:
       }
 
       bool is_consistent(const Facet& f,
+                         std::vector<bool> &inconsistent_points,
                          const bool verbose = false) const
       {
         bool retval = true;
@@ -1717,10 +1718,18 @@ public:
               std::cout << "f not in S_" << index << ", ";
             }
             retval = false;
+            inconsistent_points[i-1] = true;
           }
         }
         if(verbose && !retval) std::cout << "." << std::endl;
         return retval;
+      }
+
+      bool is_consistent(const Facet& f,
+                         const bool verbose = false) const
+      {
+        std::vector<bool> not_used(3);
+        return is_consistent(f, not_used, verbose);
       }
 
       bool is_consistent(const bool verbose = false) const
@@ -3438,7 +3447,8 @@ public:
           for(; fit != fitend; fit++)
           {
             Facet f = *fit;
-            if(is_consistent(f))
+            std::vector<bool> inconsistent_points(3, false);
+            if(is_consistent(f, inconsistent_points))
               continue;
 
             const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
@@ -3446,7 +3456,22 @@ public:
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
 
             if(is_above_plane(plane, pa, pb, pc))
+            {
               gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 227,27,27);
+
+              FT m_x = (1./3.)*(pa.x()+pb.x()+pc.x());
+              FT m_y = (1./3.)*(pa.y()+pb.y()+pc.y());
+              FT m_z = (1./3.)*(pa.z()+pb.z()+pc.z());
+              Point_3 m(m_x,m_y,m_z);
+
+              ::glColor3f(0.10f, 0.90f, 0.10f);
+              if(!inconsistent_points[0])
+                gl_draw_segment<K>(m, pa);
+              if(!inconsistent_points[1])
+                gl_draw_segment<K>(m, pb);
+              if(!inconsistent_points[2])
+                gl_draw_segment<K>(m, pc);
+            }
           }
         }
         ::glDisable(GL_POLYGON_OFFSET_FILL);
