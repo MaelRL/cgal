@@ -2892,7 +2892,7 @@ public:
 #ifdef ANISO_VERBOSE
         double time = duration(start_time);
         std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
-        if(pick_valid_failed())
+        if(pick_valid_causes_stop && pick_valid_failed())
           std::cout << "Pick valid failed and stopped mesher!" << std::endl;
         
         if(is_consistent(true/*verbose*/))
