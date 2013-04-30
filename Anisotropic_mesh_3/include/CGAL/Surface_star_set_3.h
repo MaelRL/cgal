@@ -1592,9 +1592,6 @@ public:
         for (; si != siend; si++) 
         {
           Star_handle star = get_star(si);
-          if(!star->is_surface_star())
-            continue;
-
           Facet_set_iterator fi = star->begin_restricted_facets();
           Facet_set_iterator fiend = star->end_restricted_facets();
           for (; fi != fiend; fi++) 
