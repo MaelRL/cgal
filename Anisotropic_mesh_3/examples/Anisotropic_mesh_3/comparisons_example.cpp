@@ -58,19 +58,20 @@ int main(int argc, char* argv[])
   K::FT gamma0 = (argc > 3) ? atof(argv[3]) : 1.5;
   int nb = (argc > 4) ? atoi(argv[4]) : 10;
   K::FT approx = (argc > 5) ? atof(argv[5]) : 0.02;
-  K::FT lambda = (argc > 6) ? atof(argv[6]) : (r / R);
+  K::FT epsilon = (argc > 6) ? atof(argv[6]) : (r / R);
+  K::FT gamma1 = (argc > 7) ? atof(argv[7]) : 2.;
 
   fx << "Torus :" << std::endl;
   fx << "\tR = " << R << std::endl;
   fx << "\tr = " << r << std::endl;
-  fx << "\teps = " << lambda << std::endl;
+  fx << "\teps = " << epsilon << std::endl;
   fx << "\tr0 = " << r0 << std::endl;
   fx << "\tgamma0 = " << gamma0 << std::endl;
 
   Constrain_surface_3_torus<K>* pdomain
     = new Constrain_surface_3_torus<K>(R, r);
 
-  K::FT y = (argc > 7) ? atof(argv[7]) : (R + r + 1);
+  K::FT y = (argc > 8) ? atof(argv[8]) : (R + r + 1);
   int xcondition = (argc > 8) ? atoi(argv[8]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 1., 0., -y);
   K::Plane_3 plane2(0., 1., 0., y);
@@ -92,8 +93,9 @@ int main(int argc, char* argv[])
   fx << std::endl;
 
   Implicit_curvature_metric_field<K>* curvature_mf =
-    new Implicit_curvature_metric_field<K>(*pdomain, lambda);
-  Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, condition);
+    new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
+  Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, 
+                                                   gamma1, condition);
   curvature_mesh.refine_all();
   fx << "Aniso :\n";
   fx << "  nb stars = " << curvature_mesh.number_of_surface_stars() << std::endl;
@@ -117,7 +119,8 @@ int main(int argc, char* argv[])
   fx << std::endl;
   
   Euclidean_metric_field<K>* euclid_mf = new Euclidean_metric_field<K>();
-  Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, condition);
+  Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, 
+                                                   gamma1, condition);
   euclidean_mesh.refine_all(); 
   fx << "Iso :\n";
   fx << "  nb stars = " << euclidean_mesh.number_of_surface_stars() << std::endl;
