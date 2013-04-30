@@ -4,6 +4,7 @@
 #include "Polyhedron_type.h"
 #include "Image_type.h"
 #include "implicit_functions/Implicit_function_interface.h"
+#include "Implicit_surface_type.h"
 
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>
@@ -68,6 +69,11 @@ typedef CGAL::Polyhedral_mesh_domain_3<Polyhedron,RKernel>              Polyhedr
 typedef CGAL::Labeled_image_mesh_domain_3<Image,Kernel>                 Image_mesh_domain;
 typedef Wrapper<Kernel>                                                 Function_wrapper;
 typedef CGAL::Mesh_3::Labeled_mesh_domain_3<Function_wrapper, Kernel>   Function_mesh_domain;
+
+typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_implicit<Kernel>  CS3I;
+typedef CS3I::Function                                                  CS3I_Function;
+typedef CS3I::Function_wrapper                                          CS3I_Function_wrapper;
+typedef CS3I::Mesh_domain                                               CS3I_mesh_domain;
 
 // Triangulation
 typedef CGAL::Mesh_triangulation_3<Polyhedral_mesh_domain>::type Tr;

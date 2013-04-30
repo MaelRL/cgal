@@ -337,6 +337,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
     Mesh_3_plugin.cpp
     Mesh_3_plugin_polyhedron_cgal_code.cpp
     Mesh_3_plugin_image_cgal_code.cpp
+    Mesh_3_plugin_implicit_surface_cgal_code.cpp
     Mesh_3_plugin_implicit_function_cgal_code.cpp
     Meshing_thread.cpp)
   ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" MESH_3_PLUGIN_SOURCE_FILES)

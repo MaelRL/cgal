@@ -17,6 +17,7 @@
 #include "Scene_polyhedron_item.h"
 #include "Scene_segmented_image_item.h"
 #include "Scene_implicit_function_item.h"
+#include "Scene_constrained_surface_implicit_item.h"
 
 #include "implicit_functions/Implicit_function_interface.h"
 #include "Image_type.h"
@@ -48,6 +49,13 @@ Meshing_thread* cgal_code_mesh_3(const Image*,
                                  const double tet_shape);
 
 Meshing_thread* cgal_code_mesh_3(const Implicit_function_interface*,
+                                 const double angle,
+                                 const double sizing,
+                                 const double approx,
+                                 const double tets_sizing,
+                                 const double tet_shape);
+
+Meshing_thread* cgal_code_mesh_3(const Implicit_surface*,
                                  const double angle,
                                  const double sizing,
                                  const double approx,
@@ -98,7 +106,9 @@ public:
       qobject_cast<Scene_segmented_image_item*>(scene->item(index));
     Scene_implicit_function_item* function_item = 
       qobject_cast<Scene_implicit_function_item*>(scene->item(index));
-    return poly_item || image_item || function_item;
+    Scene_constrained_surface_implicit_item* csi_function_item =
+        qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
+    return poly_item || image_item || function_item || csi_function_item;
   }
                                                                      
 public slots:
@@ -141,12 +151,15 @@ void Mesh_3_plugin::mesh_3()
     qobject_cast<Scene_segmented_image_item*>(scene->item(index));
   Scene_implicit_function_item* function_item = 
     qobject_cast<Scene_implicit_function_item*>(scene->item(index));
+  Scene_constrained_surface_implicit_item* csi_function_item =
+      qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
 
   // Get item
   Scene_item* item = NULL;
   if( NULL != poly_item ) { item = poly_item; }
   else if( NULL != image_item ) { item = image_item; }
   else if( NULL != function_item ) { item = function_item; }
+  else if( NULL != csi_function_item ) { item = csi_function_item; }
 
   if ( NULL == item )
   {
@@ -276,6 +289,22 @@ void Mesh_3_plugin::mesh_3()
                               tet_sizing, radius_edge);
     
   }
+  // Constrained Surface Implicit Function
+  else if( NULL != csi_function_item )
+  {
+    const Implicit_surface* pCSIFunction = csi_function_item->function();
+    if( NULL == pCSIFunction )
+    {
+      QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item"));
+      return;
+    }
+
+    thread = cgal_code_mesh_3(pCSIFunction,
+                              angle, facet_sizing, approx,
+                              tet_sizing, radius_edge);
+
+  }
+
 
   if ( NULL == thread )
   {
