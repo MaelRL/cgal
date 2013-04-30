@@ -1620,28 +1620,12 @@ public:
             bool b_continue = false;
             if(m_criteria->distortion > 0.)
             {
-              for (int i = 0; i < 3; i++) 
+              FT over_distortion = compute_distortion(*fi) - m_criteria->distortion;
+              if(over_distortion > 0.)
               {
-                int index_1 = (offset + i + 1) % 4;
-                int index_2 = (offset + (i + 1) % 3 + 1) % 4;
-                FT over_distortion =
-                  m_stars[cell->vertex(index_1)->info()]->metric().compute_distortion(
-                  m_stars[cell->vertex(index_2)->info()]->metric()) - m_criteria->distortion;
-                if (over_distortion > 0) 
-                { // here, protect the edge
-  #ifdef ANISO_DEBUG_REFINEMENT
-                  Index im1 = cell->vertex(index_1)->info();
-                  Index im2 = cell->vertex(index_2)->info();
-                  typename Star::Metric m1 = m_stars[im1]->metric();
-                  typename Star::Metric m2 = m_stars[im2]->metric();
-  #endif
-
-                  m_refine_queue.push_over_distortion(star, *fi, over_distortion);
-                  b_continue = true;
-                  break;
-                }
+                m_refine_queue.push_over_distortion(star, *fi, over_distortion);
+                continue;
               }
-              if(b_continue) continue;
             }
             // too big : 2
             if(m_criteria->circumradius > 0.)
@@ -1673,7 +1657,6 @@ public:
                 continue;
               }
             }
-
             // inconsistency : 5
             if(!is_consistent(*fi))
               m_refine_queue.push_inconsistent(star, *fi, star->compute_volume(*fi));
