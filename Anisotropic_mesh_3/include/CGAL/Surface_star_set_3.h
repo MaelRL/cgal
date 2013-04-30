@@ -1779,7 +1779,7 @@ public:
 
           std::size_t this_id = m_stars.size();
           int id = -1;
-          //if(m_refinement_condition(*pi))
+          if(m_refinement_condition(*pi))
             id = insert(*pi, false/*under no condition*/);
           if(this_id == id)
             nbdone++;
@@ -1815,11 +1815,11 @@ public:
 
           bool conditional = (i % 10 != 0); //let's put 1/10 with no condition
                                             //(poles are sorted so geometry should be covered)
-          //if(m_refinement_condition(*it))
-          //{
+          if(m_refinement_condition(*it))
+          {
             insert_in_domain(*it, conditional);
             ++done;
-          //}
+          }
         }
         this->clean_stars();
 #ifdef ANISO_VERBOSE
