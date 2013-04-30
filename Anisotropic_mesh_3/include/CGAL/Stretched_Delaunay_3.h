@@ -2105,9 +2105,8 @@ public:
           else if(ellipsoid_color == 2)
             gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 20, 20, 233);
           else
-          {
-            //gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 245, 230, 93);
-          }
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 245, 230, 93);
+
           ::glPopMatrix();
 
             //a b & c visu
