@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
   {
     std::cout << "torus_example parameters :" << std::endl;
     std::cout << "R=10 r=1 epsilon=1 r0=1 gamma0=1.5 rho0=3 approx=0";
-    std::cout << " nb=20 beta=2.5 delta=0.3 y=5.5 condition=0 gamma1=2" << std::endl;
+    std::cout << " nb=20 beta=2.5 delta=0.3 gamma1=2 y=5.5 xcondition=-1 " << std::endl;
     return 0;
   }
   
