@@ -127,6 +127,10 @@ namespace CGAL
       AABB_tree m_aabb_tree; //bboxes of stars
       Kd_tree m_kd_tree;     //stars* centers for box queries
 
+      //speed-up heuristic
+      const FT m_distortion_bound_avoid_pick_valid;
+      mutable int avoid_pick_valid_count;
+
       // the following global variables are only 
       // for debugging or benchmark
       mutable int vertex_with_picking_count;
@@ -1695,6 +1699,22 @@ public:
 #endif
       }
 
+      FT compute_distortion(const Facet& f) const
+      {
+        FT distortion = 1.;
+        int index = f.second;
+        Cell_handle c = f.first;
+        for (int i = 0; i < 3; i++) 
+        {
+          int i1 = (index + i + 1) % 4;
+          int i2 = (index + (i + 1) % 3 + 1) % 4;
+          distortion = (std::max)(distortion,
+                  m_stars[c->vertex(i1)->info()]->metric().compute_distortion(
+                  m_stars[c->vertex(i2)->info()]->metric()));
+        }
+        return distortion;
+      }
+
       bool is_consistent(const Facet& f,
                          const bool verbose = false) const
       {
@@ -1709,9 +1729,8 @@ public:
             {
               if(!facet_told)
               {
-                std::cout << "f(" << f.first->vertex((f.second+1)%4)->info()
-                          << " "  << f.first->vertex((f.second+2)%4)->info()
-                          << " "  << f.first->vertex((f.second+3)%4)->info() << ") inconsistent : ";
+                m_stars[index]->facet_indices(f);
+                std::cout << " inconsistent : ";
                 facet_told = true;
               }
               std::cout << "f not in S_" << index << ", ";
@@ -2251,6 +2270,13 @@ public:
           return true; //note false would stop refinement
         } 
          
+        if(m_distortion_bound_avoid_pick_valid > 0.
+          && need_picking_valid
+          && compute_distortion(f) > m_distortion_bound_avoid_pick_valid)
+        {
+          need_picking_valid = false;
+          avoid_pick_valid_count++;
+        }
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f,
                                              need_picking_valid, steiner_point,
@@ -2503,7 +2529,9 @@ public:
         fx << "number of vertices: " << m_stars.size() << std::endl;
         fx << "vertices via picking: " << vertex_with_picking_count << std::endl;
         fx << "vertices non-picking: " << vertex_without_picking_count << std::endl;
-        fx << "picking rate:       " << (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        fx << "picking rate:       " << 
+          (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        fx << "picking avoided:      " << avoid_pick_valid_count << std::endl;
         fx << "vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         fx << "vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
         fx.close();
@@ -2837,6 +2865,7 @@ public:
 
         vertex_with_picking_count = 0;
         vertex_without_picking_count = (int)m_stars.size();
+        avoid_pick_valid_count = 0;
 #ifdef ANISO_VERBOSE
         std::cout << "There are " << count_restricted_facets() << " restricted facets.\n";
 #endif
@@ -2887,6 +2916,7 @@ public:
         std::cout << "Vertex non-picking:   " << vertex_without_picking_count << std::endl;
         std::cout << "picking rate:         " << (double)vertex_with_picking_count / 
           (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+        std::cout << "Picking avoided:      " << avoid_pick_valid_count << std::endl;
         std::cout << "Approximation error : " << compute_approximation_error() << std::endl;
         std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
@@ -3480,7 +3510,8 @@ public:
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
-        const RefinementCondition& rc_ = RefinementCondition())
+        const FT& distortion_pickvalid_bound = 2.,
+        const RefinementCondition& rc_ = No_condition<Point_3>())
         :
         m_pConstrain(pconstrain_),
         m_metric_field(metric_field_), 
@@ -3492,7 +3523,8 @@ public:
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars),
         vertex_with_smoothing_counter(0),
-        vertex_without_smoothing_counter(0)
+        vertex_without_smoothing_counter(0),
+        m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound)
       {
         initialize_stars(nb_initial_points); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
