@@ -49,10 +49,10 @@ int main(int argc, char* argv[])
   K::FT r = (argc > 1) ? atof(argv[1]) : 1.;
   K::FT h = (argc > 2) ? atof(argv[2]) : 10.;
 
-  K::FT epsilon = (argc > 3) ? atof(argv[3]) : 1.;
+  K::FT epsilon = (argc > 3) ? atof(argv[3]) : 0.1;
 
-  K::FT r0 = (argc > 4) ? atof(argv[4]) : 1.0/*default*/;
-  K::FT gamma0 = (argc > 5) ? atof(argv[5]) : 1.5;
+  K::FT r0 = (argc > 4) ? atof(argv[4]) : 0./*default*/;
+  K::FT gamma0 = (argc > 5) ? atof(argv[5]) : 0.;
 
   int nb = (argc > 6) ? atoi(argv[6]) : 10;
 
@@ -73,7 +73,9 @@ int main(int argc, char* argv[])
                                                     r0,     //circumradius_ 0.1
                                                     gamma0, //distortion_ 1.3
                                                     beta,   //beta_ 2.5
-                                                    delta); //delta_ 0.3
+                                                    delta, //delta_ 0.3
+                                                    60, //max_times_to_try_in_picking_region
+                                                    0.05); //approximation
 
   fx << std::endl << "nbV" << "\t" << "time" << std::endl;
   timer.start();
