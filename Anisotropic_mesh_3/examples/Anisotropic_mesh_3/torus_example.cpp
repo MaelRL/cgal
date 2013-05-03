@@ -128,7 +128,8 @@ int main(int argc, char* argv[])
     timer.stop();
     fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   
-    starset.output(file.c_str());
+    starset.output_surface_star_set("torus_example.mesh");//mesh
+    starset.output(file.c_str());//off
   }
   else
   {

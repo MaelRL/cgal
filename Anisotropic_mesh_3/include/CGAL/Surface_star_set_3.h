@@ -2717,7 +2717,7 @@ public:
           fx << m_stars[i]->center_point() << " " << i << std::endl;
   
         fx << "Tetrahedra" << std::endl;
-        fx << number_of_tets_in_star_set() << std::endl;
+        fx << number_of_tets_in_star_set() << std::endl;std
         for (int i = 0; i < (int)m_stars.size(); i++)
         {
           Star_handle si = m_stars[i];
@@ -2733,6 +2733,38 @@ public:
           }
         }
       }
+
+      void output_surface_star_set(const char* filename) const
+      {
+        std::ofstream fx(filename);
+        fx << "MeshVersionFormatted 1\n\n";
+        fx << "Dimension\n3" << std::endl;
+
+        fx << "Vertices" << std::endl;
+        fx << (m_stars.size()) << std::endl;
+        for (int i = 0; i < (int)m_stars.size(); i++)
+          fx << m_stars[i]->center_point() << " " << i << std::endl;
+
+        fx << "Triangles" << std::endl;
+        std::vector<Facet_ijk> facets;
+        for(int i = 0; i < (int)m_stars.size(); i++)
+        {
+          Star_handle s = get_star(i);
+          typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
+          typename Star::Facet_set_iterator fend = s->end_restricted_facets();
+          for(; fit != fend; ++fit)
+            facets.push_back(Facet_ijk(*fit));
+        }
+        std::sort(facets.begin(), facets.end());
+        std::unique(facets.begin(), facets.end());
+        
+        fx << (facets.size()) << std::endl;
+        for(int i = 0; i < (int)facets.size(); i++)
+         fx << facets[i].vertex(0) << " "
+            << facets[i].vertex(1) << " "
+            << facets[i].vertex(2) << " 1" << std::endl;
+      }
+
       
       int number_of_tets_in_star_set() const
       {
