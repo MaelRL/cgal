@@ -159,12 +159,14 @@ QString
 Scene_starset3_item::toolTip() const 
 {
   return tr("<p>3D cell star set: <br />"
-            "<b>%5</b></p>"
+            "<b>%6</b></p>"
             "<p>Number of surface vertices : %1<br />"
-            "Total number of vertices (memory): %2<br />"
-            "Number of surface facets: %3<br />"
-            "Number of volume tetrahedra: %4</p>")
+            "Total number of vertices : %2<br />"
+            "Total number of vertices (memory): %3<br />"
+            "Number of surface facets: %4<br />"
+            "Number of volume tetrahedra: %5</p>")
   .arg(star_set().number_of_surface_stars())
+  .arg(star_set().number_of_stars())
   .arg(star_set().total_number_of_vertices())
   .arg(star_set().count_restricted_facets())
   .arg(star_set().number_of_tets_in_star_set())
