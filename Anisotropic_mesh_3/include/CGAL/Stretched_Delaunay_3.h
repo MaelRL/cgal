@@ -1769,6 +1769,12 @@ public:
               std::cout << "circum : " << circumradius << std::endl;
             }
 #endif
+            if(failures_count > 100)
+            {
+              std::cerr << "had to use p = ccf in compute_steiner_dual (not good)." << std::endl;
+              p = ccf;
+              return true;
+            }
             return false;
           }
         }
