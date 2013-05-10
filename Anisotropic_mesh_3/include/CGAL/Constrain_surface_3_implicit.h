@@ -376,6 +376,7 @@ public:
           return get_surface_points(nb, facet_distance_coeff/3.);
         }
 
+        std::cout << "c3t3 has enough points : " << all_points.size() << std::endl;
         std::random_shuffle(all_points.begin(), all_points.end());
         return Pointset(all_points.begin(), (all_points.begin() + nb));
       }

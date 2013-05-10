@@ -2886,6 +2886,7 @@ public:
         else
           std::cout << "Triangulation is not consistent.\n";
 
+        std::cout << "Surface stars : " << number_of_surface_stars() << std::endl;
         std::cout << "Vertices via picking: " << vertex_with_picking_count << std::endl;
         std::cout << "Vertex non-picking:   " << vertex_without_picking_count << std::endl;
         std::cout << "picking rate:         " << (double)vertex_with_picking_count / 
