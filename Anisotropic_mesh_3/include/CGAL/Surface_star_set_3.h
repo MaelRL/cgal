@@ -2717,7 +2717,7 @@ public:
           fx << m_stars[i]->center_point() << " " << i << std::endl;
   
         fx << "Tetrahedra" << std::endl;
-        fx << number_of_tets_in_star_set() << std::endl;std
+        fx << number_of_tets_in_star_set() << std::endl;
         for (int i = 0; i < (int)m_stars.size(); i++)
         {
           Star_handle si = m_stars[i];
