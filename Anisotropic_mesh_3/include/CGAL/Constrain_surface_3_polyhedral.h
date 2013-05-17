@@ -532,7 +532,7 @@ class Constrain_surface_3_polyhedral :
           if (i % 100 == 0)
             std::cout << ".";
           Vector_3 e0, e1, e2;
-          FT v1, v2;
+          FT v1, v2, vn;
           Point_3 pi = m_vertices[i]->point();
           tensor_frame_on_point(pi/*points[i]*/, e0/*normal*/, e1/*vmax*/, e2/*vmin*/,
                                 v1/*cmax*/, v2/*cmin*/, epsilon);
@@ -548,9 +548,11 @@ class Constrain_surface_3_polyhedral :
           if(m_normals.size() != i+1 )
             std::cerr << "Error2 in indices in compute_local_metric!" << std::endl;
 
-          vectors.push_back(Eigen::Vector3d(e0.x(), e0.y(), e0.z()));
-          vectors.push_back(v1 * Eigen::Vector3d(e1.x(), e1.y(), e1.z()));
-          vectors.push_back(v2 * Eigen::Vector3d(e2.x(), e2.y(), e2.z()));
+          vn = 1.0001*(std::max)(v1, v2);
+
+          vectors.push_back(std::sqrt(vn) * Eigen::Vector3d(e0.x(), e0.y(), e0.z()));
+          vectors.push_back(std::sqrt(v1) * Eigen::Vector3d(e1.x(), e1.y(), e1.z()));
+          vectors.push_back(std::sqrt(v2) * Eigen::Vector3d(e2.x(), e2.y(), e2.z()));
 
           //Eigen::Matrix3d p;
           //p.col(0) = Eigen::Vector3d(e0.x(), e0.y(), e0.z());
@@ -565,7 +567,7 @@ class Constrain_surface_3_polyhedral :
         for(std::size_t i = 0; i < vectors.size(); i = i + 3)
         {
           Eigen::Matrix3d p;
-          p.col(0) = m_max_curvature * vectors[i];
+          p.col(0) = vectors[i];
           p.col(1) = vectors[i+1];
           p.col(2) = vectors[i+2];
           m_metrics.push_back(p * p.transpose());//[i] = p * p.transpose();
