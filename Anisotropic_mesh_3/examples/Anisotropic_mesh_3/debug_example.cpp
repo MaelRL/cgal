@@ -6,6 +6,7 @@
 
 #include <Domain/Constrain_surface_3_torus.h>
 #include <Domain/Constrain_surface_3_ellipse.h>
+#include <Domain/Constrain_surface_3_cyclide.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <Metric_field/Torus_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
@@ -36,6 +37,17 @@ Point_3 point_on_ellipsoid  (double a, double b, double c, //radii
   return Point_3(a*std::cos(u)*std::cos(v),
                  b*std::cos(u)*std::sin(v),
                  c*std::sin(u));
+}
+
+Point_3 point_on_cyclide(double R, double r, //radii
+                         double u, double v,
+                         double dilation, double& dilated_r) //angles
+{
+  dilated_r = r * dilation * (std::cos(v) + 1.5);
+  //std::cout << R << " " << r << " " << u << " " << v << " " << dilation << " " << dilated_r << std::endl;
+  return Point_3((R + dilated_r * std::cos(u)) * std::cos(v),
+                 (R + dilated_r * std::cos(u)) * std::sin(v),
+                  dilated_r * std::sin(u));
 }
 
 int main()
@@ -285,8 +297,9 @@ int main()
   imp_d = imp_metric_E.compute_distortion( imp_metric_F );
   std::cout << "E-F exp : " << exp_d << " imp : " << imp_d << std::endl;
 */
-  // --------------------------------- ELLI STUFF --------------------------------
 
+  // --------------------------------- ELLI STUFF --------------------------------
+/*
   K::FT a = 100.;
   K::FT b = 1.;
   K::FT c = 1.;
@@ -334,6 +347,6 @@ int main()
     double d = (point_imp_metrics[i]).compute_distortion( (point_imp_metrics[next_i]) );
     std::cout << i << " " << next_i << " | " << d << std::endl;
   }
-
+*/
   return 0;
 }
