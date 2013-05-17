@@ -2337,7 +2337,7 @@ public:
         // begin debug
         Cell_handle c;
         int i,j,k;
-        if(all_found && bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
+        if((!smoothing || all_found) && bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
         {
           int index = 6 - i - j - k;
           Facet ff = bad_facet.star->make_canonical(Facet(c,index));
