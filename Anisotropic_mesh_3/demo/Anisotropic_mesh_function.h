@@ -228,6 +228,13 @@ launch()
        nbv = smesher_->star_set.m_stars.size();
     }
 
+    //checking if really done!
+    smesher_->star_set.fill_refinement_queue();
+    if(!smesher_->star_set.m_refine_queue.empty())
+      std::cout << "Stopped too early! Not done!" << std::endl;
+    else
+      std::cout << "Finished properly" << std::endl;
+
 #ifdef ANISO_VERBOSE
     double time = smesher_->star_set.duration(start_time);
     std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
