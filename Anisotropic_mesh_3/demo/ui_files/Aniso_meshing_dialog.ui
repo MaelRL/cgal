@@ -289,7 +289,7 @@
          <bool>false</bool>
         </property>
         <property name="decimals">
-         <number>3</number>
+         <number>5</number>
         </property>
         <property name="singleStep">
          <double>0.100000000000000</double>
