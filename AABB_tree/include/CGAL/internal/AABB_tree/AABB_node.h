@@ -81,10 +81,62 @@ public:
                  Traversal_traits& traits,
                  const std::size_t nb_primitives) const;
 
-private:
   typedef AABBTraits AABB_traits;
-  typedef AABB_node<AABB_traits> Node;
   typedef typename AABB_traits::Primitive Primitive;
+
+  bool update_primitive(const Primitive& primitive,
+                        const typename AABB_traits::Point_3& ref_point,
+                        const std::size_t nb_primitives)
+  {
+    // Recursive traversal
+    switch(nb_primitives)
+    {
+    case 2:
+      if((left_data() == primitive) || (right_data() == primitive)) {
+        m_bbox = left_data().datum().bbox() + right_data().datum().bbox();
+        return true;
+      }
+      break;
+    case 3:
+      if(left_data() == primitive) {
+        m_bbox = left_data().datum().bbox() + right_child().bbox();
+        return true;
+      } else {
+        if(AABBTraits().do_intersect_object()(ref_point, right_child())) {
+          return right_child().update_primitive(primitive,
+                                                ref_point,
+                                                2);
+        }
+        else
+          return false;
+      }
+      break;
+    default:
+      if((AABBTraits().do_intersect_object()(ref_point, left_child())
+          &&
+          left_child().update_primitive(primitive,
+                                        ref_point,
+                                        nb_primitives/2))
+         || (AABBTraits().do_intersect_object()(ref_point, right_child())
+             &&
+             right_child().update_primitive(primitive,
+                                            ref_point,
+                                            nb_primitives-nb_primitives/2))
+         )
+      {
+        Bounding_box new_bbox = left_data().datum().bbox() + right_child().bbox();
+        if(new_bbox != m_bbox)
+        {
+          m_bbox = new_bbox;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+private:
+  typedef AABB_node<AABB_traits> Node;
 
   /// Helper functions
   const Node& left_child() const

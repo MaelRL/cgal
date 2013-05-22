@@ -418,6 +418,13 @@ public:
 			}
 		}
 
+		void update_primitive(const Primitive& primitive) {
+			if(size() >= 2)
+				root_node()->update_primitive(primitive,
+																			primitive.reference_point(),
+																			m_primitives.size());
+		}
+
 	private:
 		typedef AABB_node<AABBTraits> Node;
 
