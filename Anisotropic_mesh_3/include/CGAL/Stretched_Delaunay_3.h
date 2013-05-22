@@ -242,7 +242,7 @@ namespace CGAL{
           Base::finite_incident_cells(m_center, neighboring_finite_cells_insertor);
 
           // update boundary facets
-          if(is_surface_star())
+          //if(is_surface_star())
           {
             Cell_handle_handle ci = neighboring_finite_cells_cache.begin();
             Cell_handle_handle cend = neighboring_finite_cells_cache.end();
