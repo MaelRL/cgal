@@ -1301,8 +1301,18 @@ public:
         bool f1 = !is_infinite(c1);
         bool f2 = !is_infinite(c2);
 
+        Index offset = facet.second;
+        if(!f1 && f2)
+        {
+          offset = c2->index(c1);
+          Cell_handle tmp = c2;
+          c2 = c1;    f2 = false;
+          c1 = tmp;   f1 = true;
+        }
+        TPoint_3 offset_point = c1->vertex(offset)->point();
+
         Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-        Vector_3 t_n = this->dual_support(c1, facet.second).to_vector();
+        Vector_3 t_n = this->dual_support(c1, offset).to_vector();
         Vector_3 n = m_metric.inverse_transform(t_n);
         n = std::sqrt(1./(n*n)) * n;
 
@@ -1317,7 +1327,7 @@ public:
           else // !f2
           {
             Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-            Point_3 ps3 = m_metric.inverse_transform(c1->vertex(facet.second)->point());
+            Point_3 ps3 = m_metric.inverse_transform(offset_point);
 
             CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
             CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
@@ -1332,35 +1342,6 @@ public:
                 std::cerr << "cp : " << cp << std::endl;
               }
               if(o1 == o2) //n points towards ps3
-                n = -n;
-              return make_object(Ray_3(cp, cp + n));
-            }
-            else if(o1 == o3)
-              return make_object(Ray_3(cp, fc));
-            else if(o1 != o3)
-              return make_object(Ray_3(cp, Point_3(cp + Vector_3(fc, cp))));
-          }
-        }
-        else // !f1
-        {
-          if (f2)
-          {
-            Point_3 cp = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-            Point_3 c2_ps3 = m_metric.inverse_transform(c2->vertex(c2->index(c1))->point()); //4th pt of c2
-
-            CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], c2_ps3);
-            CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
-            CGAL::Orientation o3 = CGAL::orientation(ps[0], ps[1], ps[2], cp);
-
-            if(o3 == COPLANAR) //fc = cp
-            {
-              if(fc != cp)
-              {
-                std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                std::cerr << "fc : " << fc << std::endl;
-                std::cerr << "cp : " << cp << std::endl;
-              }
-              if(o1 == o2) //n points towards c2_ps3
                 n = -n;
               return make_object(Ray_3(cp, cp + n));
             }
@@ -1408,19 +1389,22 @@ public:
           bool f2 = !is_infinite(c2);
 
           if(super_verbose)
-            std::cerr << "(case " << f1 << " " << f2 << ")";
+            std::cout << "(case " << f1 << " " << f2 << ")";
 
-          Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
-          Exact_Vector_3 t_n = to_exact(this->dual_support(c1, facet.second).to_vector());
-          Exact_Vector_3 n = m_metric.inverse_transform(t_n);
-          n = std::sqrt(1./(n*n)) * n;
-
+          Index offset = facet.second;
           if(!f1 && f2)
           {
+            offset = c2->index(c1);
             Cell_handle tmp = c2;
             c2 = c1;    f2 = false;
             c1 = tmp;   f1 = true;
           }
+          TPoint_3 offset_point = c1->vertex(offset)->point();
+
+          Exact_Point_3 fc = m_metric.inverse_transform(compute_exact_circumcenter(facet));
+          Exact_Vector_3 t_n = to_exact(this->dual_support(c1, offset).to_vector());
+          Exact_Vector_3 n = m_metric.inverse_transform(t_n);
+          n = std::sqrt(1./(n*n)) * n;
 
           if(f1)
           {
@@ -1434,7 +1418,7 @@ public:
             else // !f2
             {
               Exact_Point_3 cp = m_metric.inverse_transform(compute_exact_circumcenter(c1));
-              Point_3 ps3 = m_metric.inverse_transform(c1->vertex(facet.second)->point());
+              Point_3 ps3 = m_metric.inverse_transform(offset_point);
 
               CGAL::Orientation o1 = CGAL::orientation(to_exact(ps[0]), to_exact(ps[1]),
                                                        to_exact(ps[2]), to_exact(ps3));
@@ -1467,10 +1451,10 @@ public:
               }
               if(super_verbose)
               {
-                std::cerr << "\t(o " << o1 << " " << o2 << " " << o3 << ")\n";
-                std::cerr << "\t(cp " << cp << ")\n";
-                std::cerr << "\t(fc " << fc << ")\n";
-                std::cerr << "\t(returns " << ret_val << ")\n";
+                std::cout << "\t(o " << o1 << " " << o2 << " " << o3 << ")\n";
+                std::cout << "\t(cp " << cp << ")\n";
+                std::cout << "\t(fc " << fc << ")\n";
+                std::cout << "\t(returns " << ret_val << ")\n";
               }
             }
           }
@@ -1484,14 +1468,14 @@ public:
             std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
             std::cerr << "Star:  " << m_center->info() << std::endl;
             std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((facet.second + 1) % 4)->point())) << std::endl;
-            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point())) << std::endl;
-            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point())) << std::endl;
-            std::cerr << c1->vertex(facet.second)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex(facet.second)->point()));
+            std::cerr << c1->vertex((offset + 1) % 4)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((offset + 1) % 4)->point())) << std::endl;
+            std::cerr << c1->vertex((offset + 2) % 4)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((offset + 2) % 4)->point())) << std::endl;
+            std::cerr << c1->vertex((offset + 3) % 4)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((offset + 3) % 4)->point())) << std::endl;
+            std::cerr << c1->vertex(offset)->info() << " ";
+            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex(offset)->point()));
             std::cerr << " (.second)" << std::endl;
 
             std::cerr << "Cell 2: " << std::endl;
@@ -1602,20 +1586,23 @@ public:
           bool f2 = !is_infinite(c2);
 
           if(super_verbose)
-            std::cerr << "(case " << f1 << " " << f2 << ")";
+            std::cout << "(case " << f1 << " " << f2 << ")";
 
-          Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
-          Vector_3 t_n = this->dual_support(c1, facet.second).to_vector();
-          Vector_3 n = m_metric.inverse_transform(t_n);
-          n = std::sqrt(1./(n*n)) * n;
-
+          Index offset = facet.second;
           if(!f1 && f2)
           {
+            offset = c2->index(c1);
             Cell_handle tmp = c2;
             c2 = c1;    f2 = false;
             c1 = tmp;   f1 = true;
           }
+          TPoint_3 offset_point = c1->vertex(offset)->point();
           
+          Point_3 fc = m_metric.inverse_transform(compute_circumcenter(facet));
+          Vector_3 t_n = this->dual_support(c1, offset).to_vector();
+          Vector_3 n = m_metric.inverse_transform(t_n);
+          n = std::sqrt(1./(n*n)) * n;
+
           if(f1)
           {
             if (f2)
@@ -1633,7 +1620,7 @@ public:
             else // !f2
             {
               Point_3 cp = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
-              Point_3 ps3 = m_metric.inverse_transform(c1->vertex(facet.second)->point());
+              Point_3 ps3 = m_metric.inverse_transform(offset_point);
 
               CGAL::Orientation o1 = CGAL::orientation(ps[0], ps[1], ps[2], ps3);
               CGAL::Orientation o2 = CGAL::orientation(ps[0], ps[1], ps[2], fc + n);
@@ -1674,14 +1661,14 @@ public:
             std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
             std::cerr << "Star:  " << m_center->info() << std::endl;
             std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((facet.second + 1) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 1) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex((facet.second + 2) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 2) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex((facet.second + 3) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((facet.second + 3) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex(facet.second)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex(facet.second)->point()) << " (.second)" << std::endl;
+            std::cerr << c1->vertex((offset + 1) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((offset + 1) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex((offset + 2) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((offset + 2) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex((offset + 3) % 4)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex((offset + 3) % 4)->point()) << std::endl;
+            std::cerr << c1->vertex(offset)->info() << " ";
+            std::cerr << m_metric.inverse_transform(c1->vertex(offset)->point()) << " (.second)" << std::endl;
             std::cerr << "Cell 2: " << std::endl;
             std::cerr << c2->vertex(0)->info() << " ";
             std::cerr << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
