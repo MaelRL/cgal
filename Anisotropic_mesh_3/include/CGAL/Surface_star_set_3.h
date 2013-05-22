@@ -3014,11 +3014,38 @@ public:
                    const bool draw_edges,
                    const int star_id = -1/*only this one*/) const 
       {
-        if(star_id < 0) // draw them all
-          for(std::size_t i = 0; i < m_stars.size(); i++)
-            m_stars[i]->gl_draw(plane);//, draw_edges);
-        else
-          m_stars[star_id]->gl_draw(plane);//, colors, draw_edges);
+        GLboolean was = (::glIsEnabled(GL_LIGHTING));
+        if(!was)
+          ::glEnable(GL_LIGHTING);
+
+        bool draw_all = (star_id < 0);
+        std::size_t start = draw_all ? 0 : star_id;
+        std::size_t N = draw_all ? m_stars.size() : (star_id + 1);
+
+        std::set<Facet_ijk> done;
+        for(std::size_t i = start; i < N; i++)
+        {
+          Star_handle star = m_stars[i];
+          typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+          typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+          for(; fit != fitend; fit++)
+          {
+            Facet f = *fit;
+            if(done.find(Facet_ijk(f)) != done.end())
+              continue;
+            done.insert(Facet_ijk(f));
+
+            const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
+            const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
+            const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
+            if(is_above_plane(plane, pa, pb, pc))
+              gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
+          }
+        }
+        if(!was)
+          ::glDisable(GL_LIGHTING);
+
+
       }
 
       void gl_draw_cell(const typename K::Plane_3& plane,
