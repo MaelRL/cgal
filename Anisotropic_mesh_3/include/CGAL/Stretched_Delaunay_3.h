@@ -324,8 +324,7 @@ public:
         else if(this->is_topological_disk())
           m_bbox = this->surface_bbox();
         else
-          m_bbox = this->volume_bbox();
-        // Note : {surface Delaunay balls} is included inside {volume Delaunay balls}
+          m_bbox = this->volume_bbox() + this->surface_bbox();
         m_is_valid_bbox = true;
         if(verbose) std::cout << "done.\n";
       }
@@ -855,7 +854,8 @@ public:
         else if(is_topological_disk())
           return is_in_a_surface_delaunay_ball(tp, in_which_cell);
         else
-          return is_in_a_volume_delaunay_ball(tp, in_which_cell);
+          return (is_in_a_volume_delaunay_ball(tp, in_which_cell) ||
+                  is_in_a_surface_delaunay_ball(tp, in_which_cell) );
       }
 
       inline bool is_in_a_surface_delaunay_ball(const TPoint_3& tp,

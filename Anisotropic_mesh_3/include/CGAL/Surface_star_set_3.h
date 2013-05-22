@@ -2071,7 +2071,7 @@ public:
             //no condition because they should be there for consistency
         }
 
-        typename Star::Bbox bbox = star->bbox(); // volume bbox when star is not a topo_disk
+        typename Star::Bbox bbox = star->bbox(); // volume bbox + surface bbox when star is not a topo_disk
         Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
         Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
         Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
