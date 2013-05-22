@@ -302,7 +302,7 @@ public:
         Index i_f2 = f2.first->vertex(f2.second)->info();
 #ifdef ANISO_DEBUG
         if(i_f == -10)
-          std::cerr << "Warning : index i_f is " << i_f << std::endl;
+          std::cout << "Warning : index i_f is " << i_f << std::endl;
 #endif
         return (i_f > i_f2) ? f : f2;
         // note : infinite vertex has index -10
@@ -315,7 +315,8 @@ public:
         if(m_is_valid_bbox)
           return;
 
-        if(verbose) std::cout << "Update Bbox...";
+        if(verbose)
+          std::cout << "Update Bbox...";
         CGAL_PROFILER("[update_bbox]");
 
         if(this->dimension() < 3)
@@ -1504,7 +1505,7 @@ public:
             std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(3)->point())) << std::endl;
           }
           if(super_verbose)
-            std::cerr << "Normal ("<< n <<")" << std::endl;
+            std::cout << "Normal ("<< n <<")" << std::endl;
         }
 #ifdef USE_ANISO_TIMERS
         m_compute_dual_intersection_timer += (clock()-start+0.) / ((double)CLOCKS_PER_SEC);
@@ -1583,7 +1584,8 @@ public:
           {
             if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
               p = p2;
-            else p = p1;
+            else
+              p = p1;
             ret_val = true;
           }
           else if(b1 && !b2) { p = p1 ; ret_val = true; }
@@ -1654,10 +1656,11 @@ public:
                 ret_val = true;
               else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
                 ret_val = true;
+
               if(super_verbose)
               {
-                std::cerr << "(o " << o1 << " " << o2 << " " << o3 << ")";
-                std::cerr << "(cp " << cp << ")";
+                std::cout << "(o " << o1 << " " << o2 << " " << o3 << ")";
+                std::cout << "(cp " << cp << ")";
               }
             }
           }
@@ -1690,7 +1693,7 @@ public:
             std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
           }
           if(super_verbose)
-            std::cerr << "Normal ("<< n <<")" << std::endl;
+            std::cout << " Normal ("<< n <<")" << std::endl;
         }
 #ifdef USE_ANISO_TIMERS
         m_compute_dual_intersection_timer += (clock()-start+0.) / ((double)CLOCKS_PER_SEC);
@@ -1754,6 +1757,7 @@ public:
 #ifdef ANISO_DEBUG_STEINER_DUAL
             if(failures_count > 50)
             {
+              std::cout << "failures : " << failures_count << std::endl;
               TPoint_3 tccf = m_metric.transform(ccf);
               double eval1 = m_pConstrain->side_of_constraint(candidate_1);
               double eval2 = m_pConstrain->side_of_constraint(candidate_2);
@@ -1771,7 +1775,7 @@ public:
 #endif
             if(failures_count > 100)
             {
-              std::cerr << "had to use p = ccf in compute_steiner_dual (not good)." << std::endl;
+              std::cout << "had to use p = ccf in compute_steiner_dual (not good)." << std::endl;
               p = ccf;
               return true;
             }

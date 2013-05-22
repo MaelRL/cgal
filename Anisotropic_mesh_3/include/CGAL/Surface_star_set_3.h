@@ -1961,7 +1961,7 @@ public:
           typename Index_set::iterator it = diff.begin();
           while(it != diff.end())
           {
-            //if the star of p isn't on the star_set, it can't be inserted yet : it needs to be in m_stars
+            //if the star of p isn't in the star_set, it can't be inserted yet : it needs to be in m_stars
             if(*it == star_i->index_in_star_set() || (!p_star_already_in_star_set && *it == number_of_stars()))
             {
               std::cout << "skipped : " << *it << std::endl;
@@ -1985,7 +1985,7 @@ public:
         std::cout << "(*nvi)->info( ) 2 ";
         for (; nvi != nviend; nvi++)
         {
-//need to first check if *nvi->info hasn't be smoothed already (prolly need a vector declared in insert() or so)
+//need to first check if *nvi->info hasn't be smoothed already (probably need a vector declared in insert())
           //reciprocal_metric_smoothing(new_metric_in_star_i, star_i->center_point(), (*nvi)->info(), true);
           std::cout << (*nvi)->info() << " ";
         }
@@ -2116,9 +2116,9 @@ public:
           {
               std::cout.precision(15);
               std::cout << "Building bad facet : " << pid << std::endl;
-              std::cout << "\tp1 : " << v1->point() << std::endl;
-              std::cout << "\tp2 : " << v2->point() << std::endl;
-              std::cout << "\tp3 : " << v3->point() << std::endl;
+              std::cout << "\tp1 : " << v1->point() << " " << v1->info() << std::endl;
+              std::cout << "\tp2 : " << v2->point() << " " << v2->info() << std::endl;
+              std::cout << "\tp3 : " << v3->point() << " " << v3->info() << std::endl;
               std::cout << "\tp was : " << p << std::endl;
           }
         }
@@ -2232,7 +2232,7 @@ public:
 
         if(degenerate)
         {
-            std::cout << "trying to refine a degenerate facet" << std::endl;
+          std::cout << "trying to refine a degenerate facet" << std::endl;
         }
 #endif
 
