@@ -621,6 +621,10 @@ class Constrain_surface_3_polyhedral :
           std::ofstream out("mesh_3_temp.mesh");
           m_c3t3.output_to_medit(out);
 #endif
+#ifdef ANISO_OUTPUT_POINTS_FOR_MEDIAL_AXIS
+          std::ofstream out_pts("mesh_3_points.pts");
+          this->output_points(m_c3t3, out_pts);
+#endif
           return get_surface_points(nb, facet_distance_coeff/3.);
         }
 

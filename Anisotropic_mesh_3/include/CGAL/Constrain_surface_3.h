@@ -95,6 +95,24 @@ namespace CGAL
           }
         }
       }
+      
+      template<typename C3T3>
+      void output_points(const C3T3& c3t3, 
+                         std::ofstream& fx/*.pts file*/) const
+      {
+        typename C3T3::Triangulation::Finite_vertices_iterator v;
+        for(v = c3t3.triangulation().finite_vertices_begin();
+            v != c3t3.triangulation().finite_vertices_end();
+            ++v)
+        {
+          if(c3t3.in_dimension(v) == 1 || c3t3.in_dimension(v) == 2)
+          {
+            typename C3T3::Triangulation::Point p = v->point();
+            fx << p.x() << " " << p.y() << " " << p.z() << std::endl;
+          }
+        }
+        fx.close();
+      }
 
       virtual ~Constrain_surface_3(){}
     };

@@ -31,16 +31,59 @@ std::string output_filename(const std::string& filename)
   return file;
 }
 
+void read_poles(const char* filename,/*.off file*/
+                std::set<K::Point_3>& poles)
+{
+  std::string line;
+  std::ifstream polesfile(filename);
+  if(polesfile.is_open())
+  {
+    bool nbv_found = false;
+    std::size_t nbv = 0;
+    while(polesfile.good())
+    {
+      std::getline(polesfile,line);
+      if(line.find("OFF") != std::string::npos)
+        continue;
+      else if(line.find("#") != std::string::npos)//comments
+        continue;
+      else if(!nbv_found)
+      {
+        polesfile >> nbv;
+        std::cout << "Nb poles is : " << nbv << std::endl;
+        nbv_found = true;
+      }
+      else if(poles.size() < nbv)
+      {
+        K::FT x,y,z;
+        polesfile >> x >> y >> z;
+        poles.insert(K::Point_3(x,y,z));
+      }
+      else break;
+    }
+    polesfile.close();
+  }
+  else 
+    std::cout << "Unable to open the file containing poles : " << filename << "\n"; 
+}
+
 int main(int argc, char *argv[])
 {
   CGAL::default_random = CGAL::Random(0);
   std::string file(argv[1]);
   std::cout << "Let's mesh : " << file << std::endl;
 
-  double r0 = (argc > 2) ? atof(argv[2]) : 1.;
-  double gamma0 = (argc > 3) ? atof(argv[3]) : 1.8;
-  double approx = (argc > 4) ? atof(argv[4]) : 0.;
-  double epsilon = (argc > 5) ? atof(argv[5]) : (0.1);
+  char* poles_filename;
+  if(argc > 3 && argv[2] == "-poles")
+  {
+    poles_filename = argv[3];
+    std::cout << "poles filename : " << poles_filename << std::endl;
+  }
+  int i=4;
+  double r0 = (argc > i) ? atof(argv[i++]) : 1.;
+  double gamma0 = (argc > i) ? atof(argv[i++]) : 1.8;
+  double approx = (argc > i) ? atof(argv[i++]) : 0.;
+  double epsilon = (argc > i) ? atof(argv[i++]) : (0.1);
   
   Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_ //3.0
                                                     0., //sliverity_ (not used)
@@ -57,7 +100,11 @@ int main(int argc, char *argv[])
   Polyhedral_curvature_metric_field<K>* metric_field =
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
   
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
+  std::set<K::Point_3> poles;
+  read_poles(poles_filename, poles);
+
+  Surface_star_set_3<K> starset(criteria, metric_field, pdomain,
+    10, 2., No_condition<K::Point_3>(), poles);
 
 //  starset.refine_all();
 
