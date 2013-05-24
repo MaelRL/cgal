@@ -2583,8 +2583,6 @@ public:
         for (; si != siend; ++si) 
         {
           Star_handle star = *si;
-          if(!star->is_surface_star())
-            continue;
 
           points.push_back(star->center_point());
           match_indices[star->index_in_star_set()] = off_index++;

@@ -241,24 +241,21 @@ namespace CGAL{
             neighboring_finite_cells_insertor(neighboring_finite_cells_cache);
           Base::finite_incident_cells(m_center, neighboring_finite_cells_insertor);
 
-          // update boundary facets
-          //if(is_surface_star())
+          Cell_handle_handle ci = neighboring_finite_cells_cache.begin();
+          Cell_handle_handle cend = neighboring_finite_cells_cache.end();
+          for (; ci != cend; ci++)
           {
-            Cell_handle_handle ci = neighboring_finite_cells_cache.begin();
-            Cell_handle_handle cend = neighboring_finite_cells_cache.end();
-            for (; ci != cend; ci++)
+            int center_index = (*ci)->index(m_center);
+            for(int i = 0; i < 4; i++)
             {
-              int center_index = (*ci)->index(m_center);
-              for(int i = 0; i < 4; i++)
-              {
-                if(i == center_index) continue;
-                Facet f = this->make_canonical(Facet(*ci, i));
-                Point_3 p;
-                if(is_restricted(f, p, true)) //updates surface delaunay center, if needed
-                  restricted_facets_cache.insert(f);
-              }
+              if(i == center_index) continue;
+              Facet f = this->make_canonical(Facet(*ci, i));
+              Point_3 p;
+              if(is_restricted(f, p, true)) //updates surface delaunay center, if needed
+                restricted_facets_cache.insert(f);
             }
           }
+
           // update bounding radius
           //squared_bounding_radius = -1.0;
           //ci = neighboring_cells_cache.begin();
