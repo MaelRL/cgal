@@ -92,42 +92,61 @@ public:
     switch(nb_primitives)
     {
     case 2:
-      if((left_data() == primitive) || (right_data() == primitive)) {
-        m_bbox = left_data().datum().bbox() + right_data().datum().bbox();
+      if((left_data().id() == primitive.id()) || (right_data().id() == primitive.id()))
+      {
+        Bounding_box left_bbox = left_data().datum().bbox();
+        Bounding_box right_bbox = right_data().datum().bbox();
+        m_bbox = left_bbox + right_bbox;
+#ifdef DEBUG_UPDATE_AABB_TREE
+        std::cout << "found @ 2 : " << primitive.id() << " " << left_data().id() << " " << right_data().id() << std::endl;
+        std::cout << left_bbox.xmin() << " " << left_bbox.xmax() << " " << left_bbox.ymin();
+        std::cout << " " << left_bbox.ymax() << " " << left_bbox.zmin() << " " << left_bbox.zmax() << std::endl;
+        std::cout << right_bbox.xmin() << " " << right_bbox.xmax() << " " << right_bbox.ymin();
+        std::cout << " " << right_bbox.ymax() << " " << right_bbox.zmin() << " " << right_bbox.zmax() << std::endl;
+        std::cout << m_bbox.xmin() << " " << m_bbox.xmax() << " " << m_bbox.ymin();
+        std::cout << " " << m_bbox.ymax() << " " << m_bbox.zmin() << " " << m_bbox.zmax() << std::endl;
+#endif
         return true;
       }
       break;
     case 3:
-      if(left_data() == primitive) {
-        m_bbox = left_data().datum().bbox() + right_child().bbox();
+      if(left_data().id() == primitive.id() ||
+         (AABBTraits().do_intersect_object()(ref_point, right_child().bbox())
+          && right_child().update_primitive(primitive, ref_point, 2)))
+      {
+        Bounding_box left_bbox = left_data().datum().bbox();
+        m_bbox = left_bbox + right_child().bbox();
+#ifdef DEBUG_UPDATE_AABB_TREE
+        std::cout << "found @ 3 : " << primitive.id() << " " << left_data().id() << std::endl;
+        std::cout << left_bbox.xmin() << " " << left_bbox.xmax() << " " << left_bbox.ymin();
+        std::cout << " " << left_bbox.ymax() << " " << left_bbox.zmin() << " " << left_bbox.zmax() << std::endl;
+        std::cout << m_bbox.xmin() << " " << m_bbox.xmax() << " " << m_bbox.ymin();
+        std::cout << " " << m_bbox.ymax() << " " << m_bbox.zmin() << " " << m_bbox.zmax() << std::endl;
+#endif
         return true;
-      } else {
-        if(AABBTraits().do_intersect_object()(ref_point, right_child())) {
-          return right_child().update_primitive(primitive,
-                                                ref_point,
-                                                2);
-        }
-        else
-          return false;
       }
       break;
     default:
-      if((AABBTraits().do_intersect_object()(ref_point, left_child())
-          &&
-          left_child().update_primitive(primitive,
-                                        ref_point,
-                                        nb_primitives/2))
-         || (AABBTraits().do_intersect_object()(ref_point, right_child())
-             &&
-             right_child().update_primitive(primitive,
-                                            ref_point,
-                                            nb_primitives-nb_primitives/2))
-         )
+      if( (AABBTraits().do_intersect_object()(ref_point, left_child().bbox())
+          && left_child().update_primitive(primitive, ref_point, nb_primitives/2))
+        || (AABBTraits().do_intersect_object()(ref_point, right_child().bbox())
+          && right_child().update_primitive(primitive, ref_point, nb_primitives-nb_primitives/2)) )
       {
-        Bounding_box new_bbox = left_data().datum().bbox() + right_child().bbox();
+        Bounding_box left_bbox = left_child().m_bbox;
+        Bounding_box right_bbox = right_child().m_bbox;
+        Bounding_box new_bbox = left_bbox + right_bbox;
         if(new_bbox != m_bbox)
         {
           m_bbox = new_bbox;
+#ifdef DEBUG_UPDATE_AABB_TREE
+          std::cout << "P " << nb_primitives << std::endl;
+          std::cout << left_bbox.xmin() << " " << left_bbox.xmax() << " " << left_bbox.ymin();
+          std::cout << " " << left_bbox.ymax() << " " << left_bbox.zmin() << " " << left_bbox.zmax() << std::endl;
+          std::cout << right_bbox.xmin() << " " << right_bbox.xmax() << " " << right_bbox.ymin();
+          std::cout << " " << right_bbox.ymax() << " " << right_bbox.zmin() << " " << right_bbox.zmax() << std::endl;
+          std::cout << m_bbox.xmin() << " " << m_bbox.xmax() << " " << m_bbox.ymin();
+          std::cout << " " << m_bbox.ymax() << " " << m_bbox.zmin() << " " << m_bbox.zmax() << std::endl;
+#endif
           return true;
         }
       }

@@ -131,6 +131,8 @@ namespace CGAL {
     /// Adds a primitive to the set of primitives of the tree.
     inline void insert(const Primitive& p);
 
+    inline void update_primitive(const Primitive& primitive);
+
 		/// Clears and destroys the tree.
 		~AABB_tree()
 		{
@@ -400,30 +402,23 @@ public:
 			m_default_search_tree_constructed = false;
 		}
 
-	public:
+  public:
 
     /// \internal
-		template <class Query, class Traversal_traits>
-		void traversal(const Query& query, Traversal_traits& traits) const
-		{
-			switch(size())
-			{
-			case 0:
-				break;
-			case 1:
-				traits.intersection(query, singleton_data());
-				break;
-			default: // if(size() >= 2)
-				root_node()->template traversal<Traversal_traits,Query>(query, traits, m_primitives.size());
-			}
-		}
-
-		void update_primitive(const Primitive& primitive) {
-			if(size() >= 2)
-				root_node()->update_primitive(primitive,
-																			primitive.reference_point(),
-																			m_primitives.size());
-		}
+    template <class Query, class Traversal_traits>
+    void traversal(const Query& query, Traversal_traits& traits) const
+    {
+      switch(size())
+      {
+      case 0:
+        break;
+      case 1:
+        traits.intersection(query, singleton_data());
+        break;
+      default: // if(size() >= 2)
+        root_node()->template traversal<Traversal_traits,Query>(query, traits, m_primitives.size());
+      }
+    }
 
 	private:
 		typedef AABB_node<AABBTraits> Node;
@@ -528,11 +523,20 @@ public:
     m_need_build = true;
   }
 
-	template<typename Tr>
-	void AABB_tree<Tr>::insert(const Primitive& p)
-	{
+  template<typename Tr>
+  void AABB_tree<Tr>::insert(const Primitive& p)
+  {
     m_primitives.push_back(p);
     m_need_build = true;
+  }
+
+  template<typename Tr>
+  void AABB_tree<Tr>::update_primitive(const Primitive& primitive)
+  {
+    if(size() >= 2)
+      m_p_root_node->update_primitive(primitive,
+                                      primitive.reference_point(),
+                                      m_primitives.size());
   }
 
 	// Clears tree and insert a set of primitives

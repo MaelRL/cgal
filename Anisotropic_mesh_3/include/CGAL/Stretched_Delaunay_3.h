@@ -121,6 +121,7 @@ namespace CGAL{
       mutable bool m_is_valid_topo_disk;
       mutable Bbox m_bbox;
       mutable bool m_is_valid_bbox;
+      mutable bool m_bbox_needs_aabb_update;
 
     public:
       int ellipsoid_color;
@@ -196,6 +197,12 @@ namespace CGAL{
       {
         update_bbox(verbose);
         return m_bbox;
+      }
+
+      bool bbox_needs_aabb_update(){ return m_bbox_needs_aabb_update;}
+      void set_bbox_needs_aabb_update(const bool& bbox_needs_aabb_update_)
+      {
+        m_bbox_needs_aabb_update = bbox_needs_aabb_update_;
       }
 
     protected: // star configuration caching
@@ -312,6 +319,8 @@ public:
         if(m_is_valid_bbox)
           return;
 
+        Bbox_3 old_bbox = m_bbox;
+
         if(verbose)
           std::cout << "Update Bbox...";
         CGAL_PROFILER("[update_bbox]");
@@ -322,8 +331,26 @@ public:
           m_bbox = this->surface_bbox();
         else
           m_bbox = this->volume_bbox() + this->surface_bbox();
+
         m_is_valid_bbox = true;
-        if(verbose) std::cout << "done.\n";
+
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+        //checking if the bbox has grown
+        if(m_bbox.xmin() < old_bbox.xmin() || m_bbox.xmax() > old_bbox.xmax() ||
+           m_bbox.ymin() < old_bbox.ymin() || m_bbox.ymax() > old_bbox.ymax() ||
+           m_bbox.zmin() < old_bbox.zmin() || m_bbox.zmax() > old_bbox.zmax())
+        {
+#ifdef DEBUG_UPDATE_AABB_TREE
+          std::cout << "growing bbox in star : " << index_in_star_set() << std::endl;
+          std::cout << m_bbox.xmin() << " " << m_bbox.xmax() << " " << m_bbox.ymin();
+          std::cout << " " << m_bbox.ymax() << " " << m_bbox.zmin() << " " << m_bbox.zmax() << std::endl;
+#endif
+          m_bbox_needs_aabb_update = true;
+        }
+#endif
+
+        if(verbose)
+          std::cout << "done." << std::endl;
       }
 
 
@@ -2173,6 +2200,7 @@ public:
         m_is_topological_disk(false),
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
+        m_bbox_needs_aabb_update(false),
         is_cache_dirty(true),
         restricted_facets_cache(),
         neighboring_cells_cache(),
@@ -2199,6 +2227,7 @@ public:
         m_is_topological_disk(false),
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
+        m_bbox_needs_aabb_update(false),
         is_cache_dirty(true),
         restricted_facets_cache(),
         neighboring_cells_cache(),
