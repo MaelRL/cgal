@@ -9,12 +9,6 @@
 #include <CGAL/Polyhedral_curvature_metric_field.h>
 #include <CGAL/Anisotropic_surface_mesher_3.h>
 
-#include <CGAL/Euclidean_metric_field.h>
-#include <Metric_field/Arctan_metric_field.h>
-
-
-#define CGAL_PROFILE
-
 using namespace CGAL::Anisotropic_mesh_3;
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel	Epick;
@@ -26,7 +20,7 @@ typedef Anisotropic_surface_mesher_3<K> Mesher;
 std::string output_filename(const std::string& filename)
 {
   std::size_t found = filename.find_last_of("/\\");
-  std::string file = filename.substr(found+1, filename.length()-5);
+  std::string file = filename.substr(found+1, filename.length()-4);
   file.append("_output.off");
   return file;
 }
@@ -35,33 +29,35 @@ void read_poles(const char* filename,/*.off file*/
                 std::set<K::Point_3>& poles)
 {
   std::string line;
-  std::ifstream polesfile(filename);
-  if(polesfile.is_open())
+  std::ifstream ifs(filename);
+  if(ifs.is_open())
   {
     bool nbv_found = false;
     std::size_t nbv = 0;
-    while(polesfile.good())
+    while(ifs.good())
     {
-      std::getline(polesfile,line);
+      std::getline(ifs,line);
       if(line.find("OFF") != std::string::npos)
         continue;
       else if(line.find("#") != std::string::npos)//comments
         continue;
       else if(!nbv_found)
       {
-        polesfile >> nbv;
+        sscanf(line.c_str(),"%d",&nbv);
         std::cout << "Nb poles is : " << nbv << std::endl;
         nbv_found = true;
       }
       else if(poles.size() < nbv)
       {
         K::FT x,y,z;
-        polesfile >> x >> y >> z;
+        std::istringstream liness(line);
+        liness >> x >> y >> z;
         poles.insert(K::Point_3(x,y,z));
       }
-      else break;
+      else
+        break;
     }
-    polesfile.close();
+    ifs.close();
   }
   else 
     std::cout << "Unable to open the file containing poles : " << filename << "\n"; 
@@ -74,12 +70,19 @@ int main(int argc, char *argv[])
   std::cout << "Let's mesh : " << file << std::endl;
 
   char* poles_filename;
-  if(argc > 3 && argv[2] == "-poles")
+  int i = 2;
+  if(argc > 3)
   {
-    poles_filename = argv[3];
-    std::cout << "poles filename : " << poles_filename << std::endl;
+    std::string poles(argv[2]);
+    if(poles.find("-poles") != std::string::npos)
+    {
+      poles_filename = argv[3];
+      std::cout << "poles filename : " << poles_filename << std::endl;
+      i = i + 2;
+    }
+    else std::cerr << "argc is " << argc << std::endl;
   }
-  int i=4;
+
   double r0 = (argc > i) ? atof(argv[i++]) : 1.;
   double gamma0 = (argc > i) ? atof(argv[i++]) : 1.8;
   double approx = (argc > i) ? atof(argv[i++]) : 0.;
@@ -95,7 +98,7 @@ int main(int argc, char *argv[])
                                                     approx);
 
   Constrain_surface_3_polyhedral<K>* pdomain
-    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);
+    = new Constrain_surface_3_polyhedral<K>(file.data(), epsilon);
 
   Polyhedral_curvature_metric_field<K>* metric_field =
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
@@ -106,10 +109,10 @@ int main(int argc, char *argv[])
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain,
     10, 2., No_condition<K::Point_3>(), poles);
 
-//  starset.refine_all();
+  starset.refine_all();
 
-//  std::string outfile = output_filename(file);
-//  starset.output(outfile);
+  std::string outfile = output_filename(file);
+  starset.output(outfile.c_str());
   
   delete pdomain;
   return 0;
