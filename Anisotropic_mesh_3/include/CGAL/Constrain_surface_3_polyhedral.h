@@ -185,7 +185,7 @@ class Constrain_surface_3_polyhedral :
       std::vector<Vector_3> m_normals;
 
     protected:
-      mutable std::set<Point_3> m_poles;
+//      mutable std::set<Point_3> m_poles;
       mutable C3t3 m_c3t3;
 
       mutable double m_max_curvature;
@@ -579,11 +579,12 @@ class Constrain_surface_3_polyhedral :
       }
 
 
-      virtual std::set<Point_3>& compute_poles() const
+      virtual void compute_poles(std::set<Point_3>& poles) const
       {
-        m_poles.clear();
-        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
-        return m_poles;
+//        m_poles.clear();
+//        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
+//        return m_poles;
+        compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 
       virtual Pointset get_surface_points(unsigned int nb,
@@ -701,7 +702,7 @@ class Constrain_surface_3_polyhedral :
         : m_vertices(),
           m_metrics(),
           m_normals(),
-          m_poles(),
+//          m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {
@@ -713,7 +714,7 @@ class Constrain_surface_3_polyhedral :
         : m_vertices(),
           m_metrics(),
           m_normals(),
-          m_poles(),
+//          m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {

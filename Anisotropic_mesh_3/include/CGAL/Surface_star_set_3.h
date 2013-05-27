@@ -81,12 +81,13 @@ namespace CGAL
       typedef typename Star_vector::iterator      Star_iterator;
       typedef typename Star::Index                Index;
       typedef std::set<Index>                     Index_set;
-      
+            
       typedef Constrain_surface_3<K>              Constrain_surface;
       typedef CGAL::Anisotropic_mesh_3::Metric_field<K> Metric_field;
       typedef typename Metric_field::Metric       Metric;
       typedef typename K::Point_3                 Point_3;
       typedef Criteria_base<K>                    Criteria;
+      typedef std::set<Point_3>                   Point_set;
 
       typedef typename Star::Vertex_handle        Vertex_handle;
       typedef typename Star::Cell_handle          Cell_handle;
@@ -114,7 +115,6 @@ namespace CGAL
       struct Edge_ij;
 
     public:
-      std::set<Point_3> m_poles;
       typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
       const Metric_field* m_metric_field;
@@ -123,6 +123,7 @@ namespace CGAL
       Refine_queue m_refine_queue;
       DT m_ch_triangulation;
       RefinementCondition m_refinement_condition;
+      mutable Point_set m_poles;
 
       mutable AABB_tree m_aabb_tree; //bboxes of stars
       Kd_tree m_kd_tree;     //stars* centers for box queries
@@ -1753,8 +1754,14 @@ public:
 #endif
       }
 
+      void set_poles(const Point_set& poles) const
+      {
+        m_poles.clear();
+        std::copy(poles.begin(), poles.end(), std::inserter(m_poles,m_poles.end()));
+      }
+
       void initialize_stars(const int nb = 8,
-                            const std::set<Point_3>& poles = std::set<Point_3>()) 
+                            const Point_set& poles = Point_set()) 
       {
 #ifdef ANISO_VERBOSE
         std::cout << "Initialize "<< nb << " stars..." << std::endl;
@@ -1789,7 +1796,9 @@ public:
 #endif
       }
 
-      void initialize_medial_axis(const std::set<Point_3>& poles = std::set<Point_3>())
+      
+
+      void initialize_medial_axis(const Point_set& poles = Point_set())
       {
 #ifdef ANISO_VERBOSE
         std::cout << "Initialize medial axis...";
@@ -1797,9 +1806,9 @@ public:
 #endif
         m_poles.clear();
         if(poles.empty())
-          m_poles = m_pConstrain->compute_poles();
+          m_pConstrain->compute_poles(m_poles);
         else
-          std::copy(poles.begin(), poles.end(), std::inserter(m_poles,m_poles.begin()));
+          set_poles(poles);
 #ifdef ANISO_VERBOSE
         std::cout << m_poles.size() << ")" << std::endl;
 
