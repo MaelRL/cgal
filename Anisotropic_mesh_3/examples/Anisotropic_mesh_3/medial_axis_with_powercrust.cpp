@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
 
   char* poles_filename;
   int i = 2;
+  bool poles_given = false;
   if(argc > 3)
   {
     std::string poles(argv[2]);
@@ -79,6 +80,7 @@ int main(int argc, char *argv[])
       poles_filename = argv[3];
       std::cout << "poles filename : " << poles_filename << std::endl;
       i = i + 2;
+      poles_given = true;
     }
     else std::cerr << "argc is " << argc << std::endl;
   }
@@ -104,7 +106,8 @@ int main(int argc, char *argv[])
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
   
   std::set<K::Point_3> poles;
-  read_poles(poles_filename, poles);
+  if(poles_given)
+    read_poles(poles_filename, poles);
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain,
     10, 2., No_condition<K::Point_3>(), poles);
