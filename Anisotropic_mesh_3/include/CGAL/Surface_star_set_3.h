@@ -114,7 +114,7 @@ namespace CGAL
       struct Edge_ij;
 
     public:
-      std::set<Point_3> poles;
+      std::set<Point_3> m_poles;
       typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
       const Metric_field* m_metric_field;
@@ -1750,7 +1750,7 @@ public:
         initial_points.clear();
         initial_points = m_pConstrain->get_surface_points(2*nb);
 
-        initialize_medial_axis(); // poles
+        initialize_medial_axis(poles); // poles
 
 #ifdef ANISO_VERBOSE
         std::cout << "now inserting initial points" << std::endl;
@@ -1776,32 +1776,33 @@ public:
 #endif
       }
 
-      void initialize_medial_axis()
+      void initialize_medial_axis(const std::set<Point_3>& poles = std::set<Point_3>())
       {
 #ifdef ANISO_VERBOSE
         std::cout << "Initialize medial axis...";
-        // compute poles (1/2) (1 per vertex : the furthest)
-        // compute poles (2/2) (1 per vertex : the furthest on the other side)
-        std::cout << "(compute poles...";
+        std::cout << "(get poles...";
 #endif
-        poles.clear();
-        poles = m_pConstrain->compute_poles();
+        m_poles.clear();
+        if(poles.empty())
+          m_poles = m_pConstrain->compute_poles();
+        else
+          std::copy(poles.begin(), poles.end(), std::inserter(m_poles,m_poles.begin()));
 #ifdef ANISO_VERBOSE
-        std::cout << poles.size() << ")" << std::endl;
+        std::cout << m_poles.size() << ")" << std::endl;
 
         //insert them all in all stars
-        std::cout << "(insert poles...";
+        std::cout << "(insert poles..." << std::flush;
 #endif
         unsigned int i = 1;
         unsigned int done = 0;
         typename std::set<Point_3>::const_iterator it;
-        for(it = poles.begin(); it != poles.end(); ++it, ++i)
+        for(it = m_poles.begin(); it != m_poles.end(); ++it, ++i)
         {
           if(i % 500 == 0)
             this->clean_stars();
 
           bool conditional = (i % 10 != 0); //let's put 1/10 with no condition
-                                            //(poles are sorted so geometry should be covered)
+                                            //(m_poles are sorted so geometry should be covered)
           if(m_refinement_condition(*it))
           {
             insert_in_domain(*it, conditional);
@@ -3308,7 +3309,7 @@ public:
 
         ::glBegin(GL_POINTS);
         typename std::set<Point_3>::const_iterator it;
-        for(it = poles.begin(); it != poles.end(); ++it)
+        for(it = m_poles.begin(); it != m_poles.end(); ++it)
         {
           // if(!is_above_plane(plane, *it))
           //   continue;
