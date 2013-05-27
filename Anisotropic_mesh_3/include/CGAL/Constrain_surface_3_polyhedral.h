@@ -460,7 +460,7 @@ class Constrain_surface_3_polyhedral :
         }
       }
 
-      void set_domain_and_polyhedron(char* filename)
+      void set_domain_and_polyhedron(const char* filename)
       {
         std::cout << "Loading polyhedron..." << std::endl;
         std::ifstream input(filename);
@@ -697,7 +697,7 @@ class Constrain_surface_3_polyhedral :
         gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
       }
 
-      Constrain_surface_3_polyhedral(char *filename, const FT& epsilon) 
+      Constrain_surface_3_polyhedral(const char *filename, const FT& epsilon) 
         : m_vertices(),
           m_metrics(),
           m_normals(),
