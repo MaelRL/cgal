@@ -1,6 +1,8 @@
 #include <vector>
 
 
+// compute poles (1/2) (1 per vertex : the furthest)
+// compute poles (2/2) (1 per vertex : the furthest on the other side)
 template<typename C3T3, typename OutputIterator>
 void compute_triangulation_poles(const C3T3& c3t3,
                                  OutputIterator oit,
