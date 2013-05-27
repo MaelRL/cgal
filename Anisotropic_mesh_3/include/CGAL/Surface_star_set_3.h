@@ -1753,7 +1753,8 @@ public:
 #endif
       }
 
-      void initialize_stars(const int nb = 8) 
+      void initialize_stars(const int nb = 8,
+                            const std::set<Point_3>& poles = std::set<Point_3>()) 
       {
 #ifdef ANISO_VERBOSE
         std::cout << "Initialize "<< nb << " stars..." << std::endl;
@@ -3574,7 +3575,8 @@ public:
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
         const FT& distortion_pickvalid_bound = 2.,
-        const RefinementCondition& rc_ = No_condition<Point_3>())
+        const RefinementCondition& rc_ = No_condition<Point_3>(),
+        const std::set<Point_3>& poles = std::set<Point_3>())
         :
         m_pConstrain(pconstrain_),
         m_metric_field(metric_field_), 
@@ -3589,7 +3591,7 @@ public:
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0)
       {
-        initialize_stars(nb_initial_points); // initialize poles + points on surface
+        initialize_stars(nb_initial_points, poles); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
 
 #ifndef NO_USE_AABB_TREE_OF_BBOXES 

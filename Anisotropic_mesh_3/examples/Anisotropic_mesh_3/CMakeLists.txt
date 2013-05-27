@@ -58,6 +58,7 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("debug_example.cpp")
   create_single_source_cgal_program("comparisons_example.cpp")
   create_single_source_cgal_program("metric_field_experiment.cpp")
+  create_single_source_cgal_program("medial_axis_with_powercrust.cpp")
 
   else(LAPACK_FOUND)
 
