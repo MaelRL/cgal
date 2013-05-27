@@ -298,13 +298,13 @@ class Constrain_surface_3_polyhedral :
         const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
         const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
         
-        v0 = (std::real(vals[0]) >= 0.) ? std::sqrt(std::real(vals[0])) : 0.;
-        v1 = (std::real(vals[1]) >= 0.) ? std::sqrt(std::real(vals[1])) : 0.;
-        v2 = (std::real(vals[2]) >= 0.) ? std::sqrt(std::real(vals[2])) : 0.;
+        v0 = (std::real(vals[0]) >= 0.) ? std::real(vals[0]) : 0.;
+        v1 = (std::real(vals[1]) >= 0.) ? std::real(vals[1]) : 0.;
+        v2 = (std::real(vals[2]) >= 0.) ? std::real(vals[2]) : 0.;
                 
         e0 = get_eigenvector(vecs.col(0));
         e1 = get_eigenvector(vecs.col(1));
-        e2 = get_eigenvector(vecs.col(2));        
+        e2 = get_eigenvector(vecs.col(2));
       }
 
       void find_neighbors(Facet_handle facet, 
