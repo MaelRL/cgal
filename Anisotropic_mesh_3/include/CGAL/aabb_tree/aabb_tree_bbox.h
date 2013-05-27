@@ -53,7 +53,10 @@ namespace CGAL
         , m_rebuild_needed(false)
 #endif
         { }
-        
+
+  public:
+    std::size_t m_insertion_buffer_size(){ return m_insertion_buffer.size(); }
+
   /// Insertion
   public:
     void insert(const BboxPrimitive& p)
@@ -80,6 +83,12 @@ namespace CGAL
 //        m_rebuild_needed = true;
 //#endif
 //      }
+    }
+
+    void update_primitive(const BboxPrimitive& p)
+    {
+      Star_handle pstar = p.id();
+      Base::update_primitive(pstar);
     }
 
     void remove_last() 

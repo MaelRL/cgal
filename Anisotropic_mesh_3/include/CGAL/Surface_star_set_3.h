@@ -124,7 +124,7 @@ namespace CGAL
       DT m_ch_triangulation;
       RefinementCondition m_refinement_condition;
 
-      AABB_tree m_aabb_tree; //bboxes of stars
+      mutable AABB_tree m_aabb_tree; //bboxes of stars
       Kd_tree m_kd_tree;     //stars* centers for box queries
 
       //speed-up heuristic
@@ -1468,21 +1468,34 @@ public:
             s->remove(id);
         }
       }
-       
+
+      void update_aabb_tree(Star_handle star) const
+      {
+        m_aabb_tree.update_primitive(AABB_primitive(star));
+      }
+
       void update_bboxes() const
       {
         std::size_t i;
         std::size_t N = m_stars.size();
         for(i = 0; i < N; i++)
+        {
           m_stars[i]->update_bbox();
+          if(m_aabb_tree.m_insertion_buffer_size() == 1) // tree has just been rebuilt
+            m_stars[i]->set_bbox_needs_aabb_update(false);
+          if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+          {
+            m_stars[i]->set_bbox_needs_aabb_update(false);
+            update_aabb_tree(m_stars[i]);
+          }
+        }
       }
 
       template<typename OutputIterator>
       void finite_stars_in_conflict(const Point_3& p,
                                     OutputIterator oit) const
       {
-//        update_bboxes();
-
+        update_bboxes();
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
         //bigger set of stars
         m_aabb_tree.all_intersected_primitives(p, oit);
