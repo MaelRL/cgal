@@ -112,11 +112,13 @@ int main(int argc, char *argv[])
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain,
     10, 2., No_condition<K::Point_3>(), poles);
 
-  starset.refine_all();
+  if(poles_given)
+  {
+    starset.refine_all();
 
-  std::string outfile = output_filename(file);
-  starset.output(outfile.c_str());
-  
+    std::string outfile = output_filename(file);
+    starset.output(outfile.c_str());
+  }
   delete pdomain;
   return 0;
 }
