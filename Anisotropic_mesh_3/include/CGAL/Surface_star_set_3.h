@@ -3579,14 +3579,61 @@ public:
       }
 #endif
 
+#ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
+      template<typename OutputIterator>
+      void read_poles(const char* filename/*.off file*/,
+                      OutputIterator poles_oit)
+      {
+        std::string line;
+        std::ifstream ifs(filename);
+        if(ifs.is_open())
+        {
+          bool nbv_found = false;
+          std::size_t nbv = 0;
+          std::size_t i = 0;
+          while(ifs.good())
+          {
+            std::getline(ifs,line);
+            if(line.find("OFF") != std::string::npos)
+              continue;
+            else if(line.find("#") != std::string::npos)//comments
+              continue;
+            else if(!nbv_found)
+            {
+              std::istringstream liness(line);
+              liness >> nbv;
+              std::cout << "Nb poles is : " << nbv << std::endl;
+              nbv_found = true;
+            }
+            else if(i++ < nbv)
+            {
+              K::FT x,y,z;
+              std::istringstream liness(line);
+              liness >> x >> y >> z;
+              *poles_oit++ = Point_3(x,y,z);
+            }
+            else
+              break;
+          }
+          ifs.close();
+        }
+        else 
+          std::cout << "Unable to open the file containing poles : " << filename << "\n"; 
+      }
+#endif
+
     public:
       Surface_star_set_3(const Criteria* criteria_,
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
         const FT& distortion_pickvalid_bound = 2.,
-        const RefinementCondition& rc_ = No_condition<Point_3>(),
-        const std::set<Point_3>& poles = std::set<Point_3>())
+        const RefinementCondition& rc_ = No_condition<Point_3>()
+#ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
+        , const bool poles_given = false
+        , const char* polesfile = NULL
+#endif
+        )
         :
         m_pConstrain(pconstrain_),
         m_metric_field(metric_field_), 
@@ -3601,6 +3648,11 @@ public:
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0)
       {
+        std::set<Point_3> poles;
+#ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
+        if(poles_given)
+          read_poles(polesfile, std::inserter(poles,poles.end()));
+#endif
         initialize_stars(nb_initial_points, poles); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
 
@@ -3619,6 +3671,7 @@ public:
         m_kd_tree.clear();
         m_ch_triangulation.clear();
         m_refine_queue.clear();
+        m_poles.clear();
       }
       
       ~Surface_star_set_3() 
