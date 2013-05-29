@@ -2116,6 +2116,10 @@ public:
           Vertex_handle v2 = f.first->vertex((f.second+2)%4);
           Vertex_handle v3 = f.first->vertex((f.second+3)%4);
 
+          Point_3 p1 = star->metric().inverse_transform(v1->point());
+          Point_3 p2 = star->metric().inverse_transform(v2->point());
+          Point_3 p3 = star->metric().inverse_transform(v3->point());
+
           double deg_value = 1e-4;
           bool degenerate = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value &&
                                 std::abs(v1->point().y()-v2->point().y()) < deg_value &&
@@ -2135,6 +2139,14 @@ public:
               std::cout << "\tp2 : " << v2->point() << " " << v2->info() << std::endl;
               std::cout << "\tp3 : " << v3->point() << " " << v3->info() << std::endl;
               std::cout << "\tp was : " << p << std::endl;
+              std::cout << "\tEucli : " << std::endl;
+              std::cout << "\tp1 : " << p1 << std::endl;
+              std::cout << "\tp2 : " << p2 << std::endl;
+              std::cout << "\tp3 : " << p3 << std::endl;
+              std::cout << "\tmetric of the star : " << std::endl;
+              std::cout << "\t" << star->metric().get_transformation() << std::endl;
+              std::cout << "\t" << star->metric().get_min_eigenvalue() << " ";
+              std::cout << star->metric().get_max_eigenvalue() << " " << star->metric().get_third_eigenvalue() << std::endl;
           }
         }
 #endif
@@ -2360,6 +2372,7 @@ public:
           {
             modified_stars.clear();
             pop_back_star();
+            std::cout << "found & restricted" << std::endl;
             if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
             {
               index = 6 - i - j - k;
