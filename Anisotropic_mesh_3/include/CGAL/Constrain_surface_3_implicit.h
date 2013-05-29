@@ -94,7 +94,7 @@ namespace CGAL{
       typedef typename CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 
     protected:
-      mutable std::set<Point_3> m_poles;
+//      mutable std::set<Point_3> m_poles;
       mutable C3t3 m_c3t3;
 
       mutable double m_max_curvature;
@@ -113,8 +113,8 @@ namespace CGAL{
         return evaluate(p.x(), p.y(), p.z());
       }
 
-      std::set<Point_3>& poles() { return m_poles; }
-      const std::set<Point_3>& poles() const { return m_poles; }
+      //std::set<Point_3>& poles() { return m_poles; }
+      //const std::set<Point_3>& poles() const { return m_poles; }
 
       virtual Oriented_side side_of_constraint(const Point_3 &p) const
       {
@@ -381,11 +381,12 @@ public:
         return Pointset(all_points.begin(), (all_points.begin() + nb));
       }
 
-        virtual std::set<Point_3>& compute_poles() const
+      virtual void compute_poles(std::set<Point_3>& poles) const
       {
-        m_poles.clear();
-        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
-        return m_poles;
+        //m_poles.clear();
+        //compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
+        //return m_poles;
+        compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 
       virtual double global_max_curvature() const
@@ -442,7 +443,7 @@ public:
 
       Constrain_surface_3_implicit()
         : Base(),
-          m_poles(),
+          //m_poles(),
           m_cache_max_curvature(false),
           m_cache_min_curvature(false) {}
 

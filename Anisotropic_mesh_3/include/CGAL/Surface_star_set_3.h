@@ -81,12 +81,13 @@ namespace CGAL
       typedef typename Star_vector::iterator      Star_iterator;
       typedef typename Star::Index                Index;
       typedef std::set<Index>                     Index_set;
-      
+            
       typedef Constrain_surface_3<K>              Constrain_surface;
       typedef CGAL::Anisotropic_mesh_3::Metric_field<K> Metric_field;
       typedef typename Metric_field::Metric       Metric;
       typedef typename K::Point_3                 Point_3;
       typedef Criteria_base<K>                    Criteria;
+      typedef std::set<Point_3>                   Point_set;
 
       typedef typename Star::Vertex_handle        Vertex_handle;
       typedef typename Star::Cell_handle          Cell_handle;
@@ -114,7 +115,6 @@ namespace CGAL
       struct Edge_ij;
 
     public:
-      std::set<Point_3> m_poles;
       typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
       const Metric_field* m_metric_field;
@@ -123,6 +123,7 @@ namespace CGAL
       Refine_queue m_refine_queue;
       DT m_ch_triangulation;
       RefinementCondition m_refinement_condition;
+      mutable Point_set m_poles;
 
       mutable AABB_tree m_aabb_tree; //bboxes of stars
       Kd_tree m_kd_tree;     //stars* centers for box queries
@@ -1753,8 +1754,14 @@ public:
 #endif
       }
 
+      void set_poles(const Point_set& poles) const
+      {
+        m_poles.clear();
+        std::copy(poles.begin(), poles.end(), std::inserter(m_poles,m_poles.end()));
+      }
+
       void initialize_stars(const int nb = 8,
-                            const std::set<Point_3>& poles = std::set<Point_3>()) 
+                            const Point_set& poles = Point_set()) 
       {
 #ifdef ANISO_VERBOSE
         std::cout << "Initialize "<< nb << " stars..." << std::endl;
@@ -1789,7 +1796,9 @@ public:
 #endif
       }
 
-      void initialize_medial_axis(const std::set<Point_3>& poles = std::set<Point_3>())
+      
+
+      void initialize_medial_axis(const Point_set& poles = Point_set())
       {
 #ifdef ANISO_VERBOSE
         std::cout << "Initialize medial axis...";
@@ -1797,9 +1806,9 @@ public:
 #endif
         m_poles.clear();
         if(poles.empty())
-          m_poles = m_pConstrain->compute_poles();
+          m_pConstrain->compute_poles(m_poles);
         else
-          std::copy(poles.begin(), poles.end(), std::inserter(m_poles,m_poles.begin()));
+          set_poles(poles);
 #ifdef ANISO_VERBOSE
         std::cout << m_poles.size() << ")" << std::endl;
 
@@ -3583,14 +3592,61 @@ public:
       }
 #endif
 
+#ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
+      template<typename OutputIterator>
+      void read_poles(const char* filename/*.off file*/,
+                      OutputIterator poles_oit)
+      {
+        std::string line;
+        std::ifstream ifs(filename);
+        if(ifs.is_open())
+        {
+          bool nbv_found = false;
+          std::size_t nbv = 0;
+          std::size_t i = 0;
+          while(ifs.good())
+          {
+            std::getline(ifs,line);
+            if(line.find("OFF") != std::string::npos)
+              continue;
+            else if(line.find("#") != std::string::npos)//comments
+              continue;
+            else if(!nbv_found)
+            {
+              std::istringstream liness(line);
+              liness >> nbv;
+              std::cout << "Nb poles is : " << nbv << std::endl;
+              nbv_found = true;
+            }
+            else if(i++ < nbv)
+            {
+              K::FT x,y,z;
+              std::istringstream liness(line);
+              liness >> x >> y >> z;
+              *poles_oit++ = Point_3(x,y,z);
+            }
+            else
+              break;
+          }
+          ifs.close();
+        }
+        else 
+          std::cout << "Unable to open the file containing poles : " << filename << "\n"; 
+      }
+#endif
+
     public:
       Surface_star_set_3(const Criteria* criteria_,
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
         const FT& distortion_pickvalid_bound = 2.,
-        const RefinementCondition& rc_ = No_condition<Point_3>(),
-        const std::set<Point_3>& poles = std::set<Point_3>())
+        const RefinementCondition& rc_ = No_condition<Point_3>()
+#ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
+        , const bool poles_given = false
+        , const char* polesfile = NULL
+#endif
+        )
         :
         m_pConstrain(pconstrain_),
         m_metric_field(metric_field_), 
@@ -3605,6 +3661,11 @@ public:
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0)
       {
+        std::set<Point_3> poles;
+#ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
+        if(poles_given)
+          read_poles(polesfile, std::inserter(poles,poles.end()));
+#endif
         initialize_stars(nb_initial_points, poles); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
 
@@ -3623,6 +3684,7 @@ public:
         m_kd_tree.clear();
         m_ch_triangulation.clear();
         m_refine_queue.clear();
+        m_poles.clear();
       }
       
       ~Surface_star_set_3() 

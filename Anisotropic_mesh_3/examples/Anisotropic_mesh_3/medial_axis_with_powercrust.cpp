@@ -1,6 +1,6 @@
 
 #include <CGAL/Default_configuration.h>
-#define ANISO_OUTPUT_POINTS_FOR_MEDIAL_AXIS
+#define ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Robust_circumcenter_traits_3.h>
@@ -25,43 +25,6 @@ std::string output_filename(const std::string& filename)
   return file;
 }
 
-void read_poles(const char* filename,/*.off file*/
-                std::set<K::Point_3>& poles)
-{
-  std::string line;
-  std::ifstream ifs(filename);
-  if(ifs.is_open())
-  {
-    bool nbv_found = false;
-    std::size_t nbv = 0;
-    while(ifs.good())
-    {
-      std::getline(ifs,line);
-      if(line.find("OFF") != std::string::npos)
-        continue;
-      else if(line.find("#") != std::string::npos)//comments
-        continue;
-      else if(!nbv_found)
-      {
-        sscanf(line.c_str(),"%d",&nbv);
-        std::cout << "Nb poles is : " << nbv << std::endl;
-        nbv_found = true;
-      }
-      else if(poles.size() < nbv)
-      {
-        K::FT x,y,z;
-        std::istringstream liness(line);
-        liness >> x >> y >> z;
-        poles.insert(K::Point_3(x,y,z));
-      }
-      else
-        break;
-    }
-    ifs.close();
-  }
-  else 
-    std::cout << "Unable to open the file containing poles : " << filename << "\n"; 
-}
 
 int main(int argc, char *argv[])
 {
@@ -105,12 +68,8 @@ int main(int argc, char *argv[])
   Polyhedral_curvature_metric_field<K>* metric_field =
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
   
-  std::set<K::Point_3> poles;
-  if(poles_given)
-    read_poles(poles_filename, poles);
-
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain,
-    10, 2., No_condition<K::Point_3>(), poles);
+    10, 2., No_condition<K::Point_3>(), poles_given, poles_filename);
 
   starset.refine_all();
 
