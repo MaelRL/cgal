@@ -670,10 +670,6 @@ class Constrain_surface_3_polyhedral :
       {
         set_aabb_tree();
         
-        //std::vector<Point_3> points;
-        //compute_bounding_box(points);
-        //point_count = (int)points.size();
-
         point_count = (int)m_polyhedron.size_of_vertices();
         m_vertices.reserve(point_count);
         m_metrics.reserve(point_count);
@@ -692,7 +688,6 @@ class Constrain_surface_3_polyhedral :
         : m_vertices(),
           m_metrics(),
           m_normals(),
-//          m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {
@@ -704,7 +699,6 @@ class Constrain_surface_3_polyhedral :
         : m_vertices(),
           m_metrics(),
           m_normals(),
-//          m_poles(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {
