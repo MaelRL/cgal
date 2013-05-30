@@ -185,7 +185,6 @@ class Constrain_surface_3_polyhedral :
       std::vector<Vector_3> m_normals;
 
     protected:
-//      mutable std::set<Point_3> m_poles;
       mutable C3t3 m_c3t3;
 
       mutable double m_max_curvature;
@@ -246,12 +245,6 @@ class Constrain_surface_3_polyhedral :
         e1 = monge_form.maximal_principal_direction();
         e2 = monge_form.minimal_principal_direction();
       }
-
-      //useless and expensive!
-      //FT compute_cosine(const Vector_3 &a, const Vector_3 &b) 
-      //{
-      //  return a * b / (std::sqrt(a*a) * std::sqrt(b*b));
-      //}
 
       void tensor_frame(const Point_3 &p,
                         Vector_3 &e0,     //unit normal 
@@ -581,9 +574,6 @@ class Constrain_surface_3_polyhedral :
 
       virtual void compute_poles(std::set<Point_3>& poles) const
       {
-//        m_poles.clear();
-//        compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
-//        return m_poles;
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 

@@ -94,7 +94,6 @@ namespace CGAL{
       typedef typename CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 
     protected:
-//      mutable std::set<Point_3> m_poles;
       mutable C3t3 m_c3t3;
 
       mutable double m_max_curvature;
@@ -112,9 +111,6 @@ namespace CGAL{
       {
         return evaluate(p.x(), p.y(), p.z());
       }
-
-      //std::set<Point_3>& poles() { return m_poles; }
-      //const std::set<Point_3>& poles() const { return m_poles; }
 
       virtual Oriented_side side_of_constraint(const Point_3 &p) const
       {
