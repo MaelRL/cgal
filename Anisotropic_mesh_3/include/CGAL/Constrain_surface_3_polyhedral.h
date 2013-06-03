@@ -237,8 +237,8 @@ class Constrain_surface_3_polyhedral :
         const FT& epsilon) 
       {
         std::vector<Point_3> points;
-        find_nearest_vertices(v, points, 36, 
-          nearest_start_try_radius*nearest_start_try_radius);
+        find_nearest_vertices(v, points, 36, 0.);
+//          nearest_start_try_radius*nearest_start_try_radius);
         points.insert(points.begin(), v->point());
 
         My_Monge_form monge_form;
@@ -421,7 +421,6 @@ class Constrain_surface_3_polyhedral :
           ring.pop_front();
           find_ring_vertices(v->point(), vi, points, visited, ring, max_sqd);
         }
-//        std::cout << points.size() << "\t";
       }
 
       void find_ring_vertices(const Point_3& center,
