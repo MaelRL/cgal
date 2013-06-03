@@ -165,6 +165,7 @@ class Constrain_surface_3_polyhedral :
       typedef typename Polyhedron::Vertex_handle    Vertex_handle;
       typedef typename Polyhedron::Facet_handle     Facet_handle;
       typedef typename Polyhedron::Halfedge_handle  Halfedge_handle;
+      typedef typename Polyhedron::Halfedge_around_vertex_circulator HV_circulator;
 
       // for Mesh_3
       typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type Tr;
@@ -183,6 +184,12 @@ class Constrain_surface_3_polyhedral :
       std::vector<Vertex_handle> m_vertices;
       std::vector<typename Eigen::Matrix3d> m_metrics;
       std::vector<Vector_3> m_normals;
+
+#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+      std::ofstream min_vector_field_os;
+      std::ofstream max_vector_field_os;
+      std::ofstream normals_field_os;
+#endif
 
     protected:
       mutable C3t3 m_c3t3;
@@ -223,14 +230,15 @@ class Constrain_surface_3_polyhedral :
         return tree->squared_distance(p);
       }
 
-      virtual void tensor_frame_on_point(const Point_3 &p, 
+      virtual void tensor_frame_on_input_point(Vertex_handle v, 
         Vector_3 &e0/*n*/, Vector_3 &e1/*vmax*/, Vector_3 &e2/*vmin*/,//unit vectors
         FT& c1/*cmax*/, FT& c2/*cmin*/,
         const FT& epsilon) 
       {
         std::vector<Point_3> points;
-        find_nearest_vertices(p, points, 36);
-        points.insert(points.begin(), p);
+        find_nearest_vertices(v, points, 36, 
+          nearest_start_try_radius*nearest_start_try_radius);
+        points.insert(points.begin(), v->point());
 
         My_Monge_form monge_form;
         My_Monge_via_jet_fitting monge_fit;
@@ -240,10 +248,38 @@ class Constrain_surface_3_polyhedral :
         FT minc = monge_form.principal_curvatures(1);
         e0 = monge_form.normal_direction();
 
-        c1 = (std::max)(epsilon, fabs(maxc));
-        c2 = (std::max)(epsilon, fabs(minc));
-        e1 = monge_form.maximal_principal_direction();
-        e2 = monge_form.minimal_principal_direction();
+        if(minc >= 0.)
+        {
+          c1 = (std::max)(epsilon, fabs(maxc));
+          c2 = (std::max)(epsilon, fabs(minc));
+          e1 = monge_form.maximal_principal_direction();
+          e2 = monge_form.minimal_principal_direction();
+        }
+        else if(maxc <= 0.)
+        {
+          c2 = (std::max)(epsilon, fabs(maxc));
+          c1 = (std::max)(epsilon, fabs(minc));
+          e2 = monge_form.maximal_principal_direction();
+          e1 = monge_form.minimal_principal_direction();
+        }
+        else //minc < 0 && maxc > 0
+        {
+          FT abs_min = fabs(minc);
+          if(abs_min < maxc)
+          {
+            c1 = (std::max)(epsilon, fabs(maxc));
+            c2 = (std::max)(epsilon, fabs(minc));
+            e1 = monge_form.maximal_principal_direction();
+            e2 = monge_form.minimal_principal_direction();
+          }
+          else
+          {
+            c2 = (std::max)(epsilon, fabs(maxc));
+            c1 = (std::max)(epsilon, fabs(minc));
+            e2 = monge_form.maximal_principal_direction();
+            e1 = monge_form.minimal_principal_direction();
+          }
+        }
       }
 
       void tensor_frame(const Point_3 &p,
@@ -369,8 +405,56 @@ class Constrain_surface_3_polyhedral :
         return facet;
       }
 
-      inline void find_nearest_vertices(const Point_3 &p, std::vector<Point_3> &points, int count) 
+      void find_nearest_vertices(Vertex_handle v,
+                                 std::vector<Point_3>& points,
+                                 int count,
+                                 const double max_sqd)
       {
+        std::set<Vertex_handle> visited;
+        std::list<Vertex_handle> ring;
+        find_ring_vertices(v->point(), v, points, visited, ring);
+
+        while(points.size() < count && !ring.empty())
+        {
+          Vertex_handle vi = ring.front();
+          ring.pop_front();
+          find_ring_vertices(v->point(), vi, points, visited, ring, max_sqd);
+        }
+        std::cout << points.size() << "\t";
+      }
+
+      void find_ring_vertices(const Point_3& center,
+                              Vertex_handle v,
+                              std::vector<Point_3>& points,
+                              std::set<Vertex_handle>& visited,
+                              std::list<Vertex_handle>& ring,
+                              const double max_sqd = 0.)/**/
+      {
+        HV_circulator h = v->vertex_begin();
+        HV_circulator hend = h;
+        do
+        {
+          //the 1-ring should be complete, even if nbv > count
+          Vertex_handle vv = h->opposite()->vertex();
+          if(visited.find(vv) == visited.end())
+          {
+            visited.insert(vv);
+            if(max_sqd == 0. || CGAL::squared_distance(center, vv->point()) < max_sqd)
+            {
+              ring.push_back(vv);
+              points.push_back(vv->point());
+            }
+          }
+          h++;
+        }
+        while(h != hend);
+      }
+
+      inline void find_nearest_vertices_kanle(Vertex_handle v, 
+                                        std::vector<Point_3>& points, 
+                                        int count) 
+      {
+        const Point_3& p = v->point();
         FT dist = nearest_start_try_radius;
 
         int iter = 0, max_iter = 100;
@@ -514,7 +598,7 @@ class Constrain_surface_3_polyhedral :
           sqrt((4 * bounding_radius * bounding_radius) / ((FT)m_vertices.size() * 2.0));
       }
 
-      void compute_local_metric(const FT& epsilon/*const std::vector<Vertex_handle>& vertices*/)
+      void compute_local_metric(const FT& epsilon, const bool smooth_metric = false)
       {
         std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
@@ -526,12 +610,20 @@ class Constrain_surface_3_polyhedral :
             std::cout << ".";
           Vector_3 e0, e1, e2;
           FT v1, v2, vn;
-          Point_3 pi = m_vertices[i]->point();
-          tensor_frame_on_point(pi/*points[i]*/, e0/*normal*/, e1/*vmax*/, e2/*vmin*/,
-                                v1/*cmax*/, v2/*cmin*/, epsilon);
+          tensor_frame_on_input_point(m_vertices[i], 
+            e0/*normal*/, e1/*vmax*/, e2/*vmin*/,
+            v1/*cmax*/, v2/*cmin*/, epsilon);
 
           m_max_curvature = (std::max)(m_max_curvature, v1);
           m_min_curvature = (std::min)(m_min_curvature, v2);
+
+#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+          FT f = get_bounding_radius()*0.05;
+          Point_3 pi = m_vertices[i]->point();
+          max_vector_field_os << "2 " << pi << " " << (pi+f*e1) << std::endl;
+          min_vector_field_os << "2 " << pi << " " << (pi+f*e2) << std::endl;
+          normals_field_os << "2 " << pi << " " << (pi+f*e0) << std::endl;
+#endif
 
           std::size_t index = m_vertices[i]->tag();
           if(i != index) 
@@ -666,7 +758,7 @@ class Constrain_surface_3_polyhedral :
         maxc = (std::max)(v0, (std::max)(v1, v2));
       }
 
-      void initialize(const FT& epsilon)
+      void initialize(const FT& epsilon, const bool smooth_metric = false)
       {
         set_aabb_tree();
         
@@ -676,7 +768,7 @@ class Constrain_surface_3_polyhedral :
         m_normals.reserve(point_count);
 
         compute_bounding_box();
-        compute_local_metric(epsilon);
+        compute_local_metric(epsilon, smooth_metric);
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
@@ -684,26 +776,40 @@ class Constrain_surface_3_polyhedral :
         gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
       }
 
-      Constrain_surface_3_polyhedral(const char *filename, const FT& epsilon) 
+      Constrain_surface_3_polyhedral(const char *filename, 
+                                     const FT& epsilon,
+                                     const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
           m_normals(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {
+#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+          min_vector_field_os = std::ofstream("vector_field_min.polylines.cgal");
+          max_vector_field_os = std::ofstream("vector_field_max.polylines.cgal");
+          normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
+#endif
           set_domain_and_polyhedron(filename);
-          initialize(epsilon);
+          initialize(epsilon, smooth_metric);
         }
 
-      Constrain_surface_3_polyhedral(const Polyhedron& p, const FT& epsilon) 
+      Constrain_surface_3_polyhedral(const Polyhedron& p, 
+                                     const FT& epsilon,
+                                     const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
           m_normals(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {
+#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+          min_vector_field_os = std::ofstream("vector_field_min.polylines.cgal");
+          max_vector_field_os = std::ofstream("vector_field_max.polylines.cgal");
+          normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
+#endif
           set_domain_and_polyhedron(p);
-          initialize(epsilon);
+          initialize(epsilon, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral* clone() const
@@ -714,6 +820,11 @@ class Constrain_surface_3_polyhedral :
       ~Constrain_surface_3_polyhedral() 
       { 
         delete domain;
+#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+        min_vector_field_os.close();
+        max_vector_field_os.close();
+        normals_field_os.close();
+#endif
       }
     }; //Constrain_surface_3_polyhedral
   } //Anisotropic_mesh_3
