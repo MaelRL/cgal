@@ -33,6 +33,7 @@
 #include <CGAL/IO/Polyhedron_iostream.h>
 
 #include <Eigen/Dense>
+#include <CGAL/Metric.h>
 
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
@@ -420,7 +421,7 @@ class Constrain_surface_3_polyhedral :
           ring.pop_front();
           find_ring_vertices(v->point(), vi, points, visited, ring, max_sqd);
         }
-        std::cout << points.size() << "\t";
+//        std::cout << points.size() << "\t";
       }
 
       void find_ring_vertices(const Point_3& center,
@@ -598,64 +599,97 @@ class Constrain_surface_3_polyhedral :
           sqrt((4 * bounding_radius * bounding_radius) / ((FT)m_vertices.size() * 2.0));
       }
 
+      void get_metrics_from_file(std::ifstream& input, const FT& epsilon)
+      {
+        std::cout << "reading metrics from file" << std::endl;
+        size_t nv;
+        input >> nv;
+        if(nv != m_vertices.size())
+        {
+          std::cerr << "input metric file is not adapted to the polyhedron" << std::endl;
+          return;
+        }
+
+        FT x,y,z;
+        FT e_1, e_2, e_n;
+        Vector_3 v_1, v_2, v_n;
+        Point_3 pi;
+
+        for(size_t i=0; i<nv; ++i)
+        {
+          input >> x >> y >> z;
+          pi = Point_3(x,y,z);
+          input >> e_1 >> e_2;
+          input >> x >> y >> z;
+          v_1 = Vector_3(x,y,z);
+          input >> x >> y >> z;
+          v_2 = Vector_3(x,y,z);
+          input >> x >> y >> z;
+          v_n = Vector_3(x,y,z);
+
+          e_n = (std::max)(std::abs(e_1), std::abs(e_2));
+
+          Metric_base<K, K> M(v_n, v_1, v_2, e_n, e_1, e_2, epsilon);
+          Eigen::Matrix3d transf = M.get_transformation();
+          m_metrics.push_back(transf.transpose()*transf);
+        }
+      }
+
       void compute_local_metric(const FT& epsilon, const bool smooth_metric = false)
       {
         std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
         m_min_curvature = DBL_MAX;
-        std::vector<typename Eigen::Vector3d> vectors;
-        for (std::size_t i = 0; i < m_vertices.size(); ++i) 
+
+        std::ofstream out("poly_curvatures.txt");
+        out << m_vertices.size() << std::endl;
+
+        for (std::size_t i = 0; i < m_vertices.size(); ++i)
         {
           if (i % 100 == 0)
             std::cout << ".";
-          Vector_3 e0, e1, e2;
-          FT v1, v2, vn;
-          tensor_frame_on_input_point(m_vertices[i], 
-            e0/*normal*/, e1/*vmax*/, e2/*vmin*/,
-            v1/*cmax*/, v2/*cmin*/, epsilon);
 
-          m_max_curvature = (std::max)(m_max_curvature, v1);
-          m_min_curvature = (std::min)(m_min_curvature, v2);
+          Vector_3 v_n, v_1, v_2;
+          FT e_1, e_2, e_n;
+          tensor_frame_on_input_point(m_vertices[i], 
+            v_n/*normal*/, v_1/*vmax*/, v_2/*vmin*/,
+            e_1/*cmax*/, e_2/*cmin*/, epsilon);
+
+          const Point_3& pi = m_vertices[i]->point();
+//          tensor_frame_on_point(pi, v_n, v_1, v_2, e_1, e_2, epsilon);
+
+          out << pi.x() << " " << pi.y() << " " << pi.z() << std::endl;
+          out << e_1 << " " << e_2 << "     ";
+          out << v_1.x() << " " << v_1.y() << " " << v_1.z() << "     ";
+          out << v_2.x() << " " << v_2.y() << " " << v_2.z() << "     ";
+          out << v_n.x() << " " << v_n.y() << " " << v_n.z() << std::endl;
+
+          e_n = (std::max)(e_1, e_2);
+
+          m_max_curvature = (std::max)(m_max_curvature, e_n);
+          m_min_curvature = (std::min)(m_min_curvature, (std::min)(e_1, e_2));
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
           FT f = get_bounding_radius()*0.05;
-          Point_3 pi = m_vertices[i]->point();
-          max_vector_field_os << "2 " << pi << " " << (pi+f*e1) << std::endl;
-          min_vector_field_os << "2 " << pi << " " << (pi+f*e2) << std::endl;
-          normals_field_os << "2 " << pi << " " << (pi+f*e0) << std::endl;
+          max_vector_field_os << "2 " << pi << " " << (pi+f*v_1) << std::endl;
+          min_vector_field_os << "2 " << pi << " " << (pi+f*v_2) << std::endl;
+          normals_field_os << "2 " << pi << " " << (pi+f*v_n) << std::endl;
 #endif
 
           std::size_t index = m_vertices[i]->tag();
           if(i != index) 
             std::cerr << "Error1 in indices in compute_local_metric!" << std::endl;
 
-          m_normals.push_back(e0);//[i] = e0;
+          m_normals.push_back(v_n);
           if(m_normals.size() != i+1 )
             std::cerr << "Error2 in indices in compute_local_metric!" << std::endl;
 
-          vn = 1.0001*(std::max)(v1, v2);
+          Metric_base<K, K> M(v_n, v_1, v_2, e_n, e_1, e_2, epsilon);
+          Eigen::Matrix3d transf = M.get_transformation();
+          m_metrics.push_back(transf.transpose()*transf);
 
-          vectors.push_back(std::sqrt(vn) * Eigen::Vector3d(e0.x(), e0.y(), e0.z()));
-          vectors.push_back(std::sqrt(v1) * Eigen::Vector3d(e1.x(), e1.y(), e1.z()));
-          vectors.push_back(std::sqrt(v2) * Eigen::Vector3d(e2.x(), e2.y(), e2.z()));
-
-          //Eigen::Matrix3d p;
-          //p.col(0) = Eigen::Vector3d(e0.x(), e0.y(), e0.z());
-          //p.col(1) = v1 * Eigen::Vector3d(e1.x(), e1.y(), e1.z());
-          //p.col(2) = v2 * Eigen::Vector3d(e2.x(), e2.y(), e2.z());
-
-          //m_metrics.push_back(p * p.transpose());//[i] = p * p.transpose();
           //if(m_metrics.size() != i+1 )
           //  std::cerr << "Error3 in indices in compute_local_metric!" << std::endl;
-        }
-
-        for(std::size_t i = 0; i < vectors.size(); i = i + 3)
-        {
-          Eigen::Matrix3d p;
-          p.col(0) = vectors[i];
-          p.col(1) = vectors[i+1];
-          p.col(2) = vectors[i+2];
-          m_metrics.push_back(p * p.transpose());//[i] = p * p.transpose();
         }
 
         m_cache_max_curvature = true;
@@ -767,8 +801,13 @@ class Constrain_surface_3_polyhedral :
         m_metrics.reserve(point_count);
         m_normals.reserve(point_count);
 
-        compute_bounding_box();
-        compute_local_metric(epsilon, smooth_metric);
+        compute_bounding_box();        
+
+        std::ifstream metric_input("metrics.txt");
+        if(metric_input)
+          get_metrics_from_file(metric_input, epsilon);
+        else
+          compute_local_metric(epsilon, smooth_metric);
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
