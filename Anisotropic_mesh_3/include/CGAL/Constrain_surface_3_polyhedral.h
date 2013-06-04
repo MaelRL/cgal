@@ -237,7 +237,7 @@ class Constrain_surface_3_polyhedral :
         const FT& epsilon) 
       {
         std::vector<Point_3> points;
-        find_nearest_vertices(v, points, 36, 0.);
+        find_nearest_vertices(v, points, 6, 0.);
 //          nearest_start_try_radius*nearest_start_try_radius);
         points.insert(points.begin(), v->point());
 
@@ -412,37 +412,45 @@ class Constrain_surface_3_polyhedral :
                                  const double max_sqd)
       {
         std::set<Vertex_handle> visited;
-        std::list<Vertex_handle> ring;
-        find_ring_vertices(v->point(), v, points, visited, ring);
+        std::map<Vertex_handle, FT/*sqd to center : closest come first*/> ring;
+        find_ring_vertices(v->point(), v, visited, ring);
+        //the 1-ring should be complete, even if nbv > count
 
-        while(points.size() < count && !ring.empty())
+        std::map<Vertex_handle, FT>::iterator it;
+        for(it = ring.begin(); it != ring.end(); ++it)
         {
-          Vertex_handle vi = ring.front();
-          ring.pop_front();
-          find_ring_vertices(v->point(), vi, points, visited, ring, max_sqd);
+          points.push_back((*it).first->point());
         }
+
+        //while(points.size() < count && !ring.empty())
+        //{
+        //  std::map<Vertex_handle, FT>::iterator it = ring.begin();
+        //  Vertex_handle vi = (*it).first;
+        //  ring.erase(it);
+
+        //  points.push_back(vi->point());
+        //  find_ring_vertices(v->point(), vi, visited, ring, max_sqd);
+        //}
       }
 
       void find_ring_vertices(const Point_3& center,
                               Vertex_handle v,
-                              std::vector<Point_3>& points,
                               std::set<Vertex_handle>& visited,
-                              std::list<Vertex_handle>& ring,
+                              std::map<Vertex_handle, FT>& ring,
                               const double max_sqd = 0.)/**/
       {
         HV_circulator h = v->vertex_begin();
         HV_circulator hend = h;
         do
-        {
-          //the 1-ring should be complete, even if nbv > count
+        {          
           Vertex_handle vv = h->opposite()->vertex();
-          if(visited.find(vv) == visited.end())
+          if(visited.find(vv) == visited.end()) //vertex not already visited
           {
             visited.insert(vv);
-            if(max_sqd == 0. || CGAL::squared_distance(center, vv->point()) < max_sqd)
+            FT sqd = CGAL::squared_distance(center, vv->point());
+            if(max_sqd == 0. || sqd < max_sqd)
             {
-              ring.push_back(vv);
-              points.push_back(vv->point());
+              ring.insert(std::make_pair<Vertex_handle,FT>(vv, sqd));
             }
           }
           h++;
