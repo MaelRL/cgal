@@ -52,7 +52,7 @@ find_package(CGAL COMPONENTS Qt4 ImageIO)
 include( ${CGAL_USE_FILE} )
 
 # Include this package's headers first
-include_directories(./ ./include ../../include ../../../experimental-packages)
+include_directories(./ ./include ../../include )
 include_directories(../include)
 include_directories(BEFORE ../Intersections_3/include)
 
