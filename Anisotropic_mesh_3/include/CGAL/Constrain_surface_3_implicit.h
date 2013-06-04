@@ -303,8 +303,13 @@ public:
             v1 = 0.;
             v2 = 0.;
           }
-          else //zeros == 0
-            std::cerr << "Error : see tensor_frame, zeros==0\n";
+          else
+          {//zeros == 0
+            std::cout << "Error : see tensor_frame, zeros==0\n";
+            std::cout << "p : " << p << std::endl;
+            std::cout << ev0 << " " << ev1 << " " << ev2 << std::endl;
+            std::cout << m << std::endl;
+          }
         }
 
         bool are_equal(const Vector_3& v1,        //unit vector
@@ -353,7 +358,8 @@ public:
         {
 #ifdef ANISO_VERBOSE
           std::cout << "C3T3 mesh did not contain enough points (" << all_points.size();
-          std::cout << "). Generating a new c3t3..." << std::endl;
+          std::cout << "). Generating a new c3t3...";
+          std::cout << "Facet distance : " << facet_distance_coeff << std::endl;
 #endif
           //not enough points on the c3t3 to fill the initial_points vector. Generating a new denser c3t3.
           Function fct = (Function)(&Self::implicit_function);
