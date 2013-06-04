@@ -237,9 +237,8 @@ class Constrain_surface_3_polyhedral :
         const FT& epsilon) 
       {
         std::vector<Point_3> points;
-        find_nearest_vertices(v, points, 6, 0.);
+        find_nearest_vertices(v, points, 36/*, max_sqd=0 by default*/);
 //          nearest_start_try_radius*nearest_start_try_radius);
-        points.insert(points.begin(), v->point());
 
         My_Monge_form monge_form;
         My_Monge_via_jet_fitting monge_fit;
@@ -409,34 +408,29 @@ class Constrain_surface_3_polyhedral :
       void find_nearest_vertices(Vertex_handle v,
                                  std::vector<Point_3>& points,
                                  int count,
-                                 const double max_sqd)
+                                 const double max_sqd = 0.)
       {
         std::set<Vertex_handle> visited;
-        std::map<Vertex_handle, FT/*sqd to center : closest come first*/> ring;
-        find_ring_vertices(v->point(), v, visited, ring);
-        //the 1-ring should be complete, even if nbv > count
+        std::map<FT, Vertex_handle/*sqd to center : closest come first*/> ring;
 
-        std::map<Vertex_handle, FT>::iterator it;
-        for(it = ring.begin(); it != ring.end(); ++it)
+        ring.insert(std::make_pair<FT,Vertex_handle>(0.,v));       
+        visited.insert(v);
+
+        while(points.size() < count && !ring.empty())
         {
-          points.push_back((*it).first->point());
+          std::map<FT, Vertex_handle>::iterator it = ring.begin();
+          Vertex_handle vi = (*it).second;
+          ring.erase(it);
+
+          points.push_back(vi->point());
+          find_ring_vertices(v->point(), vi, visited, ring, max_sqd);
         }
-
-        //while(points.size() < count && !ring.empty())
-        //{
-        //  std::map<Vertex_handle, FT>::iterator it = ring.begin();
-        //  Vertex_handle vi = (*it).first;
-        //  ring.erase(it);
-
-        //  points.push_back(vi->point());
-        //  find_ring_vertices(v->point(), vi, visited, ring, max_sqd);
-        //}
       }
 
       void find_ring_vertices(const Point_3& center,
                               Vertex_handle v,
                               std::set<Vertex_handle>& visited,
-                              std::map<Vertex_handle, FT>& ring,
+                              std::map<FT,Vertex_handle>& ring,
                               const double max_sqd = 0.)/**/
       {
         HV_circulator h = v->vertex_begin();
@@ -449,13 +443,11 @@ class Constrain_surface_3_polyhedral :
             visited.insert(vv);
             FT sqd = CGAL::squared_distance(center, vv->point());
             if(max_sqd == 0. || sqd < max_sqd)
-            {
-              ring.insert(std::make_pair<Vertex_handle,FT>(vv, sqd));
-            }
+              ring.insert(std::make_pair<FT,Vertex_handle>(sqd,vv));
           }
           h++;
         }
-        while(h != hend);
+        while(h != hend);        
       }
 
       inline void find_nearest_vertices_kanle(Vertex_handle v, 
@@ -677,10 +669,10 @@ class Constrain_surface_3_polyhedral :
           m_min_curvature = (std::min)(m_min_curvature, (std::min)(e_1, e_2));
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          FT f = get_bounding_radius()*0.05;
-          max_vector_field_os << "2 " << pi << " " << (pi+f*v_1) << std::endl;
-          min_vector_field_os << "2 " << pi << " " << (pi+f*v_2) << std::endl;
-          normals_field_os << "2 " << pi << " " << (pi+f*v_n) << std::endl;
+          FT f = get_bounding_radius()*0.02;
+          max_vector_field_os << "2 " << pi << " " << (pi + f*v_1) << std::endl;
+          min_vector_field_os << "2 " << pi << " " << (pi + f*v_2) << std::endl;
+          normals_field_os << "2 " << pi << " " << (pi + f*v_n) << std::endl;
 #endif
 
           std::size_t index = m_vertices[i]->tag();
