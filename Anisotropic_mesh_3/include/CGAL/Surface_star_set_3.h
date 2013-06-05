@@ -150,6 +150,12 @@ namespace CGAL
       mutable std::vector<Point_3> yellow_points;
       mutable std::vector<Point_3> green_points;
       mutable Metric metricA, metricB, metricP, metricPtheo;
+      mutable bool refinement_debug_coloring;
+      mutable Point_3 debug_coloring_p1;
+      mutable Point_3 debug_coloring_p2;
+      mutable Point_3 debug_coloring_p3;
+      mutable Point_3 debug_coloring_p;
+      mutable Point_3 debug_coloring_fc;
 
     private:
       typedef typename KExact::Point_3                      Exact_Point_3;
@@ -2412,6 +2418,15 @@ public:
                 std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
                 std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
 
+#ifdef ANISO_DEBUG_REFINEMENT_COLORING
+                refinement_debug_coloring = true;
+                debug_coloring_p1 = bad_facet.star->metric().inverse_transform(v1->point());
+                debug_coloring_p2 = bad_facet.star->metric().inverse_transform(v2->point());
+                debug_coloring_p3 = bad_facet.star->metric().inverse_transform(v3->point());
+                debug_coloring_p = steiner_point;
+                debug_coloring_fc = bad_facet.star->compute_circumcenter(ff);
+#endif
+
                 std::cout << "\tdim = " << bad_facet.star->dimension();
                 std::cout << ", nbv = " << bad_facet.star->number_of_vertices();
                 std::cout << ", pid = " << pid;
@@ -3090,6 +3105,26 @@ public:
           ::glDisable(GL_LIGHTING);
 
 
+        if(refinement_debug_coloring)
+        {
+          ::glPointSize(7.);
+          ::glBegin(GL_POINTS);
+          ::glColor3f(0.87f, 0.14f, 0.14f);
+          ::glVertex3d(debug_coloring_p1.x(), debug_coloring_p1.y(), debug_coloring_p1.z());
+          ::glVertex3d(debug_coloring_p2.x(), debug_coloring_p2.y(), debug_coloring_p2.z());
+          ::glVertex3d(debug_coloring_p3.x(), debug_coloring_p3.y(), debug_coloring_p3.z());
+          ::glEnd();
+
+          ::glBegin(GL_POINTS);
+          ::glColor3f(0.14f, 0.87f, 0.14f);
+          ::glVertex3d(debug_coloring_fc.x(), debug_coloring_fc.y(), debug_coloring_fc.z());
+          ::glEnd();
+
+          ::glBegin(GL_POINTS);
+          ::glColor3f(0.14f, 0.14f, 0.87f);
+          ::glVertex3d(debug_coloring_p.x(), debug_coloring_p.y(), debug_coloring_p.z());
+          ::glEnd();
+        }
       }
 
       void gl_draw_cell(const typename K::Plane_3& plane,
@@ -3670,6 +3705,7 @@ public:
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0)
       {
+        refinement_debug_coloring = false;
         std::set<Point_3> poles;
 #ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
         if(poles_given)
