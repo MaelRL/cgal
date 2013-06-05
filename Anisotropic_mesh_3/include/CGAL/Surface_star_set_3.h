@@ -2326,10 +2326,6 @@ public:
 
         if(smoothing) //checking if the facet to be refined is gone or not
         {
-          std::cout << "Bad_facet" << std::endl;
-          std::cout << "inss : " << bad_facet.star->index_in_star_set() << std::endl;
-          std::cout << "facet to be refined was : " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
-
           bool found_v1 = false;
           bool found_v2 = false;
           bool found_v3 = false;
@@ -2358,16 +2354,28 @@ public:
           }
           std::cout << std::endl;
 
+#ifdef ANISO_DEBUG_REFINEMENT
+          std::cout << "Bad_facet" << std::endl;
+          std::cout << "inss : " << bad_facet.star->index_in_star_set() << std::endl;
+          std::cout << "facet to be refined was : " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
           std::cout << "found vis : " << found_v1 << " " << found_v2 << " " << found_v3 << std::endl;
           std::cout << "bad_facet valid check : " << bad_facet.star->is_valid(true) << std::endl;
+#endif
           all_found = (found_v1 && found_v2 && found_v3);
 
+#ifdef ANISO_DEBUG_REFINEMENT
           if(all_found)
           {
             std::cout << "facet " << ind_v1 << " " << ind_v2 << " " << ind_v3;
             std::cout << " is probably still in the star" << std::endl;
           }
+#endif
         }
+
+#ifdef ANISO_DEBUG_REFINEMENT_PP
+        std::cout << "Trying to refine : " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
+        std::cout << "p = " << steiner_point << std::endl;
+#endif
 
         //check if f has been destroyed
         // begin debug
@@ -2400,19 +2408,20 @@ public:
               {
                 std::cout.precision(15);
                 std::cout << "Bad facet still in : " << bad_facet.star << std::endl;
-                std::cout << "\tp"<< v1->info() <<" : " << v1->point() << std::endl;
-                std::cout << "\tp"<< v2->info() <<" : " << v2->point() << std::endl;
-                std::cout << "\tp"<< v3->info() <<" : " << v3->point() << std::endl;
-             
+                std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
+                std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
+                std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
+
                 std::cout << "\tdim = " << bad_facet.star->dimension();
                 std::cout << ", nbv = " << bad_facet.star->number_of_vertices();
                 std::cout << ", pid = " << pid;
-                std::cout << ", p = " << steiner_point;
                 std::cout << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
-                std::cout << ", picking : " << need_picking_valid;
-                std::cout << std::endl << "\t";
+                std::cout << ", picking : " << need_picking_valid << std::endl;
+                std::cout << "\tp = " << steiner_point;
                 bad_facet.star->debug_steiner_point(steiner_point, ff, true);
-                std::cout << "(Exact)" << std::endl;
+                std::cout << "\t(Exact)" << std::endl;
+
+                return false;
               }
               else
                 std::cout << "bad facet still in but not restricted anymore" << std::endl;
