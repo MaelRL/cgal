@@ -236,14 +236,18 @@ class Constrain_surface_3_polyhedral :
         FT& c1/*cmax*/, FT& c2/*cmin*/,
         const FT& epsilon) 
       {
-        std::vector<Point_3> points;
+        std::vector<Vertex_handle> points;
         find_nearest_vertices(v, points, 36, 0.);
 //          nearest_start_try_radius*nearest_start_try_radius);
-        points.insert(points.begin(), v->point());
+        points.insert(points.begin(), v);
+
+        std::vector<Point_3> points_geo;
+        for(std::size_t i=0; i<points.size(); ++i)
+          points_geo.push_back(points[i]->point());
 
         My_Monge_form monge_form;
         My_Monge_via_jet_fitting monge_fit;
-        monge_form = monge_fit(points.begin(), points.end(), 4, 4);
+        monge_form = monge_fit(points_geo.begin(), points_geo.end(), 4, 4);
 
         FT maxc = monge_form.principal_curvatures(0);
         FT minc = monge_form.principal_curvatures(1);
@@ -407,7 +411,7 @@ class Constrain_surface_3_polyhedral :
       }
 
       void find_nearest_vertices(Vertex_handle v,
-                                 std::vector<Point_3>& points,
+                                 std::vector<Vertex_handle>& points,
                                  int count,
                                  const double max_sqd)
       {
@@ -425,7 +429,7 @@ class Constrain_surface_3_polyhedral :
 
       void find_ring_vertices(const Point_3& center,
                               Vertex_handle v,
-                              std::vector<Point_3>& points,
+                              std::vector<Vertex_handle>& points,
                               std::set<Vertex_handle>& visited,
                               std::list<Vertex_handle>& ring,
                               const double max_sqd = 0.)/**/
@@ -442,7 +446,7 @@ class Constrain_surface_3_polyhedral :
             if(max_sqd == 0. || CGAL::squared_distance(center, vv->point()) < max_sqd)
             {
               ring.push_back(vv);
-              points.push_back(vv->point());
+              points.push_back(vv);
             }
           }
           h++;
@@ -451,7 +455,7 @@ class Constrain_surface_3_polyhedral :
       }
 
       inline void find_nearest_vertices_kanle(Vertex_handle v, 
-                                        std::vector<Point_3>& points, 
+                                        std::vector<Vertex_handle>& points,
                                         int count) 
       {
         const Point_3& p = v->point();
@@ -494,7 +498,7 @@ class Constrain_surface_3_polyhedral :
         }
       }
 
-      inline void find_nearest_vertices(const Point_3 &p, std::vector<Point_3> &points, const FT max_dist) 
+      inline void find_nearest_vertices(const Point_3 &p, std::vector<Vertex_handle> &points, const FT max_dist)
       {
         std::list<typename Polyhedron::Vertex_handle> visited;
         std::list<typename Polyhedron::Vertex_handle> queue;
@@ -525,7 +529,7 @@ class Constrain_surface_3_polyhedral :
             if (dist > squared_max_dist)
               continue;
 
-            points.push_back(q);
+            points.push_back(top);
 
             typename Polyhedron::Halfedge_handle end_e = top->halfedge();
             typename Polyhedron::Halfedge_handle e = end_e;
