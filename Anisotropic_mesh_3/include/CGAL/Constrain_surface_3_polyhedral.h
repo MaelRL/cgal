@@ -701,6 +701,124 @@ class Constrain_surface_3_polyhedral :
         std::cout << "done." << std::endl;
       }
 
+      void heat_kernel_smoothing(const FT& epsilon)
+      {
+        std::cout << "smoothing the metric field" << std::endl;
+        int smooth_step_n = 3;
+
+        while(smooth_step_n--)
+        {
+          std::cout << "computing new metrics... steps left : " << smooth_step_n << std::endl;
+
+          std::vector<typename Eigen::Matrix3d> temp_m_metrics;
+          for (std::size_t i = 0; i < m_vertices.size(); ++i)
+          {
+            Vertex_handle vi = m_vertices[i];
+
+            std::vector<Vertex_handle> points;
+            std::set<Vertex_handle> visited;
+            std::list<Vertex_handle> ring;
+            std::vector<FT> sq_distances;
+
+            //find neighbours of point i
+            find_ring_vertices(vi->point(), vi, points, visited, ring);
+
+            FT dist_sum = 0.;
+            for(std::size_t j=0; j<points.size(); ++j)
+            {
+              sq_distances.push_back(CGAL::squared_distance(vi->point(), points[j]->point()));
+              dist_sum += std::sqrt(sq_distances[j]);
+            }
+            FT sigma = dist_sum/((FT) points.size());
+            FT coeff = -1./(2*sigma*sigma);
+
+            //coeff W_sigma
+            std::vector<FT> wsigmas(points.size());
+            FT w_sigmas_sum = 0.;
+
+            for(std::size_t j=0; j<points.size(); ++j)
+            {
+              FT sq_dist = sq_distances[j];
+              FT w = std::exp(coeff * sq_dist);
+              w_sigmas_sum += w;
+              wsigmas[j] = w;
+            }
+
+            for(std::size_t j=0; j<points.size(); ++j)
+              wsigmas[j] /= w_sigmas_sum;
+
+            //compute diffusion for each coeff of the tensor
+            Eigen::Matrix3d new_tensor_at_vi;
+
+            for(int j = 0; j < 3; j++)
+              for(int k = 0; k < 3; k++)
+              {
+                new_tensor_at_vi(j,k) = m_metrics[i](j,k)/w_sigmas_sum; // value for vi
+                for(std::size_t l=0; l<points.size(); ++l)
+                  new_tensor_at_vi(j,k) += wsigmas[l] * m_metrics[points[l]->tag()](j,k); //neighbours
+              }
+
+            //compute new principal directions & curvature values
+            double e0,e1,e2;
+            Vector_3 v0,v1,v2;
+
+            Eigen::EigenSolver<Eigen::Matrix3d> es(new_tensor_at_vi, true/*compute eigenvectors and values*/);
+            const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
+            const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
+
+            e0 = (std::real(vals[0]) >= 0.) ? std::real(vals[0]) : 0.;
+            e1 = (std::real(vals[1]) >= 0.) ? std::real(vals[1]) : 0.;
+            e2 = (std::real(vals[2]) >= 0.) ? std::real(vals[2]) : 0.;
+
+            v0 = get_eigenvector(vecs.col(0));
+            v1 = get_eigenvector(vecs.col(1));
+            v2 = get_eigenvector(vecs.col(2));
+
+
+            //projection on the tangent plane
+            Vector_3 ni = m_normals[i];
+            v1 = v1-(v1*ni)*ni;
+            v2 = v2-(v2*ni)*ni;
+
+#ifdef ANISO_DEBUG_HEAT_KERNEL
+            std::cout << "point is : " << vi->tag() << " || " << vi->point() << std::endl;
+
+            std::cout << points.size() << " neighbours" << std::endl;
+            for(std::size_t j=0; j<points.size(); ++j)
+                std::cout << " " << points[j]->tag() << " ";
+            std::cout << std::endl;
+
+            std::cout << "sigma sum : " << w_sigmas_sum << std::endl;
+            for(std::size_t j=0; j<points.size(); ++j)
+                std::cout << "coeff : " << wsigmas[j] << " ";
+            std::cout << std::endl;
+
+            std::cout << "old tensor : " << std::endl << m_metrics[i] << std::endl;
+            std::cout << "new tensor : " << std::endl << new_tensor_at_vi << std::endl;
+
+            std::cout << "evs & vs: " << std::endl;
+            std::cout << e0 << " " << v0 << std::endl; //should be the normal in new basis
+            std::cout << e1 << " " << v1 << std::endl;
+            std::cout << e2 << " " << v2 << std::endl;
+
+            std::cout << "ni : " << ni << std::endl;
+            std::cout << "new vs : " << std::endl;
+            std::cout << e1 << " " << v1 << std::endl;
+            std::cout << e2 << " " << v2 << std::endl;
+#endif
+
+            //new metric
+            Metric_base<K, K> M(v0, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2), epsilon);
+            Eigen::Matrix3d transf = M.get_transformation();
+            temp_m_metrics.push_back(transf.transpose()*transf);
+          }
+
+          //update all the metrics
+          m_metrics = temp_m_metrics;
+        }
+
+        std::cout << "smoothed the metric field!" << std::endl;
+      }
 
       virtual void compute_poles(std::set<Point_3>& poles) const
       {
@@ -811,6 +929,8 @@ class Constrain_surface_3_polyhedral :
         else
           compute_local_metric(epsilon);
 
+        if(smooth_metric)
+          heat_kernel_smoothing(epsilon);
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
