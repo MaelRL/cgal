@@ -232,7 +232,7 @@ class Constrain_surface_3_polyhedral :
       }
 
       virtual void tensor_frame_on_input_point(Vertex_handle v, 
-        Vector_3 &e0/*n*/, Vector_3 &e1/*vmax*/, Vector_3 &e2/*vmin*/,//unit vectors
+        Vector_3 &v0/*n*/, Vector_3 &v1/*vmax*/, Vector_3 &v2/*vmin*/,//unit vectors
         FT& c1/*cmax*/, FT& c2/*cmin*/,
         const FT& epsilon) 
       {
@@ -247,21 +247,21 @@ class Constrain_surface_3_polyhedral :
 
         FT maxc = monge_form.principal_curvatures(0);
         FT minc = monge_form.principal_curvatures(1);
-        e0 = monge_form.normal_direction();
+        v0 = monge_form.normal_direction();
 
         if(minc >= 0.)
         {
           c1 = (std::max)(epsilon, fabs(maxc));
           c2 = (std::max)(epsilon, fabs(minc));
-          e1 = monge_form.maximal_principal_direction();
-          e2 = monge_form.minimal_principal_direction();
+          v1 = monge_form.maximal_principal_direction();
+          v2 = monge_form.minimal_principal_direction();
         }
         else if(maxc <= 0.)
         {
           c2 = (std::max)(epsilon, fabs(maxc));
           c1 = (std::max)(epsilon, fabs(minc));
-          e2 = monge_form.maximal_principal_direction();
-          e1 = monge_form.minimal_principal_direction();
+          v2 = monge_form.maximal_principal_direction();
+          v1 = monge_form.minimal_principal_direction();
         }
         else //minc < 0 && maxc > 0
         {
@@ -270,26 +270,26 @@ class Constrain_surface_3_polyhedral :
           {
             c1 = (std::max)(epsilon, fabs(maxc));
             c2 = (std::max)(epsilon, fabs(minc));
-            e1 = monge_form.maximal_principal_direction();
-            e2 = monge_form.minimal_principal_direction();
+            v1 = monge_form.maximal_principal_direction();
+            v2 = monge_form.minimal_principal_direction();
           }
           else
           {
             c2 = (std::max)(epsilon, fabs(maxc));
             c1 = (std::max)(epsilon, fabs(minc));
-            e2 = monge_form.maximal_principal_direction();
-            e1 = monge_form.minimal_principal_direction();
+            v2 = monge_form.maximal_principal_direction();
+            v1 = monge_form.minimal_principal_direction();
           }
         }
       }
 
       void tensor_frame(const Point_3 &p,
-                        Vector_3 &e0,     //unit normal 
-                        Vector_3 &e1,     //unit eigenvector
-                        Vector_3 &e2,     //unit eigenvector
-                        double& v0,       //eigenvalue corresponding to e0
-                        double& v1,       //eigenvalue corresponding to e1
-                        double& v2) const //eigenvalue corresponding to e2
+                        Vector_3 &v0,     //unit normal
+                        Vector_3 &v1,     //unit eigenvector
+                        Vector_3 &v2,     //unit eigenvector
+                        double& e0,       //eigenvalue corresponding to v0
+                        double& e1,       //eigenvalue corresponding to v1
+                        double& e2) const //eigenvalue corresponding to v2
       {
         //choose r_b for tensor blending
         Facet_handle facet = find_nearest_facet(p);
@@ -327,14 +327,14 @@ class Constrain_surface_3_polyhedral :
         Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
         const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
         const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
-        
-        v0 = (std::real(vals[0]) >= 0.) ? std::real(vals[0]) : 0.;
-        v1 = (std::real(vals[1]) >= 0.) ? std::real(vals[1]) : 0.;
-        v2 = (std::real(vals[2]) >= 0.) ? std::real(vals[2]) : 0.;
+
+        e0 = (std::real(vals[0]) >= 0.) ? std::real(vals[0]) : 0.;
+        e1 = (std::real(vals[1]) >= 0.) ? std::real(vals[1]) : 0.;
+        e2 = (std::real(vals[2]) >= 0.) ? std::real(vals[2]) : 0.;
                 
-        e0 = get_eigenvector(vecs.col(0));
-        e1 = get_eigenvector(vecs.col(1));
-        e2 = get_eigenvector(vecs.col(2));
+        v0 = get_eigenvector(vecs.col(0));
+        v1 = get_eigenvector(vecs.col(1));
+        v2 = get_eigenvector(vecs.col(2));
       }
 
       void find_neighbors(Facet_handle facet, 
@@ -610,31 +610,32 @@ class Constrain_surface_3_polyhedral :
         }
 
         FT x,y,z;
-        FT e_1, e_2, e_n;
-        Vector_3 v_1, v_2, v_n;
+        FT e1, e2, en;
+        Vector_3 v1, v2, vn;
         Point_3 pi;
 
         for(size_t i=0; i<nv; ++i)
         {
           input >> x >> y >> z;
           pi = Point_3(x,y,z);
-          input >> e_1 >> e_2;
+          input >> e1 >> e2;
           input >> x >> y >> z;
-          v_1 = Vector_3(x,y,z);
+          v1 = Vector_3(x,y,z);
           input >> x >> y >> z;
-          v_2 = Vector_3(x,y,z);
+          v2 = Vector_3(x,y,z);
           input >> x >> y >> z;
-          v_n = Vector_3(x,y,z);
+          vn = Vector_3(x,y,z);
 
-          e_n = (std::max)(std::abs(e_1), std::abs(e_2));
+          en = (std::max)(std::abs(e1), std::abs(e2));
+          m_normals.push_back(vn);
 
-          Metric_base<K, K> M(v_n, v_1, v_2, e_n, e_1, e_2, epsilon);
+          Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
           Eigen::Matrix3d transf = M.get_transformation();
           m_metrics.push_back(transf.transpose()*transf);
         }
       }
 
-      void compute_local_metric(const FT& epsilon, const bool smooth_metric = false)
+      void compute_local_metric(const FT& epsilon)
       {
         std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
@@ -648,42 +649,42 @@ class Constrain_surface_3_polyhedral :
           if (i % 100 == 0)
             std::cout << ".";
 
-          Vector_3 v_n, v_1, v_2;
-          FT e_1, e_2, e_n;
+          Vector_3 vn, v1, v2;
+          FT e1, e2, en;
           tensor_frame_on_input_point(m_vertices[i], 
-            v_n/*normal*/, v_1/*vmax*/, v_2/*vmin*/,
-            e_1/*cmax*/, e_2/*cmin*/, epsilon);
+            vn/*normal*/, v1/*vmax*/, v2/*vmin*/,
+            e1/*cmax*/, e2/*cmin*/, epsilon);
 
           const Point_3& pi = m_vertices[i]->point();
-//          tensor_frame_on_point(pi, v_n, v_1, v_2, e_1, e_2, epsilon);
+//          tensor_frame_on_point(pi, vn, v1, v2, e1, e2, epsilon);
 
           out << pi.x() << " " << pi.y() << " " << pi.z() << std::endl;
-          out << e_1 << " " << e_2 << "     ";
-          out << v_1.x() << " " << v_1.y() << " " << v_1.z() << "     ";
-          out << v_2.x() << " " << v_2.y() << " " << v_2.z() << "     ";
-          out << v_n.x() << " " << v_n.y() << " " << v_n.z() << std::endl;
+          out << e1 << " " << e2 << "     ";
+          out << v1.x() << " " << v1.y() << " " << v1.z() << "     ";
+          out << v2.x() << " " << v2.y() << " " << v2.z() << "     ";
+          out << vn.x() << " " << vn.y() << " " << vn.z() << std::endl;
 
-          e_n = (std::max)(e_1, e_2);
+          en = (std::max)(e1, e2);
 
-          m_max_curvature = (std::max)(m_max_curvature, e_n);
-          m_min_curvature = (std::min)(m_min_curvature, (std::min)(e_1, e_2));
+          m_max_curvature = (std::max)(m_max_curvature, en);
+          m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
           FT f = get_bounding_radius()*0.05;
-          max_vector_field_os << "2 " << pi << " " << (pi+f*v_1) << std::endl;
-          min_vector_field_os << "2 " << pi << " " << (pi+f*v_2) << std::endl;
-          normals_field_os << "2 " << pi << " " << (pi+f*v_n) << std::endl;
+          max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
+          min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+          normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
 #endif
 
           std::size_t index = m_vertices[i]->tag();
           if(i != index) 
             std::cerr << "Error1 in indices in compute_local_metric!" << std::endl;
 
-          m_normals.push_back(v_n);
+          m_normals.push_back(vn);
           if(m_normals.size() != i+1 )
             std::cerr << "Error2 in indices in compute_local_metric!" << std::endl;
 
-          Metric_base<K, K> M(v_n, v_1, v_2, e_n, e_1, e_2, epsilon);
+          Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
           Eigen::Matrix3d transf = M.get_transformation();
           m_metrics.push_back(transf.transpose()*transf);
 
@@ -782,11 +783,11 @@ class Constrain_surface_3_polyhedral :
                               double& minc, 
                               double& maxc) const
       {
-        Vector_3 e0, e1, e2;
-        double v0, v1, v2;
-        tensor_frame(p, e0, e1, e2, v0, v1, v2);
-        minc = (std::min)(v0, (std::min)(v1, v2));
-        maxc = (std::max)(v0, (std::max)(v1, v2));
+        Vector_3 v0, v1, v2;
+        double e0, e1, e2;
+        tensor_frame(p, v0, v1, v2, e0, e1, e2);
+        minc = (std::min)(e0, (std::min)(e1, e2));
+        maxc = (std::max)(e0, (std::max)(e1, e2));
       }
 
       void initialize(const FT& epsilon, const bool smooth_metric = false)
@@ -804,7 +805,8 @@ class Constrain_surface_3_polyhedral :
         if(metric_input)
           get_metrics_from_file(metric_input, epsilon);
         else
-          compute_local_metric(epsilon, smooth_metric);
+          compute_local_metric(epsilon);
+
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
