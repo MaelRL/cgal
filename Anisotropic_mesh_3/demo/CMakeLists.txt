@@ -5,9 +5,13 @@ project( Anisotropic_Mesh_3_demo )
 cmake_minimum_required(VERSION 2.4.5)
 
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/build)
 
 #option(MESH_3_DEMO_ENABLE_FORWARD_DECL "In the Mesh_3 demo, enable " OFF)
 #mark_as_advanced(MESH_3_DEMO_ENABLE_FORWARD_DECL)
+
+# Let plugins be compiled in the same directory as the executable.
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 # Disable deprecated Mesh_3 names
 add_definitions(-DCGAL_MESH_3_NO_DEPRECATED_SURFACE_INDEX
