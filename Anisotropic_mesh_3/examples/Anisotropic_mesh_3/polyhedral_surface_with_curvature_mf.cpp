@@ -13,7 +13,11 @@
 //
 // Author(s) : Kan-Le Shi
 
+//#define CGAL_PROFILE
+
 #include <CGAL/Default_configuration.h>
+#define CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+#define ANISO_DEBUG_REFINEMENT
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Robust_circumcenter_traits_3.h>
@@ -23,10 +27,7 @@
 #include <CGAL/Anisotropic_surface_mesher_3.h>
 
 #include <CGAL/Euclidean_metric_field.h>
-#include <Metric_field/Arctan_metric_field.h>
 
-
-#define CGAL_PROFILE
 
 using namespace CGAL::Anisotropic_mesh_3;
 
@@ -70,13 +71,12 @@ int main(int argc, char *argv[])
   Polyhedral_curvature_metric_field<K>* metric_field =
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
   
-  //Criteria_base<K>* criteria = new Criteria_base<K>(3.0, 0.2, r0, gamma0, 2.5, 0.3, approx);
   //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
 
-  std::cout << "Max curvature : " << pdomain->global_max_curvature() << std::endl;
-  std::cout << "Min curvature : " << pdomain->global_min_curvature() << std::endl;
+  //std::cout << "Max curvature : " << pdomain->global_max_curvature() << std::endl;
+  //std::cout << "Min curvature : " << pdomain->global_min_curvature() << std::endl;
 
   Mesher mesher(starset);
   mesher.refine_all();

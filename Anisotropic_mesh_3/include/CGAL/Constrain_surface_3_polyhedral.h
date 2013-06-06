@@ -237,9 +237,8 @@ class Constrain_surface_3_polyhedral :
         const FT& epsilon) 
       {
         std::vector<Vertex_handle> points;
-        find_nearest_vertices(v, points, 36, 0.);
+        find_nearest_vertices(v, points, 36/*, max_sqd=0 by default*/);
 //          nearest_start_try_radius*nearest_start_try_radius);
-        points.insert(points.begin(), v);
 
         std::vector<Point_3> points_geo;
         for(std::size_t i=0; i<points.size(); ++i)
@@ -413,41 +412,42 @@ class Constrain_surface_3_polyhedral :
       void find_nearest_vertices(Vertex_handle v,
                                  std::vector<Vertex_handle>& points,
                                  int count,
-                                 const double max_sqd)
+                                 const double max_sqd = 0.)
       {
         std::set<Vertex_handle> visited;
-        std::list<Vertex_handle> ring;
-        find_ring_vertices(v->point(), v, points, visited, ring);
+        std::map<FT, Vertex_handle/*sqd to center : closest come first*/> ring;
+
+        ring.insert(std::make_pair<FT,Vertex_handle>(0.,v));       
+        visited.insert(v);
 
         while(points.size() < count && !ring.empty())
         {
-          Vertex_handle vi = ring.front();
-          ring.pop_front();
-          find_ring_vertices(v->point(), vi, points, visited, ring, max_sqd);
+          typename std::map<FT, Vertex_handle>::iterator it = ring.begin();
+          Vertex_handle vi = (*it).second;
+          ring.erase(it);
+
+          points.push_back(vi);
+          find_ring_vertices(v->point(), vi, visited, ring, max_sqd);
         }
       }
 
       void find_ring_vertices(const Point_3& center,
                               Vertex_handle v,
-                              std::vector<Vertex_handle>& points,
                               std::set<Vertex_handle>& visited,
-                              std::list<Vertex_handle>& ring,
+                              std::map<FT,Vertex_handle>& ring,
                               const double max_sqd = 0.)/**/
       {
         HV_circulator h = v->vertex_begin();
         HV_circulator hend = h;
         do
         {
-          //the 1-ring should be complete, even if nbv > count
           Vertex_handle vv = h->opposite()->vertex();
-          if(visited.find(vv) == visited.end())
+          if(visited.find(vv) == visited.end()) //vertex not already visited
           {
             visited.insert(vv);
-            if(max_sqd == 0. || CGAL::squared_distance(center, vv->point()) < max_sqd)
-            {
-              ring.push_back(vv);
-              points.push_back(vv);
-            }
+            FT sqd = CGAL::squared_distance(center, vv->point());
+            if(max_sqd == 0. || sqd < max_sqd)
+              ring.insert(std::make_pair<FT,Vertex_handle>(sqd,vv));
           }
           h++;
         }
@@ -568,14 +568,14 @@ class Constrain_surface_3_polyhedral :
         tree->accelerate_distance_queries();
       }
 
-      void compute_bounding_box(/*std::vector<Point_3>& points*/)
+      void compute_bounding_box(/*std::vector<Vertex_handle>& points*/)
       {
         std::cout << "\nComputing bounding box..." << std::endl;
 
         /*typename Polyhedron::Vertex_iterator vi = m_polyhedron.vertices_begin();
         typename Polyhedron::Vertex_iterator viend = m_polyhedron.vertices_end();
         for (; vi != viend; vi++)
-          points.push_back(vi->point());
+          points.push_back(vi);
         */  
         minx = miny = minz = DBL_MAX;
         maxx = maxy = maxz = DBL_MIN;
@@ -674,7 +674,7 @@ class Constrain_surface_3_polyhedral :
           m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          FT f = get_bounding_radius()*0.05;
+          FT f = get_bounding_radius()*0.02;
           max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
           min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
           normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
@@ -717,11 +717,17 @@ class Constrain_surface_3_polyhedral :
 
             std::vector<Vertex_handle> points;
             std::set<Vertex_handle> visited;
-            std::list<Vertex_handle> ring;
+            std::map<FT,Vertex_handle> ring;
             std::vector<FT> sq_distances;
 
-            //find neighbours of point i
-            find_ring_vertices(vi->point(), vi, points, visited, ring);
+            //find first ring neighbours
+            visited.insert(vi);
+            find_ring_vertices(vi->point(), vi, visited, ring);
+            typename std::map<FT, Vertex_handle>::iterator it = ring.begin();
+            while(it != ring.end())
+              points.push_back((*it++).second);
+
+            points.push_back(vi);
 
             FT dist_sum = 0.;
             for(std::size_t j=0; j<points.size(); ++j)
@@ -748,15 +754,12 @@ class Constrain_surface_3_polyhedral :
               wsigmas[j] /= w_sigmas_sum;
 
             //compute diffusion for each coeff of the tensor
-            Eigen::Matrix3d new_tensor_at_vi;
+            Eigen::Matrix3d new_tensor_at_vi = Eigen::Matrix3d::Zero();
 
             for(int j = 0; j < 3; j++)
               for(int k = 0; k < 3; k++)
-              {
-                new_tensor_at_vi(j,k) = m_metrics[i](j,k)/w_sigmas_sum; // value for vi
                 for(std::size_t l=0; l<points.size(); ++l)
                   new_tensor_at_vi(j,k) += wsigmas[l] * m_metrics[points[l]->tag()](j,k); //neighbours
-              }
 
             //compute new principal directions & curvature values
             double e0,e1,e2;

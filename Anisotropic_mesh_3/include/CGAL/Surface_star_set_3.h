@@ -2395,7 +2395,9 @@ public:
           {
             modified_stars.clear();
             pop_back_star();
+#ifdef ANISO_DEBUG_REFINEMENT
             std::cout << "found & restricted" << std::endl;
+#endif
             if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
             {
               index = 6 - i - j - k;
