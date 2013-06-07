@@ -3129,6 +3129,69 @@ public:
         }
       }
 
+      void gl_draw_metric_colors() const
+      {
+
+        std::ifstream input("geometry_input.off");
+        std::ifstream ratio_colors("metric_colors.txt");
+        if(!input || !ratio_colors)
+          std::cout << "\nWarning : file does not exist" << std::endl;
+
+        int nv, nv2, nt;
+        input >> nv >> nt;
+        ratio_colors >> nv2;
+
+        if(nv != nv2)
+          std::cout << "files not adapted" << std::endl;
+
+        std::vector<Point_3> points(nv);
+        std::vector<int> colors(nv);
+        FT x,y,z;
+        int color;
+
+        std::cout << "nv, nt : " << nv << " " << nt << std::endl;
+
+        for(int i=0; i<nv; ++i)
+        {
+          input >> x >> y >> z;
+          ratio_colors >> color;
+          points[i] = Point_3(x,y,z);
+          colors[i] = color;
+        }
+
+        int p1, p2, p3;
+        std::cout << "pts and colors :" << std::endl;
+        for(int i=0; i<nv; ++i)
+            std::cout << points[i].x() << " " << points[i].y() << " " << points[i].z() << " " << colors[i] << std::endl;
+
+        ::glDisable(GL_LIGHTING);
+        for(int i=0; i<nt; ++i)
+        {
+          input >> p1 >> p1 >> p2 >> p3; //first p1 is "3"
+          ::glShadeModel(GL_SMOOTH);
+          ::glBegin(GL_TRIANGLES);
+          ::glColor3d(colors[p1]/256., colors[p1]/256., colors[p1]/256.);
+          ::glVertex3f(points[p1].x(), points[p1].y(), points[p1].z());    // A
+
+          ::glColor3d(colors[p2]/256., colors[p2]/256., colors[p2]/256.);
+          ::glVertex3f(points[p2].x(), points[p2].y(), points[p2].z());    // B
+
+          ::glColor3d(colors[p3]/256., colors[p3]/256., colors[p3]/256.);
+          ::glVertex3f(points[p3].x(), points[p3].y(), points[p3].z());    // C
+          ::glEnd();
+
+          ::glBegin(GL_LINES);
+          ::glColor3d(0.,0.,0.);
+          ::glVertex3f(points[p1].x(), points[p1].y(), points[p1].z());    // A
+          ::glVertex3f(points[p2].x(), points[p2].y(), points[p2].z());    // B
+          ::glVertex3f(points[p1].x(), points[p1].y(), points[p1].z());    // A
+          ::glVertex3f(points[p3].x(), points[p3].y(), points[p3].z());    // C
+          ::glVertex3f(points[p2].x(), points[p2].y(), points[p2].z());    // B
+          ::glVertex3f(points[p3].x(), points[p3].y(), points[p3].z());    // C
+          ::glEnd();
+        }
+      }
+
       void gl_draw_cell(const typename K::Plane_3& plane,
                    const int star_id = -1/*only this one*/) const
       {
