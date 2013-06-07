@@ -630,7 +630,10 @@ class Constrain_surface_3_polyhedral :
           input >> x >> y >> z;
           vn = Vector_3(x,y,z);
 
-          en = (std::max)(std::abs(e1), std::abs(e2));
+          e1 = std::sqrt(std::abs(e1));
+          e2 = std::sqrt(std::abs(e2));
+          en = (std::max)(e1, e2);
+
           m_normals.push_back(vn);
 
           Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
@@ -659,6 +662,14 @@ class Constrain_surface_3_polyhedral :
             vn/*normal*/, v1/*vmax*/, v2/*vmin*/,
             e1/*cmax*/, e2/*cmin*/, epsilon);
 
+          en = (std::max)(e1, e2);
+          m_max_curvature = (std::max)(m_max_curvature, en);
+          m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
+
+          e1 = std::sqrt(e1);
+          e2 = std::sqrt(e2);
+          en = (std::max)(e1, e2);
+
           const Point_3& pi = m_vertices[i]->point();
 //          tensor_frame_on_point(pi, vn, v1, v2, e1, e2, epsilon);
 
@@ -668,10 +679,7 @@ class Constrain_surface_3_polyhedral :
           out << v2.x() << " " << v2.y() << " " << v2.z() << "     ";
           out << vn.x() << " " << vn.y() << " " << vn.z() << std::endl;
 
-          en = (std::max)(e1, e2);
 
-          m_max_curvature = (std::max)(m_max_curvature, en);
-          m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
           FT f = get_bounding_radius()*0.02;
