@@ -2426,7 +2426,8 @@ public:
                 debug_coloring_p2 = bad_facet.star->metric().inverse_transform(v2->point());
                 debug_coloring_p3 = bad_facet.star->metric().inverse_transform(v3->point());
                 debug_coloring_p = steiner_point;
-                debug_coloring_fc = bad_facet.star->compute_circumcenter(ff);
+                debug_coloring_fc = bad_facet.star->metric().inverse_transform(
+                                      bad_facet.star->compute_circumcenter(ff));
 #endif
 
                 std::cout << "\tdim = " << bad_facet.star->dimension();
