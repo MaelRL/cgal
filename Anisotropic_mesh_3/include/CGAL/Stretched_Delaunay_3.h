@@ -304,10 +304,6 @@ public:
         Facet f2 = this->mirror_facet(f);
         Index i_f = f.first->vertex(f.second)->info();
         Index i_f2 = f2.first->vertex(f2.second)->info();
-#ifdef ANISO_DEBUG
-        if(i_f == -10)
-          std::cout << "Warning : index i_f is " << i_f << std::endl;
-#endif
         return (i_f > i_f2) ? f : f2;
         // note : infinite vertex has index -10
         // we choose the one with the greatest index to get the facet on the finite side
