@@ -2391,8 +2391,16 @@ public:
         {
           int index = 6 - i - j - k;
           Facet ff = bad_facet.star->make_canonical(Facet(c,index));
-          if(bad_facet.star->is_restricted(ff))
+
+          typename K::Plane_3 fplane = bad_facet.star->triangle(ff).supporting_plane();
+
+          Point_3 steiner2;
+          if(bad_facet.star->is_restricted(ff,steiner2)
+            && fplane.oriented_side(bad_facet.star->metric().transform(steiner_point)) 
+               == fplane.oriented_side(bad_facet.star->metric().transform(steiner2)))
           {
+            //if steiner_point and steiner2 are not on the same side from ff, it's legal
+                       
             modified_stars.clear();
             pop_back_star();
 #ifdef ANISO_DEBUG_REFINEMENT
@@ -2448,10 +2456,6 @@ public:
               std::cout << "Switching to exact succeeded" << std::endl;
 #endif
           }
-        }
-        else
-        {
-          //std::cout << "Facet " << v1->info() << " " << v2->info() << " " << v3->info() << " was dealt with" << std::endl;
         }
         //end debug
 
