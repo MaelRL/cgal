@@ -785,9 +785,51 @@ class Constrain_surface_3_polyhedral :
             v1 = get_eigenvector(vecs.col(1));
             v2 = get_eigenvector(vecs.col(2));
 
+            Vector_3 ni = m_normals[i];
+            FT sp0 = std::abs(v0*ni);
+            FT sp1 = std::abs(v1*ni);
+            FT sp2 = std::abs(v2*ni);
+            FT max_sp = (std::max)(sp0,(std::max)(sp1,sp2));
+
+            FT temp_e, temp_sp;
+            Vector_3 temp_v;
+
+            if(sp1 == max_sp)
+            {
+              temp_e = e0;
+              e0 = e1;
+              e1 = e2;
+              e2 = temp_e;
+
+              temp_v = v0;
+              v0 = v1;
+              v1 = v2;
+              v2 = temp_v;
+
+              temp_sp = sp0;
+              sp0 = sp1;
+              sp1 = sp2;
+              sp2 = temp_sp;
+            }
+            else if(sp2 == max_sp)
+            {
+              temp_e = e0;
+              e0 = e2;
+              e2 = e1;
+              e1 = temp_e;
+
+              temp_v = v0;
+              v0 = v2;
+              v2 = v1;
+              v1 = temp_v;
+
+              temp_sp = sp0;
+              sp0 = sp2;
+              sp2 = sp1;
+              sp1 = temp_sp;
+            }
 
             //projection on the tangent plane
-            Vector_3 ni = m_normals[i];
             v1 = v1-(v1*ni)*ni;
             v2 = v2-(v2*ni)*ni;
 
@@ -801,21 +843,17 @@ class Constrain_surface_3_polyhedral :
 
             std::cout << "sigma sum : " << w_sigmas_sum << std::endl;
             for(std::size_t j=0; j<points.size(); ++j)
-                std::cout << "coeff : " << wsigmas[j] << " ";
+                std::cout << wsigmas[j] << " ";
             std::cout << std::endl;
 
             std::cout << "old tensor : " << std::endl << m_metrics[i] << std::endl;
             std::cout << "new tensor : " << std::endl << new_tensor_at_vi << std::endl;
 
-            std::cout << "evs & vs: " << std::endl;
-            std::cout << e0 << " " << v0 << std::endl; //should be the normal in new basis
-            std::cout << e1 << " " << v1 << std::endl;
-            std::cout << e2 << " " << v2 << std::endl;
-
             std::cout << "ni : " << ni << std::endl;
-            std::cout << "new vs : " << std::endl;
-            std::cout << e1 << " " << v1 << std::endl;
-            std::cout << e2 << " " << v2 << std::endl;
+            std::cout << "evs & vs: " << std::endl;
+            std::cout << e0 << " || " << v0 << " || " << sp0 << std::endl; //should be the normal in new basis
+            std::cout << e1 << " || " << v1 << " || " << sp1 << std::endl;
+            std::cout << e2 << " || " << v2 << " || " << sp2 << std::endl;
 #endif
 
             //new metric
