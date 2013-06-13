@@ -1812,8 +1812,6 @@ public:
         Point_3 p;
         compute_exact_dual_intersection(f,p, false, true, more);
 
-        std::cout << "check p : " << p << std::endl;
-
         const TPoint_3& pf = f.first->vertex((f.second+1)&3)->point();
         const TPoint_3& center = m_metric.transform(p);
         const TPoint_3& steiner = m_metric.transform(steiner_point);
