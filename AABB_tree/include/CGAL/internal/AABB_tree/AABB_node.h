@@ -44,11 +44,11 @@ public:
   AABB_node()
     : m_bbox()
     , m_p_left_child(NULL)
-    , m_p_right_child(NULL)      { };
+    , m_p_right_child(NULL)      { }
 
   /// Non virtual Destructor
   /// Do not delete children because the tree hosts and delete them
-  ~AABB_node() { };
+  ~AABB_node() { }
 
   /// Returns the bounding box of the node
   const Bounding_box& bbox() const { return m_bbox; }
@@ -149,7 +149,15 @@ public:
 #endif
           return true;
         }
+#ifdef DEBUG_UPDATE_AABB_TREE
+        else
+          std::cout << "not growing anymore, getting out" << std::endl;
+#endif
       }
+#ifdef DEBUG_UPDATE_AABB_TREE
+      else
+        std::cout << "welp, that didn't go well at " << nb_primitives << std::endl;
+#endif
     }
     return false;
   }

@@ -1223,7 +1223,18 @@ private:
         
         if(id < 0 || id < (int)m_stars.size())
           return id;
-        
+
+#ifdef ANISO_DEBUG_INSERT
+        typename Index_set::const_iterator si = modified_stars.begin();
+        typename Index_set::const_iterator siend = modified_stars.end();
+
+        std::cout << "adding p to " << modified_stars.size() << " modified stars : ";
+
+        for (; si != siend; si++)
+          std::cout << *si << " ";
+        std::cout << std::endl;
+#endif
+
         Star_handle star = create_star(p, id, modified_stars, smoothing);
 
         if(star->index_in_star_set() != m_stars.size())
@@ -1483,6 +1494,10 @@ public:
 
       void update_bboxes() const
       {
+#ifdef DEBUG_UPDATE_AABB_TREE
+        std::cout << "updating bboxes. tree : " << m_aabb_tree.size() << " " << m_aabb_tree.m_insertion_buffer_size() << std::endl;
+#endif
+
         std::size_t i;
         std::size_t N = m_stars.size();
         for(i = 0; i < N; i++)
@@ -1496,6 +1511,10 @@ public:
             update_aabb_tree(m_stars[i]);
           }
         }
+
+        for(i = 0; i < N; i++)
+          if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+            std::cout << "forgot some stars in the update" << std::endl;
       }
 
       template<typename OutputIterator>
@@ -2159,7 +2178,7 @@ public:
               std::cout << "\tp2 : " << p2 << std::endl;
               std::cout << "\tp3 : " << p3 << std::endl;
               std::cout << "\tmetric of the star : " << std::endl;
-              std::cout << "\t" << star->metric().get_transformation() << std::endl;
+              std::cout << star->metric().get_transformation() << std::endl;
               std::cout << "\t" << star->metric().get_min_eigenvalue() << " ";
               std::cout << star->metric().get_max_eigenvalue() << " " << star->metric().get_third_eigenvalue() << std::endl;
           }
@@ -2256,9 +2275,20 @@ public:
         Vertex_handle v2 = f.first->vertex((f.second+2)%4);
         Vertex_handle v3 = f.first->vertex((f.second+3)%4);
 
-        Index ind_v1 = f.first->vertex((f.second+1)%4)->info();
-        Index ind_v2 = f.first->vertex((f.second+2)%4)->info();
-        Index ind_v3 = f.first->vertex((f.second+3)%4)->info();
+        Index ind_v1 = v1->info();
+        Index ind_v2 = v2->info();
+        Index ind_v3 = v3->info();
+
+#ifdef ANISO_DEBUG_REFINEMENT_PP
+        std::cout << "Trying to refine : " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
+        std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
+        std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
+        std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
+        std::cout << "\tcheck coordinates : from stars, " << std::endl;
+        std::cout << "\t" << m_stars[ind_v1]->center_point() << " " << &(m_stars[ind_v1]) << std::endl;
+        std::cout << "\t" << m_stars[ind_v2]->center_point() << " " << &(m_stars[ind_v2]) << std::endl;
+        std::cout << "\t" << m_stars[ind_v3]->center_point() << " " << &(m_stars[ind_v3]) << std::endl;
+#endif
 
 #ifdef ANISO_DEBUG
         double deg_value = 1e-4;
@@ -2273,9 +2303,7 @@ public:
                               std::abs(v1->point().z()-v3->point().z()) < deg_value) );
 
         if(degenerate)
-        {
-          std::cout << "trying to refine a degenerate facet" << std::endl;
-        }
+          std::cout << "trying to refine a degenerate (in the metric) facet" << std::endl;
 #endif
 
         Index_set modified_stars;// the ones that would be modified by p's insertion
@@ -2328,6 +2356,17 @@ public:
 
         int pid = insert(steiner_point, modified_stars, true/*conditional*/, smoothing);
 
+#ifdef ANISO_DEBUG_REFINEMENT_PP
+        std::cout << "p = " << steiner_point << std::endl;
+
+        bool v1_in_modified = ( !m_stars[ind_v1]->has_facet(f) || std::find(modified_stars.begin(), modified_stars.end(), ind_v1) != modified_stars.end());
+        bool v2_in_modified = ( !m_stars[ind_v2]->has_facet(f) || std::find(modified_stars.begin(), modified_stars.end(), ind_v2) != modified_stars.end());
+        bool v3_in_modified = ( !m_stars[ind_v3]->has_facet(f) || std::find(modified_stars.begin(), modified_stars.end(), ind_v3) != modified_stars.end());
+
+        if(!v1_in_modified || !v2_in_modified || !v3_in_modified)
+          std::cout << "Some stars that contain the facet are not modified by the insertion of p" << std::endl;
+#endif
+
         bool all_found = false;
 
         if(smoothing) //checking if the facet to be refined is gone or not
@@ -2375,13 +2414,15 @@ public:
             std::cout << "facet " << ind_v1 << " " << ind_v2 << " " << ind_v3;
             std::cout << " is probably still in the star" << std::endl;
           }
+
+          std::cout << "\t" << bad_facet.star->metric().inverse_transform(v1->point()) << " ";
+          std::cout << m_pConstrain->side_of_constraint(bad_facet.star->metric().inverse_transform(v1->point())) << std::endl;
+          std::cout << "\t" << bad_facet.star->metric().inverse_transform(v2->point()) << " ";
+          std::cout << m_pConstrain->side_of_constraint(bad_facet.star->metric().inverse_transform(v2->point())) << std::endl;
+          std::cout << "\t" << bad_facet.star->metric().inverse_transform(v3->point()) << " ";
+          std::cout << m_pConstrain->side_of_constraint(bad_facet.star->metric().inverse_transform(v3->point())) << std::endl;
 #endif
         }
-
-#ifdef ANISO_DEBUG_REFINEMENT_PP
-        std::cout << "Trying to refine : " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
-        std::cout << "p = " << steiner_point << std::endl;
-#endif
 
         //check if f has been destroyed
         // begin debug
@@ -2423,7 +2464,7 @@ public:
               if(bad_facet.star->is_restricted(ff))
               {
                 std::cout.precision(15);
-                std::cout << "Bad facet still in : " << bad_facet.star << std::endl;
+                std::cout << "Bad facet still there. Bad_facet.star : " << bad_facet.star->index_in_star_set() << std::endl;
                 std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
                 std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
                 std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
@@ -2434,8 +2475,7 @@ public:
                 debug_coloring_p2 = bad_facet.star->metric().inverse_transform(v2->point());
                 debug_coloring_p3 = bad_facet.star->metric().inverse_transform(v3->point());
                 debug_coloring_p = steiner_point;
-                debug_coloring_fc = bad_facet.star->metric().inverse_transform(
-                                      bad_facet.star->compute_circumcenter(ff));
+                debug_coloring_fc = bad_facet.star->metric().inverse_transform(bad_facet.star->compute_circumcenter(ff));
 #endif
 
                 std::cout << "\tdim = " << bad_facet.star->dimension();
@@ -2443,9 +2483,20 @@ public:
                 std::cout << ", pid = " << pid;
                 std::cout << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
                 std::cout << ", picking : " << need_picking_valid << std::endl;
-                std::cout << "\tp = " << steiner_point;
+                std::cout << "\tp = " << steiner_point  << std::endl;
                 bad_facet.star->debug_steiner_point(steiner_point, ff, true);
                 std::cout << "\t(Exact)" << std::endl;
+
+                Cell_handle useless;
+                std::cout << "checking conflicts with all three stars : ";
+                std::cout << m_stars[ind_v1]->is_conflicted(transform_to_star_point(steiner_point, m_stars[ind_v1]), useless) << " ";
+                std::cout << m_stars[ind_v2]->is_conflicted(transform_to_star_point(steiner_point, m_stars[ind_v2]), useless) << " ";
+                std::cout << m_stars[ind_v3]->is_conflicted(transform_to_star_point(steiner_point, m_stars[ind_v3]), useless) << std::endl;
+
+                std::cout << "checking needs_aabb_update in the tree of size " << m_aabb_tree.size() << " : ";
+                std::cout << m_stars[ind_v1]->bbox_needs_aabb_update() << " ";
+                std::cout << m_stars[ind_v2]->bbox_needs_aabb_update() << " ";
+                std::cout << m_stars[ind_v3]->bbox_needs_aabb_update() << std::endl;
 
                 return false;
               }
@@ -3140,7 +3191,10 @@ public:
         std::ifstream input("geometry_input.off");
         std::ifstream ratio_colors("metric_colors.txt");
         if(!input || !ratio_colors)
+        {
           std::cout << "\nWarning : file does not exist" << std::endl;
+          return;
+        }
 
         int nv, nv2, nt;
         input >> nv >> nt;
