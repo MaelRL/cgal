@@ -55,9 +55,9 @@ namespace CGAL
     /// Returns a point on the primitive
     Point reference_point() const
     {
-      return m_star_handle->center()->point();
-    } 
-   
+      return m_star_handle->center_point();
+    }
+
   }; // end class AABB_bbox_primitive
 } // end namespace CGAL
 

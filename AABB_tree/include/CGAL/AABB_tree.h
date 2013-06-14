@@ -533,6 +533,9 @@ public:
   template<typename Tr>
   void AABB_tree<Tr>::update_primitive(const Primitive& primitive)
   {
+#ifdef DEBUG_UPDATE_AABB_TREE
+    std::cout << "updating for primitive : " << primitive.id() << " " << primitive.reference_point() << " " << m_primitives.size() << std::endl;
+#endif
     if(size() >= 2)
       m_p_root_node->update_primitive(primitive,
                                       primitive.reference_point(),
