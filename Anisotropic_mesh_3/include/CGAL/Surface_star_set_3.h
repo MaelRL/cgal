@@ -3623,7 +3623,8 @@ public:
             FT qualityf_in_c = 255.*star_c->compute_element_quality(tpa_c, tpb_c, tpc_c);
             FT qualityf = (std::min)((std::min)(qualityf_in_a, qualityf_in_b),qualityf_in_c);
 
-            gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, qualityf, 255., qualityf);
+            float q = (float)qualityf;
+            gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, q, 255.f, q);
           }
         }
         if(was)
