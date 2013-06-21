@@ -639,10 +639,25 @@ class Constrain_surface_3_polyhedral :
           Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
           Eigen::Matrix3d transf = M.get_transformation();
           m_metrics.push_back(transf.transpose()*transf);
+
+#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+          FT f = get_bounding_radius()*0.02;
+          normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
+          if(e1>e2)
+          {
+            max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
+            min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+          }
+          else
+          {
+            min_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
+            max_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+          }
+#endif
         }
       }
 
-      void compute_local_metric(const FT& epsilon)
+      void compute_local_metric(const FT& epsilon, const bool smooth_metric = false)
       {
         std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
@@ -682,10 +697,13 @@ class Constrain_surface_3_polyhedral :
 
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          FT f = get_bounding_radius()*0.02;
-          max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
-          min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
-          normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
+          if(!smooth_metric)
+          {
+            FT f = get_bounding_radius()*0.02;
+            max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
+            min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+            normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
+          }
 #endif
 
           std::size_t index = m_vertices[i]->tag();
@@ -711,7 +729,7 @@ class Constrain_surface_3_polyhedral :
 
       void heat_kernel_smoothing(const FT& epsilon)
       {
-        std::cout << "smoothing the metric field" << std::endl;
+        std::cout << "Smoothing the metric field" << std::endl;
         int smooth_step_n = 3;
 
         while(smooth_step_n--)
@@ -860,6 +878,25 @@ class Constrain_surface_3_polyhedral :
             Metric_base<K, K> M(v0, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2), epsilon);
             Eigen::Matrix3d transf = M.get_transformation();
             temp_m_metrics.push_back(transf.transpose()*transf);
+
+ #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
+            if(smooth_step_n == 0)
+            {
+              Point_3 pi = vi->point();
+              FT f = get_bounding_radius()*0.02;
+              normals_field_os << "2 " << pi << " " << (pi+f*v0) << std::endl;
+              if(e1 > e2)
+              {
+                max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
+                min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+              }
+              else
+              {
+                min_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
+                max_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+              }
+            }
+#endif
           }
 
           //update all the metrics
@@ -976,7 +1013,7 @@ class Constrain_surface_3_polyhedral :
         if(metric_input)
           get_metrics_from_file(metric_input, epsilon);
         else
-          compute_local_metric(epsilon);
+          compute_local_metric(epsilon, smooth_metric);
 
         if(smooth_metric)
           heat_kernel_smoothing(epsilon);
