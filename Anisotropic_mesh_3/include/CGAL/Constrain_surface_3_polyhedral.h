@@ -851,6 +851,13 @@ class Constrain_surface_3_polyhedral :
             v1 = v1-(v1*ni)*ni;
             v2 = v2-(v2*ni)*ni;
 
+            v1 = v1/CGAL::sqrt(v1*v1);
+            v2 = v2/CGAL::sqrt(v2*v2);
+
+            //orthogonalize v2 to v1...
+            v2 = v2 - (v2*v1)*v1;
+            v2 = v2/CGAL::sqrt(v2*v2);
+
 #ifdef ANISO_DEBUG_HEAT_KERNEL
             std::cout << "point is : " << vi->tag() << " || " << vi->point() << std::endl;
 
@@ -875,7 +882,7 @@ class Constrain_surface_3_polyhedral :
 #endif
 
             //new metric
-            Metric_base<K, K> M(v0, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2), epsilon);
+            Metric_base<K, K> M(ni, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2), epsilon);
             Eigen::Matrix3d transf = M.get_transformation();
             temp_m_metrics.push_back(transf.transpose()*transf);
 
