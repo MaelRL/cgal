@@ -14,6 +14,7 @@ add_definitions(
 #	-DANISO_DEBUG_REFINEMENT
 #	-DANISO_DEBUG_METRIC
 	-DANISO_OUTPUT_MESH_FOR_POLES
+	-DCGAL_DEBUG_OUTPUT_VECTOR_FIELD
 #	-DANISO_DUMP_INTERMEDIATE_MESHES
 	-DANISO_APPROXIMATE_SPHERE_BBOX 
 #	-DANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR
@@ -60,6 +61,7 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("metric_field_experiment.cpp")
   create_single_source_cgal_program("medial_axis_with_powercrust.cpp")
   create_single_source_cgal_program("off_to_pts.cpp")
+  create_single_source_cgal_program("point_set_poisson_with_curvature_mf.cpp")
 
   else(LAPACK_FOUND)
 
