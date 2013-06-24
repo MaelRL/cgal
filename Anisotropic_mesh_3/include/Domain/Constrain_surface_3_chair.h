@@ -16,9 +16,9 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CHAIR_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CHAIR_H
 
-#include <CGAL/Constrain_surface_3_implicit.h>
-
 using namespace CGAL::Anisotropic_mesh_3;
+
+#include <CGAL/Constrain_surface_3_implicit.h>
 
 template<typename K>
 class Constrain_surface_3_chair : public Constrain_surface_3_implicit<K> 
