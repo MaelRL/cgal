@@ -2215,6 +2215,7 @@ public:
         else if(need_picking_valid)
           pick_valid_succeeded++;
 
+#ifdef ANISO_VERBOSE
         if((!success && pick_valid_failed % 100 == 0 && pick_valid_failed > 0) ||
            (success && need_picking_valid && pick_valid_succeeded % 100 == 0 && pick_valid_succeeded > 0))
         {
@@ -2222,8 +2223,10 @@ public:
           std::cout << pick_valid_succeeded << " success and ";
           std::cout << pick_valid_failed << " failures" << std::endl;
         }
+#endif
         if(pick_valid_causes_stop && pick_valid_failed >= pick_valid_max_failures)
         {
+#ifdef ANISO_VERBOSE
           //print the problematic facet map
           std::map<std::pair<int,int>, int > facet_apparition_counter;
           assert(m_pick_valid_cache.size() == pickvalid_problematic_facets.size());
@@ -2251,7 +2254,7 @@ public:
           {
             std::cout << "Facet : (" << (*it).first.first << ", " << (*it).first.second << ") appears " << (*it).second << " times." << std::endl;
           }
-
+#endif
           return false;
         }
         return true;
