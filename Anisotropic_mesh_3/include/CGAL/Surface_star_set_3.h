@@ -3812,8 +3812,8 @@ public:
         const FT& distortion_pickvalid_bound = 2.,
         const RefinementCondition& rc_ = No_condition<Point_3>()
 #ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
-        , const bool poles_given = false
-        , const char* polesfile = NULL
+        , const bool poles_given = true
+        , const char* polesfile = "poles.off"
 #endif
         )
         :
