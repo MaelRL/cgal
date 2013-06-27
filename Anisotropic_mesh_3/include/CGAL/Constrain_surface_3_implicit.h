@@ -378,9 +378,30 @@ public:
           return get_surface_points(nb, facet_distance_coeff/3.);
         }
 
+#ifdef ANISO_VERBOSE
         std::cout << "c3t3 has enough points : " << all_points.size() << std::endl;
+#endif
         std::random_shuffle(all_points.begin(), all_points.end());
         return Pointset(all_points.begin(), (all_points.begin() + nb));
+      }
+
+      C3t3 run_mesh_3(const FT& approx, const bool verbose = false) const
+      {
+        Function fct = (Function)(&Self::implicit_function);
+        FT r = this->get_bounding_radius();
+        Function_wrapper fw(this, fct);
+        Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
+        Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
+                               CGAL::parameters::facet_size = r * 0.05,
+                               CGAL::parameters::facet_distance = approx);
+                               //no cell criteria          
+        C3t3 mesh = CGAL::make_mesh_3<C3t3>(domain, criteria,
+                                       CGAL::parameters::no_perturb(),
+                                       CGAL::parameters::no_exude());
+        if(verbose)
+          std::cout << "Mesh has " 
+                    << mesh.triangulation().number_of_vertices () << " vertices.\n";
+        return mesh;
       }
 
       virtual void compute_poles(std::set<Point_3>& poles) const
