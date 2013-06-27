@@ -13,7 +13,7 @@
 
 //#define ANISO_USE_INSIDE_EXACT
 //#define ANISO_DEBUG
-//#define ANISO_VERBOSE
+#define ANISO_VERBOSE
 
 #include <CGAL/Timer.h>
 #include <CGAL/Default_configuration.h>
@@ -110,6 +110,7 @@ int main(int argc, char* argv[])
   starset.refine_all();
 
   starset.output("ellipse.off");
+  std::cout << "Star set has " << starset.number_of_surface_stars() << " surface vertices.\n";
 
   delete pdomain;
   return 0;
