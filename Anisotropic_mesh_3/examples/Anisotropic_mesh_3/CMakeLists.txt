@@ -62,6 +62,7 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("medial_axis_with_powercrust.cpp")
   create_single_source_cgal_program("off_to_pts.cpp")
   create_single_source_cgal_program("point_set_poisson_with_curvature_mf.cpp")
+  create_single_source_cgal_program("compare_ellipsoids_iso_aniso.cpp")
 
   else(LAPACK_FOUND)
 
