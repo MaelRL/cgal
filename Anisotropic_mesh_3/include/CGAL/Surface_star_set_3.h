@@ -3530,7 +3530,7 @@ public:
                           double bbox_min, double eps,
                           const int star_id = -1/*only this one*/) const 
       {
-        double coeff = bbox_min/20.;
+        double coeff = bbox_min/10.;
         double glob_min = (std::max)(eps, m_pConstrain->global_min_curvature());
         coeff *= glob_min;
 
