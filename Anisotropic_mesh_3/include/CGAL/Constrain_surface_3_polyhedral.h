@@ -25,8 +25,9 @@
 #include <vector>
 #include <iterator>
 
-#include <CGAL/Constrain_surface_3_ex.h>
+#include "Polyhedron_type.h"
 
+#include <CGAL/Constrain_surface_3_ex.h>
 #include <CGAL/Mesh_3/Robust_intersection_traits_3.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Polyhedral_mesh_domain_3.h>
@@ -46,6 +47,7 @@
 #include <CGAL/make_mesh_3.h>
 
 #include <CGAL/gl_draw/drawing_helper.h>
+#include <CGAL/helpers/tiling_helper.h>
 
 namespace CGAL
 {
@@ -94,6 +96,8 @@ class Enriched_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
 {
   // tag
   std::size_t m_tag;
+  int m_classification; // point classification (elliptic, hyperbolic, etc.)
+  Vector m_normal;
 
 public:
   // life cycle
@@ -101,11 +105,21 @@ public:
   // repeat mandatory constructors
   Enriched_vertex(const P& pt)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0)  {}
+      m_tag(0), m_classification(0), m_normal(CGAL::NULL_VECTOR) {}
+
+  Enriched_vertex(const P& pt, const int& classification, const Vector& n)
+    : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
+      m_tag(0), m_classification(classification), m_normal(n) {}
 
   // tag
   std::size_t& tag() {  return m_tag; }
   const std::size_t& tag() const {  return m_tag; }
+  // classification
+  int classification() {  return m_classification; }
+  const int classification() const {  return m_classification; }
+  // normal
+  Vector normal() {  return m_normal; }
+  const Vector normal() const {  return m_normal; }
 }; 
 
 struct Enriched_items : public CGAL::Polyhedron_items_3
@@ -184,7 +198,6 @@ class Constrain_surface_3_polyhedral :
 
       std::vector<Vertex_handle> m_vertices;
       std::vector<typename Eigen::Matrix3d> m_metrics;
-      std::vector<Vector_3> m_normals;
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
       std::ofstream min_vector_field_os;
@@ -618,7 +631,7 @@ class Constrain_surface_3_polyhedral :
         Vector_3 v1, v2, vn;
         Point_3 pi;
 
-        for(size_t i=0; i<nv; ++i)
+        for (std::size_t i = 0; i < m_vertices.size(); ++i)
         {
           input >> x >> y >> z;
           pi = Point_3(x,y,z);
@@ -634,7 +647,7 @@ class Constrain_surface_3_polyhedral :
           e2 = std::sqrt(std::abs(e2));
           en = (std::max)(e1, e2);
 
-          m_normals.push_back(vn);
+          m_vertices[i]->normal() = vn;
 
           Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
           Eigen::Matrix3d transf = M.get_transformation();
@@ -694,8 +707,6 @@ class Constrain_surface_3_polyhedral :
           out << v2.x() << " " << v2.y() << " " << v2.z() << "     ";
           out << vn.x() << " " << vn.y() << " " << vn.z() << std::endl;
 
-
-
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
           if(!smooth_metric)
           {
@@ -710,12 +721,10 @@ class Constrain_surface_3_polyhedral :
           if(i != index) 
             std::cerr << "Error1 in indices in compute_local_metric!" << std::endl;
 
-          m_normals.push_back(vn);
-          if(m_normals.size() != i+1 )
-            std::cerr << "Error2 in indices in compute_local_metric!" << std::endl;
+          m_vertices[i]->normal() = vn;
 
-          Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
-          Eigen::Matrix3d transf = M.get_transformation();
+          Metric_base<K, K> m(vn, v1, v2, en, e1, e2, epsilon);
+          Eigen::Matrix3d transf = m.get_transformation();
           m_metrics.push_back(transf.transpose()*transf);
 
           //if(m_metrics.size() != i+1 )
@@ -803,7 +812,7 @@ class Constrain_surface_3_polyhedral :
             v1 = get_eigenvector(vecs.col(1));
             v2 = get_eigenvector(vecs.col(2));
 
-            Vector_3 ni = m_normals[i];
+            Vector_3 ni = vi->normal();
             FT sp0 = std::abs(v0*ni);
             FT sp1 = std::abs(v1*ni);
             FT sp2 = std::abs(v2*ni);
@@ -913,6 +922,26 @@ class Constrain_surface_3_polyhedral :
         std::cout << "smoothed the metric field!" << std::endl;
       }
 
+      void anisotropy_bounding_with_tiling()
+      {
+        time_t start = time(NULL);
+
+        Tiling<Polyhedron> Aniso_tiling;
+        double tolerance_angle = 1e308;
+
+        for (std::size_t i = 0; i < m_vertices.size(); ++i)
+        {
+          Vertex_handle v = m_vertices[i];
+          Aniso_tiling.compute(v, tolerance_angle);
+        }
+
+        time_t end = time(NULL);
+        double time_seconds = end - start;
+
+        if (print)
+          std::cout << "duration: " << time_seconds << " s." << std::endl;
+      }
+
       virtual void compute_poles(std::set<Point_3>& poles) const
       {
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
@@ -1012,7 +1041,6 @@ class Constrain_surface_3_polyhedral :
         point_count = (int)m_polyhedron.size_of_vertices();
         m_vertices.reserve(point_count);
         m_metrics.reserve(point_count);
-        m_normals.reserve(point_count);
 
         compute_bounding_box();        
 
@@ -1036,7 +1064,6 @@ class Constrain_surface_3_polyhedral :
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
-          m_normals(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {
@@ -1054,7 +1081,6 @@ class Constrain_surface_3_polyhedral :
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
-          m_normals(),
           m_cache_max_curvature(false), 
           m_cache_min_curvature(false)
         {

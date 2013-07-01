@@ -215,9 +215,11 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_metric_field)
   {
     Scene_item::Bbox mf_bbox = this->bbox();
+    double bbox_max = (std::max)(mf_bbox.depth(), mf_bbox.height());
+    bbox_max = (std::max)(bbox_max, mf_bbox.width());
     double bbox_min = (std::min)(mf_bbox.depth(), mf_bbox.height());
     bbox_min = (std::min)(bbox_min, mf_bbox.width());
-    star_set().gl_draw_metric(plane, bbox_min, draw_metric_eps(), m_draw_star_id);
+    star_set().gl_draw_metric(plane, 0.5*(bbox_max + bbox_min), draw_metric_eps(), m_draw_star_id);
   }
   if(m_draw_mesh_3)
     star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
