@@ -79,6 +79,7 @@ namespace CGAL
       virtual double global_min_curvature() const = 0;
 
       virtual void gl_draw_intermediate_mesh_3(const Plane_3& plane) const = 0;
+      virtual void gl_draw_tiling(const Plane_3& plane, const int star_id) const = 0;
 
       virtual void edge_split(EdgeIterator edge, const Point_3 & c) = 0;
       void edge_split(const Point_3 &p1, const Point_3 &p2, const Point_3 & c) 
