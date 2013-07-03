@@ -615,7 +615,9 @@ class Constrain_surface_3_polyhedral :
           sqrt((4 * bounding_radius * bounding_radius) / ((FT)m_vertices.size() * 2.0));
       }
 
-      void get_metrics_from_file(std::ifstream& input, const FT& epsilon)
+      void get_metrics_from_file(std::ifstream& input,
+                                 const FT& epsilon,
+                                 const FT& en_factor = 1.0)
       {
         std::cout << "reading metrics from file" << std::endl;
         size_t nv;
@@ -645,7 +647,7 @@ class Constrain_surface_3_polyhedral :
 
           e1 = std::sqrt(std::abs(e1));
           e2 = std::sqrt(std::abs(e2));
-          en = (std::max)(e1, e2);
+          en = en_factor*(std::max)(e1, e2);
 
           m_vertices[i]->normal() = vn;
 
@@ -670,7 +672,9 @@ class Constrain_surface_3_polyhedral :
         }
       }
 
-      void compute_local_metric(const FT& epsilon, const bool smooth_metric = false)
+      void compute_local_metric(const FT& epsilon,
+                                const FT& en_factor,
+                                const bool smooth_metric = false)
       {
         std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
@@ -690,13 +694,13 @@ class Constrain_surface_3_polyhedral :
             vn/*normal*/, v1/*vmax*/, v2/*vmin*/,
             e1/*cmax*/, e2/*cmin*/, epsilon);
 
-          en = (std::max)(e1, e2);
+          en = en_factor*(std::max)(e1, e2);
           m_max_curvature = (std::max)(m_max_curvature, en);
           m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
 
           e1 = std::sqrt(e1);
           e2 = std::sqrt(e2);
-          en = (std::max)(e1, e2);
+          en = en_factor*(std::max)(e1, e2);
 
           const Point_3& pi = m_vertices[i]->point();
 //          tensor_frame_on_point(pi, vn, v1, v2, e1, e2, epsilon);
@@ -1034,7 +1038,9 @@ class Constrain_surface_3_polyhedral :
         maxc = (std::max)(e0, (std::max)(e1, e2));
       }
 
-      void initialize(const FT& epsilon, const bool smooth_metric = false)
+      void initialize(const FT& epsilon,
+                      const FT& en_factor = 1.0,
+                      const bool smooth_metric = false)
       {
         set_aabb_tree();
         
@@ -1046,9 +1052,9 @@ class Constrain_surface_3_polyhedral :
 
         std::ifstream metric_input("metrics.txt");
         if(metric_input)
-          get_metrics_from_file(metric_input, epsilon);
+          get_metrics_from_file(metric_input, epsilon, en_factor);
         else
-          compute_local_metric(epsilon, smooth_metric);
+          compute_local_metric(epsilon, en_factor, smooth_metric);
 
         if(smooth_metric)
           heat_kernel_smoothing(epsilon);
@@ -1061,6 +1067,7 @@ class Constrain_surface_3_polyhedral :
 
       Constrain_surface_3_polyhedral(const char *filename, 
                                      const FT& epsilon,
+                                     const FT& en_factor = 1.0,
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
@@ -1073,11 +1080,12 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(filename);
-          initialize(epsilon, smooth_metric);
+          initialize(epsilon, en_factor, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral(const Polyhedron& p, 
                                      const FT& epsilon,
+                                     const FT& en_factor = 1.0,
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
@@ -1090,7 +1098,7 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(p);
-          initialize(epsilon, smooth_metric);
+          initialize(epsilon, en_factor, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral* clone() const

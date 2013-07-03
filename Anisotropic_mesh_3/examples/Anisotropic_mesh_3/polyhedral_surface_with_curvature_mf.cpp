@@ -55,6 +55,7 @@ int main(int argc, char *argv[])
   double gamma0 = (argc > 3) ? atof(argv[3]) : 1.8;
   double approx = (argc > 4) ? atof(argv[4]) : 0.;
   double epsilon = (argc > 5) ? atof(argv[5]) : (0.1);
+  double en_factor = (argc > 5) ? atof(argv[5]) : (1.0);
   
   Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_ //3.0
                                                     0., //sliverity_ (not used)
@@ -66,10 +67,10 @@ int main(int argc, char *argv[])
                                                     approx);
 
   Constrain_surface_3_polyhedral<K>* pdomain
-    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon, false/*heat smoothing*/);
+    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon, en_factor, false/*heat smoothing*/);
 
   Polyhedral_curvature_metric_field<K>* metric_field =
-    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
+    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon, en_factor);
   
   //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
