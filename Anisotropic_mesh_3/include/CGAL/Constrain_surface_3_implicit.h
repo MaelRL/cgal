@@ -180,11 +180,11 @@ public:
       }
 
       void tensor_frame(const Point_3 &p,
-                        Vector_3 &e0, //unit normal
-                        Vector_3 &e1, //unit eigenvector
-                        Vector_3 &e2, //unit eigenvector
-                        double& v1, //eigenvalue corresponding to e1
-                        double& v2, //eigenvalue corresponding to e2
+                        Vector_3 &v0, //unit normal
+                        Vector_3 &v1, //unit eigenvector
+                        Vector_3 &v2, //unit eigenvector
+                        double& e1, //eigenvalue corresponding to v1
+                        double& e2, //eigenvalue corresponding to v2
                         const FT delta = 1e-5) const
       {
           // method in the book
@@ -234,7 +234,7 @@ public:
           }
 
           // normal is ok (computed with gradient)
-          e0 = get_vector(normal);
+          v0 = get_vector(normal);
 
           bool z0, z1, z2;
           double ev0 = std::abs(std::real(vals[min_id])); //should be the smallest
@@ -246,19 +246,19 @@ public:
           {
             if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";
             Vector_3 normal_test = get_eigenvector(vecs.col(min_id));
-            if(!are_equal(e0, normal_test))
+            if(!are_equal(v0, normal_test))
              std::cout << "Error2 : see tensor_frame, zeros==1\n";
 
-            v1 = ev1;
-            v2 = ev2;
-            e1 = get_eigenvector(vecs.col((min_id + 1) % 3));
-            e2 = get_eigenvector(vecs.col((min_id + 2) % 3));
+            e1 = ev1;
+            e2 = ev2;
+            v1 = get_eigenvector(vecs.col((min_id + 1) % 3));
+            v2 = get_eigenvector(vecs.col((min_id + 2) % 3));
 
             //make sure the vectors form an orthogonal matrix
             //when eigenvalues are the same, vectors returned by Eigen are not
             //necessarily orthogonal
-            if(std::abs(e1*e2) > ZERO_DOT_PRODUCT)
-              e2 = normalize(CGAL::cross_product(e0,e1));
+            if(std::abs(v1*v2) > ZERO_DOT_PRODUCT)
+              v2 = normalize(CGAL::cross_product(v0, v1));
           }
           else if(zeros == 2)
           {
@@ -269,35 +269,35 @@ public:
             else std::cerr << "Error1 : see tensor_frame, zeros==2\n";
 
             //the non-zero one
-            v1 = std::abs(std::real(vals[id]));
-            e1 = get_eigenvector(vecs.col(id));
+            e1 = std::abs(std::real(vals[id]));
+            v1 = get_eigenvector(vecs.col(id));
             //the last one : choose the vector which is not // to the normal
             Vector_3 normal_test_1 = get_eigenvector(vecs.col((id + 1) % 3));
             Vector_3 normal_test_2 = get_eigenvector(vecs.col((id + 2) % 3));
-            if(are_equal(normal_test_1, e0))
+            if(are_equal(normal_test_1, v0))
             {
-              v2 = std::abs(std::real(vals[(min_id + 2) % 3]));
-              e2 = normal_test_2;
+              e2 = std::abs(std::real(vals[(min_id + 2) % 3]));
+              v2 = normal_test_2;
             }
-            else if(are_equal(normal_test_2, e0))
+            else if(are_equal(normal_test_2, v0))
             {
-              v2 = std::abs(std::real(vals[(min_id + 1) % 3]));
-              e2 = normal_test_1;
+              e2 = std::abs(std::real(vals[(min_id + 1) % 3]));
+              v2 = normal_test_1;
             }
             else
             {
-              v2 = 0.;
-              e2 = normalize(CGAL::cross_product(e0,e1));
+              e2 = 0.;
+              v2 = normalize(CGAL::cross_product(v0, v1));
               std::cerr << "Error2 : see tensor_frame, zeros==2\n";
             }
           }
           else if(zeros == 3)
           {
-            orthogonal_vectors(e0, e1, e2);
-            e1 = normalize(e1);
-            e2 = normalize(e2);
-            v1 = 0.;
-            v2 = 0.;
+            orthogonal_vectors(v0, v1, v2);
+            v1 = normalize(v1);
+            v2 = normalize(v2);
+            e1 = 0.;
+            e2 = 0.;
           }
           else
           {//zeros == 0
@@ -450,11 +450,17 @@ public:
                               double& minc,
                               double& maxc) const
       {
-        Vector_3 n, e1, e2;
-        double v1, v2;
-        tensor_frame(p, n, e1, e2, v1, v2, 1e-5);
-        minc = (std::min)(v1, v2);
-        maxc = (std::max)(v1, v2);
+        Vector_3 n, v1, v2;
+        double e1, e2;
+        tensor_frame(p, n, v1, v2, e1, e2, 1e-5);
+        minc = (std::min)(e1, e2);
+        maxc = (std::max)(e1, e2);
+      }
+
+      void gl_draw_tiling(const Plane_3& plane,
+                          const int star_id = -1) const
+      {
+        std::cout << "nothing to draw for implicit tiling." << std::endl;
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const

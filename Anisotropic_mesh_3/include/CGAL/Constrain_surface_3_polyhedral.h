@@ -89,6 +89,7 @@ public:
   std::size_t& tag()             { return m_tag;  }
 };
 
+//enum Point_geo_classification { PARABOLIC = 0, ELLIPTIC = 1, HYPERBOLIC = -1};
 
 // a refined vertex with a tag
 template <class Refs, class T, class P>
@@ -98,6 +99,11 @@ class Enriched_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
   std::size_t m_tag;
   int m_classification; // point classification (elliptic, hyperbolic, etc.)
   Vector m_normal;
+  FT m_aniso_ratio;
+
+#if 1//def TILING_DRAW
+  std::vector<Point> m_tile_points;
+#endif
 
 public:
   // life cycle
@@ -105,21 +111,27 @@ public:
   // repeat mandatory constructors
   Enriched_vertex(const P& pt)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0), m_classification(0), m_normal(CGAL::NULL_VECTOR) {}
+      m_tag(0), m_classification(0), m_normal(CGAL::NULL_VECTOR), m_aniso_ratio(0) {}
 
   Enriched_vertex(const P& pt, const int& classification, const Vector& n)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0), m_classification(classification), m_normal(n) {}
+      m_tag(0), m_classification(classification), m_normal(n), m_aniso_ratio(0) {}
 
   // tag
   std::size_t& tag() {  return m_tag; }
   const std::size_t& tag() const {  return m_tag; }
   // classification
-  int classification() {  return m_classification; }
-  const int classification() const {  return m_classification; }
+  int& classification() {  return m_classification; }
+  const int& classification() const {  return m_classification; }
   // normal
-  Vector normal() {  return m_normal; }
-  const Vector normal() const {  return m_normal; }
+  Vector& normal() {  return m_normal; }
+  const Vector& normal() const {  return m_normal; }
+  // aniso_ratio
+  FT& aniso_ratio() {  return m_aniso_ratio; }
+  const FT& aniso_ratio() const {  return m_aniso_ratio; }
+  // tile_points
+  std::vector<Point>& tile_points() {  return m_tile_points; }
+  const std::vector<Point>& tile_points() const {  return m_tile_points; }
 }; 
 
 struct Enriched_items : public CGAL::Polyhedron_items_3
@@ -389,7 +401,7 @@ class Constrain_surface_3_polyhedral :
       {
         return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
       }
-           
+
       virtual Point_container initial_points(const int nb) const 
       {
         typedef typename std::vector<std::pair<
@@ -615,7 +627,9 @@ class Constrain_surface_3_polyhedral :
           sqrt((4 * bounding_radius * bounding_radius) / ((FT)m_vertices.size() * 2.0));
       }
 
-      void get_metrics_from_file(std::ifstream& input, const FT& epsilon)
+      void get_metrics_from_file(std::ifstream& input,
+                                 const FT& epsilon,
+                                 const FT& en_factor = 1.0)
       {
         std::cout << "reading metrics from file" << std::endl;
         size_t nv;
@@ -645,7 +659,7 @@ class Constrain_surface_3_polyhedral :
 
           e1 = std::sqrt(std::abs(e1));
           e2 = std::sqrt(std::abs(e2));
-          en = (std::max)(e1, e2);
+          en = en_factor*(std::max)(e1, e2);
 
           m_vertices[i]->normal() = vn;
 
@@ -670,7 +684,9 @@ class Constrain_surface_3_polyhedral :
         }
       }
 
-      void compute_local_metric(const FT& epsilon, const bool smooth_metric = false)
+      void compute_local_metric(const FT& epsilon,
+                                const FT& en_factor,
+                                const bool smooth_metric = false)
       {
         std::cout << "\nComputing local metric..." << std::endl;
         m_max_curvature = 0.;
@@ -690,13 +706,13 @@ class Constrain_surface_3_polyhedral :
             vn/*normal*/, v1/*vmax*/, v2/*vmin*/,
             e1/*cmax*/, e2/*cmin*/, epsilon);
 
-          en = (std::max)(e1, e2);
+          en = en_factor*(std::max)(e1, e2);
           m_max_curvature = (std::max)(m_max_curvature, en);
           m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
 
           e1 = std::sqrt(e1);
           e2 = std::sqrt(e2);
-          en = (std::max)(e1, e2);
+          en = en_factor*(std::max)(e1, e2);
 
           const Point_3& pi = m_vertices[i]->point();
 //          tensor_frame_on_point(pi, vn, v1, v2, e1, e2, epsilon);
@@ -922,24 +938,122 @@ class Constrain_surface_3_polyhedral :
         std::cout << "smoothed the metric field!" << std::endl;
       }
 
-      void anisotropy_bounding_with_tiling()
+      void gl_draw_tiling(const Plane_3& plane,
+                          const int star_id = -1) const
+      {
+        bool draw_all = (star_id < 0);
+        std::size_t start = draw_all ? 0 : star_id;
+        std::size_t N = draw_all ? m_vertices.size() : (star_id + 1);
+
+        for(std::size_t i = start; i < N; i++)
+        {
+          Vertex_handle vi = m_vertices[i];
+          /*
+          if(!is_above_plane(plane, vi->point()))
+            continue;
+          */
+
+          ::glDisable(GL_LIGHTING);
+          ::glColor3ub( rand()%255, rand()%255, rand()%255 );
+
+          ::glBegin(GL_POINTS);
+          ::glVertex3d(vi->point().x(), vi->point().y(), vi->point().z());
+          ::glEnd();
+
+          std::vector<Point_3> tile_points = vi->tile_points();
+
+          ::glBegin(GL_LINE_LOOP);
+          for (std::size_t j = 0; j < tile_points.size(); ++j)
+          {
+            ::glVertex3d(tile_points[j].x(), tile_points[j].y(), tile_points[j].z());
+          }
+          ::glEnd();
+          ::glEnable(GL_LIGHTING);
+        }
+      }
+
+      void anisotropy_bounding_with_tiling(const FT& epsilon)
       {
         time_t start = time(NULL);
 
         Tiling<Polyhedron> Aniso_tiling;
-        double tolerance_angle = 1e308;
+
+        double tolerance_angle = 0.3;
+        std::ifstream tiling_input("tiling_angle.txt");
+        tiling_input >> tolerance_angle;
+
+        if(tolerance_angle < 0)
+          return;
+        else
+          std::cout << "tolerance is : " << tolerance_angle << std::endl;
 
         for (std::size_t i = 0; i < m_vertices.size(); ++i)
         {
-          Vertex_handle v = m_vertices[i];
-          Aniso_tiling.compute(v, tolerance_angle);
+          Vertex_handle vi = m_vertices[i];
+          std::cout << "i : " << i << std::endl;
+          //check on curvatures here, skip if it's ~ a plane
+
+          //compute the aniso_ratio
+          Aniso_tiling.compute(vi, tolerance_angle);
+
+          FT vi_eps = vi->aniso_ratio();
+
+          std::cout << "vi eps : " << vi_eps << std::endl;
+
+          //compute new principal directions & curvature values
+          double e0,e1,e2;
+          Vector_3 v0,v1,v2;
+          Eigen::Matrix3d m = m_metrics[i];
+
+          Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
+          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
+          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
+
+          e0 = std::real(vals[0]); //should all be > 0 here
+          e1 = std::real(vals[1]);
+          e2 = std::real(vals[2]);
+          assert(e0 > 0 && e1 > 0 && e2 > 0);
+
+          e0 = std::sqrt(e0);
+          e1 = std::sqrt(e1);
+          e2 = std::sqrt(e2);
+
+          v0 = get_eigenvector(vecs.col(0));
+          v1 = get_eigenvector(vecs.col(1));
+          v2 = get_eigenvector(vecs.col(2));
+
+          std::cout << "es : " << e0 << " " << e1 << " " << e2 << std::endl;
+
+          FT emax = (std::max)((std::max)(e0, e1), e2);
+          FT emin = (std::min)((std::min)(e0, e1), e2);
+
+          if(emin > (emax/vi_eps)) // don't want to increase the anisotropy
+          {
+            std::cout << "increasing aniso ignored" << std::endl;
+            continue;
+          }
+
+          if(emin == e0)
+            e0 = emax / vi_eps;
+          if(emin == e1)
+            e1 = emax / vi_eps;
+          if(emin == e2)
+            e2 = emax / vi_eps;
+
+          std::cout << "es : " << e0 << " " << e1 << " " << e2 << std::endl;
+          std::cout << "v0 : " << v0 << std::endl;
+          std::cout << "v1 : " << v1 << std::endl;
+          std::cout << "v2 : " << v2 << std::endl;
+
+          Metric_base<K, K> M(v0, v1, v2, e0, e1, e2, epsilon);
+          Eigen::Matrix3d transf = M.get_transformation();
+          m_metrics[i] = transf.transpose()*transf;
         }
 
         time_t end = time(NULL);
         double time_seconds = end - start;
 
-        if (print)
-          std::cout << "duration: " << time_seconds << " s." << std::endl;
+        std::cout << "duration: " << time_seconds << " s." << std::endl;
       }
 
       virtual void compute_poles(std::set<Point_3>& poles) const
@@ -1034,7 +1148,9 @@ class Constrain_surface_3_polyhedral :
         maxc = (std::max)(e0, (std::max)(e1, e2));
       }
 
-      void initialize(const FT& epsilon, const bool smooth_metric = false)
+      void initialize(const FT& epsilon,
+                      const FT& en_factor = 1.0,
+                      const bool smooth_metric = false)
       {
         set_aabb_tree();
         
@@ -1046,12 +1162,16 @@ class Constrain_surface_3_polyhedral :
 
         std::ifstream metric_input("metrics.txt");
         if(metric_input)
-          get_metrics_from_file(metric_input, epsilon);
+          get_metrics_from_file(metric_input, epsilon, en_factor);
         else
-          compute_local_metric(epsilon, smooth_metric);
+          compute_local_metric(epsilon, en_factor, smooth_metric);
 
         if(smooth_metric)
           heat_kernel_smoothing(epsilon);
+
+        std::ifstream tiling_input("tiling_angle.txt");
+        if(tiling_input)
+          anisotropy_bounding_with_tiling(epsilon);
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
@@ -1061,6 +1181,7 @@ class Constrain_surface_3_polyhedral :
 
       Constrain_surface_3_polyhedral(const char *filename, 
                                      const FT& epsilon,
+                                     const FT& en_factor = 1.0,
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
@@ -1073,11 +1194,12 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(filename);
-          initialize(epsilon, smooth_metric);
+          initialize(epsilon, en_factor, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral(const Polyhedron& p, 
                                      const FT& epsilon,
+                                     const FT& en_factor = 1.0,
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
@@ -1090,7 +1212,7 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(p);
-          initialize(epsilon, smooth_metric);
+          initialize(epsilon, en_factor, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral* clone() const

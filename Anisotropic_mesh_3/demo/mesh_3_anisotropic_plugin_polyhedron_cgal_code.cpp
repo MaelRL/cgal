@@ -92,7 +92,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
 
   if( NULL == p_poly ) { return NULL; }
   typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>  Constrain_surface_polyhedral;
-  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly,epsilon);
+  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly, epsilon, en_factor);
   
     //ini
   Anisotropic_mesh_parameters param;

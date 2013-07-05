@@ -16,17 +16,18 @@
 template <class Polyhedron>
 class Tiling
 {
-  //typedef typename Polyhedron::Traits Kernel;
-  typedef typename Kernel::Point_3                        Point_3;
-  typedef typename Kernel::Vector_3                       Vector_3;
-  typedef typename CGAL::Cartesian<double>                K;
+  typedef typename Polyhedron::Traits K;
   typedef typename K::Iso_rectangle_2                     Iso_rectangle_2;
   typedef typename K::Point_2                             Point_2;
-  typedef typename K::Line_2                              Line_2;
+  typedef typename K::Point_3                             Point_3;
   typedef typename K::Triangle_2                          Triangle_2;
+  typedef typename K::Triangle_3                          Triangle_3;
   typedef typename K::Vector_2                            Vector_2;
+  typedef typename K::Vector_3                            Vector_3;
   typedef typename K::Segment_2                           Segment_2;
+  typedef typename K::Line_2                              Line_2;
   typedef typename K::RT                                  RT;
+  typedef typename K::FT                                  FT;
 
   typedef typename Polyhedron::Facet_handle                             Facet_handle;
   typedef typename Polyhedron::Halfedge_handle                          Halfedge_handle;
@@ -101,8 +102,11 @@ class Tiling
           continue;
         }
 
-        Vector_3 nfn = nf->plane().orthogonal_vector();
-        nfn /= CGAL::sqrt(nfn*nfn);
+        Triangle_3 tr(nf->halfedge()->vertex()->point(),
+                      nf->halfedge()->next()->vertex()->point(),
+                      nf->halfedge()->next()->next()->vertex()->point());
+        Vector_3 nfn = tr.supporting_plane().orthogonal_vector();
+        nfn = nfn / CGAL::sqrt(nfn*nfn);
 
         double cos_angle = nfn * ref_vector;
         if ( cos_angle < cos_tolerance )
@@ -197,7 +201,7 @@ class Tiling
     const Point_3 pquery = vh->point();
 
     // compute mean normal
-    Vector_3 normal = compute_mean_normal_facets<Facet_handle>(facets.begin(), facets.end());
+    Vector_3 normal = compute_mean_normal_facets<Facet_handle>(facets.begin(), facets.end()); //vh->normal();
 
     Plane_3_new plane_new(Point_3_new(0.0, 0.0, 0.0), Vector_3_new(normal.x(), normal.y(), normal.z()));
 
@@ -282,36 +286,39 @@ class Tiling
   void compute_rectangle(const Vertex_handle& vh,
                          const std::set<Facet_handle>& facets)
   {
+    std::cout << "compute rectangle" << std::endl;
+
     std::list<Point_3> best_rectangle;
     best_rotated_rectangle ( vh, best_rectangle, facets);
 
     // compute metric
+    vh->tile_points().insert(vh->tile_points().begin(), best_rectangle.begin(), best_rectangle.end());
+
     std::vector<Point_3> corners;
     corners.insert(corners.begin(), best_rectangle.begin(), best_rectangle.end());
-    Vector_3 vec = (corners[0] - CGAL::ORIGIN) + (corners[1] - CGAL::ORIGIN) + (corners[2] - CGAL::ORIGIN) + (corners[3] - CGAL::ORIGIN);
-    Point_3 centroid_metric = CGAL::ORIGIN + 0.25 * vec;
     Vector_3 vec1 = ( corners[1] - corners[0] ) + ( corners[2] - corners[3] );
     Vector_3 vec2 = ( corners[2] - corners[1] ) + ( corners[3] - corners[0] );
 
+    FT size_1 = 0.5 * std::sqrt ( vec1.squared_length() );
+    FT size_2 = 0.5 * std::sqrt ( vec2.squared_length() );
+    vh->aniso_ratio() = (std::max)(size_1/size_2, size_2/size_1);
+
+    /*
+    // save
     vh->vec1() = 0.5 * vec1;
     vh->vec2() = 0.5 * vec2;
-
-    // save
-    vh->center() = centroid_metric;
-    vh->size_1() = 0.5 * std::sqrt ( vec1.squared_length() );
-    vh->size_2() = 0.5 * std::sqrt ( vec2.squared_length() );
     vh->base_1() = vec1 / std::sqrt(vec1.squared_length () );
     vh->base_2() = vec2 / std::sqrt(vec2.squared_length () );
+    */
   }
 
-	//triangle
+  //triangle
     // TODO: largest inscribed triangle
   void best_triangle_2d ( std::list<Point_2>& best_tri_2d,
                           const Point_2& query,
-                          const std::list<Point_2>& points,
-                          const std::list<Segment_2>& segments)
+                          const std::list<Point_2>& points)
   {  
-    std::list<Point_2>::const_iterator pit1, pit2, pit3;
+    typename std::list<Point_2>::const_iterator pit1, pit2, pit3;
     double max_area = 0.0;
     for (pit1 = points.begin(); pit1 != points.end(); ++pit1)
     {
@@ -355,8 +362,7 @@ class Tiling
     const Point_3 pquery = vh->point();
 
     // compute mean normal
-    Vector_3 normal = compute_mean_normal_facets<Facet_handle>(facets.begin(), facets.end());
-
+    Vector_3 normal = compute_mean_normal_facets<Facet_handle>(facets.begin(), facets.end()); //vh->normal();
 
     Plane_3_new plane_new(Point_3_new(0.0, 0.0, 0.0), Vector_3_new(normal.x(), normal.y(), normal.z()));
 
@@ -406,7 +412,7 @@ class Tiling
 
     // compute best fit rectangle
     std::list<Point_2> best_tri_2d;
-    best_triangle_2d ( best_tri_2d, query, points_2d, segments);
+    best_triangle_2d ( best_tri_2d, query, points_2d);
 
     Point_3_new new_query_point = plane_new.to_3d ( query_new );
     Point_3 nquery(CGAL::to_double(new_query_point.x()), CGAL::to_double(new_query_point.y()), CGAL::to_double(new_query_point.z()));
@@ -492,15 +498,21 @@ class Tiling
 
 
 //level 0
-  void compute(const Vertex_handle& vh,
+public:
+  void compute(Vertex_handle& vh,
                const double tolerance_angle)
   {
     //get geometry
     int geometry = vh->classification();
 
+    std::cout << "entered compute with : " << vh->point();
+    std::cout << " geo : " << geometry << " normal : " << vh->normal() << std::endl;
+
     // gather facets in tolerance
     std::set<Facet_handle> facets;
     tolerance_domain(vh, facets, tolerance_angle);
+
+    std::cout << facets.size() << " facets." << std::endl;
 
     //compute best fitting for the given geometry
     switch(geometry)
@@ -530,7 +542,7 @@ class Tiling
 
   }
 
-
+private:
 //misc
   bool is_boundary_of_tolerance_domain ( const Halfedge_handle& h,
                                          const std::set<Facet_handle>& facets)

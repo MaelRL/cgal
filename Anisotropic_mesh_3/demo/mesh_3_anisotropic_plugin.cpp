@@ -387,7 +387,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.maxTries->setValue(60); // default value
   ui.dimension->setCurrentIndex(0);
   ui.nbInitialPoints->setValue(10);
-  ui.en_factor->setValue(1.);
+  ui.en_factor->setValue(0.999);
 
   // -----------------------------------
   // Get values

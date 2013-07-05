@@ -37,16 +37,16 @@ namespace CGAL
 
       virtual Metric compute_metric(const Point_3 &p) const 
       {
-        Vector_3 e0, e1, e2;
-        double vp0, vp1, vp2;
-        ((Constrain_surface *)(m_pConstrain))->tensor_frame(p, e0, e1, e2, vp0, vp1, vp2);
+        Vector_3 v0, v1, v2;
+        double e0, e1, e2;
+        ((Constrain_surface *)(m_pConstrain))->tensor_frame(p, v0, v1, v2, e0, e1, e2);
       
-        return this->build_metric(e0, e1, e2, std::sqrt(vp0), std::sqrt(vp1), std::sqrt(vp2));
+        return this->build_metric(v0, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2));
       }
 
       Polyhedral_curvature_metric_field(const Constrain_surface& surface_, 
                                         const FT epsilon_ = 1.0,
-                                        const double& en_factor_ = 1)
+                                        const double& en_factor_ = 1.0)
         : Metric_field<K>(epsilon_, en_factor_), 
           m_pConstrain(&surface_)
         { }
