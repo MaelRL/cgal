@@ -344,8 +344,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
           ui.sliverity,           SLOT(setEnabled(bool)));
   connect(ui.noCircumradius,      SIGNAL(toggled(bool)),
           ui.circumradius,        SLOT(setEnabled(bool)));
-  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
-          ui.distortion,          SLOT(setEnabled(bool)));
+//  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
+//          ui.distortion,          SLOT(setEnabled(bool)));
   connect(ui.noApproximation,     SIGNAL(toggled(bool)),
           ui.approximation,       SLOT(setEnabled(bool)));
 
@@ -399,7 +399,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const double radius_edge_ratio = !ui.noRadiusEdgeRatio->isChecked() ? 0 : ui.radius_edge_ratio->value(); 
   const double sliverity = !ui.noSliverity->isChecked() ? 0 : ui.sliverity->value(); 
   const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value(); 
-  const double distortion = !ui.noDistortion->isChecked() ? 0 : ui.distortion->value();
+  const double distortion = /*!ui.noDistortion->isChecked() ? 0 :*/ ui.distortion->value();
   const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
   const double epsilon = ui.epsilon->value();
   const double beta = ui.beta->value();
@@ -520,8 +520,8 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
           ui.sliverity,           SLOT(setEnabled(bool)));
   connect(ui.noCircumradius,      SIGNAL(toggled(bool)),
           ui.circumradius,        SLOT(setEnabled(bool)));
-  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
-          ui.distortion,          SLOT(setEnabled(bool)));
+//  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
+//          ui.distortion,          SLOT(setEnabled(bool)));
   connect(ui.noApproximation,     SIGNAL(toggled(bool)),
           ui.approximation,       SLOT(setEnabled(bool)));
 
@@ -564,7 +564,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   const double radius_edge_ratio = !ui.noRadiusEdgeRatio->isChecked() ? 0 : ui.radius_edge_ratio->value();
   const double sliverity = !ui.noSliverity->isChecked() ? 0 : ui.sliverity->value();
   const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value();
-  const double distortion = !ui.noDistortion->isChecked() ? 0 : ui.distortion->value();
+  const double distortion = /*!ui.noDistortion->isChecked() ? 0 :*/ ui.distortion->value();
   const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
   const double epsilon = ui.epsilon->value();
   const double beta = ui.beta->value();
