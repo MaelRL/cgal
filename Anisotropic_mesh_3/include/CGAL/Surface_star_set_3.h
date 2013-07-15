@@ -927,9 +927,9 @@ private:
       }
 
       Point_3 compute_random_steiner_point(const Star_handle star,
-                                            const Facet &facet,
-                                            const TPoint_3 &tccf,
-                                            const FT circumradius) const
+                                           const Facet& facet,
+                                           const TPoint_3& tccf,
+                                           const FT& circumradius) const
       {
         typename Star::Traits::Compute_random_point_3 random =
                  star->traits()->compute_random_point_3_object();
@@ -952,6 +952,7 @@ private:
                 star->compute_steiner_dual_intersection(steiner_point,
                                                         random_point_within_sphere_1,
                                                         random_point_within_sphere_2,
+                                                        tccf,
                                                         facet,
                                                         circumradius,
                                                         failures_count);
@@ -2502,7 +2503,7 @@ public:
                 std::cout << m_stars[ind_v2]->bbox_needs_aabb_update() << " ";
                 std::cout << m_stars[ind_v3]->bbox_needs_aabb_update() << std::endl;
 
-                return false;
+                //return false;
               }
               else
                 std::cout << "bad facet still in but not restricted anymore" << std::endl;

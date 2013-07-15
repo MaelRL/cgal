@@ -1708,19 +1708,18 @@ public:
         return ret_val;
       }
 
-      bool compute_steiner_dual_intersection(Point_3 &p,
-                                             const TPoint_3 &tcandidate_1, // first point within the ball
-                                             const TPoint_3 &tcandidate_2, // second point within the ball
-                                             const Facet &facet,
-                                             const FT circumradius,
+      bool compute_steiner_dual_intersection(Point_3& p,
+                                             const TPoint_3& tcandidate_1, // first point within the ball
+                                             const TPoint_3& tcandidate_2, // second point within the ball
+                                             const TPoint_3& tccf,
+                                             const Facet& facet,
+                                             const FT& circumradius,
                                              const int failures_count = 0) const
       {
         CGAL_PROFILER("[compute_steiner_dual_intersection]");
 
         Point_3 candidate_1 = m_metric.inverse_transform(tcandidate_1);
         Point_3 candidate_2 = m_metric.inverse_transform(tcandidate_2);
-        Point_3 ccf;
-        compute_dual_intersection(facet, ccf);
 
         if(Base::dimension() == 2) //need to check if correct todo
         {
@@ -1739,7 +1738,6 @@ public:
           if(m_pConstrain->intersection(candidate_1, candidate_2).assign(p))
           {
             //check if not too far away from the intersection of the dual & surface (should never happen)
-            TPoint_3 tccf = m_metric.transform(ccf);
             TPoint_3 tp = m_metric.transform(p);
             if(std::sqrt(CGAL::squared_distance(tccf, tp)) > circumradius)
             {
@@ -1761,11 +1759,11 @@ public:
           }
           else
           {
-#ifdef ANISO_DEBUG_STEINER_DUAL
-            if(failures_count > 50)
+            if(failures_count > 100)
             {
+              Point_3 ccf = m_metric.inverse_transform(tccf);
+ifdef ANISO_DEBUG_STEINER_DUAL
               std::cout << "failures : " << failures_count << std::endl;
-              TPoint_3 tccf = m_metric.transform(ccf);
               double eval1 = m_pConstrain->side_of_constraint(candidate_1);
               double eval2 = m_pConstrain->side_of_constraint(candidate_2);
               double evalc = m_pConstrain->side_of_constraint(ccf);
@@ -1778,10 +1776,7 @@ public:
               std::cout << "checking dist 2 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_2)) << std::endl;
               std::cout << "tccf : " << tccf << " side of constraint for ccf : " << evalc << std::endl;
               std::cout << "circum : " << circumradius << std::endl;
-            }
-#endif
-            if(failures_count > 100)
-            {
+  #endif
               std::cout << "had to use p = ccf in compute_steiner_dual (not good)." << std::endl;
               p = ccf;
               return true;
