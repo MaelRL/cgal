@@ -3853,7 +3853,7 @@ public:
             }
             else if(i++ < nbv)
             {
-              K::FT x,y,z;
+              FT x,y,z;
               std::istringstream liness(line);
               liness >> x >> y >> z;
               *poles_oit++ = Point_3(x,y,z);
