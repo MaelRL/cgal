@@ -129,8 +129,8 @@ namespace CGAL
       Kd_tree m_kd_tree;     //stars* centers for box queries
 
       //speed-up heuristic
-      const FT m_distortion_bound_avoid_pick_valid;
-      mutable int avoid_pick_valid_count;
+      //const FT m_distortion_bound_avoid_pick_valid;
+      //mutable int avoid_pick_valid_count;
 
       // the following global variables are only 
       // for debugging or benchmark
@@ -1652,16 +1652,17 @@ public:
                 continue;
             }
 
-            // over distortion : 1
-            if(m_criteria->distortion > 0.)
-            {
-              FT over_distortion = compute_distortion(*fi) - m_criteria->distortion;
-              if(over_distortion > 0.)
-              {
-                m_refine_queue.push_over_distortion(star, *fi, over_distortion);
-                continue;
-              }
-            }
+            //// over distortion : 1
+            //if(m_criteria->distortion > 0.)
+            //{
+            //  FT over_distortion = compute_distortion(*fi) - m_criteria->distortion;
+            //  if(over_distortion > 0.)
+            //  {
+            //    m_refine_queue.push_over_distortion(star, *fi, over_distortion);
+            //    continue;
+            //  }
+            //}
+            //note : distortion is now used only to speed-up pick_valid
             // too big : 2
             if(m_criteria->circumradius > 0.)
             {
@@ -2317,12 +2318,12 @@ public:
           return true; //note false would stop refinement
         } 
          
-        if(m_distortion_bound_avoid_pick_valid > 0.
-          && need_picking_valid
-          && compute_distortion(f) > m_distortion_bound_avoid_pick_valid)
+        if(need_picking_valid
+//          && m_distortion_bound_avoid_pick_valid > 0.
+          && compute_distortion(f) > m_criteria->distortion)
         {
           need_picking_valid = false;
-          avoid_pick_valid_count++;
+//          avoid_pick_valid_count++;
         }
         Point_3 steiner_point;
         bool success = compute_steiner_point(bad_facet.star, f,
@@ -2627,7 +2628,7 @@ public:
         fx << "vertices non-picking: " << vertex_without_picking_count << std::endl;
         fx << "picking rate:       " << 
           (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
-        fx << "picking avoided:      " << avoid_pick_valid_count << std::endl;
+        //fx << "picking avoided:      " << avoid_pick_valid_count << std::endl;
         fx << "vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         fx << "vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
         fx.close();
@@ -2991,7 +2992,7 @@ public:
 
         vertex_with_picking_count = 0;
         vertex_without_picking_count = (int)m_stars.size();
-        avoid_pick_valid_count = 0;
+        //avoid_pick_valid_count = 0;
 #ifdef ANISO_VERBOSE
         std::cout << "There are " << count_restricted_facets() << " restricted facets.\n";
 #endif
@@ -3043,7 +3044,7 @@ public:
         std::cout << "Vertex non-picking:   " << vertex_without_picking_count << std::endl;
         std::cout << "picking rate:         " << (double)vertex_with_picking_count / 
           (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
-        std::cout << "Picking avoided:      " << avoid_pick_valid_count << std::endl;
+        //std::cout << "Picking avoided:      " << avoid_pick_valid_count << std::endl;
         std::cout << "Approximation error : " << compute_approximation_error() << std::endl;
         std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
@@ -3872,7 +3873,7 @@ public:
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
-        const FT& distortion_pickvalid_bound = 2.,
+        //const FT& distortion_pickvalid_bound = 2.,
         const RefinementCondition& rc_ = No_condition<Point_3>()
 #ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
         , const bool poles_given = true
@@ -3889,7 +3890,7 @@ public:
         m_refinement_condition(rc_),
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars),
-        m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
+        //m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0)
       {
