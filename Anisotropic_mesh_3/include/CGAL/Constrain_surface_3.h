@@ -45,12 +45,13 @@ namespace CGAL
       typedef typename K::Point_3                  Point_3;
       typedef typename K::Object_3                 Object_3;
       typedef typename K::Segment_3                Segment_3;
+      typedef typename K::Triangle_3               Triangle_3;
       typedef typename K::Ray_3                    Ray_3;
       typedef typename K::Line_3                   Line_3;
       typedef typename K::Plane_3                  Plane_3;
       typedef std::pair<Point_3, Point_3>          Edge;
       typedef std::vector<Edge>                    EdgeList;
-      typedef typename EdgeList::iterator	   EdgeIterator;
+      typedef typename EdgeList::iterator          EdgeIterator;
       typedef typename CGAL::Oriented_side         Oriented_side;  
 
       typedef typename std::vector<Point_3>        Point_container;

@@ -3482,6 +3482,66 @@ public:
         }
       }
 
+      void gl_draw_approx_error(const typename K::Plane_3& plane,
+                                const int star_id = -1) const
+      {
+        std::ofstream out("approx_error.txt");
+
+        GLboolean was = (::glIsEnabled(GL_LIGHTING));
+        if(was)
+          ::glDisable(GL_LIGHTING);
+
+        bool draw_all = (star_id < 0);
+        std::size_t start = draw_all ? 0 : star_id;
+        std::size_t N = draw_all ? m_stars.size() : (star_id + 1);
+
+        std::set<Facet_ijk> done;
+        for(std::size_t i = start; i < N; i++)
+        {
+          Star_handle star = m_stars[i];
+          if(!star->is_surface_star())
+            continue;
+
+          Facet_set_iterator fit = star->begin_restricted_facets();
+          Facet_set_iterator fend = star->end_restricted_facets();
+          for(; fit != fend; fit++)
+          {
+            Facet f = *fit;
+            if(done.find(Facet_ijk(f)) != done.end())
+              continue;
+            done.insert(Facet_ijk(f));
+
+            Point_3 cc;
+            star->compute_dual_intersection(f, cc);
+            if(!m_refinement_condition(cc))
+              continue;
+
+            const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
+            const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
+            const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
+
+            if(!is_above_plane(plane, pa, pb, pc))
+              continue;
+
+            Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
+            Star_handle star_b = m_stars[f.first->vertex((f.second+2)%4)->info()];
+            Star_handle star_c = m_stars[f.first->vertex((f.second+3)%4)->info()];
+
+            FT sqd_a = sq_distance_to_surface(f, star_a);
+            FT sqd_b = sq_distance_to_surface(f, star_b);
+            FT sqd_c = sq_distance_to_surface(f, star_c);
+            FT error = std::sqrt((std::max)((std::max)(sqd_a, sqd_b), sqd_c));
+            out << cc.x() << " " << cc.y() << " " << cc.z() << " |||||||||| " << error << std::endl;
+            error *= 1250;
+
+            float q = (float)error;
+            gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, 255.f, q, q);
+          }
+        }
+        if(was)
+          ::glEnable(GL_LIGHTING);
+      }
+
       void gl_draw_initial_points(const typename K::Plane_3& plane) const
       {
         typename Constrain_surface::Pointset::const_iterator pi = initial_points.begin();

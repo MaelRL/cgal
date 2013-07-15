@@ -40,6 +40,7 @@ namespace CGAL
       typedef typename Base::Point_3       Point_3;
       typedef typename Base::Object_3      Object_3;
       typedef typename Base::Segment_3     Segment_3;
+      typedef typename Base::Triangle_3    Triangle_3;
       typedef typename Base::Ray_3         Ray_3;
       typedef typename Base::Line_3        Line_3;
       typedef typename Base::Oriented_side Oriented_side;
