@@ -25,7 +25,7 @@
 #include <vector>
 #include <iterator>
 
-#include "Polyhedron_type.h"
+#include "../../demo/Polyhedron_type.h"
 
 #include <CGAL/Constrain_surface_3_ex.h>
 #include <CGAL/Mesh_3/Robust_intersection_traits_3.h>
@@ -1442,7 +1442,6 @@ class Constrain_surface_3_polyhedral :
           e[0] = std::real(vals[0]);
           e[1] = std::real(vals[1]);
           e[2] = std::real(vals[2]);
-          assert(e0 > 0 && e1 > 0 && e2 > 0);
 
           e[0] = std::sqrt(e[0]);
           e[1] = std::sqrt(e[1]);
@@ -1653,6 +1652,7 @@ class Constrain_surface_3_polyhedral :
       Constrain_surface_3_polyhedral(const char *filename, 
                                      const FT& epsilon,
                                      const FT& en_factor = 1.0,
+                                     const FT& approximation = 1.0,
                                      const bool smooth_metric = false) 
         : m_vertices(),
           m_metrics(),
@@ -1665,7 +1665,7 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(filename);
-          initialize(epsilon, en_factor, smooth_metric);
+          initialize(epsilon, en_factor, approximation, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral(const Polyhedron& p, 

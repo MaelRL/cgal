@@ -68,8 +68,7 @@ int main(int argc, char *argv[])
   Polyhedral_curvature_metric_field<K>* metric_field =
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
   
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain,
-    10, 2., No_condition<K::Point_3>(), poles_given, poles_filename);
+  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, 10, No_condition<K::Point_3>(), poles_given, poles_filename);
 
   starset.refine_all();
 

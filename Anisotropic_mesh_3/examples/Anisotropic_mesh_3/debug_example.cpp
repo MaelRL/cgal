@@ -14,11 +14,9 @@
 #include <iostream>
 #include <fstream>
 
-
 using namespace CGAL::Anisotropic_mesh_3;
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef CGAL::Polyhedron_3<K> Polyhedron;
 typedef K::Point_3 Point_3;
 typedef K::Vector_3 Vector_3;
 

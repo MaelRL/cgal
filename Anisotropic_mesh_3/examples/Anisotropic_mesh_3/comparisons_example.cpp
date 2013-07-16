@@ -59,7 +59,6 @@ int main(int argc, char* argv[])
   int nb = (argc > 4) ? atoi(argv[4]) : 10;
   K::FT approx = (argc > 5) ? atof(argv[5]) : 0.02;
   K::FT epsilon = (argc > 6) ? atof(argv[6]) : (r / R);
-  K::FT gamma1 = (argc > 7) ? atof(argv[7]) : 2.;
 
   fx << "Torus :" << std::endl;
   fx << "\tR = " << R << std::endl;
@@ -94,8 +93,7 @@ int main(int argc, char* argv[])
 
   Implicit_curvature_metric_field<K>* curvature_mf =
     new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
-  Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, 
-                                                   gamma1, condition);
+  Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, condition);
   curvature_mesh.refine_all();
   fx << "Aniso :\n";
   fx << "  nb stars = " << curvature_mesh.number_of_surface_stars() << std::endl;
@@ -119,8 +117,7 @@ int main(int argc, char* argv[])
   fx << std::endl;
   
   Euclidean_metric_field<K>* euclid_mf = new Euclidean_metric_field<K>();
-  Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, 
-                                                   gamma1, condition);
+  Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, condition);
   euclidean_mesh.refine_all(); 
   fx << "Iso :\n";
   fx << "  nb stars = " << euclidean_mesh.number_of_surface_stars() << std::endl;

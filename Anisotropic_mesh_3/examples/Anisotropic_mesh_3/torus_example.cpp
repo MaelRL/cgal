@@ -73,8 +73,6 @@ int main(int argc, char* argv[])
 
   K::FT beta = (argc > 9) ? atof(argv[9]) : 2.5;
   K::FT delta = (argc > 10) ? atof(argv[10]) : 0.3;
-  //m_distortion_bound_avoid_pick_valid
-  K::FT distortion_bound = (argc > 11) ? atof(argv[11]) : 2.;
 
   Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
                                                     0.2,    //sliverity_
@@ -95,7 +93,6 @@ int main(int argc, char* argv[])
   fx << "\tapprox = " << approx << std::endl;
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
-  fx << "\tgamma1 = " << distortion_bound << std::endl;
   
   Constrain_surface_3_torus<K>* pdomain
     = new Constrain_surface_3_torus<K>(R, r);
@@ -118,8 +115,7 @@ int main(int argc, char* argv[])
     fx << "\tx_condition = " << (xcondition == 1) << std::endl;
     fx << std::endl << "nbV" << "\t" << "time" << std::endl;
     timer.start();
-    Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb,                                               
-                                              distortion_bound, condition); 
+    Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, condition);
     timer.stop();
     fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   
@@ -134,7 +130,7 @@ int main(int argc, char* argv[])
   else
   {
     timer.start();
-    Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb, distortion_bound); 
+    Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
     timer.stop();
     fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   

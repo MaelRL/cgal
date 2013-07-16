@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon, en_factor, approx, false/*heat smoothing*/);
 
   Polyhedral_curvature_metric_field<K>* metric_field =
-    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon, en_factor, approx);
+    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon, en_factor);
   
   //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
