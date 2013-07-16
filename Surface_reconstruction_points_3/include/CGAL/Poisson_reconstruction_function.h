@@ -45,7 +45,7 @@
 #include <CGAL/property_map.h>
 #include <CGAL/surface_reconstruction_points_assertions.h>
 #include <CGAL/poisson_refine_triangulation.h>
-#include <CGAL/Robust_circumcenter_filtered_traits_3.h>
+#include <CGAL/Mesh_3/Robust_weighted_circumcenter_filtered_traits_3.h>
 #include <CGAL/compute_average_spacing.h>
 
 #include <boost/shared_ptr.hpp>
@@ -176,7 +176,7 @@ public:
 
   typedef Gt Geom_traits; ///< Geometric traits class
   /// \cond SKIP_IN_MANUAL
-  typedef Reconstruction_triangulation_3<Robust_circumcenter_filtered_traits_3<Gt> >
+  typedef Reconstruction_triangulation_3<Robust_weighted_circumcenter_filtered_traits_3<Gt> >
                                                    Triangulation;
   /// \endcond
   typedef typename Triangulation::Cell_handle   Cell_handle;
@@ -184,6 +184,7 @@ public:
   // Geometric types
   typedef typename Geom_traits::FT FT; ///< number type.
   typedef typename Geom_traits::Point_3 Point; ///< point type.
+  typedef typename Triangulation::Point_with_normal Point_with_normal;
   typedef typename Geom_traits::Vector_3 Vector; ///< vector type.
   typedef typename Geom_traits::Sphere_3 Sphere; 
 
@@ -570,7 +571,7 @@ public:
   */ 
   FT operator()(const Point& p) const
   {
-    m_hint = m_tr->locate(p ,m_hint); 
+    m_hint = m_tr->locate(Point_with_normal(p), m_hint); 
 
     if(m_tr->is_infinite(m_hint)) {
       int i = m_hint->index(m_tr->infinite_vertex());
