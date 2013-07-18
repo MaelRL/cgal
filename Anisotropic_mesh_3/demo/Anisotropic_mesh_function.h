@@ -206,8 +206,8 @@ launch()
       {
         smesher_->star_set.clean_stars();//remove useless vertices
 #ifdef ANISO_VERBOSE
-        std::cerr << " " << nbv << " vertices, ";
-        std::cerr << smesher_->star_set.duration(start_time) << " sec.,\t";
+        std::cout << " " << nbv << " vertices, ";
+        std::cout << smesher_->star_set.duration(start_time) << " sec.,\t";
         smesher_->star_set.m_refine_queue.print();
 #endif
 #ifdef ANISO_DEBUG

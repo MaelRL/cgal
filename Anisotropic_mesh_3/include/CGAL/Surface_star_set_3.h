@@ -3007,8 +3007,8 @@ public:
           { 
             clean_stars();//remove useless vertices
 #ifdef ANISO_VERBOSE
-            std::cerr << " " << nbv << " vertices, ";
-            std::cerr << duration(start_time) << " sec.,\t";
+            std::cout << " " << nbv << " vertices, ";
+            std::cout << duration(start_time) << " sec.,\t";
             m_refine_queue.print();
 #endif
 #ifdef ANISO_DUMP_INTERMEDIATE_MESHES
