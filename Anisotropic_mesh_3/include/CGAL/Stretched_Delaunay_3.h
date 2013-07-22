@@ -1941,17 +1941,17 @@ ifdef ANISO_DEBUG_STEINER_DUAL
         val = m_metric.get_min_eigenvalue();
         m_metric.get_min_eigenvector(vec);
         ::glColor3f(0.,0.,1.f);
-        ::gl_draw_arrow<K>(p, p + coeff*vec/(val*val));
+        ::gl_draw_arrow<K>(p, p + coeff*vec/val);
 
         val = m_metric.get_max_eigenvalue();
         m_metric.get_max_eigenvector(vec);
         ::glColor3f(1.f,0.,0.);
-        ::gl_draw_arrow<K>(p, p + coeff*vec/(val*val));
+        ::gl_draw_arrow<K>(p, p + coeff*vec/val);
 
         val = m_metric.get_third_eigenvalue();
         m_metric.get_third_eigenvector(vec);
         ::glColor3f(0.,1.f,0.);
-        ::gl_draw_arrow<K>(p, p + coeff*vec/(val*val));
+        ::gl_draw_arrow<K>(p, p + coeff*vec/val);
       }
 
       bool is_above_plane(const typename K::Plane_3& plane,
