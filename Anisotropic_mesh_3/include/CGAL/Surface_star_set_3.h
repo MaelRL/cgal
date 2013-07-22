@@ -1674,23 +1674,23 @@ public:
                 continue;
               }
             }
-            // bad shape : 3
-            if(m_criteria->radius_edge_ratio > 0.)
-            {
-              FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
-              if (over_radius_edge_ratio > 0) 
-              {
-                m_refine_queue.push_bad_shape(star, *fi, over_radius_edge_ratio);
-                continue;
-              }
-            }
-            // bad approx : 4
+            // bad approx : 3
             if(m_criteria->approximation > 0.)
             {
               FT over_approx = std::sqrt(sq_distance_to_surface(*fi, star)) - m_criteria->approximation;
               if(over_approx > 0.)
               {
                 m_refine_queue.push_bad_approximation(star, *fi, over_approx);
+                continue;
+              }
+            }
+            // bad shape : 4
+            if(m_criteria->radius_edge_ratio > 0.)
+            {
+              FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
+              if (over_radius_edge_ratio > 0) 
+              {
+                m_refine_queue.push_bad_shape(star, *fi, over_radius_edge_ratio);
                 continue;
               }
             }
