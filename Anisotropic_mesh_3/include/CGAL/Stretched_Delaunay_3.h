@@ -1617,7 +1617,7 @@ public:
           bool f2 = !is_infinite(c2);
 
           if(super_verbose)
-            std::cout << "(case " << f1 << " " << f2 << ")";
+            std::cout << "(case " << f1 << " " << f2 << ")" << std::endl;
 
           Index offset = facet.second;
           if(!f1 && f2)
@@ -1647,7 +1647,8 @@ public:
                 cp2 = temp;
               }
 
-              if(cp1 == cp2){
+              if(cp1 == cp2)
+              {
                 p = cp1;
                 ret_val = true;
               }
@@ -1683,8 +1684,8 @@ public:
 
               if(super_verbose)
               {
-                std::cout << "(o " << o1 << " " << o2 << " " << o3 << ")";
-                std::cout << "(cp " << cp << ")";
+                std::cout << "(o " << o1 << " " << o2 << " " << o3 << ")" << std::endl;
+                std::cout << "(cp " << cp << ")" << std::endl;
               }
             }
           }
@@ -2158,7 +2159,7 @@ ifdef ANISO_DEBUG_STEINER_DUAL
           gl_draw_segment<K>(ce, ce+c*vn);
 
             //center
-          ::glColor3d(33,224,237);
+          ::glColor3d(33./256., 224./256., 237./256.);
           ::glPointSize(10.);
           ::glBegin(GL_POINTS);
           ::glVertex3d(ce.x(),ce.y(),ce.z());
