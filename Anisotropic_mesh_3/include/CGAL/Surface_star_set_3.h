@@ -3594,6 +3594,7 @@ public:
       {
         double coeff = bbox_min/10.;
         double glob_min = (std::max)(eps, m_pConstrain->global_min_curvature());
+        std::cout << "eps, min curv, coeff : " << eps << " " << m_pConstrain->global_min_curvature() << " " << coeff << std::endl;
         coeff *= glob_min;
 
         if(star_id < 0) // draw them all
