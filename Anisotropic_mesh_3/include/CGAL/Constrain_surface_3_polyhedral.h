@@ -169,6 +169,7 @@ class Constrain_surface_3_polyhedral :
     public:
       typedef Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> Base;
 
+      typedef typename Base::Object_3      Object_3;
       typedef typename Base::FT                          FT;
       typedef typename Base::Vector_3                    Vector_3;
       typedef typename Base::Point_3                     Point_3;
@@ -267,6 +268,54 @@ class Constrain_surface_3_polyhedral :
       }
 
     public:
+      struct by_distance_to_p0
+      {
+        Point_3 p0;
+
+        bool operator()(const Point_3 &pi, const Point_3& pj)
+        {
+          return CGAL::squared_distance(p0, pi) < CGAL::squared_distance(p0, pj);
+        }
+
+        by_distance_to_p0(const Point_3 &pini) : p0(pini) { }
+      };
+
+      virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const
+      {
+        typedef typename Tree::Object_and_primitive_id Object_and_primitive_id;
+        std::list<Object_and_primitive_id> intersections;
+        Segment_3 seg(p0, p1);
+        std::vector<Point_3> intersection_points;
+
+        tree->all_intersections(seg, std::back_inserter(intersections));
+
+        typename std::list<Object_and_primitive_id>::iterator it;
+        for(it = intersections.begin(); it != intersections.end(); it++)
+        {
+          Object_and_primitive_id ob = *it;
+          Object_3 object = ob.first;
+          Point_3 p;
+          if(object.assign(p))
+            intersection_points.push_back(p);
+        }
+
+        if(intersection_points.size()%2 == 0)
+          return Object_3();
+
+        std::sort(intersection_points.begin(), intersection_points.end(), by_distance_to_p0(p0));
+
+#ifdef ANISO_DEBUG_INTERSECTION
+        if(intersection_points.size() > 1)
+        {
+          std::cout << "intersection poly : " << std::endl << p0 << std::endl << p1 << std::endl;
+          std::cout << intersection_points.size() << " intersections" << std::endl;
+          for(typename std::vector<Point_3>::iterator vit = intersection_points.begin(); vit != intersection_points.end(); ++vit)
+            std::cout << *vit << " || " << CGAL::squared_distance(*vit, p0) << std::endl;
+        }
+#endif
+        return make_object(intersection_points.front());
+      }
+
       FT compute_sq_approximation(const Point_3& p) const
       {
         return tree->squared_distance(p);
