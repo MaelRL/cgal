@@ -113,6 +113,11 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND)
   ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" DOUBLE_ELLIPSOID_SRC_FILES)
   LIST(REMOVE_AT DOUBLE_ELLIPSOID_SRC_FILES 0) 
   polyhedron_demo_plugin(double_ellipsoid_constrained_surface_plugin Double_ellipsoid_function ${DOUBLE_ELLIPSOID_SRC_FILES})
+
+  set(PRETZEL_SRC_FILES "Pretzel_function.cpp")
+  ADD_MSVC_PRECOMPILED_HEADER("StdAfx.h" "StdAfx.cpp" PRETZEL_SRC_FILES)
+  LIST(REMOVE_AT PRETZEL_SRC_FILES 0) 
+  polyhedron_demo_plugin(pretzel_constrained_surface_plugin Pretzel_function ${Pretzel_SRC_FILES})
   
 else (CGAL_Qt4_FOUND AND QT4_FOUND)
 
