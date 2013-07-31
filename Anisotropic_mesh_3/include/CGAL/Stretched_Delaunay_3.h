@@ -2046,7 +2046,7 @@ ifdef ANISO_DEBUG_STEINER_DUAL
           if(!is_above_plane(plane, pa, pb, pc))
             continue;
 
-          if(is_restricted(f)) { ::glColor3f(0.,0.,1.f); ::glLineWidth(2.);}
+          if(is_restricted(f)) { ::glLineWidth(2.);}
           else                 { ::glColor3f(0.,0.,0.);  ::glLineWidth(1.);}
 
           typename K::Object_3 o = dual(f);
@@ -2054,10 +2054,16 @@ ifdef ANISO_DEBUG_STEINER_DUAL
           typename K::Ray_3 r;
           typename K::Segment_3 s;
           if(CGAL::assign(s, o))
-            gl_draw_segment<K>(s.source(), s.target());
+          {
+            ::glColor3f(0.,0.,1.f);
+            gl_draw_segment<K>(s.source(), s.target(), true /*end points*/);
+          }
           else if(CGAL::assign(r, o))
+          {
+            ::glColor3f(0.,1.f, 0.);
             gl_draw_segment<K>(r.source(), r.source() + r.to_vector()
-                * (m_pConstrain->get_bounding_radius() * 10.0 / std::sqrt(r.to_vector() * r.to_vector())));
+                * (m_pConstrain->get_bounding_radius() * 10.0 / std::sqrt(r.to_vector() * r.to_vector())), true);
+          }
           else if(CGAL::assign(l, o))
             std::cout << "gl_draw_dual : line dual\n";
 
