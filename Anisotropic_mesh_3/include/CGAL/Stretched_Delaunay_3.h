@@ -1402,6 +1402,8 @@ public:
         {
           Point_3 ps[3];
           get_inverse_transformed_points(ps, facet);
+          FT third = 1./3.;
+          Point_3 facet_bar = CGAL::barycenter(ps[0], third, ps[1], third, ps[2], third);
 
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
@@ -1432,6 +1434,13 @@ public:
             {
               Exact_Point_3 cp1 = m_metric.inverse_transform(compute_exact_circumcenter(c1));
               Exact_Point_3 cp2 = m_metric.inverse_transform(compute_exact_circumcenter(c2));
+              if(CGAL::squared_distance(facet_bar, cp1) > CGAL::squared_distance(facet_bar, cp2))
+              {
+                Exact_Point_3 temp = cp1;
+                cp1 = cp2;
+                cp2 = temp;
+              }
+
               if(m_pConstrain->intersection(back_from_exact(cp1), back_from_exact(cp2)).assign(p))
                 ret_val = true;
             }
@@ -1599,6 +1608,8 @@ public:
         {
           Point_3 ps[3];
           get_inverse_transformed_points(ps, facet);
+          FT third = 1./3.;
+          Point_3 facet_bar = CGAL::barycenter(ps[0], third, ps[1], third, ps[2], third);
 
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
@@ -1629,6 +1640,12 @@ public:
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
+              if(CGAL::squared_distance(facet_bar, cp1) > CGAL::squared_distance(facet_bar, cp2))
+              {
+                Point_3 temp = cp1;
+                cp1 = cp2;
+                cp2 = temp;
+              }
 
               if(cp1 == cp2){
                 p = cp1;
