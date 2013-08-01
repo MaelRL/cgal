@@ -90,40 +90,7 @@ namespace CGAL
       }
 
     public:
-      Object_3 intersection(const Point_3& p0, const Point_3& p1) const
-      {
-        Point_3 lp = p0, rp = p1, mp = CGAL::midpoint(p0, p1);
-        Oriented_side lv = side_of_constraint(lp);
-        Oriented_side rv = side_of_constraint(rp);
-        if (lv == CGAL::ON_ORIENTED_BOUNDARY)
-          return make_object(lp);
-        if (rv == CGAL::ON_ORIENTED_BOUNDARY)
-          return make_object(rp);
-        if (lv == rv)
-          return Object_3();
-
-        Vector_3 r_l(rp, lp);
-        FT sqdist = r_l.squared_length();
-        FT tol = 1e-16;
-        while (sqdist > tol)
-        {
-          Oriented_side mv = side_of_constraint(mp);
-          if (mv == lv)
-          {
-            lp = mp;
-            mp = CGAL::midpoint(lp, rp);
-          }
-          else if (mv == rv)
-          {
-            rp = mp;
-            mp = CGAL::midpoint(lp, rp);
-          }
-          else
-            return make_object(mp);
-          sqdist *= 0.25;
-        }
-        return make_object(mp);
-      }
+      virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const = 0;
 
       Object_3 intersection(const Object_3 &obj) const
       {

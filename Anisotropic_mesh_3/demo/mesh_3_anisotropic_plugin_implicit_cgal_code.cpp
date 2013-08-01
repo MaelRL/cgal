@@ -65,6 +65,7 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
     std::cout << "(Hyperbolic shock metric field)." << std::endl;
     mf = new Hyperbolic_shock_metric_field<Kernel>(0.6, epsilon, en_factor);
   }
+  std::cout << "epsilon/en_factor : " << epsilon << " " << en_factor << std::endl;
 
   // @TODO, WARNING: memory leak to be corrected later: criteria and
   // metric_field must be destroyed by somebody. The issue is that they

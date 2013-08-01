@@ -71,12 +71,23 @@ void gl_draw_facet(const Facet& f,
 
 template<typename Kernel>
 void gl_draw_segment(const typename Kernel::Point_3& pa,
-                     const typename Kernel::Point_3& pb) 
+                     const typename Kernel::Point_3& pb,
+                     const bool draw_extremities = false)
 {
   ::glBegin(GL_LINES);
   ::glVertex3d(pa.x(),pa.y(),pa.z());
   ::glVertex3d(pb.x(),pb.y(),pb.z());
   ::glEnd();
+
+  if(draw_extremities)
+  {
+    ::glColor3d(93./256.,204./256.,232./256.);
+    ::glPointSize(5.);
+    ::glBegin(GL_POINTS);
+    ::glVertex3d(pa.x(),pa.y(),pa.z());
+    ::glVertex3d(pb.x(),pb.y(),pb.z());
+    ::glEnd();
+  }
 }
 
 

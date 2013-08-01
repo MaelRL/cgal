@@ -71,6 +71,7 @@ namespace CGAL{
     public:
       typedef Constrain_surface_3_implicit<K>            Self;
       typedef Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> Base;
+      typedef typename Base::Object_3                    Object_3;
       typedef typename Base::FT                          FT;
       typedef typename Base::Vector_3                    Vector_3;
       typedef typename Base::Point_3                     Point_3;
@@ -140,6 +141,73 @@ namespace CGAL{
       //}
 
 public:
+      Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const
+      {
+#ifdef ANISO_IMPLICIT_INTERSECTION_STEPS
+        Point_3 lp = p0, rp = p1;
+        Oriented_side lv = side_of_constraint(lp);
+        Oriented_side rv = side_of_constraint(rp);
+        if (lv == CGAL::ON_ORIENTED_BOUNDARY)
+          return make_object(lp);
+        if (rv == CGAL::ON_ORIENTED_BOUNDARY)
+          return make_object(rp);
+        if (lv == rv)
+          return Object_3();
+
+        Point_3 mem_p = lp;
+
+        Vector_3 l_r(lp, rp);
+        int steps = 100, count = 0;
+        Vector_3 step_vec = l_r/steps;
+        Point_3 step_p = lp + step_vec;
+
+        while (count++ < steps)
+        {
+          Oriented_side stepv = side_of_constraint(step_p);
+          if(lv != stepv)
+            return intersection_dichotomy(mem_p, step_p);
+          mem_p = step_p;
+          step_p = step_p + step_vec;
+        }
+        return Object_3();
+#else
+        return intersection_dichotomy(p0, p1);
+#endif
+      }
+
+      Object_3 intersection_dichotomy(const Point_3& p0, const Point_3& p1) const
+      {
+        Point_3 lp = p0, rp = p1, mp = CGAL::midpoint(p0, p1);
+        Oriented_side lv = side_of_constraint(lp);
+        Oriented_side rv = side_of_constraint(rp);
+        if (lv == CGAL::ON_ORIENTED_BOUNDARY)
+          return make_object(lp);
+        if (rv == CGAL::ON_ORIENTED_BOUNDARY)
+          return make_object(rp);
+        if (lv == rv)
+          return Object_3();
+
+        Vector_3 r_l(rp, lp);
+        FT sqdist = r_l.squared_length();
+        FT tol = 1e-16;
+        while (sqdist > tol)
+        {
+          Oriented_side mv = side_of_constraint(mp);
+          if(rv == mv)
+          {
+            rp = mp;
+            mp = CGAL::midpoint(lp, rp);
+          }
+          else
+          {
+            lp = mp;
+            mp = CGAL::midpoint(lp, rp);
+          }
+          sqdist *= 0.25;
+        }
+        return make_object(mp);
+      }
+
       FT compute_sq_approximation(const Point_3& p) const
       {
         Vector_3 g = gradient(p);

@@ -1402,6 +1402,8 @@ public:
         {
           Point_3 ps[3];
           get_inverse_transformed_points(ps, facet);
+          FT third = 1./3.;
+          Point_3 facet_bar = CGAL::barycenter(ps[0], third, ps[1], third, ps[2], third);
 
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
@@ -1432,6 +1434,13 @@ public:
             {
               Exact_Point_3 cp1 = m_metric.inverse_transform(compute_exact_circumcenter(c1));
               Exact_Point_3 cp2 = m_metric.inverse_transform(compute_exact_circumcenter(c2));
+              if(CGAL::squared_distance(facet_bar, cp1) > CGAL::squared_distance(facet_bar, cp2))
+              {
+                Exact_Point_3 temp = cp1;
+                cp1 = cp2;
+                cp2 = temp;
+              }
+
               if(m_pConstrain->intersection(back_from_exact(cp1), back_from_exact(cp2)).assign(p))
                 ret_val = true;
             }
@@ -1599,6 +1608,8 @@ public:
         {
           Point_3 ps[3];
           get_inverse_transformed_points(ps, facet);
+          FT third = 1./3.;
+          Point_3 facet_bar = CGAL::barycenter(ps[0], third, ps[1], third, ps[2], third);
 
           Cell_handle c1 = facet.first;
           Cell_handle c2 = c1->neighbor(facet.second);
@@ -1606,7 +1617,7 @@ public:
           bool f2 = !is_infinite(c2);
 
           if(super_verbose)
-            std::cout << "(case " << f1 << " " << f2 << ")";
+            std::cout << "(case " << f1 << " " << f2 << ")" << std::endl;
 
           Index offset = facet.second;
           if(!f1 && f2)
@@ -1629,8 +1640,15 @@ public:
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
+              if(CGAL::squared_distance(facet_bar, cp1) > CGAL::squared_distance(facet_bar, cp2))
+              {
+                Point_3 temp = cp1;
+                cp1 = cp2;
+                cp2 = temp;
+              }
 
-              if(cp1 == cp2){
+              if(cp1 == cp2)
+              {
                 p = cp1;
                 ret_val = true;
               }
@@ -1666,8 +1684,8 @@ public:
 
               if(super_verbose)
               {
-                std::cout << "(o " << o1 << " " << o2 << " " << o3 << ")";
-                std::cout << "(cp " << cp << ")";
+                std::cout << "(o " << o1 << " " << o2 << " " << o3 << ")" << std::endl;
+                std::cout << "(cp " << cp << ")" << std::endl;
               }
             }
           }
@@ -1941,17 +1959,17 @@ ifdef ANISO_DEBUG_STEINER_DUAL
         val = m_metric.get_min_eigenvalue();
         m_metric.get_min_eigenvector(vec);
         ::glColor3f(0.,0.,1.f);
-        ::gl_draw_arrow<K>(p, p + coeff*vec/(val*val));
+        ::gl_draw_arrow<K>(p, p + coeff*vec/val);
 
         val = m_metric.get_max_eigenvalue();
         m_metric.get_max_eigenvector(vec);
         ::glColor3f(1.f,0.,0.);
-        ::gl_draw_arrow<K>(p, p + coeff*vec/(val*val));
+        ::gl_draw_arrow<K>(p, p + coeff*vec/val);
 
         val = m_metric.get_third_eigenvalue();
         m_metric.get_third_eigenvector(vec);
         ::glColor3f(0.,1.f,0.);
-        ::gl_draw_arrow<K>(p, p + coeff*vec/(val*val));
+        ::gl_draw_arrow<K>(p, p + coeff*vec/val);
       }
 
       bool is_above_plane(const typename K::Plane_3& plane,
@@ -2028,7 +2046,7 @@ ifdef ANISO_DEBUG_STEINER_DUAL
           if(!is_above_plane(plane, pa, pb, pc))
             continue;
 
-          if(is_restricted(f)) { ::glColor3f(0.,0.,1.f); ::glLineWidth(2.);}
+          if(is_restricted(f)) { ::glLineWidth(2.);}
           else                 { ::glColor3f(0.,0.,0.);  ::glLineWidth(1.);}
 
           typename K::Object_3 o = dual(f);
@@ -2036,10 +2054,16 @@ ifdef ANISO_DEBUG_STEINER_DUAL
           typename K::Ray_3 r;
           typename K::Segment_3 s;
           if(CGAL::assign(s, o))
-            gl_draw_segment<K>(s.source(), s.target());
+          {
+            ::glColor3f(0.,0.,1.f);
+            gl_draw_segment<K>(s.source(), s.target(), true /*end points*/);
+          }
           else if(CGAL::assign(r, o))
+          {
+            ::glColor3f(0.,1.f, 0.);
             gl_draw_segment<K>(r.source(), r.source() + r.to_vector()
-                * (m_pConstrain->get_bounding_radius() * 10.0 / std::sqrt(r.to_vector() * r.to_vector())));
+                * (m_pConstrain->get_bounding_radius() * 10.0 / std::sqrt(r.to_vector() * r.to_vector())), true);
+          }
           else if(CGAL::assign(l, o))
             std::cout << "gl_draw_dual : line dual\n";
 
@@ -2141,7 +2165,7 @@ ifdef ANISO_DEBUG_STEINER_DUAL
           gl_draw_segment<K>(ce, ce+c*vn);
 
             //center
-          ::glColor3d(33,224,237);
+          ::glColor3d(33./256., 224./256., 237./256.);
           ::glPointSize(10.);
           ::glBegin(GL_POINTS);
           ::glVertex3d(ce.x(),ce.y(),ce.z());

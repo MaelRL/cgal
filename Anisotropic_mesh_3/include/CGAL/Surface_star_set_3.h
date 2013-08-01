@@ -1674,23 +1674,23 @@ public:
                 continue;
               }
             }
-            // bad shape : 3
-            if(m_criteria->radius_edge_ratio > 0.)
-            {
-              FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
-              if (over_radius_edge_ratio > 0) 
-              {
-                m_refine_queue.push_bad_shape(star, *fi, over_radius_edge_ratio);
-                continue;
-              }
-            }
-            // bad approx : 4
+            // bad approx : 3
             if(m_criteria->approximation > 0.)
             {
               FT over_approx = std::sqrt(sq_distance_to_surface(*fi, star)) - m_criteria->approximation;
               if(over_approx > 0.)
               {
                 m_refine_queue.push_bad_approximation(star, *fi, over_approx);
+                continue;
+              }
+            }
+            // bad shape : 4
+            if(m_criteria->radius_edge_ratio > 0.)
+            {
+              FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
+              if (over_radius_edge_ratio > 0) 
+              {
+                m_refine_queue.push_bad_shape(star, *fi, over_radius_edge_ratio);
                 continue;
               }
             }
@@ -3594,6 +3594,7 @@ public:
       {
         double coeff = bbox_min/10.;
         double glob_min = (std::max)(eps, m_pConstrain->global_min_curvature());
+        std::cout << "eps, min curv, coeff : " << eps << " " << m_pConstrain->global_min_curvature() << " " << coeff << std::endl;
         coeff *= glob_min;
 
         if(star_id < 0) // draw them all
