@@ -229,9 +229,9 @@ class Constrain_surface_3_polyhedral :
       std::vector<typename Eigen::Matrix3d> m_metrics;
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-      std::ofstream min_vector_field_os;
-      std::ofstream max_vector_field_os;
-      std::ofstream normals_field_os;
+      std::ofstream* min_vector_field_os;
+      std::ofstream* max_vector_field_os;
+      std::ofstream* normals_field_os;
 #endif
 
     protected:
@@ -734,16 +734,16 @@ class Constrain_surface_3_polyhedral :
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
           FT f = get_bounding_radius()*0.02;
-          normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
+          (*normals_field_os) << "2 " << pi << " " << (pi+f*vn) << std::endl;
           if(e1>e2)
           {
-            max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
-            min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+            (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
+            (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
           }
           else
           {
-            min_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
-            max_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+            (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
+            (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
           }
 #endif
         }
@@ -792,9 +792,9 @@ class Constrain_surface_3_polyhedral :
           if(!smooth_metric)
           {
             FT f = get_bounding_radius()*0.02;
-            max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
-            min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
-            normals_field_os << "2 " << pi << " " << (pi+f*vn) << std::endl;
+            (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
+            (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
+            (*normals_field_os) << "2 " << pi << " " << (pi+f*vn) << std::endl;
           }
 #endif
 
@@ -981,16 +981,16 @@ class Constrain_surface_3_polyhedral :
             {
               Point_3 pi = vi->point();
               FT f = get_bounding_radius()*0.02;
-              normals_field_os << "2 " << pi << " " << (pi+f*v0) << std::endl;
+              (*normals_field_os) << "2 " << pi << " " << (pi+f*v0) << std::endl;
               if(e1 > e2)
               {
-                max_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
-                min_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+                (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
+                (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
               }
               else
               {
-                min_vector_field_os << "2 " << pi << " " << (pi+f*v1) << std::endl;
-                max_vector_field_os << "2 " << pi << " " << (pi+f*v2) << std::endl;
+                (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
+                (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
               }
             }
 #endif
@@ -1698,7 +1698,7 @@ class Constrain_surface_3_polyhedral :
         gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
       }
 
-      Constrain_surface_3_polyhedral(const char *filename, 
+      Constrain_surface_3_polyhedral(const char *filename,
                                      const FT& epsilon,
                                      const FT& en_factor = 1.0,
                                      const FT& approximation = 1.0,
@@ -1709,9 +1709,9 @@ class Constrain_surface_3_polyhedral :
           m_cache_min_curvature(false)
         {
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          min_vector_field_os = std::ofstream("vector_field_min.polylines.cgal");
-          max_vector_field_os = std::ofstream("vector_field_max.polylines.cgal");
-          normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
+          min_vector_field_os = new std::ofstream("vector_field_min.polylines.cgal");
+          max_vector_field_os = new std::ofstream("vector_field_max.polylines.cgal");
+          normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(filename);
           initialize(epsilon, en_factor, approximation, smooth_metric);
@@ -1728,9 +1728,9 @@ class Constrain_surface_3_polyhedral :
           m_cache_min_curvature(false)
         {
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          min_vector_field_os = std::ofstream("vector_field_min.polylines.cgal");
-          max_vector_field_os = std::ofstream("vector_field_max.polylines.cgal");
-          normals_field_os = std::ofstream("vector_field_normals.polylines.cgal");
+          min_vector_field_os = new std::ofstream("vector_field_min.polylines.cgal");
+          max_vector_field_os = new std::ofstream("vector_field_max.polylines.cgal");
+          normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(p);
           initialize(epsilon, en_factor, approximation, smooth_metric);
@@ -1745,9 +1745,12 @@ class Constrain_surface_3_polyhedral :
       { 
         delete domain;
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-        min_vector_field_os.close();
-        max_vector_field_os.close();
-        normals_field_os.close();
+        (*min_vector_field_os).close();
+        (*max_vector_field_os).close();
+        (*normals_field_os).close();
+        delete min_vector_field_os;
+        delete max_vector_field_os;
+        delete normals_field_os;
 #endif
       }
     }; //Constrain_surface_3_polyhedral
