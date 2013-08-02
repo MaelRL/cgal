@@ -1780,7 +1780,7 @@ public:
             if(failures_count > 100)
             {
               Point_3 ccf = m_metric.inverse_transform(tccf);
-ifdef ANISO_DEBUG_STEINER_DUAL
+#ifdef ANISO_DEBUG_STEINER_DUAL
               std::cout << "failures : " << failures_count << std::endl;
               double eval1 = m_pConstrain->side_of_constraint(candidate_1);
               double eval2 = m_pConstrain->side_of_constraint(candidate_2);
