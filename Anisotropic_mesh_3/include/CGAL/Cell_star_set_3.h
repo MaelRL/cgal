@@ -931,7 +931,7 @@ repick_cell:
           std::cout << "\nWarning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
       }
 
-      void refine_all(int max_count = INT_MAX) 
+      void refine_all(std::size_t max_count = (std::size_t) -1)
       {
         typename std::ofstream fe("report_times.txt");
         fe.close();
@@ -942,7 +942,7 @@ repick_cell:
         intersection_count = 0;
         start_time = time(NULL);
 
-        while ((int)m_points.size() < max_count) 
+        while (m_points.size() < max_count)
         {
 //          int before_refinement = (int)m_points.size();
           if (!refine())

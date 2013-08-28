@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
   starset.output(file.c_str());//off
 
   timer.start();
-  starset.refine_all(/*max nb of points*/);
+  starset.refine_all();
   timer.stop();
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
 

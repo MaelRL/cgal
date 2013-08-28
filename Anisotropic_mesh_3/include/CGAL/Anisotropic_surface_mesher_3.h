@@ -19,9 +19,10 @@ namespace CGAL
       Star_set      &star_set;
 
     public:
-      void refine_all(const int max_count = INT_MAX) 
+      void refine_all(bool& continue_,
+                      const std::size_t max_count = (std::size_t) -1)
       {
-        star_set.refine_all(max_count);
+        star_set.refine_all(continue_, max_count);
       }
 
       const Star_set& starset() const 

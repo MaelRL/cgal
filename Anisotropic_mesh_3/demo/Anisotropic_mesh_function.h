@@ -170,102 +170,10 @@ launch()
   // Build mesher and launch refinement process
   if(p_.dim == 2)
   {
-    smesher_ = new SMesher(starset_);
-    //smesher_->refine_all();
-
-//------------------------------------------------------------------------
-//The following is a copy of refine_all from surface_star_set_3.h
-//to use a continue boolean. If you edit the algorithm here,
-//make sure to edit in the above file as well.
-
     const std::size_t max_count = (std::size_t) -1; //p_.max_times_to_try_in_picking_region);
-    int pick_valid_failed_n = 0;
-    int pick_valid_succeeded_n = 0;
 
-#ifdef ANISO_VERBOSE
-    std::cout << "\nRefine all...";
-    std::clock_t start_time = clock();
-#endif
-    smesher_->star_set.fill_refinement_queue();
-
-#ifdef ANISO_VERBOSE
-    smesher_->star_set.vertex_with_picking_count = 0;
-    smesher_->star_set.vertex_without_picking_count =
-            (int)smesher_->star_set.m_stars.size();
-    std::cout << "There are ";
-    std::cout << smesher_->star_set.count_restricted_facets();
-    std::cout << " restricted facets.\n";
-#endif
-    std::size_t nbv = smesher_->star_set.m_stars.size();
-    while(nbv < max_count && continue_)
-    {
-      if(nbv == 4) //dimension 3 reached
-        smesher_->star_set.update_bboxes();
-
-      if(nbv % 100 == 0)
-      {
-        smesher_->star_set.clean_stars();//remove useless vertices
-#ifdef ANISO_VERBOSE
-        std::cout << " " << nbv << " vertices, ";
-        std::cout << smesher_->star_set.duration(start_time) << " sec.,\t";
-        smesher_->star_set.m_refine_queue.print();
-#endif
-#ifdef ANISO_DEBUG
-        std::ostringstream oss;
-        oss << "out_" << nbv << ".off";
-        smesher_->star_set.output(oss.str().c_str(), false/*consistent_only*/);
-#endif
-       }
-
-       if(!smesher_->star_set.refine(pick_valid_succeeded_n, pick_valid_failed_n,
-                                     pick_valid_causes_stop_, pick_valid_max_failures_,
-                                     pick_valid_use_probing_, metric_smoothing_))
-       {
-         smesher_->star_set.clean_stars();
-         //debug_show_distortions();
-         break;
-       }
-       nbv = smesher_->star_set.m_stars.size();
-    }
-
-    //checking if really done!
-    smesher_->star_set.fill_refinement_queue();
-    if(!smesher_->star_set.m_refine_queue.empty())
-      std::cout << "Stopped too early! Not done!" << std::endl;
-    else
-      std::cout << "Finished properly" << std::endl;
-
-#ifdef ANISO_VERBOSE
-    double time = smesher_->star_set.duration(start_time);
-    std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
-    if(smesher_->star_set.pick_valid_failed())
-      std::cout << "Pick valid failed and stopped mesher!" << std::endl;
-    
-    if(smesher_->star_set.is_consistent(true/*verbose*/))
-      std::cout << "Triangulation is consistent.\n";
-    else
-      std::cout << "Triangulation is not consistent.\n";
-
-    std::cout << "Vertices via picking: ";
-    std::cout << smesher_->star_set.vertex_with_picking_count << std::endl;
-    std::cout << "Vertex non-picking: ";
-    std::cout << smesher_->star_set.vertex_without_picking_count << std::endl;
-    std::cout << "picking rate:       ";
-    std::cout << (double)smesher_->star_set.vertex_with_picking_count /
-      (double)(smesher_->star_set.vertex_without_picking_count +
-               smesher_->star_set.vertex_with_picking_count) << std::endl;
-    std::cout << "Approximation error : ";
-    std::cout << smesher_->star_set.compute_approximation_error() << std::endl;
-
-    smesher_->star_set.report();
-    histogram_vertices_per_star<Surface_star_set>(smesher_->star_set);
-#endif
-#ifdef USE_ANISO_TIMERS
-    smesher_->star_set.report_timers();
-#endif
-
-// end of copy ----------------------------------------------------------
-
+    smesher_ = new SMesher(starset_);
+    smesher_->star_set.refine_all(continue_, max_count, pick_valid_causes_stop_, pick_valid_max_failures_, pick_valid_use_probing_);
   }
   else if(p_.dim == 3)
   {

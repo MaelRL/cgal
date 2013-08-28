@@ -2939,9 +2939,10 @@ public:
       }
       
 public:
+/*
       void refine_all(std::ofstream& fx, 
                       const double& starttime,
-                      const int max_count = INT_MAX,
+                      const int max_count = (std::size_t) -1,
                       const bool pick_valid_causes_stop = false,
                       const bool pick_valid_use_probing = false)
       {
@@ -2954,7 +2955,7 @@ public:
         t.start();
         fill_refinement_queue();
         int nbv = m_stars.size();
-        while(nbv < max_count) 
+        while(nbv < max_count)
         {
           if(nbv == 4) //dimension 3 reached
             update_bboxes();
@@ -2974,18 +2975,20 @@ public:
         t.stop();
         fx << nbv << "\t" << (starttime + t.time())  << std::endl;
       }
+*/
 
 public:
-      void refine_all(const int max_count = INT_MAX,
-                      const bool pick_valid_causes_stop = false,
-                      const bool pick_valid_use_probing = false)
+      void refine_all_one_pass(bool& continue_,
+                               const std::size_t max_count = (std::size_t) -1,
+                               const bool pick_valid_causes_stop = false,
+                               const int pick_valid_max_failures = 100,
+                               const bool pick_valid_use_probing = false)
       {
         //if you modify this, do not forget to also modify the demo
 #ifdef ANISO_VERBOSE
         std::cout << "\nRefine all...";
         std::clock_t start_time = clock();
-#endif        
-        const int pick_valid_max_failures = 100;
+#endif
         int pick_valid_failed_n = 0;
         int pick_valid_succeeded_n = 0;
 
@@ -2998,13 +3001,13 @@ public:
         std::cout << "There are " << count_restricted_facets() << " restricted facets.\n";
 #endif
         std::size_t nbv = m_stars.size();
-        while(nbv < max_count) 
+        while(nbv < max_count && continue_)
         {
           if(nbv == 4) //dimension 3 reached
             update_bboxes();
-          
+
           if(nbv % 100 == 0)
-          { 
+          {
             clean_stars();//remove useless vertices
 #ifdef ANISO_VERBOSE
             std::cout << " " << nbv << " vertices, ";
@@ -3017,7 +3020,7 @@ public:
             output(oss.str().c_str(), false/*consistent_only*/);
 #endif
           }
-          
+
           if(!refine(pick_valid_succeeded_n, pick_valid_failed_n,
                      pick_valid_causes_stop, pick_valid_max_failures,
                      pick_valid_use_probing))
@@ -3029,12 +3032,19 @@ public:
           nbv = m_stars.size();
         }
 
+        //checking if really done!
+        fill_refinement_queue();
+        if(!m_refine_queue.empty())
+          std::cout << "Stopped too early! Not done!" << std::endl;
+        else
+          std::cout << "Finished properly" << std::endl;
+
 #ifdef ANISO_VERBOSE
         double time = duration(start_time);
         std::cout << "\nRefinement done (" << nbv << " vertices in " << time << " seconds)\n";
         if(pick_valid_causes_stop && pick_valid_failed())
           std::cout << "Pick valid failed and stopped mesher!" << std::endl;
-        
+
         if(is_consistent(true/*verbose*/))
           std::cout << "Triangulation is consistent.\n";
         else
@@ -3057,6 +3067,23 @@ public:
 #ifdef USE_ANISO_TIMERS
         report_timers();
 #endif
+      }
+
+      void refine_all(bool& continue_,
+                      const std::size_t max_count = (std::size_t) -1,
+                      const bool pick_valid_causes_stop = false,
+                      const int pick_valid_max_failures = 100,
+                      const bool pick_valid_use_probing = false)
+      {
+        refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+      }
+
+      void refine_all(const std::size_t max_count = (std::size_t) -1,
+                      const bool pick_valid_causes_stop = false,
+                      const int pick_valid_max_failures = 100,
+                      const bool pick_valid_use_probing = false)
+      {
+        refine_all(true /*continue*/, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
       }
 
       bool pick_valid_failed() const
