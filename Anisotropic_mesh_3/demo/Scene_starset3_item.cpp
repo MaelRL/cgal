@@ -267,7 +267,6 @@ Scene_starset3_item::setSelectedPoint(double x, double y, double z)
 
   typedef Surface_star_set::Kd_traits TreeTraits;
   typedef CGAL::Orthogonal_k_neighbor_search<TreeTraits> Neighbor_search;
-  typedef Surface_star_set::Kd_tree::Star_pmap Star_pmap;
 
   // Update the internal Kd-tree of the star set, in case its "buffer" is
   // not empty.

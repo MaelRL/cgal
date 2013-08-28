@@ -262,7 +262,6 @@ void gl_draw_c3t3(const C3T3& c3t3,
 {
   ::glLineWidth(2.f);
   typedef typename C3T3::Triangulation Tr;
-  typedef typename Tr::Cell_handle Cell_handle;
   typedef typename Tr::Geom_traits K;
   typedef typename Tr::Facet Facet;
   typename C3T3::Cells_in_complex_iterator cit = c3t3.cells_in_complex_begin();

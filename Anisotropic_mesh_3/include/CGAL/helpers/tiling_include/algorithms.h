@@ -222,7 +222,6 @@ void project_points(const Vector& normal,
 template <typename kernel1, typename kernel_exact, typename F, typename V>
 double estimated_area(F& f)
 {
-  typedef typename CGAL::Plane_3<kernel1> Plane;
   typedef typename CGAL::Plane_3<kernel_exact> Plane_exact;
 
   typedef typename CGAL::Point_2<kernel_exact> Point_2;
