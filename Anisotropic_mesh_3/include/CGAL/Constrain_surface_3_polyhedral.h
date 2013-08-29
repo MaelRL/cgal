@@ -89,15 +89,12 @@ public:
   std::size_t& tag()             { return m_tag;  }
 };
 
-//enum Point_geo_classification { PARABOLIC = 0, ELLIPTIC = 1, HYPERBOLIC = -1};
-
 // a refined vertex with a tag
 template <class Refs, class T, class P>
 class Enriched_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
 {
   // tag
   std::size_t m_tag;
-  int m_classification; // point classification (elliptic, hyperbolic, etc.)
   Vector m_normal;
   FT m_aniso_ratio;
 
@@ -111,18 +108,15 @@ public:
   // repeat mandatory constructors
   Enriched_vertex(const P& pt)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0), m_classification(0), m_normal(CGAL::NULL_VECTOR), m_aniso_ratio(0) {}
+      m_tag(0), m_normal(CGAL::NULL_VECTOR), m_aniso_ratio(0) {}
 
-  Enriched_vertex(const P& pt, const int& classification, const Vector& n)
+  Enriched_vertex(const P& pt, const Vector& n)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0), m_classification(classification), m_normal(n), m_aniso_ratio(0) {}
+      m_tag(0), m_normal(n), m_aniso_ratio(0) {}
 
   // tag
   std::size_t& tag() {  return m_tag; }
   const std::size_t& tag() const {  return m_tag; }
-  // classification
-  int& classification() {  return m_classification; }
-  const int& classification() const {  return m_classification; }
   // normal
   Vector& normal() {  return m_normal; }
   const Vector& normal() const {  return m_normal; }

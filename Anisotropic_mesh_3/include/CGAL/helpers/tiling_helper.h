@@ -503,7 +503,7 @@ public:
                const double tolerance_angle)
   {
     //get geometry
-    int geometry = vh->classification();
+    int geometry = -1;//vh->classification();
 
     std::cout << "entered compute with : " << vh->point();
     std::cout << " geo : " << geometry << " normal : " << vh->normal() << std::endl;
