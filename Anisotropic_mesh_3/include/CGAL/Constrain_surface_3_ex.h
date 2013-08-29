@@ -20,14 +20,40 @@
 #include <CGAL/Random.h>
 #include <CGAL/internal/Intersections_3/Bbox_3_Line_3_do_intersect.h>
 #include <CGAL/bbox_intersection_3.h>
+#include <CGAL/Polyhedron_3.h>
 
 namespace CGAL
 {
   namespace Anisotropic_mesh_3
   {
 
+  template <class Refs, class T>
+  class Colored_facet : public CGAL::HalfedgeDS_face_base<Refs, T>
+  {
+    double m_color;
+    int m_contributors;
+
+  public:
+    Colored_facet()
+      : m_color(0.), m_contributors(0)  {}
+    const double& color() const { return m_color; }
+    double& color() { return m_color; }
+    const int& contributors() const { return m_contributors; }
+    int& contributors() { return m_contributors; }
+  };
+
+  struct Colored_items : public CGAL::Polyhedron_items_3
+  {
+    template<class Refs, class Traits>
+    struct Face_wrapper
+    {
+      typedef Colored_facet<Refs, CGAL::Tag_true> Face;
+    };
+  };
+
     template<typename K,
-             typename Point_container = typename Constrain_surface_3<K>::Point_container>
+             typename Point_container = typename Constrain_surface_3<K>::Point_container,
+             typename Colored_polyhedron = CGAL::Polyhedron_3<K, Colored_items> >
     class Constrain_surface_3_ex :
       public Constrain_surface_3<K>
     {
@@ -49,12 +75,16 @@ namespace CGAL
       //typedef typename Base::Point_container Point_container;
       typedef typename Base::Pointset      Pointset;
 
+      typedef Colored_polyhedron           Colored_poly;
+
     public:
       EdgeList edges;
+      mutable Colored_polyhedron m_colored_poly;
 
     public:
       virtual FT get_bounding_radius() const = 0;
       virtual Oriented_side side_of_constraint(const Point_3 &p) const = 0;
+      virtual void build_colored_polyhedron() const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
       virtual void compute_poles(std::set<Point_3>&) const = 0;
       virtual Pointset get_surface_points(unsigned int nb, double facet_distance_coeff = 0.05) const = 0;

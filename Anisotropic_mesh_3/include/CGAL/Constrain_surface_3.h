@@ -65,6 +65,7 @@ namespace CGAL
       virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const = 0;
       virtual FT get_bounding_radius() const = 0;
       virtual Oriented_side side_of_constraint(const Point_3 &p) const = 0;
+      virtual void build_colored_polyhedron() const = 0;
       virtual Point_container initial_points(const int nb = 8) const = 0;
       virtual EdgeIterator edge_begin() = 0;
       virtual EdgeIterator edge_end() = 0;

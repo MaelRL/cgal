@@ -48,6 +48,7 @@
 
 #include <CGAL/gl_draw/drawing_helper.h>
 #include <CGAL/helpers/tiling_helper.h>
+#include <CGAL/helpers/c3t3_polyhedron_builder.h>
 
 namespace CGAL
 {
@@ -172,6 +173,7 @@ class Constrain_surface_3_polyhedral :
       typedef typename Base::Plane_3                     Plane_3;
       typedef typename Base::Oriented_side               Oriented_side;
       typedef typename Base::Pointset                    Pointset;
+      typedef typename Base::Colored_poly                Colored_polyhedron;
 
       typedef typename CGAL::Polyhedral_mesh_domain_3<Polyhedron, K> Mesh_domain;
 
@@ -1569,6 +1571,16 @@ class Constrain_surface_3_polyhedral :
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 
+      virtual void build_colored_polyhedron() const
+      {
+        std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
+        Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
+        this->m_colored_poly.delegate(builder);
+        std::ofstream hello("HELLO.OFF");
+        hello << this->m_colored_poly;
+        std::cout << "done" << std::endl;
+      }
+
       virtual Pointset get_surface_points(unsigned int nb,
                                           double facet_distance_coeff /*= 0.05*/) const
       {
@@ -1602,6 +1614,7 @@ class Constrain_surface_3_polyhedral :
           std::ofstream out("mesh_3_temp.mesh");
           m_c3t3.output_to_medit(out);
 #endif
+          build_colored_polyhedron();
 #ifdef ANISO_OUTPUT_POINTS_FOR_MEDIAL_AXIS
           std::ofstream out_pts("mesh_3_points.pts");
           this->output_points(m_c3t3, out_pts);

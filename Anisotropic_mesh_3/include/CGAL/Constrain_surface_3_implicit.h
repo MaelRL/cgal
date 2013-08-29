@@ -33,6 +33,9 @@
 
 #include <CGAL/gl_draw/drawing_helper.h>
 
+#include <CGAL/helpers/c3t3_polyhedron_builder.h>
+#include <CGAL/IO/Polyhedron_iostream.h>
+
 #include <boost/bind.hpp>
 
 namespace CGAL{
@@ -78,6 +81,7 @@ namespace CGAL{
       typedef typename Base::Plane_3                     Plane_3;
       typedef typename Base::Oriented_side               Oriented_side;
       typedef typename Base::Pointset                    Pointset;
+      typedef typename Base::Colored_poly                Colored_polyhedron;
 
       typedef typename Constrain_surface_3<K>::Point_container Point_container;
 
@@ -407,6 +411,15 @@ public:
         w = p.base2();
       }
 
+      virtual void build_colored_polyhedron() const
+      {
+        std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
+        Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
+        this->m_colored_poly.delegate(builder);
+        std::ofstream hello("HELLO.OFF");
+        hello << this->m_colored_poly;
+        std::cout << "done" << std::endl;
+      }
 
       virtual Pointset get_surface_points(unsigned int nb,
                                           double facet_distance_coeff /*= 0.05*/) const
