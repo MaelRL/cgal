@@ -376,33 +376,36 @@ public:
           }
         }
 
-        bool are_equal(const Vector_3& v1,        //unit vector
-                       const Vector_3& v2) const  //unit vector
-        {
-          return (std::abs(std::abs(v1*v2) - 1.) < 1e-10);
-        }
+      bool are_equal(const Vector_3& v1,        //unit vector
+                     const Vector_3& v2) const  //unit vector
+      {
+        return (std::abs(std::abs(v1*v2) - 1.) < 1e-10);
+      }
 
-        Vector_3 get_vector(const Eigen::Vector3d& v) const
-        {
-          return Vector_3(v[0], v[1], v[2]);
-        }
-        Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType::ConstColXpr& v) const
-        {
-          return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
-        }
-        Vector_3 normalize(const Vector_3& v) const
-        {
-          return std::sqrt(1./(v*v)) * v;
-        }
-        void orthogonal_vectors(const Vector_3& u,
-                                Vector_3& v,
-                                Vector_3& w) const
-        {
-          typename K::Line_3 support(CGAL::ORIGIN, CGAL::ORIGIN + u);
-          typename K::Plane_3 p = support.perpendicular_plane(CGAL::ORIGIN);
-          v = p.base1();
-          w = p.base2();
-        }
+      Vector_3 get_vector(const Eigen::Vector3d& v) const
+      {
+        return Vector_3(v[0], v[1], v[2]);
+      }
+
+      Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType::ConstColXpr& v) const
+      {
+        return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
+      }
+
+      Vector_3 normalize(const Vector_3& v) const
+      {
+        return std::sqrt(1./(v*v)) * v;
+      }
+
+      void orthogonal_vectors(const Vector_3& u,
+                              Vector_3& v,
+                              Vector_3& w) const
+      {
+        typename K::Line_3 support(CGAL::ORIGIN, CGAL::ORIGIN + u);
+        typename K::Plane_3 p = support.perpendicular_plane(CGAL::ORIGIN);
+        v = p.base1();
+        w = p.base2();
+      }
 
 
       virtual Pointset get_surface_points(unsigned int nb,

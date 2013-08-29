@@ -185,7 +185,7 @@ namespace CGAL
       Constrain_surface_3_ex() : edges() { }
       ~Constrain_surface_3_ex() { }
     };
-  }
+  } // end namespace Anisotropic_mesh_3
 }
 
 #endif

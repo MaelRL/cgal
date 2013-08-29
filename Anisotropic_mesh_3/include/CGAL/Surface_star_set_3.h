@@ -1787,7 +1787,7 @@ public:
         std::copy(poles.begin(), poles.end(), std::inserter(m_poles,m_poles.end()));
       }
 
-      void initialize_stars(const int nb = 8,
+      void initialize_stars(const int nb = 10,
                             const Point_set& poles = Point_set()) 
       {
 #ifdef ANISO_VERBOSE
@@ -2984,7 +2984,6 @@ public:
                                const int pick_valid_max_failures = 100,
                                const bool pick_valid_use_probing = false)
       {
-        //if you modify this, do not forget to also modify the demo
 #ifdef ANISO_VERBOSE
         std::cout << "\nRefine all...";
         std::clock_t start_time = clock();
@@ -3053,13 +3052,13 @@ public:
         std::cout << "Surface stars : " << number_of_surface_stars() << std::endl;
         std::cout << "Vertices via picking: " << vertex_with_picking_count << std::endl;
         std::cout << "Vertex non-picking:   " << vertex_without_picking_count << std::endl;
-        std::cout << "picking rate:         " << (double)vertex_with_picking_count / 
+        std::cout << "picking rate:         " << (double)vertex_with_picking_count /
           (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
         //std::cout << "Picking avoided:      " << avoid_pick_valid_count << std::endl;
         std::cout << "Approximation error : " << compute_approximation_error() << std::endl;
         std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
         std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
-        
+
         report();
         histogram_vertices_per_star<Self>(*this);
         output();
@@ -3911,9 +3910,9 @@ public:
         )
         :
         m_pConstrain(pconstrain_),
-        m_metric_field(metric_field_), 
-        m_criteria(criteria_), 
-        m_stars(), 
+        m_metric_field(metric_field_),
+        m_criteria(criteria_),
+        m_stars(),
         m_refine_queue(),
         m_ch_triangulation(),
         m_refinement_condition(rc_),
@@ -3921,13 +3920,13 @@ public:
         m_kd_tree(m_stars),
         //m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
         vertex_with_smoothing_counter(0),
-        vertex_without_smoothing_counter(0)
+        vertex_without_smoothing_counter(0),
+        refinement_debug_coloring(false)
       {
-        refinement_debug_coloring = false;
         std::set<Point_3> poles;
 #ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
         if(poles_given)
-          read_poles(polesfile, std::inserter(poles,poles.end()));
+          read_poles(polesfile, std::inserter(poles, poles.end()));
 #endif
         initialize_stars(nb_initial_points, poles); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;

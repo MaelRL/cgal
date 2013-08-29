@@ -126,7 +126,7 @@ public:
   // tile_points
   std::vector<Point>& tile_points() {  return m_tile_points; }
   const std::vector<Point>& tile_points() const {  return m_tile_points; }
-}; 
+};
 
 struct Enriched_items : public CGAL::Polyhedron_items_3
 {
@@ -163,7 +163,7 @@ class Constrain_surface_3_polyhedral :
     public:
       typedef Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> Base;
 
-      typedef typename Base::Object_3      Object_3;
+      typedef typename Base::Object_3                    Object_3;
       typedef typename Base::FT                          FT;
       typedef typename Base::Vector_3                    Vector_3;
       typedef typename Base::Point_3                     Point_3;
