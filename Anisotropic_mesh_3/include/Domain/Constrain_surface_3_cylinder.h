@@ -18,7 +18,7 @@
 
 #include <vector>
 #include <CGAL/Bbox_3.h>
-#include <CGAL/Constrain_surface_3_ex.h>
+#include <CGAL/Constrain_surface_3.h>
 #include <CGAL/Constrain_surface_3_implicit.h>
 
 using namespace CGAL::Anisotropic_mesh_3;
@@ -28,9 +28,8 @@ using namespace CGAL::Anisotropic_mesh_3;
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
 class Constrain_surface_3_cylinder :  
   public Constrain_surface_3_implicit<K> {
-    //public Constrain_surface_3_ex<K, Point_container> {
 public:
-  typedef Constrain_surface_3_ex<K, Point_container> Base;
+  typedef Constrain_surface_3<K, Point_container>    Base;
   typedef typename Base::FT                          FT;
   typedef typename Base::Point_3                     Point_3;
   typedef typename Base::Oriented_side               Oriented_side;

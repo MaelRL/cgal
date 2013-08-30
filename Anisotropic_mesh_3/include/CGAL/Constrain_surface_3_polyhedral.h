@@ -27,7 +27,7 @@
 
 #include "../../demo/Polyhedron_type.h"
 
-#include <CGAL/Constrain_surface_3_ex.h>
+#include <CGAL/Constrain_surface_3.h>
 #include <CGAL/Mesh_3/Robust_intersection_traits_3.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Polyhedral_mesh_domain_3.h>
@@ -159,10 +159,10 @@ struct Enriched_items : public CGAL::Polyhedron_items_3
 
 template<typename K, typename Polyhedron = CGAL::Polyhedron_3<K, Enriched_items> >
 class Constrain_surface_3_polyhedral : 
-    public Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> 
+    public Constrain_surface_3<K>
     {
     public:
-      typedef Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> Base;
+      typedef Constrain_surface_3<K>                     Base;
 
       typedef typename Base::Object_3                    Object_3;
       typedef typename Base::FT                          FT;
@@ -172,7 +172,8 @@ class Constrain_surface_3_polyhedral :
       typedef typename Base::Triangle_3                  Triangle_3;
       typedef typename Base::Plane_3                     Plane_3;
       typedef typename Base::Oriented_side               Oriented_side;
-      typedef typename Base::Pointset                    Pointset;
+
+      typedef typename Base::Pointset                    Point_container;
       typedef typename Base::Colored_poly                Colored_polyhedron;
 
       typedef typename CGAL::Polyhedral_mesh_domain_3<Polyhedron, K> Mesh_domain;
@@ -185,8 +186,6 @@ class Constrain_surface_3_polyhedral :
 
       typedef typename CGAL::Monge_via_jet_fitting<K> My_Monge_via_jet_fitting;
       typedef typename My_Monge_via_jet_fitting::Monge_form     My_Monge_form;
-
-      typedef typename Constrain_surface_3<K>::Point_container Point_container;
 
       typedef typename Polyhedron::Vertex_handle    Vertex_handle;
       typedef typename Polyhedron::Facet_handle     Facet_handle;
@@ -458,6 +457,7 @@ class Constrain_surface_3_polyhedral :
       {
        return Vector_3(v[0], v[1], v[2]);
       }
+
       Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType::ConstColXpr& v) const
       {
         return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
@@ -1576,12 +1576,12 @@ class Constrain_surface_3_polyhedral :
         std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
         Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
         this->m_colored_poly.delegate(builder);
-        std::ofstream hello("HELLO.OFF");
-        hello << this->m_colored_poly;
+        std::ofstream out("colored_poly.off");
+        out << this->m_colored_poly;
         std::cout << "done" << std::endl;
       }
 
-      virtual Pointset get_surface_points(unsigned int nb,
+      virtual Point_container get_surface_points(unsigned int nb,
                                           double facet_distance_coeff /*= 0.05*/) const
       {
         std::vector<Point_3> all_points;
@@ -1614,7 +1614,6 @@ class Constrain_surface_3_polyhedral :
           std::ofstream out("mesh_3_temp.mesh");
           m_c3t3.output_to_medit(out);
 #endif
-          build_colored_polyhedron();
 #ifdef ANISO_OUTPUT_POINTS_FOR_MEDIAL_AXIS
           std::ofstream out_pts("mesh_3_points.pts");
           this->output_points(m_c3t3, out_pts);
@@ -1623,7 +1622,7 @@ class Constrain_surface_3_polyhedral :
         }
 
         std::random_shuffle(all_points.begin(), all_points.end());
-        return Pointset(all_points.begin(), (all_points.begin() + nb));
+        return Point_container(all_points.begin(), (all_points.begin() + nb));
       }
 
       virtual double global_max_curvature() const

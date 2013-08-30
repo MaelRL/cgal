@@ -19,7 +19,7 @@
 #define ZERO_DOT_PRODUCT 1e-5
 #define ZERO_EIGENVALUE 1e-10
 
-#include <CGAL/Constrain_surface_3_ex.h>
+#include <CGAL/Constrain_surface_3.h>
 
 #include <Eigen/Dense>
 
@@ -67,23 +67,23 @@ namespace CGAL{
     };  // end class Member_function_pointer_to_function_wrapper
 
 
-    template<typename K>
+    template<typename K,
+             typename Pt_container = std::vector<typename K::Point_3> >
     class Constrain_surface_3_implicit :
-      public Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container>
+      public Constrain_surface_3<K, Pt_container>
     {
     public:
-      typedef Constrain_surface_3_implicit<K>            Self;
-      typedef Constrain_surface_3_ex<K, typename Constrain_surface_3<K>::Point_container> Base;
-      typedef typename Base::Object_3                    Object_3;
-      typedef typename Base::FT                          FT;
-      typedef typename Base::Vector_3                    Vector_3;
-      typedef typename Base::Point_3                     Point_3;
-      typedef typename Base::Plane_3                     Plane_3;
-      typedef typename Base::Oriented_side               Oriented_side;
-      typedef typename Base::Pointset                    Pointset;
-      typedef typename Base::Colored_poly                Colored_polyhedron;
+      typedef Constrain_surface_3_implicit<K, Pt_container> Self;
+      typedef Constrain_surface_3<K, Pt_container>          Base;
+      typedef typename Base::Object_3                       Object_3;
+      typedef typename Base::FT                             FT;
+      typedef typename Base::Vector_3                       Vector_3;
+      typedef typename Base::Point_3                        Point_3;
+      typedef typename Base::Plane_3                        Plane_3;
+      typedef typename Base::Oriented_side                  Oriented_side;
 
-      typedef typename Constrain_surface_3<K>::Point_container Point_container;
+      typedef typename Base::Colored_poly                   Colored_polyhedron;
+      typedef typename Base::Pointset                       Point_container;
 
       // for Mesh_3
       typedef FT (Self::*Function)(const Point_3& p) const;
@@ -416,12 +416,12 @@ public:
         std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
         Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
         this->m_colored_poly.delegate(builder);
-        std::ofstream hello("HELLO.OFF");
-        hello << this->m_colored_poly;
+        std::ofstream out("colored_poly.off");
+        out << this->m_colored_poly;
         std::cout << "done" << std::endl;
       }
 
-      virtual Pointset get_surface_points(unsigned int nb,
+      virtual Point_container get_surface_points(unsigned int nb,
                                           double facet_distance_coeff /*= 0.05*/) const
       {
         std::vector<Point_3> all_points;
@@ -466,7 +466,7 @@ public:
         std::cout << "c3t3 has enough points : " << all_points.size() << std::endl;
 #endif
         std::random_shuffle(all_points.begin(), all_points.end());
-        return Pointset(all_points.begin(), (all_points.begin() + nb));
+        return Point_container(all_points.begin(), (all_points.begin() + nb));
       }
 
       C3t3 run_mesh_3(const FT& approx, const bool verbose = false) const
@@ -569,7 +569,7 @@ public:
       public Constrain_surface_3_implicit<K> {
 
     public:
-      typedef Constrain_surface_3_implicit<K> Base;
+      typedef Constrain_surface_3_implicit<K>                  Base;
       typedef typename Base::FT                                FT;
       typedef typename Base::Vector_3                          Vector_3;
       typedef typename Base::Point_3                           Point_3;

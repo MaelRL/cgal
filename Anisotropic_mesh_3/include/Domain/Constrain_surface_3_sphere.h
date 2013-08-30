@@ -28,7 +28,6 @@ public:
   typedef typename Base::FT               FT;
   typedef typename Base::Point_container  Point_container;
   typedef typename Base::Point_3          Point_3;
-  typedef typename Base::Pointset         Pointset;
 
 public:
   virtual std::string name() const { return std::string("Implicit sphere"); } 
@@ -53,10 +52,10 @@ public:
     return Base::initial_points(points, seeds, 0.2);
   }
 
-  virtual Pointset get_surface_points(unsigned int nb) const
+  virtual Point_container get_surface_points(unsigned int nb) const
   {
     Point_container ip = initial_points(nb);
-    return Pointset(ip.begin(), ip.end());
+    return Point_container(ip.begin(), ip.end());
   }
 
   virtual double global_max_curvature() const

@@ -38,9 +38,9 @@ template<typename K>
 class Constrain_surface_3_pointset : public Constrain_surface_3_implicit<K>
 {
 public:
-  typedef Constrain_surface_3_implicit<K> Base;
-  typedef typename Base::FT                                FT;
-  typedef typename Base::Point_3                           Point_3;
+  typedef Constrain_surface_3_implicit<K>                   Base;
+  typedef typename Base::FT                                 FT;
+  typedef typename Base::Point_3                            Point_3;
 
   typedef typename K::Sphere_3                              Sphere_3;
   typedef typename CGAL::Point_with_normal_3<K>             Point_with_normal;

@@ -10,7 +10,7 @@ template<typename K>
 class Constrain_surface_3_torus : public Constrain_surface_3_implicit<K> 
 {
 public:
-  typedef Constrain_surface_3_implicit<K> Base;
+  typedef Constrain_surface_3_implicit<K>            Base;
   typedef typename Base::FT                          FT;
   typedef typename Base::Point_3                     Point_3;
   typedef typename Base::Oriented_side               Oriented_side;
