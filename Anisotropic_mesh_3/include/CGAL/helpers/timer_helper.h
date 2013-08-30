@@ -1,5 +1,8 @@
 // author : Jane Tournois
 
+#ifndef TIMER_HELPER_H
+#define TIMER_HELPER_H
+
 #include <ctime>
 #include <vector>
 #include <fstream>
@@ -86,3 +89,5 @@ public:
     fs.close();
   }
 };
+
+#endif

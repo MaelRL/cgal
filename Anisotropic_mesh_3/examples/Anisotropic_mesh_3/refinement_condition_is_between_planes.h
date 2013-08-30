@@ -1,3 +1,6 @@
+#ifndef REFINEMENT_CONDITION_IS_BETWEEN_PLANES_H
+#define REFINEMENT_CONDITION_IS_BETWEEN_PLANES_H
+
 template<typename PlaneType, typename PointType>
 struct Is_between
 {
@@ -25,3 +28,5 @@ private:
   PlaneType plane2;
   bool xcondition;
 };
+
+#endif

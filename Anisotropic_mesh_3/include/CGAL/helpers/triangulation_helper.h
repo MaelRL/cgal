@@ -1,3 +1,6 @@
+#ifndef TRIANGULATION_HELPER_H
+#define TRIANGULATION_HELPER_H
+
 #include <vector>
 
 
@@ -68,3 +71,5 @@ void compute_triangulation_poles(const C3T3& c3t3,
       *oit++ = pole;
   }
 }
+
+#endif
