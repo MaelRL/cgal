@@ -128,6 +128,11 @@ namespace CGAL
       mutable AABB_tree m_aabb_tree; //bboxes of stars
       Kd_tree m_kd_tree;     //stars* centers for box queries
 
+      int m_initial_points;
+
+      bool m_use_loc_eps;
+      bool m_first_pass;
+
       //speed-up heuristic
       //const FT m_distortion_bound_avoid_pick_valid;
       //mutable int avoid_pick_valid_count;
@@ -1823,8 +1828,6 @@ public:
 #endif
       }
 
-      
-
       void initialize_medial_axis(const Point_set& poles = Point_set())
       {
 #ifdef ANISO_VERBOSE
@@ -1909,6 +1912,10 @@ public:
           m_refine_queue.pop();
           if (refine_facet.star->has_facet(refine_facet.vertices, facet))
           {
+            //skipping inconsistencies resolution during first pass
+            if(m_use_loc_eps && m_first_pass && queue_type > 4)
+              return false;
+
             need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
             return true;
           }
@@ -2109,7 +2116,19 @@ public:
           }
         }
         else if(surface_star)
-          star->reset(p, pid, m_metric_field->compute_metric(p), surface_star);
+        {
+          Metric m_p;
+
+          if(m_first_pass)
+            m_p = m_metric_field->compute_metric(p);
+          else
+          {
+            //now in second pass, the metric is computed with the c3t3 grid todo
+            m_p = m_metric_field->compute_metric(p);
+          }
+
+          star->reset(p, pid, m_p, surface_star);
+        }
         else
           star->reset(p, pid, m_metric_field->uniform_metric(p), surface_star);
 
@@ -2939,43 +2958,47 @@ public:
       }
       
 public:
-/*
-      void refine_all(std::ofstream& fx, 
-                      const double& starttime,
-                      const int max_count = (std::size_t) -1,
-                      const bool pick_valid_causes_stop = false,
-                      const bool pick_valid_use_probing = false)
+      void fill_c3t3_grid()
       {
-        //if you modify this, do not forget to also modify the demo
-        CGAL::Timer t;
-        const int pick_valid_max_failures = 100;
-        int pick_valid_failed_n = 0;
-        int pick_valid_succeeded_n = 0;
+        m_pConstrain->build_colored_polyhedron();
+        m_pConstrain->build_colored_poly_tree();
 
-        t.start();
-        fill_refinement_queue();
-        int nbv = m_stars.size();
-        while(nbv < max_count)
+        //loop on consistent restricted facets and color with the aniso at the 3 pts
+        typename Star_vector::const_iterator it;
+        for(it = m_stars.begin(); it != m_stars.end(); ++it)
         {
-          if(nbv == 4) //dimension 3 reached
-            update_bboxes();
-          if(nbv % 100 == 0)
-          { 
-            t.stop();
-            fx << nbv << "\t" << (starttime + t.time()) << std::endl;
-            t.start();
-            clean_stars();//remove useless vertices
+          Star_handle star = get_star(it);
+          if(!star->is_surface_star())
+            continue;
+          typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+          typename Star::Facet_set_iterator fend = star->end_restricted_facets();
+          for(; fit != fend; ++fit)
+          {
+            Facet f = *fit;
+            if(!is_consistent(f))
+              continue;
+
+            Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
+            Star_handle star_b = m_stars[f.first->vertex((f.second+2)%4)->info()];
+            Star_handle star_c = m_stars[f.first->vertex((f.second+3)%4)->info()];
+
+            Point_3& pa = star_a->center_point();
+            Point_3& pb = star_b->center_point();
+            Point_3& pc = star_c->center_point();
+
+            FT ratio_a = (star_a->metric().get_max_eigenvalue())/(star_a->metric().get_min_eigenvalue());
+            FT ratio_b = (star_a->metric().get_max_eigenvalue())/(star_b->metric().get_min_eigenvalue());
+            FT ratio_c = (star_a->metric().get_max_eigenvalue())/(star_c->metric().get_min_eigenvalue());
+
+            m_pConstrain->color_poly(pa, ratio_a);
+            m_pConstrain->color_poly(pb, ratio_b);
+            m_pConstrain->color_poly(pc, ratio_c);
           }
-          if(!refine(pick_valid_succeeded_n, pick_valid_failed_n,
-                     pick_valid_causes_stop, pick_valid_max_failures,
-                     pick_valid_use_probing))
-            break;
-          nbv = m_stars.size();
         }
-        t.stop();
-        fx << nbv << "\t" << (starttime + t.time())  << std::endl;
+
+        //spread color
+        m_pConstrain->spread_colors();
       }
-*/
 
 public:
       void refine_all_one_pass(bool& continue_,
@@ -3068,6 +3091,44 @@ public:
 #endif
       }
 
+/*
+      void refine_all(std::ofstream& fx,
+                      const double& starttime,
+                      const int max_count = (std::size_t) -1,
+                      const bool pick_valid_causes_stop = false,
+                      const bool pick_valid_use_probing = false)
+      {
+        //if you modify this, do not forget to also modify the demo
+        CGAL::Timer t;
+        const int pick_valid_max_failures = 100;
+        int pick_valid_failed_n = 0;
+        int pick_valid_succeeded_n = 0;
+
+        t.start();
+        fill_refinement_queue();
+        int nbv = m_stars.size();
+        while(nbv < max_count)
+        {
+          if(nbv == 4) //dimension 3 reached
+            update_bboxes();
+          if(nbv % 100 == 0)
+          {
+            t.stop();
+            fx << nbv << "\t" << (starttime + t.time()) << std::endl;
+            t.start();
+            clean_stars();//remove useless vertices
+          }
+          if(!refine(pick_valid_succeeded_n, pick_valid_failed_n,
+                     pick_valid_causes_stop, pick_valid_max_failures,
+                     pick_valid_use_probing))
+            break;
+          nbv = m_stars.size();
+        }
+        t.stop();
+        fx << nbv << "\t" << (starttime + t.time())  << std::endl;
+      }
+*/
+
       void refine_all(bool& continue_,
                       const std::size_t max_count = (std::size_t) -1,
                       const bool pick_valid_causes_stop = false,
@@ -3075,6 +3136,17 @@ public:
                       const bool pick_valid_use_probing = false)
       {
         refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+
+        if(m_use_loc_eps)
+        {
+          m_first_pass = false;
+          std::cout << "----------------------------------------------------------" << std::endl;
+          std::cout << "done with first pass, entering local eps functions & stuff" << std::endl;
+          std::cout << "----------------------------------------------------------" << std::endl;
+          fill_c3t3_grid();
+          reset();
+          refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+        }
       }
 
       void refine_all(const std::size_t max_count = (std::size_t) -1,
@@ -3918,6 +3990,9 @@ public:
         m_refinement_condition(rc_),
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars),
+        m_initial_points(nb_initial_points),
+        m_use_loc_eps(true),
+        m_first_pass(true),
         //m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0),
@@ -3928,10 +4003,29 @@ public:
         if(poles_given)
           read_poles(polesfile, std::inserter(poles, poles.end()));
 #endif
-        initialize_stars(nb_initial_points, poles); // initialize poles + points on surface
+        initialize_stars(m_initial_points, poles); // initialize poles + points on surface
         m_ch_triangulation.infinite_vertex()->info() = -10;
 
-#ifndef NO_USE_AABB_TREE_OF_BBOXES 
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+        build_aabb_tree();  // update bboxes and rebuild
+#endif
+#ifdef USE_ANISO_TIMERS
+        reset_timers();
+#endif
+      }
+
+      void reset()
+      {
+        m_stars.clear();
+        m_aabb_tree.clear();
+        m_kd_tree.clear();
+        m_ch_triangulation.clear();
+        m_refine_queue.clear();
+
+        initialize_stars(m_initial_points, m_poles); // re-initialize poles + points on surface
+        m_ch_triangulation.infinite_vertex()->info() = -10;
+
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
         build_aabb_tree();  // update bboxes and rebuild
 #endif
 #ifdef USE_ANISO_TIMERS

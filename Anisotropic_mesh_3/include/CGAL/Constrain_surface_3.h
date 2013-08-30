@@ -31,6 +31,10 @@
 #include <CGAL/Random.h>
 #include <CGAL/internal/Intersections_3/Bbox_3_Line_3_do_intersect.h>
 #include <CGAL/bbox_intersection_3.h>
+
+#include <CGAL/AABB_tree.h>
+#include <CGAL/AABB_traits.h>
+#include <CGAL/AABB_polyhedron_triangle_primitive.h>
 #include <CGAL/Polyhedron_3.h>
 
 namespace CGAL
@@ -89,9 +93,19 @@ namespace CGAL
       typedef Point_container                      Pointset;
       typedef Colored_polyhedron                   Colored_poly;
 
+      typedef typename Colored_polyhedron::Face_handle      Face_handle;
+
+      typedef CGAL::AABB_polyhedron_triangle_primitive<K, Colored_polyhedron> Primitive;
+      typedef CGAL::AABB_traits<K, Primitive>                                 Traits;
+      typedef CGAL::AABB_tree<Traits>                                         Tree;
+      typedef typename Tree::Object_and_primitive_id                          Object_and_primitive_id;
+      typedef typename Tree::Point_and_primitive_id                           Point_and_primitive_id;
+      typedef typename Tree::Primitive_id                                     Primitive_id;
+
     public:
       EdgeList edges;
       mutable Colored_polyhedron m_colored_poly;
+      mutable Tree* m_colored_poly_tree;
 
     public:
       virtual FT get_bounding_radius() const = 0;
@@ -259,10 +273,47 @@ namespace CGAL
         fx.close();
       }
 
+      void build_colored_poly_tree() const
+      {
+        std::cout << "build and accelerate tree" << std::endl;
+        m_colored_poly_tree = new Tree(m_colored_poly.facets_begin(), m_colored_poly.facets_end());
+        m_colored_poly_tree->accelerate_distance_queries();
+        std::cout << "tree has size : " << m_colored_poly_tree->size() << std::endl;
+      }
 
+      void color_poly(const Point_3& p, FT ratio) const
+      {
+        Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
+        Point_3 closest_point = pp.first;
+        Face_handle closest_f = pp.second; // closest primitive id
+        closest_f->color() += ratio;
+        closest_f->contributors()++;
+        std::cout << std::fixed << "ratio : " << ratio;
+        std::cout << " new color is : " << closest_f->color() << " with " << closest_f->contributors() << " contributors" << std::endl;
+      }
 
-      Constrain_surface_3() : edges(), m_colored_poly(Colored_polyhedron ()) { }
-      virtual ~Constrain_surface_3() { }
+      void average_color_contributor()
+      {
+        std::cout << "computing average on each facet + stats todo" << std::endl;
+      }
+
+      void spread_colors() const
+      {
+        std::cout << "spreading color todo" << std::endl;
+
+      }
+
+      Constrain_surface_3() :
+      edges(),
+      m_colored_poly(Colored_polyhedron ()),
+      m_colored_poly_tree(NULL)
+      { }
+
+      virtual ~Constrain_surface_3()
+      {
+        std::cout << "You're deleting trees!!" << std::endl;
+        delete m_colored_poly_tree;
+      }
     };
   } // end namespace Anisotropic_mesh_3
 }

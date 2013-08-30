@@ -1620,7 +1620,9 @@ class Constrain_surface_3_polyhedral :
 #endif
           return get_surface_points(nb, facet_distance_coeff/3.);
         }
-
+#ifdef ANISO_VERBOSE
+        std::cout << "c3t3 has enough points : " << all_points.size() << " faces : " << m_c3t3.number_of_facets_in_complex() << std::endl;
+#endif
         std::random_shuffle(all_points.begin(), all_points.end());
         return Point_container(all_points.begin(), (all_points.begin() + nb));
       }
