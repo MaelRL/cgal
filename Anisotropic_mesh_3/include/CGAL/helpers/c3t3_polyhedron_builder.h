@@ -61,9 +61,9 @@ public:
         facet = tr.mirror_facet(facet);
 
       builder.begin_facet();
-      builder.add_vertex_to_facet(V[facet.first->vertex((facet.second +1)%4)]);
-      builder.add_vertex_to_facet(V[facet.first->vertex((facet.second +2)%4)]);
-      builder.add_vertex_to_facet(V[facet.first->vertex((facet.second +3)%4)]);
+      builder.add_vertex_to_facet(V[facet.first->vertex(tr.vertex_triple_index(facet.second, 0))]);
+      builder.add_vertex_to_facet(V[facet.first->vertex(tr.vertex_triple_index(facet.second, 1))]);
+      builder.add_vertex_to_facet(V[facet.first->vertex(tr.vertex_triple_index(facet.second, 2))]);
       builder.end_facet();
     }
     builder.end_surface();
