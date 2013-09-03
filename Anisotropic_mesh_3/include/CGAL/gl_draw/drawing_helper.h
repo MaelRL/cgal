@@ -317,7 +317,7 @@ void gl_draw_colored_poly(const Colored_polyhedron& P,
 
   for( FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
   {
-    double f_color = fi->color()/strongest_color*256.;
+    double f_color = fi->color()/strongest_color;
     if(f_color < 0.)
       continue;
     gl_draw_polyhedron_facet<Colored_polyhedron>(fi, f_color);
