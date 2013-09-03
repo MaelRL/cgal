@@ -283,5 +283,49 @@ void gl_draw_c3t3(const C3T3& c3t3,
   }
 }
 
+template<typename Colored_polyhedron>
+void gl_draw_polyhedron_facet(const typename Colored_polyhedron::Facet_const_iterator& f,
+                              double f_color)
+{
+  typedef typename Colored_polyhedron::Point_3 Point;
+  const Point& pa = f->halfedge()->vertex()->point();
+  const Point& pb = f->halfedge()->next()->vertex()->point();
+  const Point& pc = f->halfedge()->next()->next()->vertex()->point();
+
+  ::glColor3d(f_color, f_color, f_color);
+  ::glBegin(GL_TRIANGLES);
+  ::glVertex3d(pa.x(),pa.y(),pa.z());
+  ::glVertex3d(pb.x(),pb.y(),pb.z());
+  ::glVertex3d(pc.x(),pc.y(),pc.z());
+  ::glEnd();
+}
+
+template<typename Colored_polyhedron, typename Plane>
+void gl_draw_colored_poly(const Colored_polyhedron& P,
+                          const Plane& plane)
+{
+  typedef typename Colored_polyhedron::Facet_const_iterator  FCI;
+
+  double strongest_color = -1;
+  for( FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
+    if(fi->color()>strongest_color)
+      strongest_color = fi->color();
+
+  GLboolean was = (::glIsEnabled(GL_LIGHTING));
+  if(was)
+    ::glDisable(GL_LIGHTING);
+
+  for( FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
+  {
+    double f_color = fi->color()/strongest_color*256.;
+    if(f_color < 0.)
+      continue;
+    gl_draw_polyhedron_facet<Colored_polyhedron>(fi, f_color);
+  }
+
+  if(was)
+    ::glEnable(GL_LIGHTING);
+}
+
 
 #endif //DRAWING_HELPER_H

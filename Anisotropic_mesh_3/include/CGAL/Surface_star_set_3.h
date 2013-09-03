@@ -2997,7 +2997,8 @@ public:
         }
 
         //spread color
-        m_pConstrain->spread_colors();
+        constrain_surface()->average_color_contributor();
+        constrain_surface()->spread_colors();
       }
 
 public:
@@ -3136,6 +3137,7 @@ public:
                       const bool pick_valid_use_probing = false)
       {
         refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+        output("first_pass.off");
 
         if(m_use_loc_eps)
         {

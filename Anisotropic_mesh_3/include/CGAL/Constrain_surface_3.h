@@ -37,6 +37,10 @@
 #include <CGAL/AABB_polyhedron_triangle_primitive.h>
 #include <CGAL/Polyhedron_3.h>
 
+#include <CGAL/IO/File_writer_OFF.h>
+#include <CGAL/helpers/colored_polyhedron_output.h>
+#include <CGAL/gl_draw/drawing_helper.h>
+
 namespace CGAL
 {
   namespace Anisotropic_mesh_3
@@ -50,7 +54,7 @@ namespace CGAL
 
   public:
     Colored_facet()
-      : m_color(0.), m_contributors(0)  {}
+      : m_color(-1.), m_contributors(0)  {}
     const double& color() const { return m_color; }
     double& color() { return m_color; }
     const int& contributors() const { return m_contributors; }
@@ -94,6 +98,7 @@ namespace CGAL
       typedef Colored_polyhedron                   Colored_poly;
 
       typedef typename Colored_polyhedron::Face_handle      Face_handle;
+      typedef typename Colored_polyhedron::Facet_iterator   Facet_iterator;
 
       typedef CGAL::AABB_polyhedron_triangle_primitive<K, Colored_polyhedron> Primitive;
       typedef CGAL::AABB_traits<K, Primitive>                                 Traits;
@@ -288,19 +293,40 @@ namespace CGAL
         Face_handle closest_f = pp.second; // closest primitive id
         closest_f->color() += ratio;
         closest_f->contributors()++;
-        std::cout << std::fixed << "ratio : " << ratio;
-        std::cout << " new color is : " << closest_f->color() << " with " << closest_f->contributors() << " contributors" << std::endl;
       }
 
-      void average_color_contributor()
+      void average_color_contributor() const
       {
-        std::cout << "computing average on each facet + stats todo" << std::endl;
+        std::cout << "computing average on each facet + stats" << std::endl;
+
+        double strongest_color = -1.;
+        int colored_facets_count = 0;
+        std::ofstream out("colored_poly_ini.off");
+        File_writer_OFF writer(false);
+
+        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); f++)
+        {
+          if(f->contributors() > 0)
+          {
+            colored_facets_count++;
+            f->color() /= f->contributors();
+            if(f->color() > strongest_color)
+              strongest_color = f->color();
+          }
+        }
+        std::cout << colored_facets_count << "/" << m_colored_poly.size_of_facets() << " facets colored" << std::endl;
+        output_colored_polyhedron(out, m_colored_poly, writer, strongest_color);
       }
 
       void spread_colors() const
       {
         std::cout << "spreading color todo" << std::endl;
 
+      }
+
+      void gl_draw_colored_polyhedron(const Plane_3& plane) const
+      {
+        gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly, plane);
       }
 
       Constrain_surface_3() :
