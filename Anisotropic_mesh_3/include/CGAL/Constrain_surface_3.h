@@ -118,7 +118,7 @@ namespace CGAL
       virtual void build_colored_polyhedron() const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
       virtual void compute_poles(std::set<Point_3>&) const = 0;
-      virtual Point_container get_surface_points(unsigned int nb, double facet_distance_coeff = 0.05) const = 0;
+      virtual Point_container get_surface_points(unsigned int nb, double facet_distance_coeff = 0.01) const = 0;
       virtual std::string name() const  = 0;
       virtual FT compute_sq_approximation(const Point_3& p) const = 0;
 
@@ -281,6 +281,7 @@ namespace CGAL
       void build_colored_poly_tree() const
       {
         std::cout << "build and accelerate tree" << std::endl;
+        delete m_colored_poly_tree;
         m_colored_poly_tree = new Tree(m_colored_poly.facets_begin(), m_colored_poly.facets_end());
         m_colored_poly_tree->accelerate_distance_queries();
         std::cout << "tree has size : " << m_colored_poly_tree->size() << std::endl;
