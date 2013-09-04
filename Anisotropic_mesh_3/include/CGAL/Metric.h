@@ -48,17 +48,25 @@ public:
 
 private:
   Eigen::Matrix3d eigen_transformation, eigen_inverse_transformation;
-  double e_max, e_min, e_n;
+  mutable double e_max, e_min, e_n;
   Vector_3 v_max, v_min, v_n;
 
 public:
   const Eigen::Matrix3d& get_transformation() const { return eigen_transformation; }
   const Eigen::Matrix3d& get_inverse_transformation() const { return eigen_inverse_transformation; }
-
   const Vector_3& get_vmin() const { return v_min; }
   const Vector_3& get_vmax() const { return v_max; }
   const Vector_3& get_vn() const { return v_n; }
-  
+  void get_min_eigenvector(Vector_3& v) const { v = v_min; }
+  void get_max_eigenvector(Vector_3& v) const { v = v_max; }
+  void get_third_eigenvector(Vector_3& v) const { v = v_n; }
+  double get_min_eigenvalue() const { return e_min; }
+  double get_max_eigenvalue() const { return e_max; }
+  double get_third_eigenvalue() const { return e_n; }
+  void set_min_eigenvalue(double emin) const { e_min = emin; }
+  void set_max_eigenvalue(double emax) const { e_max = emax; }
+  void set_third_eigenvalue(double en) const { e_n = en; }
+
 public:
   // Transform
   template <typename Object>
@@ -249,32 +257,6 @@ public:
     std::cout << eigen_inverse_transformation << std::endl;
 #endif
   }
-
-  void get_min_eigenvector(Vector_3& v) const
-  {
-    v = v_min;
-  }
-  void get_max_eigenvector(Vector_3& v) const
-  {
-    v = v_max;
-  }
-  void get_third_eigenvector(Vector_3& v) const
-  {
-    v = v_n;
-  }
-
-  double get_min_eigenvalue() const
-  {
-    return e_min;
-  }
-  double get_max_eigenvalue() const
-  {
-    return e_max;
-  }
-  double get_third_eigenvalue() const
-    {
-      return e_n;
-    }
 
 public:
   friend
