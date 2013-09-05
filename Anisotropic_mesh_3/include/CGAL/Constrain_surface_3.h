@@ -41,6 +41,8 @@
 #include <CGAL/helpers/colored_polyhedron_output.h>
 #include <CGAL/gl_draw/drawing_helper.h>
 
+#include <CGAL/helpers/mpq_helper.h>
+
 namespace CGAL
 {
   namespace Anisotropic_mesh_3
@@ -327,7 +329,11 @@ namespace CGAL
 
       void spread_colors() const
       {
-        std::cout << "spreading color todo" << std::endl;
+        typedef Colored_modifiable_priority_queue<Colored_polyhedron>  Cmpq;
+        Cmpq q(m_colored_poly.size_of_facets(), typename Cmpq::Compare(), typename Cmpq::ID());
+        q.initialize_cmpq(m_colored_poly);
+        q.color_all_facets();
+      }
 
       }
 
