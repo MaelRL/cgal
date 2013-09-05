@@ -335,6 +335,12 @@ namespace CGAL
         q.color_all_facets();
       }
 
+      void get_color_from_poly(const Point_3& p, FT& ratio) const
+      {
+        Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
+        Point_3 closest_point = pp.first;
+        Face_handle closest_f = pp.second; // closest primitive id
+        ratio = closest_f->color();
       }
 
       void gl_draw_colored_polyhedron() const

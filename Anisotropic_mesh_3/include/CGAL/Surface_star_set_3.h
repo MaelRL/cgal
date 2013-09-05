@@ -2121,20 +2121,35 @@ public:
         }
         else if(surface_star)
         {
-          Metric m_p;
+          Metric m_p = metric_field()->compute_metric(p);
 
-          if(m_first_pass)
-            m_p = m_metric_field->compute_metric(p);
-          else
+          if(m_use_c3t3_colors)
           {
-            //now in second pass, the metric is computed with the c3t3 grid todo
-            m_p = m_metric_field->compute_metric(p);
+            //now in second phase, the metric is computed with the c3t3 grid
+            double new_ratio = 0.;
+            double old_ratio = m_p.get_max_eigenvalue()/m_p.get_min_eigenvalue();
+            constrain_surface()->get_color_from_poly(p, new_ratio);
+            if(new_ratio <= 0.)
+              std::cout << "new ratio not that good... : " << new_ratio << std::endl;
+            /*if(old_ratio > 8)
+            {
+              std::cout << std::fixed << "max min & co : " << m_p.get_max_eigenvalue() << " " << m_p.get_min_eigenvalue() << std::endl;
+              if(new_ratio > old_ratio)
+                std::cout << "increasing ratio... : " << old_ratio << " " << new_ratio << std::endl;
+              else if(old_ratio > 8)
+              std::cout << "decreasing ratio... : " << old_ratio << " " << new_ratio << std::endl;
+            }*/
+            FT new_min = m_p.get_max_eigenvalue() / new_ratio;
+            m_p = metric_field()->build_metric(m_p.get_vn(), m_p.get_vmax(), m_p.get_vmin(),
+                                               m_p.get_third_eigenvalue(),
+                                               m_p.get_max_eigenvalue(),
+                                               new_min);
           }
 
           star->reset(p, pid, m_p, surface_star);
         }
         else
-          star->reset(p, pid, m_metric_field->uniform_metric(p), surface_star);
+          star->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
 
         typename Index_set::const_iterator si = modified_stars.begin();
         typename Index_set::const_iterator siend = modified_stars.end();
