@@ -300,15 +300,14 @@ void gl_draw_polyhedron_facet(const typename Colored_polyhedron::Facet_const_ite
   ::glEnd();
 }
 
-template<typename Colored_polyhedron, typename Plane>
-void gl_draw_colored_poly(const Colored_polyhedron& P,
-                          const Plane& plane)
+template<typename Colored_polyhedron>
+void gl_draw_colored_poly(const Colored_polyhedron& P)
 {
   typedef typename Colored_polyhedron::Facet_const_iterator  FCI;
 
   double strongest_color = -1;
   for( FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
-    if(fi->color()>strongest_color)
+    if(fi->color() > strongest_color)
       strongest_color = fi->color();
 
   GLboolean was = (::glIsEnabled(GL_LIGHTING));

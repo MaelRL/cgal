@@ -331,9 +331,9 @@ namespace CGAL
 
       }
 
-      void gl_draw_colored_polyhedron(const Plane_3& plane) const
+      void gl_draw_colored_polyhedron() const
       {
-        gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly, plane);
+        gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly);
       }
 
       Constrain_surface_3() :
