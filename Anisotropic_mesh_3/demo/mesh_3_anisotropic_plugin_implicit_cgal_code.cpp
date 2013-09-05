@@ -91,8 +91,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const bool pick_valid_causes_stop,
                                  const bool pick_valid_use_probing,
                                  const int pick_valid_max_failures,
-                                 const double en_factor,
-                                 const bool metric_smoothing)
+                                 const double en_factor)
 {
   CGAL::default_random = CGAL::Random(0);
 
@@ -116,8 +115,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                                        param, criteria, mf,
                                                        pick_valid_causes_stop,
                                                        pick_valid_use_probing,
-                                                       pick_valid_max_failures,
-                                                       metric_smoothing);
+                                                       pick_valid_max_failures);
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 

@@ -71,8 +71,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
                                  const bool pick_valid_causes_stop,
                                  const bool pick_valid_use_probing,
                                  const int pick_valid_max_failures,
-                                 const double en_factor,
-                                 const bool metric_smoothing);
+                                 const double en_factor);
 
   //implicit functions
 Criteria* build_param_and_metric(const Implicit_surface* p_domain,
@@ -108,8 +107,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
                                  const bool pick_valid_causes_stop,
                                  const bool pick_valid_use_probing,
                                  const int pick_valid_max_failures,
-                                 const double en_factor,
-                                 const bool metric_smoothing);
+                                 const double en_factor);
 
 double get_approximate(double d, int precision, int& decimals);
 
@@ -407,7 +405,6 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
   const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
   const bool pick_valid_use_probing = ui.pick_valid_probing->isChecked();
-  const bool metric_smoothing = ui.metric_smoothing->isChecked();
   const int pick_valid_max_failures = ui.maxPickFailures->value();
   int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
@@ -440,7 +437,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric, pick_valid_causes_stop,
       pick_valid_use_probing, pick_valid_max_failures,
-      en_factor, metric_smoothing);
+      en_factor);
   }
   //// Function
   else if( NULL != function_item )
@@ -456,7 +453,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       distortion, beta, delta, max_times_to_try_in_picking_region,
       dim, nb_initial_points, metric, pick_valid_causes_stop,
       pick_valid_use_probing, pick_valid_max_failures,
-      en_factor, metric_smoothing);
+      en_factor);
   }
 
   if ( NULL == thread )
@@ -572,7 +569,6 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
   const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
   const bool pick_valid_use_probing = ui.pick_valid_probing->isChecked();
-  const bool metric_smoothing = ui.metric_smoothing->isChecked();
   const int pick_valid_max_failures = ui.maxPickFailures->value();
   int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
@@ -624,7 +620,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
                                          ssetitem->star_set().criteria(),
                                          ssetitem->star_set().metric_field(),
                                          pick_valid_causes_stop, pick_valid_use_probing,
-                                         pick_valid_max_failures, metric_smoothing);
+                                         pick_valid_max_failures);
 
     thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
   }
@@ -661,7 +657,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
                                          ssetitem->star_set().criteria(),
                                          ssetitem->star_set().metric_field(),
                                          pick_valid_causes_stop, pick_valid_use_probing,
-                                         pick_valid_max_failures, metric_smoothing);
+                                         pick_valid_max_failures);
 
     thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
   }

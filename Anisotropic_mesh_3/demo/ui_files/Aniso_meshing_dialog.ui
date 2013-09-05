@@ -526,16 +526,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="metric_smoothing">
-     <property name="layoutDirection">
-      <enum>Qt::RightToLeft</enum>
-     </property>
-     <property name="text">
-      <string>Metric smoothing</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

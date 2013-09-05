@@ -2304,8 +2304,7 @@ public:
                   int & pick_valid_failed,
                   const bool pick_valid_causes_stop = false,
                   const int pick_valid_max_failures = 100,
-                  const bool pick_valid_use_probing = false,
-                  const bool metric_smoothing = false)
+                  const bool pick_valid_use_probing = false)
       {
         int queue_type = 0;
         Refine_facet bad_facet;
@@ -2376,6 +2375,7 @@ public:
         if(!m_refinement_condition(steiner_point))
           return true; //note false would stop refinement
 
+        bool metric_smoothing = false; //disabled smoothing everywhere
         //check if the facet trying to be refined is too small + success = false => enter metric smoothing
         bool smoothing = false;
         CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
