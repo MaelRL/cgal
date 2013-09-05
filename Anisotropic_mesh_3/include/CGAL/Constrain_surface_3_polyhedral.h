@@ -1575,6 +1575,7 @@ class Constrain_surface_3_polyhedral :
       {
         std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
         Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
+        this->m_colored_poly = Colored_polyhedron();
         this->m_colored_poly.delegate(builder);
         std::ofstream out("colored_poly.off");
         out << this->m_colored_poly;
