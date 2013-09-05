@@ -57,8 +57,9 @@ struct Scene_starset3_item_priv
   Scene_starset3_item_priv(const Criteria* criteria,
                            const Metric* metric,
                            const Constrain_surface* const surface,
-                           const int nb_initial_points)
-    : star_set(criteria, metric, surface, nb_initial_points)
+                           const int nb_initial_points,
+                           const int nb_pass)
+    : star_set(criteria, metric, surface, nb_initial_points, nb_pass)
   { }
 
   Surface_star_set star_set;
@@ -70,8 +71,9 @@ Scene_starset3_item::
 Scene_starset3_item(const Criteria* criteria,
                     const Metric* metric,
                     const Constrain_surface* const surface,
-                    const int nb_initial_points)
-  : d(new Scene_starset3_item_priv(criteria, metric, surface, nb_initial_points)),
+                    const int nb_initial_points,
+                    const int nb_pass)
+  : d(new Scene_starset3_item_priv(criteria, metric, surface, nb_initial_points, nb_pass)),
   frame(new ManipulatedFrame()),
   //histogram_(),
   data_item_(NULL),

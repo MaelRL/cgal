@@ -82,6 +82,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
                                  const std::size_t max_times_to_try_in_picking_region,
                                  const int dim,
                                  const int nb_initial_points,
+                                 const int nb_pass,
                                  const Metric_options& metric,
                                  const bool pick_valid_causes_stop,
                                  const bool pick_valid_use_probing,
@@ -109,7 +110,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
                                     max_times_to_try_in_picking_region, dim, metric, en_factor);
 
   Scene_starset3_item* p_new_item 
-    = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points);
+    = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points, nb_pass);
 
   typedef Anisotropic_mesh_function<Constrain_surface_polyhedral, Metric_field> AMesh_function;
   AMesh_function* p_mesh_function = new AMesh_function(p_new_item->star_set(), param, criteria,

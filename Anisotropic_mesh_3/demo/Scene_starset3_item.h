@@ -26,7 +26,8 @@ public:
   Scene_starset3_item(const Criteria* criteria,
                       const Metric* metric,
                       const Constrain_surface* const surface,
-                      const int nb_initial_points);
+                      const int nb_initial_points,
+                      const int nb_pass);
   ~Scene_starset3_item();
 
   const Surface_star_set& star_set() const;

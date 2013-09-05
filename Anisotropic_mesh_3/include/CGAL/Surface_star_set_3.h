@@ -1917,7 +1917,7 @@ public:
           if (refine_facet.star->has_facet(refine_facet.vertices, facet))
           {
             //skipping inconsistencies resolution during first pass
-            if((m_pass_n > 2) && m_pass_wo_incons && queue_type > 4)
+            if((m_pass_n > 1) && m_pass_wo_incons && queue_type > 4)
               return false;
 
             need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
@@ -3218,9 +3218,9 @@ public:
           oss << "pass_" << m_pass_count << ".off" << std::ends;
           output(oss.str().c_str());
 
-          std::cout << "----------------------------------------------------" << std::endl;
-          std::cout << "done with pass, entering local eps functions & stuff" << std::endl;
-          std::cout << "----------------------------------------------------" << std::endl;
+          std::cout << "--------------------------------------------------------" << std::endl;
+          std::cout << "done with pass : " << m_pass_count << " , entering local eps functions & stuff" << std::endl;
+          std::cout << "--------------------------------------------------------" << std::endl;
           fill_c3t3_grid();
           if(!continue_)
             return;
@@ -4056,6 +4056,7 @@ public:
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
+        const int nb_pass = 1,
         //const FT& distortion_pickvalid_bound = 2.,
         const RefinementCondition& rc_ = No_condition<Point_3>()
 #ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
@@ -4074,7 +4075,7 @@ public:
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars),
         m_initial_points(nb_initial_points),
-        m_pass_n(10),
+        m_pass_n(nb_pass),
         m_pass_count(0),
         m_pass_wo_incons(true),
         m_use_c3t3_colors(false),
