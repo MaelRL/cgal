@@ -130,8 +130,12 @@ namespace CGAL
 
       int m_initial_points;
 
-      bool m_use_loc_eps;
-      bool m_first_pass;
+      int m_pass_n;
+      int m_pass_count;
+      bool m_pass_wo_incons;
+      bool m_use_c3t3_colors;
+
+      std::map<Point_3, int> visited_points; //temp, this should be a local in fill_c3t3...
 
       //speed-up heuristic
       //const FT m_distortion_bound_avoid_pick_valid;
@@ -1913,7 +1917,7 @@ public:
           if (refine_facet.star->has_facet(refine_facet.vertices, facet))
           {
             //skipping inconsistencies resolution during first pass
-            if(m_use_loc_eps && m_first_pass && queue_type > 4)
+            if((m_pass_n > 2) && m_pass_wo_incons && queue_type > 4)
               return false;
 
             need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
@@ -2147,7 +2151,7 @@ public:
         Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
         std::set<Kd_point_info> indices;
         m_kd_tree.search(std::inserter(indices, indices.end()), query);
-               
+
         if(indices.size() != modified_stars.size())// because 'indices' contains 'modified_stars'
         {
           Index_set diff;
@@ -2960,10 +2964,12 @@ public:
 public:
       void fill_c3t3_grid()
       {
-        m_pConstrain->build_colored_polyhedron();
-        m_pConstrain->build_colored_poly_tree();
+        this->constrain_surface()->build_colored_polyhedron();
+        this->constrain_surface()->build_colored_poly_tree();
 
         //loop on consistent restricted facets and color with the aniso at the 3 pts
+        visited_points.clear();
+
         typename Star_vector::const_iterator it;
         for(it = m_stars.begin(); it != m_stars.end(); ++it)
         {
@@ -3136,19 +3142,26 @@ public:
                       const int pick_valid_max_failures = 100,
                       const bool pick_valid_use_probing = false)
       {
-        refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
-        output("first_pass.off");
-
-        if(m_use_loc_eps)
+        while(++m_pass_count < m_pass_n)
         {
-          m_first_pass = false;
-          std::cout << "----------------------------------------------------------" << std::endl;
-          std::cout << "done with first pass, entering local eps functions & stuff" << std::endl;
-          std::cout << "----------------------------------------------------------" << std::endl;
-          fill_c3t3_grid();
-          reset();
           refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+          m_use_c3t3_colors = true;
+          std::ostringstream oss;
+          oss << "pass_" << m_pass_count << ".off" << std::ends;
+          output(oss.str().c_str());
+
+          std::cout << "----------------------------------------------------" << std::endl;
+          std::cout << "done with pass, entering local eps functions & stuff" << std::endl;
+          std::cout << "----------------------------------------------------" << std::endl;
+          fill_c3t3_grid();
+          if(!continue_)
+            return;
+          reset();
         }
+
+        //last pass
+        m_pass_wo_incons = false;
+        refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
       }
 
       void refine_all(const std::size_t max_count = (std::size_t) -1,
@@ -3993,8 +4006,10 @@ public:
         m_aabb_tree(100/*insertion buffer size*/),
         m_kd_tree(m_stars),
         m_initial_points(nb_initial_points),
-        m_use_loc_eps(true),
-        m_first_pass(true),
+        m_pass_n(10),
+        m_pass_count(0),
+        m_pass_wo_incons(true),
+        m_use_c3t3_colors(false),
         //m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
         vertex_with_smoothing_counter(0),
         vertex_without_smoothing_counter(0),
