@@ -2962,12 +2962,51 @@ public:
       }
       
 public:
+      void add_grid_pts_from_triangle(const Point_3& pa, const FT& ratio_a,
+                                      const Point_3& pb, const FT& ratio_b,
+                                      const Point_3& pc, const FT& ratio_c,
+                                      const int& pts_on_side)
+                                      //std::map<Point_3, int>& visited_points
+      {
+        if(pts_on_side < 1)
+          return;
+
+        double denom = pts_on_side + 1.;
+
+        for(int i=1; i<=pts_on_side; ++i)
+        {
+          double coeff_a0 = ((double) i)/denom;
+          double coeff_b0 = 1. - coeff_a0;
+          for(int j=1; j<=pts_on_side; ++j)
+          {
+            double coeff_c = ((double) j)/denom;
+            double delta = 1. - coeff_c;
+            double coeff_a = coeff_a0*delta;
+            double coeff_b = coeff_b0*delta;
+
+            FT px = pa.x()*coeff_a + pb.x()*coeff_b + pc.x()*coeff_c;
+            FT py = pa.y()*coeff_a + pb.y()*coeff_b + pc.y()*coeff_c;
+            FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
+            Point_3 p(px,py,pz);
+            FT pratio = ratio_a*coeff_a + ratio_b*coeff_b + ratio_c*coeff_c;
+
+            if(!visited_points[p])
+            {
+              constrain_surface()->color_poly(p, pratio);
+              visited_points[p] = 1;
+            }
+          }
+        }
+      }
+
       void fill_c3t3_grid()
       {
         this->constrain_surface()->build_colored_polyhedron();
         this->constrain_surface()->build_colored_poly_tree();
 
         //loop on consistent restricted facets and color with the aniso at the 3 pts
+        int pts_on_side = 7; //size of grid of pts obtained from barycentric coordinates on the triangle
+
         visited_points.clear();
 
         typename Star_vector::const_iterator it;
@@ -2996,9 +3035,23 @@ public:
             FT ratio_b = (star_a->metric().get_max_eigenvalue())/(star_b->metric().get_min_eigenvalue());
             FT ratio_c = (star_a->metric().get_max_eigenvalue())/(star_c->metric().get_min_eigenvalue());
 
-            m_pConstrain->color_poly(pa, ratio_a);
-            m_pConstrain->color_poly(pb, ratio_b);
-            m_pConstrain->color_poly(pc, ratio_c);
+            if(!visited_points[pa])
+            {
+              constrain_surface()->color_poly(pa, ratio_a);
+              visited_points[pa] = 1;
+            }
+            if(!visited_points[pb])
+            {
+              constrain_surface()->color_poly(pb, ratio_b);
+              visited_points[pc] = 1;
+            }
+            if(!visited_points[pc])
+            {
+              constrain_surface()->color_poly(pc, ratio_c);
+              visited_points[pc] = 1;
+            }
+
+            add_grid_pts_from_triangle(pa, ratio_a, pb, ratio_b, pc, ratio_c, pts_on_side);
           }
         }
 
