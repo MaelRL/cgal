@@ -49,12 +49,15 @@ namespace CGAL
   template <class Refs, class T>
   class Colored_facet : public CGAL::HalfedgeDS_face_base<Refs, T>
   {
+    std::size_t m_tag; // numbering
     double m_color;
     int m_contributors;
 
   public:
     Colored_facet()
-      : m_color(-1.), m_contributors(0)  {}
+      : m_tag(0), m_color(0.), m_contributors(0)  {}
+    const std::size_t& tag() const { return m_tag; }
+    std::size_t& tag()             { return m_tag; }
     const double& color() const { return m_color; }
     double& color() { return m_color; }
     const int& contributors() const { return m_contributors; }
@@ -302,11 +305,11 @@ namespace CGAL
 
         double strongest_color = -1.;
         int colored_facets_count = 0;
-        std::ofstream out("colored_poly_ini.off");
-        File_writer_OFF writer(false);
+        std::size_t index = 0;
 
-        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); f++)
+        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
         {
+          f->tag() = index;
           if(f->contributors() > 0)
           {
             colored_facets_count++;
@@ -316,6 +319,9 @@ namespace CGAL
           }
         }
         std::cout << colored_facets_count << "/" << m_colored_poly.size_of_facets() << " facets colored" << std::endl;
+
+        std::ofstream out("colored_poly_ini.off");
+        File_writer_OFF writer(false);
         output_colored_polyhedron(out, m_colored_poly, writer, strongest_color);
       }
 
