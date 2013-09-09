@@ -1,0 +1,76 @@
+r = 1 || R = 10
+
+Surface = 10pi²
+Aniso
+12573 vertices in 270.13 seconds
+Vertices via picking: 1077
+Vertex non-picking: 11496
+picking rate: 0.0856597470770699
+Approximation error : 0.000999915968822579
+
+Aniso good-looking metic
+12665 vertices in 367.62 seconds
+Vertices via picking: 1053
+Vertex non-picking: 11612
+picking rate: 0.0831425
+Approximation error : 0.000999983
+
+Iso
+16726 vertices in 402.61 seconds
+Vertices via picking: 0
+Vertex non-picking: 16726
+picking rate: 0
+Approximation error : 0.00099995934127753
+
+Ratio : 0.75170393399
+
+
+
+r = 1 || R = 25
+
+Surface = 10pi²
+Aniso
+13829 vertices in 513.98 seconds
+Vertices via picking: 1928
+Vertex non-picking: 11905
+picking rate: 0.139376852454276
+Approximation error : 0.000999809909791485
+
+Iso
+16717 vertices in 509.99 seconds
+Vertices via picking: 0
+Vertex non-picking: 16717
+picking rate: 0
+Approximation error : 0.000999861
+
+Ratio : 0.82724172997
+
+
+
+r = 1 || R = 50
+
+Surface = 20pi²
+
+Aniso
+37264 vertices in 4698.75 seconds
+Vertices via picking: 8431
+Vertex non-picking: 28835
+picking rate: 0.226238
+Approximation error : 0.00099999
+
+Alt Aniso
+37228 vertices in 4548.72 seconds
+Vertices via picking: 8370
+Vertex non-picking: 28867
+picking rate: 0.224776432043398
+Approximation error : 0.000999782408936433
+
+Iso
+32118 vertices in 1991.77 seconds
+Vertices via picking: 0
+Vertex non-picking: 32118
+Approximation error : 0.000999936986570985
+
+Ratio : 1.1591008157
+-Problème ini pour r=1 R=100. A Réparer.
+-Utiliser (a+sin(x))^b comme fonction spécifiée?

@@ -1,0 +1,16 @@
+
+COMMANDS:
+
+./Stretched_torus_mesh
+
+./Stretched_torus_mesh [dirname]
+  is only executable under unix/linux-like machines.
+  
+  [dirname] specifies the directory containing anisotropic torus information.
+  ./dirname/ToreMeshQuality  dirname/AllUmbs
+	number of points
+	then for each point, the x y z color (ref. format of vertex in medit)
+	(Only number, no words allowed at beginning or in between.)
+
+./Stretched_torus_mesh [dirname]
+will 

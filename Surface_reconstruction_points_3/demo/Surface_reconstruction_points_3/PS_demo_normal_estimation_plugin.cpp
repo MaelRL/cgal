@@ -60,6 +60,7 @@ class Point_set_demo_normal_estimation_dialog : public QDialog, private Ui::Norm
   Q_OBJECT
   public:
     Point_set_demo_normal_estimation_dialog(QWidget* = 0)
+
     {
       setupUi(this);
     }

@@ -71,8 +71,6 @@ void test_all_intersection_query_types(Tree& tree)
     typedef typename K::Ray_3 Ray;
     typedef typename K::Line_3 Line;
     typedef typename K::Point_3 Point;
-    typedef typename K::Segment_3 Segment;
-    typedef typename Tree::Primitive Primitive;
 
     Point p((FT)-0.5, (FT)-0.5, (FT)-0.5);
     Point q((FT) 0.5, (FT) 0.5, (FT) 0.5);
