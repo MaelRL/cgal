@@ -478,7 +478,8 @@ public:
         Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
         Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
                                CGAL::parameters::facet_size = r * 0.05,
-                               CGAL::parameters::facet_distance = approx);
+                               CGAL::parameters::facet_distance = approx,
+                               CGAL::parameters::facet_topology = MANIFOLD);
                                //no cell criteria          
         C3t3 mesh = CGAL::make_mesh_3<C3t3>(domain, criteria,
                                        CGAL::parameters::no_perturb(),
