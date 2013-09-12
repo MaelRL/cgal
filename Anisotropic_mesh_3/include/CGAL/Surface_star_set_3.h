@@ -2128,7 +2128,7 @@ public:
             //now in second phase, the metric is computed with the c3t3 grid
             double new_ratio = 0.;
             double old_ratio = m_p.get_max_eigenvalue()/m_p.get_min_eigenvalue();
-            constrain_surface()->get_color_from_poly(p, new_ratio);
+            constrain_surface()->get_facet_color_from_poly(p, new_ratio);
             if(new_ratio <= 0.)
               std::cout << "new ratio not that good... : " << new_ratio << std::endl;
             /*if(old_ratio > 8)
@@ -3007,24 +3007,20 @@ public:
 
             if(!visited_points[p])
             {
-              constrain_surface()->color_poly(p, pratio);
+              constrain_surface()->color_poly_facet(p, pratio);
               visited_points[p] = 1;
             }
           }
         }
       }
 
-      void fill_c3t3_grid(int step)
+      void color_vertices_from_starset()
       {
-        if(step == 1)
-        {
-          constrain_surface()->build_colored_polyhedron();
-          constrain_surface()->build_colored_poly_tree();
-          constrain_surface()->number_colored_poly_facets();
-        }
-        else
-          constrain_surface()->clear_colors();
 
+      }
+
+      void color_facets_from_starset()
+      {
         //loop on consistent restricted facets and color with the aniso at the 3 pts
         int pts_on_side = 7; //size of grid of pts obtained from barycentric coordinates on the triangle
 
@@ -3058,27 +3054,54 @@ public:
 
             if(!visited_points[pa])
             {
-              constrain_surface()->color_poly(pa, ratio_a);
+              constrain_surface()->color_poly_facet(pa, ratio_a);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              constrain_surface()->color_poly(pb, ratio_b);
+              constrain_surface()->color_poly_facet(pb, ratio_b);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              constrain_surface()->color_poly(pc, ratio_c);
+              constrain_surface()->color_poly_facet(pc, ratio_c);
               visited_points[pc] = 1;
             }
 
             add_grid_pts_from_triangle(pa, ratio_a, pb, ratio_b, pc, ratio_c, pts_on_side);
           }
         }
+      }
 
-        //spread color
-        constrain_surface()->average_color_contributor();
-        constrain_surface()->spread_colors();
+      void color_polyhedron_facets()
+      {
+        color_facets_from_starset();
+        constrain_surface()->average_facet_color_contributor();
+        constrain_surface()->spread_facets_colors();
+      }
+
+      void color_polyhedron_vertices()
+      {
+        color_vertices_from_starset();
+        constrain_surface()->average_vertex_color_contributor();
+        constrain_surface()->spread_vertices_colors();
+      }
+
+      void fill_c3t3_grid(int step)
+      {
+        if(step == 1)
+        {
+          constrain_surface()->build_colored_polyhedron();
+          constrain_surface()->build_colored_poly_tree();
+          constrain_surface()->number_colored_poly();
+        }
+        else
+          constrain_surface()->clear_colors();
+
+        if(1)
+          color_polyhedron_vertices();
+        else
+          color_polyhedron_facets();
       }
 
 public:

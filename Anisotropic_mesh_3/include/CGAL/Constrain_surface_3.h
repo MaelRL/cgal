@@ -42,11 +42,40 @@
 #include <CGAL/gl_draw/drawing_helper.h>
 
 #include <CGAL/helpers/mpq_helper.h>
+#include <CGAL/helpers/mvpq_helper.h>
+
+#include <Eigen/Dense>
 
 namespace CGAL
 {
   namespace Anisotropic_mesh_3
   {
+
+  template <class Refs, class T, class P>
+  class Metric_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
+  {
+    // tag
+    std::size_t m_tag;
+    Eigen::Matrix3d m_metric;
+
+  public:
+    Metric_vertex()  {}
+    Metric_vertex(const P& pt)
+      : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
+        m_tag(0), m_metric(Eigen::Matrix3d::Zero()) {}
+
+    Metric_vertex(const P& pt, const Eigen::Matrix3d m)
+      : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
+        m_tag(0), m_metric(m) {}
+
+    // tag
+    std::size_t& tag() {  return m_tag; }
+    const std::size_t& tag() const {  return m_tag; }
+    Eigen::Matrix3d& metric() {  return m_metric; }
+    const Eigen::Matrix3d& metric() const {  return m_metric; }
+
+    bool is_colored() const {return m_metric != Eigen::Matrix3d::Zero();}
+  };
 
   template <class Refs, class T>
   class Colored_facet : public CGAL::HalfedgeDS_face_base<Refs, T>
@@ -66,8 +95,15 @@ namespace CGAL
     int& contributors() { return m_contributors; }
   };
 
-  struct Colored_items : public CGAL::Polyhedron_items_3
+  struct Aniso_items : public CGAL::Polyhedron_items_3
   {
+    template<class Refs, class Traits>
+    struct Vertex_wrapper
+    {
+      typedef typename Traits::Point_3 Point;
+      typedef Metric_vertex<Refs, CGAL::Tag_true, Point> Vertex;
+    };
+
     template<class Refs, class Traits>
     struct Face_wrapper
     {
@@ -77,7 +113,7 @@ namespace CGAL
 
     template<typename K,
              typename Point_container = std::vector<typename K::Point_3>,
-             typename Colored_polyhedron = CGAL::Polyhedron_3<K, Colored_items> >
+             typename Colored_polyhedron = CGAL::Polyhedron_3<K, Aniso_items> >
     class Constrain_surface_3
     {
 
@@ -104,6 +140,7 @@ namespace CGAL
 
       typedef typename Colored_polyhedron::Face_handle      Face_handle;
       typedef typename Colored_polyhedron::Facet_iterator   Facet_iterator;
+      typedef typename Colored_polyhedron::Vertex_iterator  Vertex_iterator;
 
       typedef CGAL::AABB_polyhedron_triangle_primitive<K, Colored_polyhedron> Primitive;
       typedef CGAL::AABB_traits<K, Primitive>                                 Traits;
@@ -283,9 +320,13 @@ namespace CGAL
         fx.close();
       }
 
-      void number_colored_poly_facets() const
+      void number_colored_poly() const
       {
         std::size_t index = 0;
+        for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v, ++index)
+          v->tag() = index;
+
+        index = 0;
         for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
           f->tag() = index;
       }
@@ -301,11 +342,19 @@ namespace CGAL
 
       void clear_colors() const
       {
+        for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
+          v->metric() = Eigen::Matrix3d::Zero();
+
         for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
           f->color() = 0.;
       }
 
-      void color_poly(const Point_3& p, FT ratio) const
+      void color_poly_vertex()
+      {
+        //todo
+      }
+
+      void color_poly_facet(const Point_3& p, FT ratio) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
         Point_3 closest_point = pp.first;
@@ -314,7 +363,12 @@ namespace CGAL
         closest_f->contributors()++;
       }
 
-      void average_color_contributor() const
+      void average_vertex_color_contributor() const
+      {
+        //todo
+      }
+
+      void average_facet_color_contributor() const
       {
         std::cout << "computing average on each facet + stats" << std::endl;
 
@@ -338,7 +392,15 @@ namespace CGAL
         output_colored_polyhedron(out, m_colored_poly, writer, strongest_color);
       }
 
-      void spread_colors() const
+      void spread_vertices_colors() const
+      {
+        typedef Colored_vertex_modifiable_priority_queue<Colored_polyhedron>  Cvmpq;
+        Cvmpq q(m_colored_poly.size_of_vertices(), typename Cvmpq::Compare(), typename Cvmpq::ID());
+        q.initialize_cmvpq(m_colored_poly);
+        q.color_all_vertices();
+      }
+
+      void spread_facets_colors() const
       {
         typedef Colored_modifiable_priority_queue<Colored_polyhedron>  Cmpq;
         Cmpq q(m_colored_poly.size_of_facets(), typename Cmpq::Compare(), typename Cmpq::ID());
@@ -346,7 +408,12 @@ namespace CGAL
         q.color_all_facets();
       }
 
-      void get_color_from_poly(const Point_3& p, FT& ratio) const
+      void get_vertex_metric_from_poly(const Point_3& p, Eigen::Matrix3d& m) const
+      {
+
+      }
+
+      void get_facet_color_from_poly(const Point_3& p, FT& ratio) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
         Point_3 closest_point = pp.first;
