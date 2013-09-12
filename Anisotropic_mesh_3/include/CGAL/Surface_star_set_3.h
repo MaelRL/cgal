@@ -3014,10 +3014,16 @@ public:
         }
       }
 
-      void fill_c3t3_grid()
+      void fill_c3t3_grid(int step)
       {
-        this->constrain_surface()->build_colored_polyhedron();
-        this->constrain_surface()->build_colored_poly_tree();
+        if(step == 1)
+        {
+          constrain_surface()->build_colored_polyhedron();
+          constrain_surface()->build_colored_poly_tree();
+          constrain_surface()->number_colored_poly_facets();
+        }
+        else
+          constrain_surface()->clear_colors();
 
         //loop on consistent restricted facets and color with the aniso at the 3 pts
         int pts_on_side = 7; //size of grid of pts obtained from barycentric coordinates on the triangle
@@ -3221,10 +3227,10 @@ public:
           std::cout << "--------------------------------------------------------" << std::endl;
           std::cout << "done with pass : " << m_pass_count << " , entering local eps functions & stuff" << std::endl;
           std::cout << "--------------------------------------------------------" << std::endl;
-          fill_c3t3_grid();
+          fill_c3t3_grid(m_pass_count);
+          reset();
           if(!continue_)
             return;
-          reset();
         }
 
         //last pass

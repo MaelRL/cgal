@@ -283,6 +283,13 @@ namespace CGAL
         fx.close();
       }
 
+      void number_colored_poly_facets() const
+      {
+        std::size_t index = 0;
+        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
+          f->tag() = index;
+      }
+
       void build_colored_poly_tree() const
       {
         std::cout << "build and accelerate tree" << std::endl;
@@ -290,6 +297,12 @@ namespace CGAL
         m_colored_poly_tree = new Tree(m_colored_poly.facets_begin(), m_colored_poly.facets_end());
         m_colored_poly_tree->accelerate_distance_queries();
         std::cout << "tree has size : " << m_colored_poly_tree->size() << std::endl;
+      }
+
+      void clear_colors() const
+      {
+        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
+          f->color() = 0.;
       }
 
       void color_poly(const Point_3& p, FT ratio) const
@@ -307,11 +320,9 @@ namespace CGAL
 
         double strongest_color = -1.;
         int colored_facets_count = 0;
-        std::size_t index = 0;
 
-        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
+        for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
         {
-          f->tag() = index;
           if(f->contributors() > 0)
           {
             colored_facets_count++;
