@@ -1606,7 +1606,8 @@ class Constrain_surface_3_polyhedral :
           // run Mesh_3
           Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
                                  CGAL::parameters::facet_size = r * 0.05,
-                                 CGAL::parameters::facet_distance = r * facet_distance_coeff);
+                                 CGAL::parameters::facet_distance = r * facet_distance_coeff,
+                                 CGAL::parameters::facet_topology = MANIFOLD);
                                  // cell criteria are ignored
           m_c3t3 = CGAL::make_mesh_3<C3t3>(*domain, criteria,
                                            CGAL::parameters::no_perturb(),
