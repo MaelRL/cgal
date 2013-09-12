@@ -152,6 +152,7 @@ namespace CGAL
     public:
       EdgeList edges;
       mutable Colored_polyhedron m_colored_poly;
+      mutable Colored_polyhedron m_colored_poly_mem;
       mutable Tree* m_colored_poly_tree;
 
     public:
@@ -394,6 +395,7 @@ namespace CGAL
 
       void spread_vertices_colors() const
       {
+        m_colored_poly_mem = Colored_polyhedron(m_colored_poly);
         typedef Colored_vertex_modifiable_priority_queue<Colored_polyhedron>  Cvmpq;
         Cvmpq q(m_colored_poly.size_of_vertices(), typename Cvmpq::Compare(), typename Cvmpq::ID());
         q.initialize_cmvpq(m_colored_poly);
@@ -402,6 +404,7 @@ namespace CGAL
 
       void spread_facets_colors() const
       {
+        m_colored_poly_mem = Colored_polyhedron(m_colored_poly);
         typedef Colored_modifiable_priority_queue<Colored_polyhedron>  Cmpq;
         Cmpq q(m_colored_poly.size_of_facets(), typename Cmpq::Compare(), typename Cmpq::ID());
         q.initialize_cmpq(m_colored_poly);
@@ -426,9 +429,15 @@ namespace CGAL
         gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly);
       }
 
+      void gl_draw_colored_polyhedron_nospread() const
+      {
+        gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly_mem);
+      }
+
       Constrain_surface_3() :
       edges(),
       m_colored_poly(Colored_polyhedron ()),
+      m_colored_poly_mem(Colored_polyhedron ()),
       m_colored_poly_tree(NULL)
       { }
 
