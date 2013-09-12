@@ -36,6 +36,8 @@
 #include <CGAL/helpers/c3t3_polyhedron_builder.h>
 #include <CGAL/IO/Polyhedron_iostream.h>
 
+#include <CGAL/helpers/metric_helper.h>
+
 #include <boost/bind.hpp>
 
 namespace CGAL{
@@ -317,14 +319,14 @@ public:
           if(zeros == 1) //it is ev0
           {
             if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";
-            Vector_3 normal_test = get_eigenvector(vecs.col(min_id));
+            Vector_3 normal_test = get_eigenvector<K>(vecs.col(min_id));
             if(!are_equal(v0, normal_test))
              std::cout << "Error2 : see tensor_frame, zeros==1\n";
 
             e1 = ev1;
             e2 = ev2;
-            v1 = get_eigenvector(vecs.col((min_id + 1) % 3));
-            v2 = get_eigenvector(vecs.col((min_id + 2) % 3));
+            v1 = get_eigenvector<K>(vecs.col((min_id + 1) % 3));
+            v2 = get_eigenvector<K>(vecs.col((min_id + 2) % 3));
 
             //make sure the vectors form an orthogonal matrix
             //when eigenvalues are the same, vectors returned by Eigen are not
@@ -342,10 +344,10 @@ public:
 
             //the non-zero one
             e1 = std::abs(std::real(vals[id]));
-            v1 = get_eigenvector(vecs.col(id));
+            v1 = get_eigenvector<K>(vecs.col(id));
             //the last one : choose the vector which is not // to the normal
-            Vector_3 normal_test_1 = get_eigenvector(vecs.col((id + 1) % 3));
-            Vector_3 normal_test_2 = get_eigenvector(vecs.col((id + 2) % 3));
+            Vector_3 normal_test_1 = get_eigenvector<K>(vecs.col((id + 1) % 3));
+            Vector_3 normal_test_2 = get_eigenvector<K>(vecs.col((id + 2) % 3));
             if(are_equal(normal_test_1, v0))
             {
               e2 = std::abs(std::real(vals[(min_id + 2) % 3]));
@@ -389,11 +391,6 @@ public:
       Vector_3 get_vector(const Eigen::Vector3d& v) const
       {
         return Vector_3(v[0], v[1], v[2]);
-      }
-
-      Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType::ConstColXpr& v) const
-      {
-        return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
       }
 
       Vector_3 normalize(const Vector_3& v) const

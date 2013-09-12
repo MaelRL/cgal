@@ -35,6 +35,7 @@
 
 #include <Eigen/Dense>
 #include <CGAL/Metric.h>
+#include <CGAL/helpers/metric_helper.h>
 
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
@@ -412,17 +413,8 @@ class Constrain_surface_3_polyhedral :
           for(int k = 0; k < 3; k++)
             m(j,k) = m(j,k) * wsum_inv;
         
-        Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
-        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
-        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
 
-        e0 = (std::real(vals[0]) >= 0.) ? std::real(vals[0]) : 0.;
-        e1 = (std::real(vals[1]) >= 0.) ? std::real(vals[1]) : 0.;
-        e2 = (std::real(vals[2]) >= 0.) ? std::real(vals[2]) : 0.;
-                
-        v0 = get_eigenvector(vecs.col(0));
-        v1 = get_eigenvector(vecs.col(1));
-        v2 = get_eigenvector(vecs.col(2));
+        get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
       }
 
       void find_neighbors(Facet_handle facet, 
@@ -447,20 +439,6 @@ class Constrain_surface_3_polyhedral :
           return true;
         std::cout << "[" << cosine << "]";
         return false;
-      }
-      Vector_3 normalize(const Vector_3& v) const
-      {
-        return std::sqrt(1./(v*v)) * v;
-      }
-
-      Vector_3 get_vector(const Eigen::Vector3d& v) const
-      {
-       return Vector_3(v[0], v[1], v[2]);
-      }
-
-      Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType::ConstColXpr& v) const
-      {
-        return Vector_3(std::real(v[0]), std::real(v[1]), std::real(v[2]));
       }
 
       virtual Point_container initial_points(const int nb) const 
@@ -876,18 +854,7 @@ class Constrain_surface_3_polyhedral :
             //compute new principal directions & curvature values
             double e0,e1,e2;
             Vector_3 v0,v1,v2;
-
-            Eigen::EigenSolver<Eigen::Matrix3d> es(new_tensor_at_vi, true/*compute eigenvectors and values*/);
-            const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
-            const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
-
-            e0 = (std::real(vals[0]) >= 0.) ? std::real(vals[0]) : 0.;
-            e1 = (std::real(vals[1]) >= 0.) ? std::real(vals[1]) : 0.;
-            e2 = (std::real(vals[2]) >= 0.) ? std::real(vals[2]) : 0.;
-
-            v0 = get_eigenvector(vecs.col(0));
-            v1 = get_eigenvector(vecs.col(1));
-            v2 = get_eigenvector(vecs.col(2));
+            get_eigen_vecs_and_vals<K>(new_tensor_at_vi, v0, v1, v2, e0, e1, e2);
 
             Vector_3 ni = vi->normal();
             FT sp0 = std::abs(v0*ni);
@@ -1065,23 +1032,11 @@ class Constrain_surface_3_polyhedral :
           double e0,e1,e2;
           Vector_3 v0,v1,v2;
           Eigen::Matrix3d m = m_metrics[i];
-
-          Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
-          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
-          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
-
-          e0 = std::real(vals[0]); //should all be > 0 here
-          e1 = std::real(vals[1]);
-          e2 = std::real(vals[2]);
-          assert(e0 > 0 && e1 > 0 && e2 > 0);
+          get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
 
           e0 = std::sqrt(e0);
           e1 = std::sqrt(e1);
           e2 = std::sqrt(e2);
-
-          v0 = get_eigenvector(vecs.col(0));
-          v1 = get_eigenvector(vecs.col(1));
-          v2 = get_eigenvector(vecs.col(2));
 
           std::cout << "es : " << e0 << " " << e1 << " " << e2 << std::endl;
 
@@ -1479,22 +1434,11 @@ class Constrain_surface_3_polyhedral :
 
           Eigen::Matrix3d m = m_metrics[i];
 
-          Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
-          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
-          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
-
-          //should all be > 0 here
-          e[0] = std::real(vals[0]);
-          e[1] = std::real(vals[1]);
-          e[2] = std::real(vals[2]);
+          get_eigen_vecs_and_vals<K>(m, v[0], v[1], v[2], e[0], e[1], e[2]);
 
           e[0] = std::sqrt(e[0]);
           e[1] = std::sqrt(e[1]);
           e[2] = std::sqrt(e[2]);
-
-          v[0] = get_eigenvector(vecs.col(0));
-          v[1] = get_eigenvector(vecs.col(1));
-          v[2] = get_eigenvector(vecs.col(2));
 
 #ifdef ANISO_DEBUG_APPROX_ANISO
           std::cout << "es : " << e[0] << " " << e[1] << " " << e[2] << std::endl;
