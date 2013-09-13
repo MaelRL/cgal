@@ -3469,7 +3469,6 @@ public:
       void gl_draw_cell(const typename K::Plane_3& plane,
                    const int star_id = -1/*only this one*/) const
       {
-/*
         Point_3 debug_a(5, 5, 5);
         Vector_3 e1(1, 0, 0);
         Vector_3 e2(0, 1, 0);
@@ -3498,81 +3497,37 @@ public:
         FT mp_b = 1./debug_mp.get_min_eigenvalue();
         FT mp_c = 1./debug_mp.get_third_eigenvalue();
 
-        FT mptheo_a = 1./metricPtheo.get_max_eigenvalue();
-        FT mptheo_b = 1./metricPtheo.get_min_eigenvalue();
-        FT mptheo_c = 1./metricPtheo.get_third_eigenvalue();
+//        FT mptheo_a = 1./metricPtheo.get_max_eigenvalue();
+//        FT mptheo_b = 1./metricPtheo.get_min_eigenvalue();
+//        FT mptheo_c = 1./metricPtheo.get_third_eigenvalue();
 
         //A
         debug_ma.get_max_eigenvector(v1);
         debug_ma.get_min_eigenvector(v2);
         debug_ma.get_third_eigenvector(vn);
 
-        ::GLdouble rot_mat[16];
-        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
-        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
-        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
-        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
-
-        ::glMatrixMode (GL_MODELVIEW);
-        ::glPushMatrix();
-        ::glMultMatrixd(rot_mat);
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, ma_a, ma_b, ma_c, 240, 240, 20);
-        ::glPopMatrix();
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, ma_a, ma_b, ma_c, v1, v2, vn, 240, 240, 20);
 
         //B
         debug_mb.get_max_eigenvector(v1);
         debug_mb.get_min_eigenvector(v2);
         debug_mb.get_third_eigenvector(vn);
 
-        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
-        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
-        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
-        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
-
-        ::glMatrixMode (GL_MODELVIEW);
-        ::glPushMatrix();
-        ::glMultMatrixd(rot_mat);
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mb_a, mb_b, mb_c, 20, 20, 240);
-        ::glPopMatrix();
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mb_a, mb_b, mb_c, v1, v2, vn, 20, 20, 240);
 
         //P
         debug_mp.get_max_eigenvector(v1);
         debug_mp.get_min_eigenvector(v2);
         debug_mp.get_third_eigenvector(vn);
 
-        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
-        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
-        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
-        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
-
-        ::glMatrixMode (GL_MODELVIEW);
-        ::glPushMatrix();
-        ::glMultMatrixd(rot_mat);
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mp_a, mp_b, mp_c, 20, 240, 200);
-        ::glPopMatrix();
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mp_a, mp_b, mp_c, v1, v2, vn, 20, 240, 200);
 
         //P theo
-        metricPtheo.get_max_eigenvector(v1);
-        metricPtheo.get_min_eigenvector(v2);
-        metricPtheo.get_third_eigenvector(vn);
+//        metricPtheo.get_max_eigenvector(v1);
+//        metricPtheo.get_min_eigenvector(v2);
+//        metricPtheo.get_third_eigenvector(vn);
 
-        rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = 5;
-        rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = 5;
-        rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = 5;
-        rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
-
-        ::glMatrixMode (GL_MODELVIEW);
-        ::glPushMatrix();
-        ::glMultMatrixd(rot_mat);
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, 20, 20, mptheo_a, mptheo_b, mptheo_c, 240, 20, 20);
-        ::glPopMatrix();
-
-        ::glPointSize(5.);
-        ::glBegin(GL_POINTS);
-        ::glColor3f(0.87f, 0.14f, 0.14f);
-        ::glVertex3d(debug_a.x(), debug_a.y(), debug_a.z());
-        ::glEnd();
-*/
+//        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
 
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)

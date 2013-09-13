@@ -2122,10 +2122,7 @@ public:
 #endif
           TPoint_3 tce = m_metric.transform(ce);
           TPoint_3 tp2 = f.first->vertex((f.second+1) % 4)->point();
-          //Point_3 p2 = m_metric.inverse_transform(tp2);
-
           FT sqr = CGAL::squared_distance(tce, tp2);
-          //gl_draw_sphere<K>(typename K::Sphere_3(ce, sqr));
 
             //ellipsoid's a, b & c
           FT a = std::sqrt(sqr)/m_metric.get_max_eigenvalue();
@@ -2138,38 +2135,12 @@ public:
           m_metric.get_min_eigenvector(v2);
           m_metric.get_third_eigenvector(vn);
 
-          ::GLdouble rot_mat[16];
-          rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = ce.x();
-          rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = ce.y();
-          rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = ce.z();
-          rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
-
-          ::glMatrixMode (GL_MODELVIEW);
-          ::glPushMatrix();
-          ::glMultMatrixd(rot_mat);
           if(ellipsoid_color == 1)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 232, 67, 183);
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, ce, 10, 10, a, b, c, v1, v2, vn, 232, 67, 183);
           else if(ellipsoid_color == 2)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 20, 20, 233);
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, ce, 10, 10, a, b, c, v1, v2, vn, 20, 20, 233);
           else
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, 10, 10, a, b, c, 245, 230, 93);
-
-          ::glPopMatrix();
-
-          //a b & c visu
-          ::glColor3f(1.f,0.,0.);
-          gl_draw_segment<K>(ce, ce+a*v1);
-          ::glColor3f(0.,0.,1.f);
-          gl_draw_segment<K>(ce, ce+b*v2);
-          ::glColor3f(0.,1.f,0.);
-          gl_draw_segment<K>(ce, ce+c*vn);
-
-            //center
-          ::glColor3d(33./256., 224./256., 237./256.);
-          ::glPointSize(10.);
-          ::glBegin(GL_POINTS);
-          ::glVertex3d(ce.x(),ce.y(),ce.z());
-          ::glEnd();
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, ce, 10, 10, a, b, c, v1, v2, vn, 245, 230, 93);
         }
       }
 

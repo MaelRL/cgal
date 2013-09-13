@@ -90,43 +90,74 @@ void gl_draw_segment(const typename Kernel::Point_3& pa,
   }
 }
 
-
 template<typename Kernel>
-void gl_draw_ellipsoid(const typename Kernel::Point_3& p,
-                       int stacks, int slices, double a, double b, double c,
+void gl_draw_ellipsoid(const typename Kernel::Point_3& center,
+                       const typename Kernel::Point_3& lookat,
+                       int stacks, int slices,
+                       double a, double b, double c,
+                       const typename Kernel::Vector_3& v1,
+                       const typename Kernel::Vector_3& v2,
+                       const typename Kernel::Vector_3& vn,
                        const float cr = 205., const float cg = 175., const float cb = 149.)
 {
-    double x = p.x();
-    double y = p.y();
-    double z = p.z();
-    double st = CGAL_PI / (double) stacks;
-    double sl = CGAL_PI / (double) slices;
+  ::GLdouble rot_mat[16];
+  rot_mat[0] = v1.x(); rot_mat[4] = v2.x(); rot_mat[8] = vn.x();  rot_mat[12] = lookat.x();
+  rot_mat[1] = v1.y(); rot_mat[5] = v2.y(); rot_mat[9] = vn.y();  rot_mat[13] = lookat.y();
+  rot_mat[2] = v1.z(); rot_mat[6] = v2.z(); rot_mat[10] = vn.z(); rot_mat[14] = lookat.z();
+  rot_mat[3] = 0.; rot_mat[7] = 0.; rot_mat[11] = 0.; rot_mat[15] = 1.;
 
-    GLboolean was = (::glIsEnabled(GL_LIGHTING));
-    if(!was)
-      ::glEnable(GL_LIGHTING);
+  ::glMatrixMode (GL_MODELVIEW);
+  ::glPushMatrix();
+  ::glMultMatrixd(rot_mat);
 
-    ::glColor3d(cr / 256., cg / 256., cb / 256.);
-    ::glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  double x = center.x();
+  double y = center.y();
+  double z = center.z();
+  double st = CGAL_PI / (double) stacks;
+  double sl = CGAL_PI / (double) slices;
 
-    for(double u = -CGAL_PI/2.; u <= (CGAL_PI/2.); u += sl) // theta
-    {
-        ::glBegin(GL_TRIANGLE_STRIP);
-        for(double v = -CGAL_PI; v <= CGAL_PI; v += st) // phi
-        {
-          ::glVertex3d(x + a * std::cos(u) * std::cos(v),
-                       y + b * std::cos(u) * std::sin(v),
-                       z + c * std::sin(u));
+  GLboolean was = (::glIsEnabled(GL_LIGHTING));
+  if(!was)
+    ::glEnable(GL_LIGHTING);
 
-          ::glVertex3d(x + a * std::cos(u + sl) * std::cos(v),
-                       y + b * std::cos(u + sl) * std::sin(v),
-                       z + c * std::sin(u + sl));
-        }
-        ::glEnd();
-    }
+  ::glColor3d(cr / 256., cg / 256., cb / 256.);
+  ::glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    if(!was)
-      ::glDisable(GL_LIGHTING);
+  for(double u = -CGAL_PI/2.; u <= (CGAL_PI/2.); u += sl) // theta
+  {
+      ::glBegin(GL_TRIANGLE_STRIP);
+      for(double v = -CGAL_PI; v <= CGAL_PI; v += st) // phi
+      {
+        ::glVertex3d(x + a * std::cos(u) * std::cos(v),
+                     y + b * std::cos(u) * std::sin(v),
+                     z + c * std::sin(u));
+
+        ::glVertex3d(x + a * std::cos(u + sl) * std::cos(v),
+                     y + b * std::cos(u + sl) * std::sin(v),
+                     z + c * std::sin(u + sl));
+      }
+      ::glEnd();
+  }
+
+  if(!was)
+    ::glDisable(GL_LIGHTING);
+
+  ::glPopMatrix();
+
+  //a b & c visu
+  ::glColor3f(1.f,0.,0.);
+  gl_draw_segment<Kernel>(lookat, lookat + a*v1);
+  ::glColor3f(0.,0.,1.f);
+  gl_draw_segment<Kernel>(lookat, lookat + b*v2);
+  ::glColor3f(0.,1.f,0.);
+  gl_draw_segment<Kernel>(lookat, lookat + c*vn);
+
+    //center
+  ::glColor3d(33./256., 224./256., 237./256.);
+  ::glPointSize(10.);
+  ::glBegin(GL_POINTS);
+  ::glVertex3d(x,y,z);
+  ::glEnd();
 }
 
 
