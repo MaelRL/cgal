@@ -50,7 +50,7 @@ get(const First_of_pair_v<Colored_polyhedron>&,
 }
 
 template<typename Colored_polyhedron>
-class Colored_vertex_modifiable_priority_queue :
+class Colored_modifiable_vertex_priority_queue :
   public Modifiable_priority_queue< std::pair<typename Colored_polyhedron::Vertex_handle, int>*,
                                     More_v<Colored_polyhedron>,
                                     First_of_pair_v<Colored_polyhedron> >
@@ -194,7 +194,7 @@ class Colored_vertex_modifiable_priority_queue :
         color_top_vertex();
     }
 
-    Colored_vertex_modifiable_priority_queue(size_type largest_ID,
+    Colored_modifiable_vertex_priority_queue(size_type largest_ID,
                                       Compare const& c,
                                       ID const& id )
       : Base(largest_ID, c, id)

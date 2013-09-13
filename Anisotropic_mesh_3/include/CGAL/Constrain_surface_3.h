@@ -398,7 +398,7 @@ namespace CGAL
       void spread_vertices_colors() const
       {
         m_colored_poly_mem = Colored_polyhedron(m_colored_poly);
-        typedef Colored_vertex_modifiable_priority_queue<Colored_polyhedron>  Cvmpq;
+        typedef Colored_modifiable_vertex_priority_queue<Colored_polyhedron>  Cvmpq;
         Cvmpq q(m_colored_poly.size_of_vertices(), typename Cvmpq::Compare(), typename Cvmpq::ID());
         q.initialize_cmvpq(m_colored_poly);
         q.color_all_vertices();
