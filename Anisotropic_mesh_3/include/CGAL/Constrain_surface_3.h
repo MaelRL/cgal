@@ -347,7 +347,10 @@ namespace CGAL
           v->metric() = Eigen::Matrix3d::Zero();
 
         for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
+        {
           f->color() = 0.;
+          f->contributors() = 0.;
+        }
       }
 
       void color_poly_vertex()
@@ -358,7 +361,6 @@ namespace CGAL
       void color_poly_facet(const Point_3& p, FT ratio) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
-        Point_3 closest_point = pp.first;
         Face_handle closest_f = pp.second; // closest primitive id
         closest_f->color() += ratio;
         closest_f->contributors()++;
