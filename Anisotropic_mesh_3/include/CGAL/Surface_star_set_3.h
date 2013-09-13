@@ -3049,8 +3049,8 @@ public:
             Point_3& pc = star_c->center_point();
 
             FT ratio_a = (star_a->metric().get_max_eigenvalue())/(star_a->metric().get_min_eigenvalue());
-            FT ratio_b = (star_a->metric().get_max_eigenvalue())/(star_b->metric().get_min_eigenvalue());
-            FT ratio_c = (star_a->metric().get_max_eigenvalue())/(star_c->metric().get_min_eigenvalue());
+            FT ratio_b = (star_b->metric().get_max_eigenvalue())/(star_b->metric().get_min_eigenvalue());
+            FT ratio_c = (star_c->metric().get_max_eigenvalue())/(star_c->metric().get_min_eigenvalue());
 
             if(!visited_points[pa])
             {
