@@ -426,14 +426,44 @@ namespace CGAL
         ratio = closest_f->color();
       }
 
-      void gl_draw_colored_polyhedron() const
+      void gl_draw_colored_polyhedron(const Colored_polyhedron& P) const
       {
-        gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly);
-      }
+        typedef typename Colored_polyhedron::Facet_const_iterator  FCI;
+        typedef typename Colored_polyhedron::Vertex_const_iterator VCI;
 
-      void gl_draw_colored_polyhedron_nospread() const
-      {
-        gl_draw_colored_poly<Colored_polyhedron>(m_colored_poly_mem);
+        double strongest_color = -1;
+        for(FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
+          if(fi->color() > strongest_color)
+            strongest_color = fi->color();
+
+        GLboolean was = (::glIsEnabled(GL_LIGHTING));
+        if(was)
+          ::glDisable(GL_LIGHTING);
+
+        if(strongest_color > 0)
+          for(FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
+          {
+            double f_color = fi->color()/strongest_color;
+            if(f_color < 0.)
+              continue;
+            gl_draw_colored_polyhedron_facet<Colored_polyhedron>(fi, f_color);
+          }
+
+        for (VCI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi)
+        {
+          if(!vi->is_colored())
+            continue;
+
+          Vector_3 v0, v1, v2;
+          FT e0, e1, e2;
+          get_eigen_vecs_and_vals<K>(vi->metric(), v0, v1, v2, e0, e1, e2);
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, vi->point(), 10, 10,
+                            std::sqrt(e0), std::sqrt(e1), std::sqrt(e2),
+                            v0, v1, v2);
+        }
+
+        if(was)
+          ::glEnable(GL_LIGHTING);
       }
 
       Constrain_surface_3() :
