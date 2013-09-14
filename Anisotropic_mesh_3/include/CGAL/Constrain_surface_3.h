@@ -43,6 +43,7 @@
 
 #include <CGAL/helpers/mpq_helper.h>
 #include <CGAL/helpers/mvpq_helper.h>
+#include <CGAL/helpers/metric_helper.h>
 
 #include <Eigen/Dense>
 
@@ -56,7 +57,7 @@ namespace CGAL
   {
     // tag
     std::size_t m_tag;
-    Eigen::Matrix3d m_metric;
+    Eigen::Matrix3d m_metric; // THIS IS Mp, NOT Fp
 
   public:
     Metric_vertex()  {}
@@ -139,6 +140,7 @@ namespace CGAL
       typedef Colored_polyhedron                   Colored_poly;
 
       typedef typename Colored_polyhedron::Face_handle      Face_handle;
+      typedef typename Colored_polyhedron::Vertex_handle    Vertex_handle;
       typedef typename Colored_polyhedron::Facet_iterator   Facet_iterator;
       typedef typename Colored_polyhedron::Vertex_iterator  Vertex_iterator;
 
@@ -353,22 +355,43 @@ namespace CGAL
         }
       }
 
-      void color_poly_vertex()
+      void color_poly(const Point_3& p, const Eigen::Matrix3d& m)
       {
-        //todo
+        Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
+        Point_3 closest_point = pp.first;
+        Face_handle closest_f = pp.second;
+
+        Vertex_handle va = closest_f->halfedge()->vertex();
+        Vertex_handle vb = closest_f->halfedge()->next()->vertex();
+        Vertex_handle vc = closest_f->halfedge()->next()->next()->vertex();
+
+        Vertex_handle v = va;
+        FT dmin = CGAL::squared_distance(closest_point, va->point());
+        FT db = CGAL::squared_distance(closest_point, vb->point());
+        FT dc = CGAL::squared_distance(closest_point, vc->point());
+        if(db < dmin)
+        {
+          dmin = db;
+          v = vb;
+        }
+        if(dc < dmin)
+          v = vc;
+
+        Eigen::Matrix3d scaled_m = scale_matrix_to_point(m, closest_point, v->point());
+        if(!v->contributors())
+          v->metric() = scaled_m;
+        else
+          v->metric() = matrix_intersection<K>(v->metric(), scaled_m);
+
+        v->contributors()++;
       }
 
-      void color_poly_facet(const Point_3& p, FT ratio) const
+      void color_poly(const Point_3& p, const FT& ratio) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
         Face_handle closest_f = pp.second; // closest primitive id
         closest_f->color() += ratio;
         closest_f->contributors()++;
-      }
-
-      void average_vertex_color_contributor() const
-      {
-        //todo
       }
 
       void average_facet_color_contributor() const
@@ -413,12 +436,34 @@ namespace CGAL
         q.color_all_facets();
       }
 
-      void get_vertex_metric_from_poly(const Point_3& p, Eigen::Matrix3d& m) const
+      void get_color_from_poly(const Point_3& p, Eigen::Matrix3d& m) const
       {
+        Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
+        Point_3 closest_point = pp.first;
+        Face_handle closest_f = pp.second; // closest primitive id
 
+        Vertex_handle va = closest_f->halfedge()->vertex();
+        Vertex_handle vb = closest_f->halfedge()->next()->vertex();
+        Vertex_handle vc = closest_f->halfedge()->next()->next()->vertex();
+
+        //get bary weights
+        Vector_3 v0(va->point(), vb->point());
+        Vector_3 v1(va->point(), vc->point());
+        Vector_3 v2(va->point(), closest_point);
+        FT d00 = (v0, v0);
+        FT d01 = (v0, v1);
+        FT d11 = (v1, v1);
+        FT d20 = (v2, v0);
+        FT d21 = (v2, v1);
+        FT denom = d00 * d11 - d01 * d01;
+        FT v = (d11 * d20 - d01 * d21) / denom;
+        FT w = (d00 * d21 - d01 * d20) / denom;
+        FT u = 1.0f - v - w;
+
+        m = interpolate_colors<K>(va->metric(), u, vb->metric(), v, vc->metric(), w);
       }
 
-      void get_facet_color_from_poly(const Point_3& p, FT& ratio) const
+      void get_color_from_poly(const Point_3& p, FT& ratio) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
         Point_3 closest_point = pp.first;

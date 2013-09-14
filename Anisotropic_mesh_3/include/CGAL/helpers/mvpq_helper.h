@@ -9,6 +9,8 @@
 #include <CGAL/assertions.h>
 #include <CGAL/Modifiable_priority_queue.h>
 
+#include <CGAL/helpers/metric_helper.h>
+
 #include <iostream>
 #include <functional>
 #include <set>
@@ -68,6 +70,8 @@ class Colored_modifiable_vertex_priority_queue :
 
     typedef typename std::pair<typename Colored_polyhedron::Vertex_handle, int> Cmvpq_type;
 
+    typedef typename Colored_polyhedron::Kernel                            K;
+    typedef typename Colored_polyhedron::Point_3                           Point_3;
     typedef typename Colored_polyhedron::Vertex_handle                     Vertex_handle;
     typedef typename Colored_polyhedron::Facet_handle                      Facet_handle;
     typedef typename Colored_polyhedron::Vertex_iterator                   Vertex_iterator;
@@ -165,23 +169,26 @@ class Colored_modifiable_vertex_priority_queue :
       std::set<Vertex_handle, Vertex_Compare> neigh_vertices;
       get_first_ring(top_vertex->first, neigh_vertices);
 
+      Point_3 p = top_vertex->first->point();
       Eigen::Matrix3d new_vertex_metric = Eigen::Matrix3d::Zero();
 
-      /*
       int counter = 0;
       typename std::set<Vertex_handle, Vertex_Compare>::iterator it = neigh_vertices.begin();
       typename std::set<Vertex_handle, Vertex_Compare>::iterator itend = neigh_vertices.end();
       for(; it!=itend; ++it)
       {
-        if((*it)->color() > 0.)
+        if((*it)->is_colored())
         {
-          new_vertex_metric += (*it)->color();
           counter++;
+          Eigen::Matrix3d scaled_m = scale_matrix_to_point((*it)->metric(), p, (*it)->point());
+          if(counter == 1)
+            new_vertex_metric = scaled_m;
+          else
+            new_vertex_metric = matrix_intersection<K>(new_vertex_metric, scaled_m);
         }
       }
-      new_vertex_metric /= top_vertex->second;
-      */
 
+//      std::cout << counter << " " << top_vertex->second << std::endl;
       top_vertex->first->metric() = new_vertex_metric;
 
       increase_neigh_vertices(neigh_vertices);

@@ -37,6 +37,7 @@
 #include <CGAL/Facet_refine_queue.h>
 #include <CGAL/Output_facets.h>
 
+#include <CGAL/helpers/metric_helper.h>
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/timer_helper.h>
 #include <CGAL/helpers/combinatorics_helper.h>
@@ -2126,24 +2127,28 @@ public:
           if(m_use_c3t3_colors)
           {
             //now in second phase, the metric is computed with the c3t3 grid
+#ifdef ANISO_COLOR_POLY_FACETS
             double new_ratio = 0.;
-            double old_ratio = m_p.get_max_eigenvalue()/m_p.get_min_eigenvalue();
-            constrain_surface()->get_facet_color_from_poly(p, new_ratio);
+            //double old_ratio = m_p.get_max_eigenvalue()/m_p.get_min_eigenvalue();
+            constrain_surface()->get_color_from_poly(p, new_ratio);
             if(new_ratio <= 0.)
-              std::cout << "new ratio not that good... : " << new_ratio << std::endl;
-            /*if(old_ratio > 8)
-            {
-              std::cout << std::fixed << "max min & co : " << m_p.get_max_eigenvalue() << " " << m_p.get_min_eigenvalue() << std::endl;
-              if(new_ratio > old_ratio)
-                std::cout << "increasing ratio... : " << old_ratio << " " << new_ratio << std::endl;
-              else if(old_ratio > 8)
-              std::cout << "decreasing ratio... : " << old_ratio << " " << new_ratio << std::endl;
-            }*/
+              std::cout << "new ratio is in the depths of hell... : " << new_ratio << std::endl;
             FT new_min = m_p.get_max_eigenvalue() / new_ratio;
             m_p = metric_field()->build_metric(m_p.get_vn(), m_p.get_vmax(), m_p.get_vmin(),
                                                m_p.get_third_eigenvalue(),
                                                m_p.get_max_eigenvalue(),
                                                new_min);
+#else
+            Vector_3 v0, v1, v2;
+            FT e0, e1, e2;
+            Eigen::Matrix3d M;
+            constrain_surface()->get_color_from_poly(p, M);
+            get_eigen_vecs_and_vals(M, v0, v1, v2, e0, e1, e2);
+            e0 = std::sqrt(e0);
+            e1 = std::sqrt(e1);
+            e2 = std::sqrt(e2);
+            m_p = metric_field()->build_metric(v0, v1, v2, e0, e1, e2);
+#endif
           }
 
           star->reset(p, pid, m_p, surface_star);
@@ -2977,49 +2982,75 @@ public:
       }
       
 public:
-      void add_grid_pts_from_triangle(const Point_3& pa, const FT& ratio_a,
-                                      const Point_3& pb, const FT& ratio_b,
-                                      const Point_3& pc, const FT& ratio_c,
+      template<typename Kernel>
+      FT interpolate_colors(const FT& color_a, const FT& coeff_a,
+                            const FT& color_b, const FT& coeff_b,
+                            const FT& color_c, const FT& coeff_c)
+      {
+        return color_a*coeff_a + color_b*coeff_b + color_c*coeff_c;
+      }
+
+      template<typename Color_type>
+      void add_grid_pts_from_triangle(const Point_3& pa, const Color_type& color_a,
+                                      const Point_3& pb, const Color_type& color_b,
+                                      const Point_3& pc, const Color_type& color_c,
                                       const int& pts_on_side)
                                       //std::map<Point_3, int>& visited_points
       {
         if(pts_on_side < 1)
           return;
 
-        double denom = pts_on_side + 1.;
+        FT denom = pts_on_side + 1.;
 
         for(int i=1; i<=pts_on_side; ++i)
         {
-          double coeff_a0 = ((double) i)/denom;
-          double coeff_b0 = 1. - coeff_a0;
+          FT coeff_a0 = ((FT) i)/denom;
+          FT coeff_b0 = 1. - coeff_a0;
           for(int j=1; j<=pts_on_side; ++j)
           {
-            double coeff_c = ((double) j)/denom;
-            double delta = 1. - coeff_c;
-            double coeff_a = coeff_a0*delta;
-            double coeff_b = coeff_b0*delta;
+            FT coeff_c = ((FT) j)/denom;
+            FT delta = 1. - coeff_c;
+            FT coeff_a = coeff_a0 * delta;
+            FT coeff_b = coeff_b0 * delta;
 
             FT px = pa.x()*coeff_a + pb.x()*coeff_b + pc.x()*coeff_c;
             FT py = pa.y()*coeff_a + pb.y()*coeff_b + pc.y()*coeff_c;
             FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
             Point_3 p(px,py,pz);
-            FT pratio = ratio_a*coeff_a + ratio_b*coeff_b + ratio_c*coeff_c;
+
+            Color_type pcolor = interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
 
             if(!visited_points[p])
             {
-              constrain_surface()->color_poly_facet(p, pratio);
+              constrain_surface()->color_poly(p, pcolor);
               visited_points[p] = 1;
             }
           }
         }
       }
 
-      void color_vertices_from_starset()
+      void get_colors(Star_handle star_a, FT& ratio_a,
+                      Star_handle star_b, FT& ratio_b,
+                      Star_handle star_c, FT& ratio_c)
       {
-
+        ratio_a = (star_a->metric().get_max_eigenvalue())/(star_a->metric().get_min_eigenvalue());
+        ratio_b = (star_b->metric().get_max_eigenvalue())/(star_b->metric().get_min_eigenvalue());
+        ratio_c = (star_c->metric().get_max_eigenvalue())/(star_c->metric().get_min_eigenvalue());
       }
 
-      void color_facets_from_starset()
+      void get_colors(Star_handle star_a, Eigen::Matrix3d& m_a,
+                      Star_handle star_b, Eigen::Matrix3d& m_b,
+                      Star_handle star_c, Eigen::Matrix3d& m_c)
+      {
+        Eigen::Matrix3d eigen_transformation_a = star_a->metric().get_transformation();
+        Eigen::Matrix3d eigen_transformation_b = star_b->metric().get_transformation();
+        Eigen::Matrix3d eigen_transformation_c = star_c->metric().get_transformation();
+        m_a = eigen_transformation_a.transpose() * eigen_transformation_a;
+        m_b = eigen_transformation_b.transpose() * eigen_transformation_b;
+        m_c = eigen_transformation_c.transpose() * eigen_transformation_c;
+      }
+
+      void color_polyhedron_from_starset()
       {
         //loop on consistent restricted facets and color with the aniso at the 3 pts
         int pts_on_side = 7; //size of grid of pts obtained from barycentric coordinates on the triangle
@@ -3048,43 +3079,34 @@ public:
             Point_3& pb = star_b->center_point();
             Point_3& pc = star_c->center_point();
 
-            FT ratio_a = (star_a->metric().get_max_eigenvalue())/(star_a->metric().get_min_eigenvalue());
-            FT ratio_b = (star_b->metric().get_max_eigenvalue())/(star_b->metric().get_min_eigenvalue());
-            FT ratio_c = (star_c->metric().get_max_eigenvalue())/(star_c->metric().get_min_eigenvalue());
+#ifdef ANISO_COLOR_POLY_FACETS
+#define Color_type FT
+#else
+#define Color_type Eigen::Matrix3d
+#endif
+
+            Color_type color_a, color_b, color_c;
+            get_colors(star_a, color_a, star_b, color_b, star_c, color_c);
 
             if(!visited_points[pa])
             {
-              constrain_surface()->color_poly_facet(pa, ratio_a);
+              constrain_surface()->color_poly(pa, color_a);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              constrain_surface()->color_poly_facet(pb, ratio_b);
+              constrain_surface()->color_poly(pb, color_b);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              constrain_surface()->color_poly_facet(pc, ratio_c);
+              constrain_surface()->color_poly(pc, color_c);
               visited_points[pc] = 1;
             }
 
-            add_grid_pts_from_triangle(pa, ratio_a, pb, ratio_b, pc, ratio_c, pts_on_side);
+            add_grid_pts_from_triangle(pa, color_a, pb, color_b, pc, color_c, pts_on_side);
           }
         }
-      }
-
-      void color_polyhedron_facets()
-      {
-        color_facets_from_starset();
-        constrain_surface()->average_facet_color_contributor();
-        constrain_surface()->spread_facets_colors();
-      }
-
-      void color_polyhedron_vertices()
-      {
-        color_vertices_from_starset();
-        constrain_surface()->average_vertex_color_contributor();
-        constrain_surface()->spread_vertices_colors();
       }
 
       void fill_c3t3_grid(int step)
@@ -3098,10 +3120,14 @@ public:
         else
           constrain_surface()->clear_colors();
 
-        if(1)
-          color_polyhedron_vertices();
-        else
-          color_polyhedron_facets();
+        color_polyhedron_from_starset();
+
+#ifdef ANISO_COLOR_POLY_FACETS
+        constrain_surface()->average_facet_color_contributor();
+        constrain_surface()->spread_facets_colors();
+#else
+        constrain_surface()->spread_vertices_colors();
+#endif
       }
 
 public:
