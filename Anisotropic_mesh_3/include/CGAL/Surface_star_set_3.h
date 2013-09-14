@@ -3495,6 +3495,7 @@ public:
       void gl_draw_cell(const typename K::Plane_3& plane,
                    const int star_id = -1/*only this one*/) const
       {
+/*
         Point_3 debug_a(5, 5, 5);
         Vector_3 e1(1, 0, 0);
         Vector_3 e2(0, 1, 0);
@@ -3507,9 +3508,9 @@ public:
         Metric debug_mb = m_metric_field->build_metric(e3, e4, e5, 0.4, 0.1, 4);
         Metric debug_mp = m_metric_field->intersection(debug_ma, debug_mb);
 
-        debug_ma = metricA;
-        debug_mb = metricB;
-        debug_mp = metricP;
+//        debug_ma = metricA;
+//        debug_mb = metricB;
+//        debug_mp = metricP;
 
         FT ma_a = 1./debug_ma.get_max_eigenvalue();
         FT ma_b = 1./debug_ma.get_min_eigenvalue();
@@ -3554,6 +3555,7 @@ public:
 //        metricPtheo.get_third_eigenvector(vn);
 
 //        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
+*/
 
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
