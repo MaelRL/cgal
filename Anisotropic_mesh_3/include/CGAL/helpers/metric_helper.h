@@ -41,6 +41,57 @@ void get_eigen_vecs_and_vals(const Eigen::Matrix3d& matrix,
 }
 
 template<typename Kernel>
+Eigen::Matrix3d matrix_log(const Eigen::Matrix3d& m, const typename Kernel::FT& alpha = 1)
+{
+  typename Kernel::Vector_3 v_0, v_1, v_2;
+  double e_0, e_1, e_2;
+
+  get_eigen_vecs_and_vals(m, v_0, v_1, v_2, e_0, e_1, e_2);
+  e_0 = alpha * std::log(e_0);
+  e_1 = alpha * std::log(e_1);
+  e_2 = alpha * std::log(e_2);
+
+  Eigen::Matrix3d eigen_m;
+  eigen_m(0,0) = v_0.x();  eigen_m(0,1) = v_1.x();  eigen_m(0,2) = v_2.x();
+  eigen_m(1,0) = v_0.y();  eigen_m(1,1) = v_1.y();  eigen_m(1,2) = v_2.y();
+  eigen_m(2,0) = v_0.z();  eigen_m(2,1) = v_1.z();  eigen_m(2,2) = v_2.z();
+
+  Eigen::Matrix3d eigen_diag = Eigen::Matrix3d::Zero();
+  eigen_diag(0,0) = e_0;
+  eigen_diag(1,1) = e_1;
+  eigen_diag(2,2) = e_2;
+
+  Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
+  return eigen_m * eigen_diag * eigen_mtransp;
+}
+
+template<typename Kernel>
+Eigen::Matrix3d matrix_exp(const Eigen::Matrix3d& m)
+{
+  typename Kernel::Vector_3 v_0, v_1, v_2;
+  double e_0, e_1, e_2;
+
+  get_eigen_vecs_and_vals(m, v_0, v_1, v_2, e_0, e_1, e_2);
+  e_0 = std::exp(e_0);
+  e_1 = std::exp(e_1);
+  e_2 = std::exp(e_2);
+
+  Eigen::Matrix3d eigen_m;
+  eigen_m(0,0) = v_0.x();  eigen_m(0,1) = v_1.x();  eigen_m(0,2) = v_2.x();
+  eigen_m(1,0) = v_0.y();  eigen_m(1,1) = v_1.y();  eigen_m(1,2) = v_2.y();
+  eigen_m(2,0) = v_0.z();  eigen_m(2,1) = v_1.z();  eigen_m(2,2) = v_2.z();
+
+  Eigen::Matrix3d eigen_diag = Eigen::Matrix3d::Zero();
+  eigen_diag(0,0) = e_0;
+  eigen_diag(1,1) = e_1;
+  eigen_diag(2,2) = e_2;
+
+  Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
+  return eigen_m * eigen_diag * eigen_mtransp;
+}
+
+
+template<typename Kernel>
 Eigen::Matrix3d scale_matrix_to_point(const Eigen::Matrix3d& matrix_si,
                                       const typename Kernel::Point_3 & si,
                                       const typename Kernel::Point_3 & p,
@@ -123,6 +174,14 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p, const Eigen::Mat
 #endif
 
   return intersected_eigen_transformation;
+}
+
+template<typename K>
+Eigen::Matrix3d interpolate_colors(const Eigen::Matrix3d& color_a, const typename K::FT& coeff_a,
+                                   const Eigen::Matrix3d& color_b, const typename K::FT& coeff_b,
+                                   const Eigen::Matrix3d& color_c, const typename K::FT& coeff_c)
+{
+  return matrix_exp(matrix_log(color_a, coeff_a) + matrix_log(color_b, coeff_b) + matrix_log(color_c, coeff_c)); //Prod(Miˆalphai)
 }
 
 } //namespace Aniso
