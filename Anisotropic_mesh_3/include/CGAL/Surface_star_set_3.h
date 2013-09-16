@@ -136,7 +136,7 @@ namespace CGAL
       bool m_pass_wo_incons;
       bool m_use_c3t3_colors;
 
-      std::map<Point_3, int> visited_points; //temp, this should be a local in fill_c3t3...
+      mutable std::map<Point_3, int> visited_points; //temp, this should be a local in fill_c3t3...
 
       //speed-up heuristic
       //const FT m_distortion_bound_avoid_pick_valid;
@@ -2143,7 +2143,7 @@ public:
             FT e0, e1, e2;
             Eigen::Matrix3d M;
             constrain_surface()->get_color_from_poly(p, M);
-            get_eigen_vecs_and_vals(M, v0, v1, v2, e0, e1, e2);
+            get_eigen_vecs_and_vals<K>(M, v0, v1, v2, e0, e1, e2);
             e0 = std::sqrt(e0);
             e1 = std::sqrt(e1);
             e2 = std::sqrt(e2);
@@ -3018,11 +3018,11 @@ public:
             FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
             Point_3 p(px,py,pz);
 
-            Color_type pcolor = interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
+            Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
 
             if(!visited_points[p])
             {
-              constrain_surface()->color_poly(p, pcolor);
+              m_pConstrain->color_poly(p, pcolor);
               visited_points[p] = 1;
             }
           }
@@ -3090,17 +3090,17 @@ public:
 
             if(!visited_points[pa])
             {
-              constrain_surface()->color_poly(pa, color_a);
+              m_pConstrain->color_poly(pa, color_a);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              constrain_surface()->color_poly(pb, color_b);
+              m_pConstrain->color_poly(pb, color_b);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              constrain_surface()->color_poly(pc, color_c);
+              m_pConstrain->color_poly(pc, color_c);
               visited_points[pc] = 1;
             }
 

@@ -58,22 +58,25 @@ namespace CGAL
     // tag
     std::size_t m_tag;
     Eigen::Matrix3d m_metric; // THIS IS Mp, NOT Fp
+    int m_contributors;
 
   public:
     Metric_vertex()  {}
     Metric_vertex(const P& pt)
       : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-        m_tag(0), m_metric(Eigen::Matrix3d::Zero()) {}
+        m_tag(0), m_metric(Eigen::Matrix3d::Zero()), m_contributors(0) {}
 
     Metric_vertex(const P& pt, const Eigen::Matrix3d m)
       : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-        m_tag(0), m_metric(m) {}
+        m_tag(0), m_metric(m), m_contributors(0) {}
 
     // tag
     std::size_t& tag() {  return m_tag; }
     const std::size_t& tag() const {  return m_tag; }
     Eigen::Matrix3d& metric() {  return m_metric; }
     const Eigen::Matrix3d& metric() const {  return m_metric; }
+    const int& contributors() const { return m_contributors; }
+    int& contributors() { return m_contributors; }
 
     bool is_colored() const {return m_metric != Eigen::Matrix3d::Zero();}
   };
@@ -346,7 +349,11 @@ namespace CGAL
       void clear_colors() const
       {
         for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
+        {
           v->metric() = Eigen::Matrix3d::Zero();
+          v->contributors() = 0.;
+        }
+
 
         for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
         {
@@ -355,7 +362,7 @@ namespace CGAL
         }
       }
 
-      void color_poly(const Point_3& p, const Eigen::Matrix3d& m)
+      void color_poly(const Point_3& p, const Eigen::Matrix3d& m) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
         Point_3 closest_point = pp.first;
@@ -377,7 +384,7 @@ namespace CGAL
         if(dc < dmin)
           v = vc;
 
-        Eigen::Matrix3d scaled_m = scale_matrix_to_point(m, closest_point, v->point());
+        Eigen::Matrix3d scaled_m = scale_matrix_to_point<K>(m, closest_point, v->point());
         if(!v->contributors())
           v->metric() = scaled_m;
         else
@@ -450,11 +457,11 @@ namespace CGAL
         Vector_3 v0(va->point(), vb->point());
         Vector_3 v1(va->point(), vc->point());
         Vector_3 v2(va->point(), closest_point);
-        FT d00 = (v0, v0);
-        FT d01 = (v0, v1);
-        FT d11 = (v1, v1);
-        FT d20 = (v2, v0);
-        FT d21 = (v2, v1);
+        FT d00 = v0*v0;
+        FT d01 = v0*v1;
+        FT d11 = v1*v1;
+        FT d20 = v2*v0;
+        FT d21 = v2*v1;
         FT denom = d00 * d11 - d01 * d01;
         FT v = (d11 * d20 - d01 * d21) / denom;
         FT w = (d00 * d21 - d01 * d20) / denom;

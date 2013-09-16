@@ -70,7 +70,7 @@ class Colored_modifiable_vertex_priority_queue :
 
     typedef typename std::pair<typename Colored_polyhedron::Vertex_handle, int> Cmvpq_type;
 
-    typedef typename Colored_polyhedron::Kernel                            K;
+    typedef typename Colored_polyhedron::Traits::Kernel                    K;
     typedef typename Colored_polyhedron::Point_3                           Point_3;
     typedef typename Colored_polyhedron::Vertex_handle                     Vertex_handle;
     typedef typename Colored_polyhedron::Facet_handle                      Facet_handle;
@@ -180,7 +180,7 @@ class Colored_modifiable_vertex_priority_queue :
         if((*it)->is_colored())
         {
           counter++;
-          Eigen::Matrix3d scaled_m = scale_matrix_to_point((*it)->metric(), p, (*it)->point());
+          Eigen::Matrix3d scaled_m = scale_matrix_to_point<K>((*it)->metric(), p, (*it)->point());
           if(counter == 1)
             new_vertex_metric = scaled_m;
           else

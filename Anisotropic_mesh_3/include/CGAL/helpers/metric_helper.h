@@ -46,7 +46,7 @@ Eigen::Matrix3d matrix_log(const Eigen::Matrix3d& m, const typename Kernel::FT& 
   typename Kernel::Vector_3 v_0, v_1, v_2;
   double e_0, e_1, e_2;
 
-  get_eigen_vecs_and_vals(m, v_0, v_1, v_2, e_0, e_1, e_2);
+  get_eigen_vecs_and_vals<Kernel>(m, v_0, v_1, v_2, e_0, e_1, e_2);
   e_0 = alpha * std::log(e_0);
   e_1 = alpha * std::log(e_1);
   e_2 = alpha * std::log(e_2);
@@ -71,7 +71,7 @@ Eigen::Matrix3d matrix_exp(const Eigen::Matrix3d& m)
   typename Kernel::Vector_3 v_0, v_1, v_2;
   double e_0, e_1, e_2;
 
-  get_eigen_vecs_and_vals(m, v_0, v_1, v_2, e_0, e_1, e_2);
+  get_eigen_vecs_and_vals<Kernel>(m, v_0, v_1, v_2, e_0, e_1, e_2);
   e_0 = std::exp(e_0);
   e_1 = std::exp(e_1);
   e_2 = std::exp(e_2);
@@ -181,7 +181,7 @@ Eigen::Matrix3d interpolate_colors(const Eigen::Matrix3d& color_a, const typenam
                                    const Eigen::Matrix3d& color_b, const typename K::FT& coeff_b,
                                    const Eigen::Matrix3d& color_c, const typename K::FT& coeff_c)
 {
-  return matrix_exp(matrix_log(color_a, coeff_a) + matrix_log(color_b, coeff_b) + matrix_log(color_c, coeff_c)); //Prod(Miˆalphai)
+  return matrix_exp<K>(matrix_log<K>(color_a, coeff_a) + matrix_log<K>(color_b, coeff_b) + matrix_log<K>(color_c, coeff_c)); //Prod(Miˆalphai)
 }
 
 } //namespace Aniso
