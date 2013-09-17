@@ -3942,6 +3942,56 @@ public:
         }
         if(was)
           ::glEnable(GL_LIGHTING);
+
+         //debug metric interpolation
+        Vector_3 v1(1, 0, 0);
+        Vector_3 v2(0, 1, 0);
+        Vector_3 v3(0, 0, 1);
+        Vector_3 v4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 v5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+
+        Metric debug_ma = m_metric_field->build_metric(v3, v1, v2, 1.0, 1.0, 1.0);
+        Metric debug_mb = m_metric_field->build_metric(v3, v1, v2, 0.2, 1.0, 1.0);
+        Metric debug_mc = m_metric_field->build_metric(v3, v4, v5, 0.5, 0.2, 1.0);
+
+        Eigen::Matrix3d ma = debug_ma.get_transformation().transpose() * debug_ma.get_transformation();
+        Eigen::Matrix3d mb = debug_mb.get_transformation().transpose() * debug_mb.get_transformation();
+        Eigen::Matrix3d mc = debug_mc.get_transformation().transpose() * debug_mc.get_transformation();
+
+        Point_3 pa(0,0,0);
+        Point_3 pb(20,40,0);
+        Point_3 pc(70,10,0);
+
+        int pts_on_side = 9;
+        FT denom = pts_on_side + 1.;
+
+        for(int i=1; i<=pts_on_side; ++i)
+        {
+          FT coeff_a0 = ((FT) i)/denom;
+          FT coeff_b0 = 1. - coeff_a0;
+          for(int j=1; j<=pts_on_side; ++j)
+          {
+            FT coeff_c = ((FT) j)/denom;
+            FT delta = 1. - coeff_c;
+            FT coeff_a = coeff_a0 * delta;
+            FT coeff_b = coeff_b0 * delta;
+
+            FT px = pa.x()*coeff_a + pb.x()*coeff_b + pc.x()*coeff_c;
+            FT py = pa.y()*coeff_a + pb.y()*coeff_b + pc.y()*coeff_c;
+            FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
+            Point_3 p(px,py,pz);
+
+            Eigen::Matrix3d pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(ma, coeff_a, mb, coeff_b, mc, coeff_c);
+
+            Vector_3 v1,v2,vn;
+            FT e1, e2, en;
+            get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, std::sqrt(e1), std::sqrt(e2), std::sqrt(en), v1, v2, vn);
+          }
+        }
+        //end debug
+
+
       }
 
       void gl_draw_inconsistent_facets(const typename K::Plane_3& plane,
