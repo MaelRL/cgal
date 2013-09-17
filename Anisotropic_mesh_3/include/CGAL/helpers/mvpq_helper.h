@@ -153,7 +153,7 @@ class Colored_modifiable_vertex_priority_queue :
       typename std::set<Vertex_handle, Vertex_Compare>::iterator it = neigh_vertices.begin();
       typename std::set<Vertex_handle, Vertex_Compare>::iterator itend = neigh_vertices.end();
       for(; it!=itend; ++it)
-        if((*it)->is_colored()) //only increase value of non colored vertices
+        if(!(*it)->is_colored()) //only increase value of non colored vertices
           increase_vertex_value(*it);
     }
 
@@ -166,6 +166,7 @@ class Colored_modifiable_vertex_priority_queue :
         std::cout << "top vertex has zero neighbors colored" << std::endl;
         return;
       }
+
       std::set<Vertex_handle, Vertex_Compare> neigh_vertices;
       get_first_ring(top_vertex->first, neigh_vertices);
 
@@ -175,6 +176,7 @@ class Colored_modifiable_vertex_priority_queue :
       int counter = 0;
       typename std::set<Vertex_handle, Vertex_Compare>::iterator it = neigh_vertices.begin();
       typename std::set<Vertex_handle, Vertex_Compare>::iterator itend = neigh_vertices.end();
+
       for(; it!=itend; ++it)
       {
         if((*it)->is_colored())
