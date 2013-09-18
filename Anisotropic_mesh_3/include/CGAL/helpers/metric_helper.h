@@ -184,6 +184,24 @@ Eigen::Matrix3d interpolate_colors(const Eigen::Matrix3d& color_a, const typenam
   return matrix_exp<K>(matrix_log<K>(color_a, coeff_a) + matrix_log<K>(color_b, coeff_b) + matrix_log<K>(color_c, coeff_c)); //Prod(Miˆalphai)
 }
 
+template<typename K>
+void get_metric_normal_index(const typename K::Vector_3& normal, const std::vector<typename K::Vector_3>& v, int& index)
+{
+  typedef typename K::FT FT;
+  FT sp0 = std::abs(v[0] * normal);
+  FT sp1 = std::abs(v[1] * normal);
+  FT sp2 = std::abs(v[2] * normal);
+  FT max_sp = (std::max)(sp0, (std::max)(sp1, sp2));
+
+  index = 0;
+  if(sp1 == max_sp)
+    index = 1;
+  else if(sp2 == max_sp)
+    index = 2;
+
+  //todo maybe, swap the normal if normal and the metric vector closest to normal have negative scalar prod
+}
+
 } //namespace Aniso
 } //namespace CGAL
 

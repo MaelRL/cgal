@@ -2139,15 +2139,27 @@ public:
                                                m_p.get_max_eigenvalue(),
                                                new_min);
 #else
-            Vector_3 v0, v1, v2;
-            FT e0, e1, e2;
+            Vector_3 normal;
+            m_p.get_third_eigenvector(normal);
+
+            std::vector<Vector_3> v(3);
+            std::vector<FT> e(3);
             Eigen::Matrix3d M;
             constrain_surface()->get_color_from_poly(p, M);
-            get_eigen_vecs_and_vals<K>(M, v0, v1, v2, e0, e1, e2);
-            e0 = std::sqrt(e0);
-            e1 = std::sqrt(e1);
-            e2 = std::sqrt(e2);
-            m_p = metric_field()->build_metric(v0, v1, v2, e0, e1, e2);
+            get_eigen_vecs_and_vals<K>(M, v[0], v[1], v[2], e[0], e[1], e[2]);
+
+            int n_ind = -1;
+            get_metric_normal_index<K>(normal, v, n_ind);
+            int id_1 = (n_ind + 1) % 3;
+            int id_2 = (n_ind + 2) % 3;
+
+            m_p = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2], std::sqrt(e[n_ind]), std::sqrt(e[id_1]), std::sqrt(e[id_2]));
+            std::cout << "index : " << n_ind << std::endl;
+            std::cout << p << std::endl;
+            std::cout << m_p.get_max_eigenvalue() << " " << m_p.get_vmax() << std::endl;
+            std::cout << m_p.get_min_eigenvalue() << " " << m_p.get_vmin() << std::endl;
+            std::cout << m_p.get_third_eigenvalue() << " " << m_p.get_vn() << std::endl;
+            std::cout << "-*-------*-*-*-*-0" << std::endl;
 #endif
           }
 
