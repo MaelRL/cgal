@@ -510,7 +510,7 @@ namespace CGAL
           FT e0, e1, e2;
           get_eigen_vecs_and_vals<K>(vi->metric(), v0, v1, v2, e0, e1, e2);
           gl_draw_ellipsoid<K>(CGAL::ORIGIN, vi->point(), 10, 10,
-                            std::sqrt(e0), std::sqrt(e1), std::sqrt(e2),
+                            1./std::sqrt(e0), 1./std::sqrt(e1), 1./std::sqrt(e2),
                             v0, v1, v2);
         }
 
