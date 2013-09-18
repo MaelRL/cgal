@@ -260,11 +260,19 @@ void gl_draw_arrow(const typename Kernel::Point_3& p1,
   //::glPopMatrix();
 }
 
+template <typename K>
+bool is_above_plane(const typename K::Plane_3& plane,
+                    const typename K::Point_3& p)
+{
+  using CGAL::ON_NEGATIVE_SIDE;
+  return (plane.oriented_side(p) == ON_NEGATIVE_SIDE);
+}
+
 template<typename K>
-bool is_facet_above_plane(const typename K::Plane_3& plane,
+bool is_above_plane(const typename K::Plane_3& plane,
                     const typename K::Point_3& pa,
                     const typename K::Point_3& pb,
-                    const typename K::Point_3& pc) 
+                    const typename K::Point_3& pc)
 {
   typedef typename K::Oriented_side Side;
   using CGAL::ON_NEGATIVE_SIDE;
@@ -274,17 +282,17 @@ bool is_facet_above_plane(const typename K::Plane_3& plane,
   return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
 }
 
-template<typename K>
+template <typename K>
 bool is_above_plane(const typename K::Plane_3& plane,
                     const typename K::Point_3& pa,
                     const typename K::Point_3& pb,
                     const typename K::Point_3& pc,
-                    const typename K::Point_3& pd) 
+                    const typename K::Point_3& pd)
 {
   typedef typename K::Oriented_side Side;
   using CGAL::ON_NEGATIVE_SIDE;
   const Side sd = plane.oriented_side(pd);
-  return (sd == ON_NEGATIVE_SIDE && is_facet_above_plane<K>(plane,pa,pb,pc));
+  return (sd == ON_NEGATIVE_SIDE && is_above_plane<K>(plane,pa,pb,pc));
 }
 
 template<typename C3T3, typename Plane>

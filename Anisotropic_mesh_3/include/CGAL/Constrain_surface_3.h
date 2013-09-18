@@ -478,7 +478,8 @@ namespace CGAL
         ratio = closest_f->color();
       }
 
-      void gl_draw_colored_polyhedron(const Colored_polyhedron& P) const
+      void gl_draw_colored_polyhedron(const Colored_polyhedron& P,
+                                      const typename K::Plane_3& plane) const
       {
         typedef typename Colored_polyhedron::Facet_const_iterator  FCI;
         typedef typename Colored_polyhedron::Vertex_const_iterator VCI;
@@ -501,9 +502,10 @@ namespace CGAL
             gl_draw_colored_polyhedron_facet<Colored_polyhedron>(fi, f_color);
           }
 
-        for (VCI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi)
+        int index = 0;
+        for (VCI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi, ++index)
         {
-          if(!vi->is_colored())
+          if(!is_above_plane<K>(plane, vi->point()) || !vi->is_colored() || index%50 != 0)
             continue;
 
           Vector_3 v0, v1, v2;

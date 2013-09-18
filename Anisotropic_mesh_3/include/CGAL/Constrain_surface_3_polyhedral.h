@@ -977,7 +977,7 @@ class Constrain_surface_3_polyhedral :
         {
           Vertex_handle vi = m_vertices[i];
           /*
-          if(!is_above_plane(plane, vi->point()))
+          if(!is_above_plane<K>(plane, vi->point()))
             continue;
           */
 

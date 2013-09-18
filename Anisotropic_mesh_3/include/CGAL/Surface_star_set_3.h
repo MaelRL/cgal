@@ -3396,7 +3396,7 @@ public:
             const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
-            if(is_above_plane(plane, pa, pb, pc))
+            if(is_above_plane<K>(plane, pa, pb, pc))
               gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
           }
         }
@@ -3630,7 +3630,7 @@ public:
             Point_3 pickvalid_point = m_pick_valid_cache[i];
 
             //keeping all these points independant of the cut plane
-            // if(!is_above_plane(plane, pickvalid_point))
+            // if(!is_above_plane<K>(plane, pickvalid_point))
             //   continue;
 
             //if(i != m_pick_valid_cache.size()-1) //point size depends on the number of problematic facets
@@ -3715,7 +3715,7 @@ public:
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
 
-            if(!is_above_plane(plane, pa, pb, pc))
+            if(!is_above_plane<K>(plane, pa, pb, pc))
               continue;
 
             Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
@@ -3750,7 +3750,7 @@ public:
         ::glBegin(GL_POINTS);
         for (; pi != pend; pi++)
         {
-          // if(!is_above_plane(plane, *it))
+          // if(!is_above_plane<K>(plane, *it))
           //   continue;
 
           ::glVertex3d((*pi).x(), (*pi).y(), (*pi).z());
@@ -3772,7 +3772,7 @@ public:
         typename std::set<Point_3>::const_iterator it;
         for(it = m_poles.begin(); it != m_poles.end(); ++it)
         {
-          // if(!is_above_plane(plane, *it))
+          // if(!is_above_plane<K>(plane, *it))
           //   continue;
           ::glVertex3d((*it).x(), (*it).y(), (*it).z());
         }
@@ -3817,20 +3817,6 @@ public:
           m_stars[star_id]->gl_draw_surface_delaunay_balls(plane);
       }
 
-      bool is_above_plane(const typename K::Plane_3& plane,
-                          const typename K::Point_3& pa,
-                          const typename K::Point_3& pb,
-                          const typename K::Point_3& pc) const
-      {
-        typedef typename K::Oriented_side Side;
-        using CGAL::ON_ORIENTED_BOUNDARY;
-        using CGAL::ON_NEGATIVE_SIDE;
-        const Side sa = plane.oriented_side(pa);
-        const Side sb = plane.oriented_side(pb);
-        const Side sc = plane.oriented_side(pc);
-        return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
-      }
-
       void gl_draw_distortion(const typename K::Plane_3& plane,
                               const int star_id = -1) const
       {
@@ -3858,7 +3844,7 @@ public:
             const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
-            if(!is_above_plane(plane, pa, pb, pc))
+            if(!is_above_plane<K>(plane, pa, pb, pc))
               continue;
 
             FT max_distortion = 0.;
@@ -3910,7 +3896,7 @@ public:
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
 
-            if(!is_above_plane(plane, pa, pb, pc))
+            if(!is_above_plane<K>(plane, pa, pb, pc))
               continue;
 
             Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
@@ -4025,7 +4011,7 @@ public:
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
 
-            if(is_above_plane(plane, pa, pb, pc))
+            if(is_above_plane<K>(plane, pa, pb, pc))
             {
               gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 227,27,27);
 

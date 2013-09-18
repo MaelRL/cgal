@@ -1914,7 +1914,7 @@ public:
           const Point_3& pa = m_metric.inverse_transform(cell->vertex((i+1)&3)->point());
           const Point_3& pb = m_metric.inverse_transform(cell->vertex((i+2)&3)->point());
           const Point_3& pc = m_metric.inverse_transform(cell->vertex((i+3)&3)->point());
-          if(is_above_plane(plane, pa, pb, pc))
+          if(is_above_plane<K>(plane, pa, pb, pc))
             gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
         }
       }
@@ -1932,7 +1932,7 @@ public:
           cell_points[1] = m_metric.inverse_transform((*ci)->vertex(1)->point());
           cell_points[2] = m_metric.inverse_transform((*ci)->vertex(2)->point());
           cell_points[3] = m_metric.inverse_transform((*ci)->vertex(3)->point());
-          if(is_above_plane(plane, cell_points[0], cell_points[1], cell_points[2], cell_points[3]))
+          if(is_above_plane<K>(plane, cell_points[0], cell_points[1], cell_points[2], cell_points[3]))
           {
             for(int i = 0; i < 4; i++)
             {
@@ -1949,7 +1949,7 @@ public:
       {
         if(!this->is_surface_star())
           return;
-        if(!is_above_plane(plane, this->center_point()))
+        if(!is_above_plane<K>(plane, this->center_point()))
           return;
 
         Point_3 p = this->center_point();
@@ -1972,39 +1972,6 @@ public:
         ::gl_draw_arrow<K>(p, p + coeff*vec/val);
       }
 
-      bool is_above_plane(const typename K::Plane_3& plane,
-                          const typename K::Point_3& p) const
-      {
-        using CGAL::ON_NEGATIVE_SIDE;
-        return (plane.oriented_side(p) == ON_NEGATIVE_SIDE);
-      }
-
-      bool is_above_plane(const typename K::Plane_3& plane,
-                          const typename K::Point_3& pa,
-                          const typename K::Point_3& pb,
-                          const typename K::Point_3& pc) const
-      {
-        typedef typename K::Oriented_side Side;
-        using CGAL::ON_ORIENTED_BOUNDARY;
-        using CGAL::ON_NEGATIVE_SIDE;
-        const Side sa = plane.oriented_side(pa);
-        const Side sb = plane.oriented_side(pb);
-        const Side sc = plane.oriented_side(pc);
-        return (sa == ON_NEGATIVE_SIDE && sb == ON_NEGATIVE_SIDE && sc == ON_NEGATIVE_SIDE);
-      }
-
-      bool is_above_plane(const typename K::Plane_3& plane,
-                          const typename K::Point_3& pa,
-                          const typename K::Point_3& pb,
-                          const typename K::Point_3& pc,
-                          const typename K::Point_3& pd) const
-      {
-        typedef typename K::Oriented_side Side;
-        using CGAL::ON_NEGATIVE_SIDE;
-        const Side sd = plane.oriented_side(pd);
-        return (sd == ON_NEGATIVE_SIDE && is_facet_above_plane<K>(plane,pa,pb,pc));
-      }
-
       //void gl_draw_all(const typename K::Plane_3& plane) const
       //{
       //  gl_draw_center();
@@ -2018,7 +1985,7 @@ public:
       //    const Point_3& pa = m_metric.inverse_transform(f.first->vertex((f.second+1)&3)->point());
       //    const Point_3& pb = m_metric.inverse_transform(f.first->vertex((f.second+2)&3)->point());
       //    const Point_3& pc = m_metric.inverse_transform(f.first->vertex((f.second+3)&3)->point());
-      //    if(is_above_plane(plane, pa, pb, pc))
+      //    if(is_above_plane<K>(plane, pa, pb, pc))
       //    {
       //      if(is_in_star(f) && is_restricted(f))
       //        gl_draw_triangle<Kernel>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
@@ -2043,7 +2010,7 @@ public:
           const Point_3& pa = m_metric.inverse_transform(f.first->vertex((f.second+1)&3)->point());
           const Point_3& pb = m_metric.inverse_transform(f.first->vertex((f.second+2)&3)->point());
           const Point_3& pc = m_metric.inverse_transform(f.first->vertex((f.second+3)&3)->point());
-          if(!is_above_plane(plane, pa, pb, pc))
+          if(!is_above_plane<K>(plane, pa, pb, pc))
             continue;
 
           if(is_restricted(f)) { ::glLineWidth(2.);}
@@ -2102,7 +2069,7 @@ public:
 
       void gl_draw_surface_delaunay_balls(const typename K::Plane_3& plane) const
       {
-        if(!is_above_plane(plane, this->center_point()))
+        if(!is_above_plane<K>(plane, this->center_point()))
           return;
 
         Facet_set_iterator fit = begin_restricted_facets();
@@ -2111,7 +2078,7 @@ public:
         {
           Facet f = *fit;
           Point_3 ce;
-          if(!is_above_plane(plane, m_metric.inverse_transform(f.first->vertex((f.second+1) % 4)->point()),
+          if(!is_above_plane<K>(plane, m_metric.inverse_transform(f.first->vertex((f.second+1) % 4)->point()),
                                     m_metric.inverse_transform(f.first->vertex((f.second+2) % 4)->point()),
                                     m_metric.inverse_transform(f.first->vertex((f.second+3) % 4)->point())) )
             continue;
