@@ -3984,7 +3984,7 @@ public:
             Vector_3 v1,v2,vn;
             FT e1, e2, en;
             get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, std::sqrt(e1), std::sqrt(e2), std::sqrt(en), v1, v2, vn);
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn);
           }
         }
         //end debug

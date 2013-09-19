@@ -162,8 +162,6 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p, const Eigen::Mat
 
 #ifdef ANISO_DEBUG_MATRIX_OPERATIONS
   std::cout << "matrix N : " << std::endl << N << std::endl;
-  std::cout << "vecs : " << std::endl << vecs << std::endl;
-  std::cout << "vals : " << std::endl << vals << std::endl;
   std::cout << "lambdas, mu" << std::endl;
   std::cout << lambda_0 << " " << lambda_1 << " " << lambda_2 << std::endl;
   std::cout << mu_0 << " " << mu_1 << " " << mu_2 << std::endl;
