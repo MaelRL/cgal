@@ -25,7 +25,8 @@ void get_eigen_vecs_and_vals(const Eigen::Matrix3d& matrix,
                              typename Kernel::Vector_3& v0,
                              typename Kernel::Vector_3& v1,
                              typename Kernel::Vector_3& v2,
-                             double& e_0, double& e_1, double& e_2)
+                             double& e_0, double& e_1, double& e_2,
+                             const bool abs_value = true)
 {
   Eigen::EigenSolver<Eigen::Matrix3d> es(matrix, true);
   const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
@@ -35,9 +36,24 @@ void get_eigen_vecs_and_vals(const Eigen::Matrix3d& matrix,
   v1 = get_eigenvector<Kernel>(vecs.col(1));
   v2 = get_eigenvector<Kernel>(vecs.col(2));
 
-  e_0 = std::abs(std::real(vals[0]));
-  e_1 = std::abs(std::real(vals[1]));
-  e_2 = std::abs(std::real(vals[2]));
+  e_0 = std::real(vals[0]);
+  e_1 = std::real(vals[1]);
+  e_2 = std::real(vals[2]);
+
+  if(abs_value)
+  {
+    e_0 = std::abs(e_0);
+    e_1 = std::abs(e_1);
+    e_2 = std::abs(e_2);
+  }
+
+#ifdef ANISO_DEBUG_NEG_EIGENVALUES
+  if(e_0 < 0 || e_1 < 0 || e_2 < 0)
+  {
+    std::cout << "WARNING, NEGATIVE EIGENVALUES RETURNED BY EIGEN_VECS" << std::endl;
+    std::cout << e_0 << " "<< e_1 << " "<< e_2 << std::endl;
+  }
+#endif
 }
 
 template<typename Kernel>
@@ -46,7 +62,8 @@ Eigen::Matrix3d matrix_log(const Eigen::Matrix3d& m, const typename Kernel::FT& 
   typename Kernel::Vector_3 v_0, v_1, v_2;
   double e_0, e_1, e_2;
 
-  get_eigen_vecs_and_vals<Kernel>(m, v_0, v_1, v_2, e_0, e_1, e_2);
+  get_eigen_vecs_and_vals<Kernel>(m, v_0, v_1, v_2, e_0, e_1, e_2, false /*no abs*/);
+
   e_0 = alpha * std::log(e_0);
   e_1 = alpha * std::log(e_1);
   e_2 = alpha * std::log(e_2);
@@ -71,7 +88,8 @@ Eigen::Matrix3d matrix_exp(const Eigen::Matrix3d& m)
   typename Kernel::Vector_3 v_0, v_1, v_2;
   double e_0, e_1, e_2;
 
-  get_eigen_vecs_and_vals<Kernel>(m, v_0, v_1, v_2, e_0, e_1, e_2);
+  get_eigen_vecs_and_vals<Kernel>(m, v_0, v_1, v_2, e_0, e_1, e_2, false /*no abs*/);
+
   e_0 = std::exp(e_0);
   e_1 = std::exp(e_1);
   e_2 = std::exp(e_2);
