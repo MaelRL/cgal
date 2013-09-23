@@ -3030,11 +3030,10 @@ public:
             FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
             Point_3 p(px,py,pz);
 
-            Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
-
             if(!visited_points[p])
             {
-              m_pConstrain->color_poly(p, pcolor);
+              Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
+              m_pConstrain->color_poly(p, pcolor, 1);
               visited_points[p] = 1;
             }
           }
