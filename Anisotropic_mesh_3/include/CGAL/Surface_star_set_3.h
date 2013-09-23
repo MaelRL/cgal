@@ -3030,11 +3030,10 @@ public:
             FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
             Point_3 p(px,py,pz);
 
-            Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
-
             if(!visited_points[p])
             {
-              m_pConstrain->color_poly(p, pcolor);
+              Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
+              m_pConstrain->color_poly(p, pcolor, 1);
               visited_points[p] = 1;
             }
           }
@@ -3379,6 +3378,173 @@ private:
          std::cout << "\t\t\t" << it->first << "\t" << it->second << std::endl;
      }
 
+private:
+     void matrix_interpoltion_debug()
+     {
+       Vector_3 v11(1./std::sqrt(2.), 2.*std::sqrt(2.)/5., 3./(5.*std::sqrt(2.)));
+       Vector_3 v12(7./std::sqrt(114.), -4.*std::sqrt(2./57.), -1./std::sqrt(114.));
+       Vector_3 v13(-2./std::sqrt(57.), -13./(5.*std::sqrt(57)), 34./(5.*std::sqrt(57.)));
+       Vector_3 v21(1,0,0);
+       Vector_3 v22(0,1,0);
+       Vector_3 v23(0,0,1);
+       Vector_3 v31(0.131556, -0.991307, 0.00173905);
+       Vector_3 v32(0.968626, 0.128919, 0.21247);
+       Vector_3 v33(-0.210848, -0.0262672, 0.977166);
+
+       FT e11 = 4.4;
+       FT e12 = 2.0;
+       FT e13 = 0.6;
+       FT e21 = 1.;
+       FT e22 = 1.;
+       FT e23 = 1.;
+       FT e31 = 4.98357;
+       FT e32 = 0.857174;
+       FT e33 = 1.05617;
+
+       Eigen::Matrix3d ma = build_UDUt<K>(v31, v32, v33, e31, e32, e33);
+       Eigen::Matrix3d mb = build_UDUt<K>(v11, v12, v13, e11, e12, e13);
+       Eigen::Matrix3d mc = build_UDUt<K>(v21, v22, v23, e21, e22, e23);
+
+       Vector_3 v1,v2,vn;
+       FT e1, e2, en;
+       get_eigen_vecs_and_vals<K>(ma, vn, v1, v2, en, e1, e2);
+
+       Point_3 pa(2,2,2);
+       Point_3 pb(20,40,0);
+       Point_3 pc(70,10,0);
+
+       int pts_on_side = 9;
+       FT denom = pts_on_side;
+
+       for(int i=0; i<=pts_on_side; ++i)
+       {
+         FT coeff_a0 = ((FT) i)/denom;
+         FT coeff_b0 = 1. - coeff_a0;
+         for(int j=0; j<=pts_on_side; ++j)
+         {
+           FT coeff_c = ((FT) j)/denom;
+           FT delta = 1. - coeff_c;
+           FT coeff_a = coeff_a0 * delta;
+           FT coeff_b = coeff_b0 * delta;
+
+           FT px = pa.x()*coeff_a + pb.x()*coeff_b + pc.x()*coeff_c;
+           FT py = pa.y()*coeff_a + pb.y()*coeff_b + pc.y()*coeff_c;
+           FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
+           Point_3 p(px,py,pz);
+
+           Eigen::Matrix3d pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(ma, coeff_a, mb, coeff_b, mc, coeff_c);
+
+           get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
+           gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 205, 23);
+         }
+       }
+     }
+
+     void matrix_scaling_debug()
+     {
+       Vector_3 v3(1./std::sqrt(2.), 2*std::sqrt(2.)/5., 3./(5.*std::sqrt(2.)));
+       Vector_3 v4(7./std::sqrt(114.), -4.*std::sqrt(2./57.), -1./std::sqrt(114.));
+       Vector_3 v5(-2./std::sqrt(57.), -13./(5.*std::sqrt(57.)), 34./(5.*std::sqrt(57.)) );
+
+       FT e3 = 0.5, e4 = 0.2, e5 = 1.0;
+
+       Metric debug_mc = m_metric_field->build_metric(v3, v4, v5, e3, e4, e5);
+       Eigen::Matrix3d mc = debug_mc.get_transformation().transpose() * debug_mc.get_transformation();
+
+       Eigen::Matrix3d eigen_m;
+       eigen_m(0,0) = v3.x();  eigen_m(0,1) = v4.x();  eigen_m(0,2) = v5.x();
+       eigen_m(1,0) = v3.y();  eigen_m(1,1) = v4.y();  eigen_m(1,2) = v5.y();
+       eigen_m(2,0) = v3.z();  eigen_m(2,1) = v4.z();  eigen_m(2,2) = v5.z();
+       Eigen::Matrix3d eigen_diag = Eigen::Matrix3d::Zero();
+       eigen_diag(0,0) = e3*e3;
+       eigen_diag(1,1) = e4*e4;
+       eigen_diag(2,2) = e5*e5;
+       Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
+       Eigen::Matrix3d eigen_transformation = eigen_m * eigen_diag * eigen_mtransp;
+
+       std::cout << "THE COMPARISON OF DOOM (MANUAL AND MC) : " << std::endl;
+       std::cout << eigen_transformation << std::endl << "--" << std::endl << mc << std::endl;
+
+       Point_3 pa(0,0,0);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, pa, 10, 10, 1./0.5, 1./0.2, 1./1.0, v3, v4, v5);
+
+       int pts_on_side = 10;
+
+       for(int i=1; i<=pts_on_side; ++i)
+       {
+         Point_3 p(pa.x()+10*i, pa.y()+10*i, pa.z()+10*i);
+         Eigen::Matrix3d pcolor = scale_matrix_to_point<K>(mc, pa, p, 2);
+
+         Vector_3 v1,v2,vn;
+         FT e1, e2, en;
+         get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
+         gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn);
+       }
+     }
+
+     void matrix_intersection_debug()
+     {
+        Point_3 debug_a(5, 5, 5);
+        Vector_3 e1(1, 0, 0);
+        Vector_3 e2(0, 1, 0);
+        Vector_3 e3(0, 0, 1);
+        Vector_3 e4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 e5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 v1, v2, vn;
+
+        Metric debug_ma = m_metric_field->build_metric(e3, e1, e2, 1.0, 0.4, 1.2);
+        Metric debug_mb = m_metric_field->build_metric(e3, e4, e5, 0.4, 0.1, 4);
+        Metric debug_mp = m_metric_field->intersection(debug_ma, debug_mb);
+
+//        debug_ma = metricA;
+//        debug_mb = metricB;
+//        debug_mp = metricP;
+
+        FT ma_a = 1./debug_ma.get_max_eigenvalue();
+        FT ma_b = 1./debug_ma.get_min_eigenvalue();
+        FT ma_c = 1./debug_ma.get_third_eigenvalue();
+
+        FT mb_a = 1./debug_mb.get_max_eigenvalue();
+        FT mb_b = 1./debug_mb.get_min_eigenvalue();
+        FT mb_c = 1./debug_mb.get_third_eigenvalue();
+
+        FT mp_a = 1./debug_mp.get_max_eigenvalue();
+        FT mp_b = 1./debug_mp.get_min_eigenvalue();
+        FT mp_c = 1./debug_mp.get_third_eigenvalue();
+
+//        FT mptheo_a = 1./metricPtheo.get_max_eigenvalue();
+//        FT mptheo_b = 1./metricPtheo.get_min_eigenvalue();
+//        FT mptheo_c = 1./metricPtheo.get_third_eigenvalue();
+
+        //A
+        debug_ma.get_max_eigenvector(v1);
+        debug_ma.get_min_eigenvector(v2);
+        debug_ma.get_third_eigenvector(vn);
+
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, ma_a, ma_b, ma_c, v1, v2, vn, 240, 240, 20);
+
+        //B
+        debug_mb.get_max_eigenvector(v1);
+        debug_mb.get_min_eigenvector(v2);
+        debug_mb.get_third_eigenvector(vn);
+
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mb_a, mb_b, mb_c, v1, v2, vn, 20, 20, 240);
+
+        //P
+        debug_mp.get_max_eigenvector(v1);
+        debug_mp.get_min_eigenvector(v2);
+        debug_mp.get_third_eigenvector(vn);
+
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mp_a, mp_b, mp_c, v1, v2, vn, 20, 240, 200);
+
+        //P theo
+//        metricPtheo.get_max_eigenvector(v1);
+//        metricPtheo.get_min_eigenvector(v2);
+//        metricPtheo.get_third_eigenvector(vn);
+
+//        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
+     }
+
 public:
       void gl_draw(const typename K::Plane_3& plane,
                    const bool draw_edges,
@@ -3507,67 +3673,6 @@ public:
       void gl_draw_cell(const typename K::Plane_3& plane,
                    const int star_id = -1/*only this one*/) const
       {
-/*
-        Point_3 debug_a(5, 5, 5);
-        Vector_3 e1(1, 0, 0);
-        Vector_3 e2(0, 1, 0);
-        Vector_3 e3(0, 0, 1);
-        Vector_3 e4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
-        Vector_3 e5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
-        Vector_3 v1, v2, vn;
-
-        Metric debug_ma = m_metric_field->build_metric(e3, e1, e2, 1.0, 0.4, 1.2);
-        Metric debug_mb = m_metric_field->build_metric(e3, e4, e5, 0.4, 0.1, 4);
-        Metric debug_mp = m_metric_field->intersection(debug_ma, debug_mb);
-
-//        debug_ma = metricA;
-//        debug_mb = metricB;
-//        debug_mp = metricP;
-
-        FT ma_a = 1./debug_ma.get_max_eigenvalue();
-        FT ma_b = 1./debug_ma.get_min_eigenvalue();
-        FT ma_c = 1./debug_ma.get_third_eigenvalue();
-
-        FT mb_a = 1./debug_mb.get_max_eigenvalue();
-        FT mb_b = 1./debug_mb.get_min_eigenvalue();
-        FT mb_c = 1./debug_mb.get_third_eigenvalue();
-
-        FT mp_a = 1./debug_mp.get_max_eigenvalue();
-        FT mp_b = 1./debug_mp.get_min_eigenvalue();
-        FT mp_c = 1./debug_mp.get_third_eigenvalue();
-
-//        FT mptheo_a = 1./metricPtheo.get_max_eigenvalue();
-//        FT mptheo_b = 1./metricPtheo.get_min_eigenvalue();
-//        FT mptheo_c = 1./metricPtheo.get_third_eigenvalue();
-
-        //A
-        debug_ma.get_max_eigenvector(v1);
-        debug_ma.get_min_eigenvector(v2);
-        debug_ma.get_third_eigenvector(vn);
-
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, ma_a, ma_b, ma_c, v1, v2, vn, 240, 240, 20);
-
-        //B
-        debug_mb.get_max_eigenvector(v1);
-        debug_mb.get_min_eigenvector(v2);
-        debug_mb.get_third_eigenvector(vn);
-
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mb_a, mb_b, mb_c, v1, v2, vn, 20, 20, 240);
-
-        //P
-        debug_mp.get_max_eigenvector(v1);
-        debug_mp.get_min_eigenvector(v2);
-        debug_mp.get_third_eigenvector(vn);
-
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mp_a, mp_b, mp_c, v1, v2, vn, 20, 240, 200);
-
-        //P theo
-//        metricPtheo.get_max_eigenvector(v1);
-//        metricPtheo.get_min_eigenvector(v2);
-//        metricPtheo.get_third_eigenvector(vn);
-
-//        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
-*/
 
         if(star_id < 0) // draw them all
           for(std::size_t i = 0; i < m_stars.size(); i++)
@@ -3940,56 +4045,6 @@ public:
         }
         if(was)
           ::glEnable(GL_LIGHTING);
-
-         //debug metric interpolation
-        Vector_3 v1(1, 0, 0);
-        Vector_3 v2(0, 1, 0);
-        Vector_3 v3(0, 0, 1);
-        Vector_3 v4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
-        Vector_3 v5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
-
-        Metric debug_ma = m_metric_field->build_metric(v3, v1, v2, 1.0, 1.0, 1.0);
-        Metric debug_mb = m_metric_field->build_metric(v3, v1, v2, 0.2, 1.0, 1.0);
-        Metric debug_mc = m_metric_field->build_metric(v3, v4, v5, 0.5, 0.2, 1.0);
-
-        Eigen::Matrix3d ma = debug_ma.get_transformation().transpose() * debug_ma.get_transformation();
-        Eigen::Matrix3d mb = debug_mb.get_transformation().transpose() * debug_mb.get_transformation();
-        Eigen::Matrix3d mc = debug_mc.get_transformation().transpose() * debug_mc.get_transformation();
-
-        Point_3 pa(0,0,0);
-        Point_3 pb(20,40,0);
-        Point_3 pc(70,10,0);
-
-        int pts_on_side = 9;
-        FT denom = pts_on_side + 1.;
-
-        for(int i=1; i<=pts_on_side; ++i)
-        {
-          FT coeff_a0 = ((FT) i)/denom;
-          FT coeff_b0 = 1. - coeff_a0;
-          for(int j=1; j<=pts_on_side; ++j)
-          {
-            FT coeff_c = ((FT) j)/denom;
-            FT delta = 1. - coeff_c;
-            FT coeff_a = coeff_a0 * delta;
-            FT coeff_b = coeff_b0 * delta;
-
-            FT px = pa.x()*coeff_a + pb.x()*coeff_b + pc.x()*coeff_c;
-            FT py = pa.y()*coeff_a + pb.y()*coeff_b + pc.y()*coeff_c;
-            FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
-            Point_3 p(px,py,pz);
-
-            Eigen::Matrix3d pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(ma, coeff_a, mb, coeff_b, mc, coeff_c);
-
-            Vector_3 v1,v2,vn;
-            FT e1, e2, en;
-            get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn);
-          }
-        }
-        //end debug
-
-
       }
 
       void gl_draw_inconsistent_facets(const typename K::Plane_3& plane,

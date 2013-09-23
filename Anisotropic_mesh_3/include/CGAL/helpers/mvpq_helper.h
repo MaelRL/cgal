@@ -192,6 +192,7 @@ class Colored_modifiable_vertex_priority_queue :
 
 //      std::cout << counter << " " << top_vertex->second << std::endl;
       top_vertex->first->metric() = new_vertex_metric;
+      top_vertex->first->metric_origin() = 3;
 
       increase_neigh_vertices(neigh_vertices);
     }
