@@ -21,6 +21,37 @@ typename Kernel::Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix
 }
 
 template<typename Kernel>
+Eigen::Matrix3d build_UDUt (const typename Kernel::Vector_3& v_0,
+                            const typename Kernel::Vector_3& v_1,
+                            const typename Kernel::Vector_3& v_2,
+                            const typename Kernel::FT& e_0,
+                            const typename Kernel::FT& e_1,
+                            const typename Kernel::FT& e_2)
+{
+  Eigen::Matrix3d eigen_m;
+  eigen_m(0,0) = v_0.x();  eigen_m(0,1) = v_1.x();  eigen_m(0,2) = v_2.x();
+  eigen_m(1,0) = v_0.y();  eigen_m(1,1) = v_1.y();  eigen_m(1,2) = v_2.y();
+  eigen_m(2,0) = v_0.z();  eigen_m(2,1) = v_1.z();  eigen_m(2,2) = v_2.z();
+
+  Eigen::Matrix3d eigen_diag = Eigen::Matrix3d::Zero();
+  eigen_diag(0,0) = e_0;
+  eigen_diag(1,1) = e_1;
+  eigen_diag(2,2) = e_2;
+
+  Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
+  Eigen::Matrix3d ret_mat = eigen_m * eigen_diag * eigen_mtransp;
+
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
+  std::cout << "build UDUt evs" << std::endl;
+  std::cout << e_0 << " " << e_1 << " " << e_2 << std::endl;
+  std::cout << v_0 << std::endl << v_1 << std::endl << v_2 << std::endl;
+  std::cout << "out UDUt" << std::endl;
+  std::cout << ret_mat << std::endl;
+#endif
+  return ret_mat;
+}
+
+template<typename Kernel>
 void get_eigen_vecs_and_vals(const Eigen::Matrix3d& matrix,
                              typename Kernel::Vector_3& v0,
                              typename Kernel::Vector_3& v1,
@@ -68,18 +99,15 @@ Eigen::Matrix3d matrix_log(const Eigen::Matrix3d& m, const typename Kernel::FT& 
   e_1 = alpha * std::log(e_1);
   e_2 = alpha * std::log(e_2);
 
-  Eigen::Matrix3d eigen_m;
-  eigen_m(0,0) = v_0.x();  eigen_m(0,1) = v_1.x();  eigen_m(0,2) = v_2.x();
-  eigen_m(1,0) = v_0.y();  eigen_m(1,1) = v_1.y();  eigen_m(1,2) = v_2.y();
-  eigen_m(2,0) = v_0.z();  eigen_m(2,1) = v_1.z();  eigen_m(2,2) = v_2.z();
+  Eigen::Matrix3d ret_mat = build_UDUt<Kernel>(v_0, v_1, v_2, e_0, e_1, e_2);
 
-  Eigen::Matrix3d eigen_diag = Eigen::Matrix3d::Zero();
-  eigen_diag(0,0) = e_0;
-  eigen_diag(1,1) = e_1;
-  eigen_diag(2,2) = e_2;
-
-  Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
-  return eigen_m * eigen_diag * eigen_mtransp;
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
+  std::cout << "in log : " << alpha << std::endl;
+  std::cout << m << std::endl;
+  std::cout << "out log" << std::endl;
+  std::cout << ret_mat << std::endl;
+#endif
+  return ret_mat;
 }
 
 template<typename Kernel>
@@ -94,18 +122,15 @@ Eigen::Matrix3d matrix_exp(const Eigen::Matrix3d& m)
   e_1 = std::exp(e_1);
   e_2 = std::exp(e_2);
 
-  Eigen::Matrix3d eigen_m;
-  eigen_m(0,0) = v_0.x();  eigen_m(0,1) = v_1.x();  eigen_m(0,2) = v_2.x();
-  eigen_m(1,0) = v_0.y();  eigen_m(1,1) = v_1.y();  eigen_m(1,2) = v_2.y();
-  eigen_m(2,0) = v_0.z();  eigen_m(2,1) = v_1.z();  eigen_m(2,2) = v_2.z();
+  Eigen::Matrix3d ret_mat = build_UDUt<Kernel>(v_0, v_1, v_2, e_0, e_1, e_2);
 
-  Eigen::Matrix3d eigen_diag = Eigen::Matrix3d::Zero();
-  eigen_diag(0,0) = e_0;
-  eigen_diag(1,1) = e_1;
-  eigen_diag(2,2) = e_2;
-
-  Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
-  return eigen_m * eigen_diag * eigen_mtransp;
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
+  std::cout << "in exp" << std::endl;
+  std::cout << m << std::endl;
+  std::cout << "out exp" << std::endl;
+  std::cout << ret_mat << std::endl;
+#endif
+  return ret_mat;
 }
 
 
@@ -128,6 +153,7 @@ Eigen::Matrix3d scale_matrix_to_point(const Eigen::Matrix3d& matrix_si,
   std::cout << "sq dist " << sq_dist << std::endl;
   std::cout << "scale value " << scale_value << std::endl;
   std::cout << "matrix at si : " << std::endl << matrix_si << std::endl;
+  std::cout << "scaled matrix : " << std::endl << scaled_matrix << std::endl;
 #endif
 
   return scaled_matrix;
@@ -199,6 +225,9 @@ Eigen::Matrix3d interpolate_colors(const Eigen::Matrix3d& color_a, const typenam
                                    const Eigen::Matrix3d& color_b, const typename K::FT& coeff_b,
                                    const Eigen::Matrix3d& color_c, const typename K::FT& coeff_c)
 {
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
+  std::cout << "coeffs of matrix interpolation : " << coeff_a << " " << coeff_b << " " << coeff_c << std::endl;
+#endif
   return matrix_exp<K>(matrix_log<K>(color_a, coeff_a) + matrix_log<K>(color_b, coeff_b) + matrix_log<K>(color_c, coeff_c)); //Prod(Miˆalphai)
 }
 
