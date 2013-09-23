@@ -59,16 +59,17 @@ namespace CGAL
     std::size_t m_tag;
     Eigen::Matrix3d m_metric; // THIS IS Mp, NOT Fp
     int m_contributors;
+    int m_metric_origin;
 
   public:
     Metric_vertex()  {}
     Metric_vertex(const P& pt)
       : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-        m_tag(0), m_metric(Eigen::Matrix3d::Zero()), m_contributors(0) {}
+        m_tag(0), m_metric(Eigen::Matrix3d::Zero()), m_contributors(0), m_metric_origin(0) {}
 
     Metric_vertex(const P& pt, const Eigen::Matrix3d m)
       : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-        m_tag(0), m_metric(m), m_contributors(0) {}
+        m_tag(0), m_metric(m), m_contributors(0), m_metric_origin(0) {}
 
     // tag
     std::size_t& tag() {  return m_tag; }
@@ -77,6 +78,8 @@ namespace CGAL
     const Eigen::Matrix3d& metric() const {  return m_metric; }
     const int& contributors() const { return m_contributors; }
     int& contributors() { return m_contributors; }
+    const int& metric_origin() const { return m_metric_origin; }
+    int& metric_origin() { return m_metric_origin; }
 
     bool is_colored() const {return m_metric != Eigen::Matrix3d::Zero();}
   };
@@ -362,7 +365,7 @@ namespace CGAL
         }
       }
 
-      void color_poly(const Point_3& p, const Eigen::Matrix3d& m) const
+      void color_poly(const Point_3& p, const Eigen::Matrix3d& m, int origin = 0) const
       {
         Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
         Point_3 closest_point = pp.first;
@@ -386,10 +389,15 @@ namespace CGAL
 
         Eigen::Matrix3d scaled_m = scale_matrix_to_point<K>(m, closest_point, v->point());
         if(!v->contributors())
+        {
           v->metric() = scaled_m;
+          v->metric_origin() = origin;
+        }
         else
+        {
           v->metric() = matrix_intersection<K>(v->metric(), scaled_m);
-
+          v->metric_origin() = 2;
+        }
         v->contributors()++;
       }
 
@@ -505,15 +513,42 @@ namespace CGAL
         int index = 0;
         for (VCI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi, ++index)
         {
-          if(!is_above_plane<K>(plane, vi->point()) || !vi->is_colored() || index%50 != 0)
+          Point_3 pi = vi->point();
+
+          if(!is_above_plane<K>(plane, pi))
             continue;
 
-          Vector_3 v0, v1, v2;
-          FT e0, e1, e2;
-          get_eigen_vecs_and_vals<K>(vi->metric(), v0, v1, v2, e0, e1, e2);
-          gl_draw_ellipsoid<K>(CGAL::ORIGIN, vi->point(), 10, 10,
-                            1./std::sqrt(e0), 1./std::sqrt(e1), 1./std::sqrt(e2),
-                            v0, v1, v2);
+          ::glBegin(GL_POINTS);
+          ::glPointSize(7.);
+          if(!vi->is_colored())
+            ::glColor3d(1.,0.,0.);
+          else
+            ::glColor3d(0.,1.,0.);
+          ::glVertex3f(pi.x(), pi.y(), pi.z());
+          ::glEnd();
+
+          if(!vi->is_colored() || index%50 != 0)
+            continue;
+
+          Vector_3 vn, v1, v2;
+          FT en, e1, e2;
+          get_eigen_vecs_and_vals<K>(vi->metric(), vn, v1, v2, en, e1, e2);
+          if(vi->metric_origin() == 0)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 43, 39, 234);
+          else if(vi->metric_origin() == 1)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 43, 239, 234);
+          else if(vi->metric_origin() == 2)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 43, 239, 104);
+          else if(vi->metric_origin() == 3)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 243, 239, 13);
         }
 
         if(was)
