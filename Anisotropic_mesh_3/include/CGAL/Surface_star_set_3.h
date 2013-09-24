@@ -2154,12 +2154,6 @@ public:
             int id_2 = (n_ind + 2) % 3;
 
             m_p = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2], std::sqrt(e[n_ind]), std::sqrt(e[id_1]), std::sqrt(e[id_2]));
-            std::cout << "index : " << n_ind << std::endl;
-            std::cout << p << std::endl;
-            std::cout << m_p.get_max_eigenvalue() << " " << m_p.get_vmax() << std::endl;
-            std::cout << m_p.get_min_eigenvalue() << " " << m_p.get_vmin() << std::endl;
-            std::cout << m_p.get_third_eigenvalue() << " " << m_p.get_vn() << std::endl;
-            std::cout << "-*-------*-*-*-*-0" << std::endl;
 #endif
           }
 
