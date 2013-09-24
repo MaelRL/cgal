@@ -126,6 +126,10 @@
      <addaction name="actionDraw_metric_field"/>
      <addaction name="actionDraw_metric_honoring"/>
      <addaction name="actionDraw_distortion"/>
+     <addaction name="actionDraw_metric_operations_debug"/>
+     <addaction name="actionDraw_colored_poly"/>
+     <addaction name="actionDraw_colored_poly_one_vertex"/>
+     <addaction name="actionDraw_colored_poly_mem"/>
     </widget>
     <addaction name="actionRecenterScene"/>
     <addaction name="action_Look_at"/>
@@ -691,7 +695,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>surface &amp;Delaunay balls</string>
+    <string>surface Del&amp;aunay balls</string>
    </property>
   </action>
   <action name="actionDraw_metric_field">
@@ -780,6 +784,38 @@
    </property>
    <property name="text">
     <string>metric honorin&amp;g</string>
+   </property>
+  </action>
+  <action name="actionDraw_metric_operations_debug">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>metric de&amp;bug</string>
+   </property>
+  </action>
+  <action name="actionDraw_colored_poly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>colored polyhe&amp;dron</string>
+   </property>
+  </action>
+  <action name="actionDraw_colored_poly_one_vertex">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>one verte&amp;x (color poly)</string>
+   </property>
+  </action>
+  <action name="actionDraw_colored_poly_mem">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>colored po&amp;ly mem</string>
    </property>
   </action>
  </widget>

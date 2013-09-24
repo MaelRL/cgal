@@ -6,6 +6,7 @@
 #include "ui_Aniso_meshing_dialog.h"
 #include "ui_Choose_star_dialog.h"
 #include "ui_Choose_pickvalid_point_dialog.h"
+#include "ui_Choose_colored_poly_vertex_dialog.h"
 
 #include <QObject>
 #include <QAction>
@@ -193,6 +194,22 @@ public:
     actionDraw_metric_honoring = this->getActionFromMainWindow(mw, "actionDraw_metric_honoring");
     if(actionDraw_metric_honoring)
       connect(actionDraw_metric_honoring, SIGNAL(toggled(bool)), this, SLOT(view_metric_honoring(bool)));
+
+    actionDraw_metric_operations_debug = this->getActionFromMainWindow(mw, "actionDraw_metric_operations_debug");
+    if(actionDraw_metric_operations_debug)
+      connect(actionDraw_metric_operations_debug, SIGNAL(toggled(bool)), this, SLOT(view_metric_operations_debug(bool)));
+
+    actionDraw_colored_poly = this->getActionFromMainWindow(mw, "actionDraw_colored_poly");
+    if(actionDraw_colored_poly)
+      connect(actionDraw_colored_poly, SIGNAL(toggled(bool)), this, SLOT(view_colored_poly(bool)));
+
+    actionDraw_colored_poly_one_vertex = this->getActionFromMainWindow(mw, "actionDraw_colored_poly_one_vertex");
+    if(actionDraw_colored_poly_one_vertex)
+      connect(actionDraw_colored_poly_one_vertex, SIGNAL(triggered()), this, SLOT(view_colored_poly_one_vertex()));
+
+    actionDraw_colored_poly_mem = this->getActionFromMainWindow(mw, "actionDraw_colored_poly_mem");
+    if(actionDraw_colored_poly_mem)
+      connect(actionDraw_colored_poly_mem, SIGNAL(toggled(bool)), this, SLOT(view_colored_poly_mem(bool)));
   }
 
   virtual QList<QAction*> actions() const
@@ -237,6 +254,11 @@ public slots:
   void view_mesh_3(bool);
   void view_distortion(bool);
   void view_metric_honoring(bool);
+  void view_metric_operations_debug(bool);
+  void view_colored_poly(bool);
+  void view_all_colored_poly_vertices();
+  void view_colored_poly_one_vertex();
+  void view_colored_poly_mem(bool);
   //others
   void meshing_done_resume(Anisotropic_meshing_thread* t);
   void meshing_done_nresume(Anisotropic_meshing_thread* t);
@@ -266,6 +288,10 @@ private:
   QAction* actionDraw_mesh_3;
   QAction* actionDraw_distortion;
   QAction* actionDraw_metric_honoring;
+  QAction* actionDraw_metric_operations_debug;
+  QAction* actionDraw_colored_poly;
+  QAction* actionDraw_colored_poly_one_vertex;
+  QAction* actionDraw_colored_poly_mem;
 
   Messages_interface* msg;
   QMessageBox* message_box_;
@@ -288,6 +314,10 @@ Anisotropic_mesh_3_plugin()
   , actionDraw_inconsistent_facets(NULL)
   , actionDraw_distortion(NULL)
   , actionDraw_metric_honoring(NULL)
+  , actionDraw_metric_operations_debug(NULL)
+  , actionDraw_colored_poly(NULL)
+  , actionDraw_colored_poly_one_vertex(NULL)
+  , actionDraw_colored_poly_mem(NULL)
   , msg(NULL)
   , message_box_(NULL)
   , source_item_(NULL)
@@ -705,7 +735,7 @@ void Anisotropic_mesh_3_plugin::view_one_star()
     tr("Which star do you want to display? (from 0 to %1)").arg(indexMax));
   ui.starId->setDecimals(0);
   ui.starId->setSingleStep(1);
-  ui.starId->setValue((std::max)(1, ssetitem->draw_star()));
+  ui.starId->setValue((std::max)(0, ssetitem->draw_star()));
   ui.starId->setMinimum(0);
   ui.starId->setMaximum(indexMax);
    
@@ -915,6 +945,94 @@ void Anisotropic_mesh_3_plugin::view_mesh_3(bool b)
   if(ssetitem != NULL)
   {
     ssetitem->draw_mesh_3() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_metric_operations_debug(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_metric_operations_debug() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_colored_poly(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_colored_poly() = b;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_all_colored_poly_vertices()
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_colored_poly_vertex_id() = -1;
+    ssetitem->starset_changed();
+  }
+}
+
+void Anisotropic_mesh_3_plugin::view_colored_poly_one_vertex()
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+
+  // Get item
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if( NULL == ssetitem )
+  {
+    QMessageBox::warning(mw,tr(""),tr("Selected object is not a star set."));
+    return;
+  }
+
+  // Create dialog
+  QDialog dialog(mw);
+  Ui::Choose_colored_poly_vertex_dialog ui;
+  ui.setupUi(&dialog);
+  connect(ui.buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
+  connect(ui.buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
+  connect(ui.displayAll, SIGNAL(clicked()), this, SLOT(view_all_colored_poly_vertices()));
+  connect(ui.displayAll, SIGNAL(clicked()), &dialog, SLOT(reject()));
+
+   // Set default parameters
+  int indexMax = ssetitem->nbColoredVertices()-1;
+  ui.objectQuestion->setText(
+    tr("Which vertex do you want to display? (from 0 to %1)").arg(indexMax));
+  ui.vertexId->setDecimals(0);
+  ui.vertexId->setSingleStep(1);
+  ui.vertexId->setValue((std::max)(0, ssetitem->draw_colored_poly_vertex_id()));
+  ui.vertexId->setMinimum(0);
+  ui.vertexId->setMaximum(indexMax);
+
+  // Get value and use it
+  int i = dialog.exec();
+  if(i != QDialog::Rejected)
+    ssetitem->draw_colored_poly_vertex_id() = (int)ui.vertexId->value();
+
+  ssetitem->starset_changed();
+}
+
+void Anisotropic_mesh_3_plugin::view_colored_poly_mem(bool b)
+{
+  const Scene_interface::Item_id index = scene->mainSelectionIndex();
+  Scene_starset3_item* ssetitem =
+    qobject_cast<Scene_starset3_item*>(scene->item(index));
+  if(ssetitem != NULL)
+  {
+    ssetitem->draw_colored_poly_mem() = b;
     ssetitem->starset_changed();
   }
 }
