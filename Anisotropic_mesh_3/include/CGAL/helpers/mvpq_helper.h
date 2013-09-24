@@ -157,7 +157,7 @@ class Colored_modifiable_vertex_priority_queue :
           increase_vertex_value(*it);
     }
 
-    void color_top_vertex()
+    void color_top_vertex(int rank)
     {
       Cmvpq_type* top_vertex = this->extract_top().get();
 
@@ -193,6 +193,7 @@ class Colored_modifiable_vertex_priority_queue :
 //      std::cout << counter << " " << top_vertex->second << std::endl;
       top_vertex->first->metric() = new_vertex_metric;
       top_vertex->first->metric_origin() = 3;
+      top_vertex->first->colored_rank() =  rank;
 
       increase_neigh_vertices(neigh_vertices);
     }
@@ -200,8 +201,9 @@ class Colored_modifiable_vertex_priority_queue :
     void color_all_vertices()
     {
       std::cout << "spreading colors..." << std::endl;
+      int rank = 0;
       while(!this->empty())
-        color_top_vertex();
+        color_top_vertex(rank++);
     }
 
     Colored_modifiable_vertex_priority_queue(size_type largest_ID,

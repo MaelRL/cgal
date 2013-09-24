@@ -60,16 +60,18 @@ namespace CGAL
     Eigen::Matrix3d m_metric; // THIS IS Mp, NOT Fp
     int m_contributors;
     int m_metric_origin;
+    int m_colored_rank;
 
   public:
     Metric_vertex()  {}
     Metric_vertex(const P& pt)
       : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-        m_tag(0), m_metric(Eigen::Matrix3d::Zero()), m_contributors(0), m_metric_origin(0) {}
-
-    Metric_vertex(const P& pt, const Eigen::Matrix3d m)
-      : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-        m_tag(0), m_metric(m), m_contributors(0), m_metric_origin(0) {}
+        m_tag(0),
+        m_metric(Eigen::Matrix3d::Zero()),
+        m_contributors(0),
+        m_metric_origin(0),
+        m_colored_rank(-1)
+    {}
 
     // tag
     std::size_t& tag() {  return m_tag; }
@@ -80,6 +82,8 @@ namespace CGAL
     int& contributors() { return m_contributors; }
     const int& metric_origin() const { return m_metric_origin; }
     int& metric_origin() { return m_metric_origin; }
+    const int& colored_rank() const { return m_colored_rank; }
+    int& colored_rank() { return m_colored_rank; }
 
     bool is_colored() const {return m_metric != Eigen::Matrix3d::Zero();}
   };
