@@ -149,10 +149,11 @@ namespace CGAL
       typedef Point_container                      Pointset;
       typedef Colored_polyhedron                   Colored_poly;
 
-      typedef typename Colored_polyhedron::Face_handle      Face_handle;
-      typedef typename Colored_polyhedron::Vertex_handle    Vertex_handle;
-      typedef typename Colored_polyhedron::Facet_iterator   Facet_iterator;
-      typedef typename Colored_polyhedron::Vertex_iterator  Vertex_iterator;
+      typedef typename Colored_polyhedron::Face_handle                        Face_handle;
+      typedef typename Colored_polyhedron::Vertex_handle                      Vertex_handle;
+      typedef typename Colored_polyhedron::Facet_iterator                     Facet_iterator;
+      typedef typename Colored_polyhedron::Vertex_iterator                    Vertex_iterator;
+      typedef typename Colored_polyhedron::Halfedge_around_vertex_circulator  HV_circulator;
 
       typedef CGAL::AABB_polyhedron_triangle_primitive<K, Colored_polyhedron> Primitive;
       typedef CGAL::AABB_traits<K, Primitive>                                 Traits;
@@ -164,6 +165,7 @@ namespace CGAL
     public:
       EdgeList edges;
       mutable Colored_polyhedron m_colored_poly;
+      mutable std::vector<Vertex_handle> m_colored_poly_vertex_index;
       mutable Colored_polyhedron m_colored_poly_mem;
       mutable Tree* m_colored_poly_tree;
 
@@ -335,9 +337,16 @@ namespace CGAL
 
       void number_colored_poly() const
       {
+        std::ofstream out("coordinates_to_num.txt");
+
         std::size_t index = 0;
+        m_colored_poly_vertex_index.reserve(m_colored_poly.size_of_vertices());
         for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v, ++index)
+        {
           v->tag() = index;
+          m_colored_poly_vertex_index[index] = v;
+          out << v->point() << " -- " << index << std::endl;
+        }
 
         index = 0;
         for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
@@ -490,14 +499,96 @@ namespace CGAL
         ratio = closest_f->color();
       }
 
-      void gl_draw_colored_polyhedron(const Colored_polyhedron& P,
-                                      const typename K::Plane_3& plane) const
+      void gl_draw_ellipsoid_with_origin_color(Vertex_handle& vi) const
       {
-        typedef typename Colored_polyhedron::Facet_const_iterator  FCI;
-        typedef typename Colored_polyhedron::Vertex_const_iterator VCI;
+        Point_3 pi = vi->point();
+        Vector_3 vn, v1, v2;
+        FT en, e1, e2;
+        get_eigen_vecs_and_vals<K>(vi->metric(), vn, v1, v2, en, e1, e2);
+        if(vi->metric_origin() == 0)
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                               1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                               vn, v1, v2, 43, 39, 234);
+        else if(vi->metric_origin() == 1)
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                               1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                               vn, v1, v2, 43, 239, 234);
+        else if(vi->metric_origin() == 2)
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                               1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                               vn, v1, v2, 43, 239, 104);
+        else if(vi->metric_origin() == 3)
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
+                               1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                               vn, v1, v2, 243, 239, 13);
+      }
+
+      void gl_draw_colored_polyhedron_one_vertex(const int vertex_num) const
+      {
+        Vertex_handle v = m_colored_poly_vertex_index[vertex_num];
+        Point_3 p = v->point();
+        int rank = v->colored_rank();
+
+        Vector_3 vn, v1, v2;
+        FT en, e1, e2;
+
+        if(v->is_colored())
+        {
+          get_eigen_vecs_and_vals<K>(v->metric(), vn, v1, v2, en, e1, e2);
+          gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20,
+                               1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                               vn, v1, v2, 243, 29, 13);
+        }
+
+        ::glPointSize(7.);
+        ::glBegin(GL_POINTS);
+        ::glColor3d(0.,0.,0.);
+        ::glVertex3f(p.x(), p.y(), p.z());
+        ::glEnd();
+
+        HV_circulator h = v->vertex_begin();
+        HV_circulator hend = h;
+        do
+        {
+          Vertex_handle vi = h->opposite()->vertex();
+          if(!vi->is_colored())
+            continue;
+
+          Point_3 pi = vi->point();
+          get_eigen_vecs_and_vals<K>(vi->metric(), vn, v1, v2, en, e1, e2);
+
+          if(vi->colored_rank() > rank)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 20, 20,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 243, 239, 13);
+          else if(vi->colored_rank() == -1)
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 20, 20,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 43, 39, 234);
+          else // vi rank < rank
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 20, 20,
+                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
+                                 vn, v1, v2, 43, 239, 234);
+          h++;
+        }
+        while(h != hend);
+      }
+
+      void gl_draw_colored_polyhedron(Colored_polyhedron& P,
+                                      const typename K::Plane_3& plane,
+                                      const int vertex_id = -1) const
+      {
+        if(vertex_id != -1)
+        {
+          gl_draw_colored_polyhedron_one_vertex(vertex_id);
+          return;
+        }
+
+        typedef typename Colored_polyhedron::Facet_iterator  FI;
+        typedef typename Colored_polyhedron::Vertex_iterator VI;
 
         double strongest_color = -1;
-        for(FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
+        for(FI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
           if(fi->color() > strongest_color)
             strongest_color = fi->color();
 
@@ -506,7 +597,7 @@ namespace CGAL
           ::glDisable(GL_LIGHTING);
 
         if(strongest_color > 0)
-          for(FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
+          for(FI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
           {
             double f_color = fi->color()/strongest_color;
             if(f_color < 0.)
@@ -515,7 +606,7 @@ namespace CGAL
           }
 
         int index = 0;
-        for (VCI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi, ++index)
+        for (VI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi, ++index)
         {
           Point_3 pi = vi->point();
 
@@ -531,28 +622,10 @@ namespace CGAL
           ::glVertex3f(pi.x(), pi.y(), pi.z());
           ::glEnd();
 
-          if(!vi->is_colored() || index%50 != 0)
+          if(!vi->is_colored() || (vi->metric_origin() != 0 && index%100 != 0))
             continue;
 
-          Vector_3 vn, v1, v2;
-          FT en, e1, e2;
-          get_eigen_vecs_and_vals<K>(vi->metric(), vn, v1, v2, en, e1, e2);
-          if(vi->metric_origin() == 0)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
-                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
-                                 vn, v1, v2, 43, 39, 234);
-          else if(vi->metric_origin() == 1)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
-                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
-                                 vn, v1, v2, 43, 239, 234);
-          else if(vi->metric_origin() == 2)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
-                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
-                                 vn, v1, v2, 43, 239, 104);
-          else if(vi->metric_origin() == 3)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 10, 10,
-                                 1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
-                                 vn, v1, v2, 243, 239, 13);
+          gl_draw_ellipsoid_with_origin_color(vi);
         }
 
         if(was)
@@ -562,6 +635,7 @@ namespace CGAL
       Constrain_surface_3() :
       edges(),
       m_colored_poly(Colored_polyhedron ()),
+      m_colored_poly_vertex_index(),
       m_colored_poly_mem(Colored_polyhedron ()),
       m_colored_poly_tree(NULL)
       { }

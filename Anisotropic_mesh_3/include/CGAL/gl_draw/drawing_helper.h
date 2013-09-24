@@ -8,8 +8,6 @@
 
 enum Polygon_drawing_options { EDGES_ONLY, EDGES_AND_FACES, FACES_ONLY };
 
-
-
 template<typename Kernel>
 void gl_draw_triangle(const typename Kernel::Point_3& pa,
                       const typename Kernel::Point_3& pb,
@@ -323,7 +321,7 @@ void gl_draw_c3t3(const C3T3& c3t3,
 }
 
 template<typename Colored_polyhedron>
-void gl_draw_colored_polyhedron_facet(const typename Colored_polyhedron::Facet_const_iterator& f,
+void gl_draw_colored_polyhedron_facet(const typename Colored_polyhedron::Facet_iterator& f,
                                       double f_color)
 {
   typedef typename Colored_polyhedron::Point_3 Point;
