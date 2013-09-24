@@ -613,8 +613,8 @@ namespace CGAL
           if(!is_above_plane<K>(plane, pi))
             continue;
 
-          ::glBegin(GL_POINTS);
           ::glPointSize(7.);
+          ::glBegin(GL_POINTS);
           if(!vi->is_colored())
             ::glColor3d(1.,0.,0.);
           else
