@@ -3373,7 +3373,7 @@ private:
      }
 
 private:
-     void matrix_interpoltion_debug()
+     void matrix_interpoltion_debug() const
      {
        Vector_3 v11(1./std::sqrt(2.), 2.*std::sqrt(2.)/5., 3./(5.*std::sqrt(2.)));
        Vector_3 v12(7./std::sqrt(114.), -4.*std::sqrt(2./57.), -1./std::sqrt(114.));
@@ -3429,12 +3429,12 @@ private:
            Eigen::Matrix3d pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(ma, coeff_a, mb, coeff_b, mc, coeff_c);
 
            get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
-           gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 205, 23);
+           gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 205, 23);
          }
        }
      }
 
-     void matrix_scaling_debug()
+     void matrix_scaling_debug() const
      {
        Vector_3 v3(1./std::sqrt(2.), 2*std::sqrt(2.)/5., 3./(5.*std::sqrt(2.)));
        Vector_3 v4(7./std::sqrt(114.), -4.*std::sqrt(2./57.), -1./std::sqrt(114.));
@@ -3456,29 +3456,29 @@ private:
        Eigen::Matrix3d eigen_mtransp = eigen_m.transpose();
        Eigen::Matrix3d eigen_transformation = eigen_m * eigen_diag * eigen_mtransp;
 
-       std::cout << "THE COMPARISON OF DOOM (MANUAL AND MC) : " << std::endl;
+       std::cout << "Comparison of Mp's' FptFp / UDDUt : " << std::endl;
        std::cout << eigen_transformation << std::endl << "--" << std::endl << mc << std::endl;
 
        Point_3 pa(0,0,0);
-       gl_draw_ellipsoid<K>(CGAL::ORIGIN, pa, 10, 10, 1./0.5, 1./0.2, 1./1.0, v3, v4, v5);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, pa, 20, 20, 1./0.5, 1./0.2, 1./1.0, v3, v4, v5);
 
        int pts_on_side = 10;
 
        for(int i=1; i<=pts_on_side; ++i)
        {
-         Point_3 p(pa.x()+10*i, pa.y()+10*i, pa.z()+10*i);
+         Point_3 p(pa.x()-10*i, pa.y()-10*i, pa.z()-10*i);
          Eigen::Matrix3d pcolor = scale_matrix_to_point<K>(mc, pa, p, 2);
 
          Vector_3 v1,v2,vn;
          FT e1, e2, en;
          get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
-         gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 10, 10, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn);
+         gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn);
        }
      }
 
-     void matrix_intersection_debug()
+     void matrix_intersection_debug() const
      {
-        Point_3 debug_a(5, 5, 5);
+        Point_3 p_a(-5, -5, 5);
         Vector_3 e1(1, 0, 0);
         Vector_3 e2(0, 1, 0);
         Vector_3 e3(0, 0, 1);
@@ -3515,28 +3515,28 @@ private:
         debug_ma.get_min_eigenvector(v2);
         debug_ma.get_third_eigenvector(vn);
 
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, ma_a, ma_b, ma_c, v1, v2, vn, 240, 240, 20);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p_a, 20, 20, ma_a, ma_b, ma_c, v1, v2, vn, 240, 240, 20);
 
         //B
         debug_mb.get_max_eigenvector(v1);
         debug_mb.get_min_eigenvector(v2);
         debug_mb.get_third_eigenvector(vn);
 
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mb_a, mb_b, mb_c, v1, v2, vn, 20, 20, 240);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p_a, 20, 20, mb_a, mb_b, mb_c, v1, v2, vn, 20, 20, 240);
 
         //P
         debug_mp.get_max_eigenvector(v1);
         debug_mp.get_min_eigenvector(v2);
         debug_mp.get_third_eigenvector(vn);
 
-        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mp_a, mp_b, mp_c, v1, v2, vn, 20, 240, 200);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p_a, 20, 20, mp_a, mp_b, mp_c, v1, v2, vn, 20, 240, 200);
 
         //P theo
 //        metricPtheo.get_max_eigenvector(v1);
 //        metricPtheo.get_min_eigenvector(v2);
 //        metricPtheo.get_third_eigenvector(vn);
 
-//        gl_draw_ellipsoid<K>(CGAL::ORIGIN, debug_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
+//        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
      }
 
 public:
@@ -4096,6 +4096,13 @@ public:
           ::glDisable(GL_LIGHTING);
       }   
             
+      void gl_draw_metric_op_debug() const
+      {
+        matrix_intersection_debug();
+        matrix_scaling_debug();
+        matrix_interpoltion_debug();
+      }
+
 #ifdef USE_ANISO_TIMERS
       void reset_timers() const
       {
