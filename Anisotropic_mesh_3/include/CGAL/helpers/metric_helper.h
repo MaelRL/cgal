@@ -2,6 +2,8 @@
 #define METRIC_HELPER_H
 
 #include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
+
 
 #include <cmath>
 #include <complex>
@@ -160,7 +162,9 @@ Eigen::Matrix3d scale_matrix_to_point(const Eigen::Matrix3d& matrix_si,
 }
 
 template<typename Kernel>
-Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p, const Eigen::Matrix3d& M_q)
+Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p,
+                                    const Eigen::Matrix3d& M_q,
+                                    const bool verbose = false)
 {
   Eigen::Matrix3d inverse_M_p;
   //brute force inverse computation : probably more efficient to use the fact the eigenvectors
@@ -169,7 +173,6 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p, const Eigen::Mat
   M_p.computeInverseWithCheck(inverse_M_p, invertible);
   if(!invertible)
     std::cout << "M_p not invertible..." << std::endl;
-
   Eigen::Matrix3d N = inverse_M_p * M_q;
 
   Eigen::EigenSolver<Eigen::Matrix3d> es(N, true);
@@ -202,20 +205,53 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p, const Eigen::Mat
   if(!invertible)
     std::cout << "real_vecs not invertible...." << std::endl;
 
-  Eigen::Matrix3d intersected_eigen_transformation = inverse_real_vecs.transpose() * intersected_eigen_diag * inverse_real_vecs;
+  Eigen::Matrix3d intersected_M = inverse_real_vecs.transpose() * intersected_eigen_diag * inverse_real_vecs;
 
-#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
-  std::cout << "matrix N : " << std::endl << N << std::endl;
-  std::cout << "lambdas, mu" << std::endl;
-  std::cout << lambda_0 << " " << lambda_1 << " " << lambda_2 << std::endl;
-  std::cout << mu_0 << " " << mu_1 << " " << mu_2 << std::endl;
-  std::cout << "intersected eigen diag : " << std::endl << intersected_eigen_diag << std::endl;
-  std::cout << "real vecs : " << std::endl << real_vecs << std::endl;
-  std::cout << "inverse real vecs : " << std::endl << inverse_real_vecs << std::endl;
-  std::cout << "intersected : " << std::endl << intersected_eigen_transformation << std::endl;
+  Eigen::Matrix3d diag_lambda = Eigen::Matrix3d::Zero();
+  diag_lambda(0,0) = lambda_0;
+  diag_lambda(1,1) = lambda_1;
+  diag_lambda(2,2) = lambda_2;
+  Eigen::Matrix3d checkM_p = inverse_real_vecs.transpose() * diag_lambda * inverse_real_vecs;
+
+  Eigen::Matrix3d diag_mu= Eigen::Matrix3d::Zero();
+  diag_mu(0,0) = mu_0;
+  diag_mu(1,1) = mu_1;
+  diag_mu(2,2) = mu_2;
+  Eigen::Matrix3d checkM_q = inverse_real_vecs.transpose() * diag_mu * inverse_real_vecs;
+
+  Eigen::Matrix3d tPMpP = real_vecs.transpose() * M_p * real_vecs;
+  Eigen::Matrix3d tPMqP = real_vecs.transpose() * M_p * real_vecs;
+
+  Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::Matrix3d> ges(M_q,M_p);
+  Eigen::Matrix3d gvecs = es.eigenvectors().real();
+
+  Eigen::Matrix3d tPMpP2 = gvecs.transpose() * M_p * gvecs;
+  Eigen::Matrix3d tPMqP2 = gvecs.transpose() * M_p * gvecs;
+
+  if(verbose)
+  {
+#if 1//def ANISO_DEBUG_MATRIX_OPERATIONS
+    std::cout.precision(15);
+    std::cout << "in : " << std::endl << M_p << std::endl << inverse_M_p << std::endl << M_q << std::endl;
+    std::cout << "check tPMP" << std::endl << tPMpP << std::endl << tPMqP << std::endl;
+    std::cout << "check tPMP with generalized eigenvalues" << std::endl << tPMpP2 << std::endl << tPMqP2 << std::endl;
+    std::cout << "check lambdamuP : " << std::endl << checkM_p << std::endl << checkM_q << std::endl;
+    std::cout << "check inverse : " << std::endl << inverse_M_p*M_p << std::endl;
+    std::cout << "matrix N : " << std::endl << N << std::endl;
+    std::cout << "The eigenvalues of the pencil (A,B) are:" << std::endl << ges.eigenvalues() << std::endl;
+    std::cout << "The matrix of eigenvectors, V, is:" << std::endl << ges.eigenvectors() << std::endl;
+    std::cout << "lambdas, mu" << std::endl;
+    std::cout << lambda_0 << " " << lambda_1 << " " << lambda_2 << std::endl;
+    std::cout << mu_0 << " " << mu_1 << " " << mu_2 << std::endl;
+    std::cout << "intersected eigen diag : " << std::endl << intersected_eigen_diag << std::endl;
+    std::cout << "real vecs : " << std::endl << real_vecs << std::endl;
+    std::cout << "inverse real vecs : " << std::endl << inverse_real_vecs << std::endl;
+    std::cout << "check inverse : "<< std::endl << real_vecs*inverse_real_vecs << std::endl;
+    std::cout << "intersected : " << std::endl << intersected_M << std::endl;
 #endif
+  }
 
-  return intersected_eigen_transformation;
+  return intersected_M;
 }
 
 template<typename K>

@@ -177,20 +177,26 @@ class Colored_modifiable_vertex_priority_queue :
       typename std::set<Vertex_handle, Vertex_Compare>::iterator it = neigh_vertices.begin();
       typename std::set<Vertex_handle, Vertex_Compare>::iterator itend = neigh_vertices.end();
 
+      std::cout << "*--*-*-**-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl;
+      std::cout << "coloring : " << top_vertex->first->tag() << " " << top_vertex->first->point() << std::endl;
+
       for(; it!=itend; ++it)
       {
         if((*it)->is_colored())
         {
+          std::cout << "in : " << (*it)->tag() << " ranked : " << (*it)->colored_rank() << std::endl;
           counter++;
-          Eigen::Matrix3d scaled_m = scale_matrix_to_point<K>((*it)->metric(), p, (*it)->point());
+          Eigen::Matrix3d scaled_m = (*it)->metric(); //scale_matrix_to_point<K>((*it)->metric(),(*it)->point(), p);
+          std::cout << "scaled is : " << std::endl << scaled_m << std::endl;
           if(counter == 1)
             new_vertex_metric = scaled_m;
           else
             new_vertex_metric = matrix_intersection<K>(new_vertex_metric, scaled_m);
+          std::cout << "count : " << counter << std::endl << new_vertex_metric << std::endl;
         }
       }
 
-//      std::cout << counter << " " << top_vertex->second << std::endl;
+      std::cout << "finished : " << counter << " " << top_vertex->second << std::endl;
       top_vertex->first->metric() = new_vertex_metric;
       top_vertex->first->metric_origin() = 3;
       top_vertex->first->colored_rank() =  rank;

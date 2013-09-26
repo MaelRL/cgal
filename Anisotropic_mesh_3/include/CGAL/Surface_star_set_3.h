@@ -3478,21 +3478,21 @@ private:
 
      void matrix_intersection_debug() const
      {
+       //double intersection debug
         Point_3 p_a(-5, -5, 5);
-        Vector_3 e1(1, 0, 0);
-        Vector_3 e2(0, 1, 0);
-        Vector_3 e3(0, 0, 1);
-        Vector_3 e4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
-        Vector_3 e5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
-        Vector_3 v1, v2, vn;
+        Vector_3 v1(1, 0, 0);
+        Vector_3 v2(0, 1, 0);
+        Vector_3 v3(0, 0, 1);
+        Vector_3 v4(0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 v5(-0.5*std::sqrt(2.), 0.5*std::sqrt(2.), 0);
+        Vector_3 vn;
+        Point_3 p(25,25,25);
+        Point_3 p2(-50,50,50);
+        FT e1,e2,en;
 
-        Metric debug_ma = m_metric_field->build_metric(e3, e1, e2, 1.0, 0.4, 1.2);
-        Metric debug_mb = m_metric_field->build_metric(e3, e4, e5, 0.4, 0.1, 4);
+        Metric debug_ma = m_metric_field->build_metric(v3, v1, v2, 1.0, 0.4, 1.2);
+        Metric debug_mb = m_metric_field->build_metric(v3, v4, v5, 0.4, 0.1, 4);
         Metric debug_mp = m_metric_field->intersection(debug_ma, debug_mb);
-
-//        debug_ma = metricA;
-//        debug_mb = metricB;
-//        debug_mp = metricP;
 
         FT ma_a = 1./debug_ma.get_max_eigenvalue();
         FT ma_b = 1./debug_ma.get_min_eigenvalue();
@@ -3505,10 +3505,6 @@ private:
         FT mp_a = 1./debug_mp.get_max_eigenvalue();
         FT mp_b = 1./debug_mp.get_min_eigenvalue();
         FT mp_c = 1./debug_mp.get_third_eigenvalue();
-
-//        FT mptheo_a = 1./metricPtheo.get_max_eigenvalue();
-//        FT mptheo_b = 1./metricPtheo.get_min_eigenvalue();
-//        FT mptheo_c = 1./metricPtheo.get_third_eigenvalue();
 
         //A
         debug_ma.get_max_eigenvector(v1);
@@ -3531,12 +3527,101 @@ private:
 
         gl_draw_ellipsoid<K>(CGAL::ORIGIN, p_a, 20, 20, mp_a, mp_b, mp_c, v1, v2, vn, 20, 240, 200);
 
-        //P theo
-//        metricPtheo.get_max_eigenvector(v1);
-//        metricPtheo.get_min_eigenvector(v2);
-//        metricPtheo.get_third_eigenvector(vn);
+        //-------------------------------------------------------------------------------------
+        //triple intersection debug
+        /*
+        Eigen::Matrix3d debug_mc;
+        debug_mc(0,0) = 2.18668;  debug_mc(0,1) = -0.679114;  debug_mc(0,2) = 0.446344;
+        debug_mc(1,0) = -0.679114;  debug_mc(1,1) = 5.79835;  debug_mc(1,2) = -1.13398;
+        debug_mc(2,0) = 0.446344;  debug_mc(2,1) = -1.13398;  debug_mc(2,2) = 2.18232;
+        Eigen::Matrix3d debug_md;
+        debug_md(0,0) = 2.18668;  debug_md(0,1) = -0.679114;  debug_md(0,2) = 0.446344;
+        debug_md(1,0) = -0.679114;  debug_md(1,1) = 5.79835;  debug_md(1,2) = -1.13398;
+        debug_md(2,0) = 0.446344;  debug_md(2,1) = -1.13398;  debug_md(2,2) = 2.18232;
+        Eigen::Matrix3d debug_me;
+        debug_me(0,0) = 2.95845;  debug_me(0,1) = -0.217144;  debug_me(0,2) = 0.739675;
+        debug_me(1,0) = -0.217144;  debug_me(1,1) = 8.51877;  debug_me(1,2) = -1.54974;
+        debug_me(2,0) = 0.739675;  debug_me(2,1) = -1.54974;  debug_me(2,2) = 3.42964;
+        Eigen::Matrix3d intersection_cd = matrix_intersection<K>(debug_mc, debug_md);
+        Eigen::Matrix3d intersection_de = matrix_intersection<K>(debug_md, debug_me);
+        Eigen::Matrix3d intersection_ce = matrix_intersection<K>(debug_mc, debug_me);
+        Eigen::Matrix3d intersection_cde = matrix_intersection<K>(intersection_cd, debug_me);
+        Eigen::Matrix3d intersection_ced = matrix_intersection<K>(intersection_ce, debug_md);
+        Eigen::Matrix3d intersection_dec = matrix_intersection<K>(intersection_de, debug_mc);
 
-//        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p_a, 20, 20, mptheo_a, mptheo_b, mptheo_c, v1, v2, vn, 240, 20, 20);
+        std::cout << debug_mc << std::endl << debug_md << std::endl << debug_me << std::endl;
+
+        get_eigen_vecs_and_vals<K>(debug_mc, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 10, 10);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p2, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 10, 10);
+        get_eigen_vecs_and_vals<K>(debug_md, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 10, 230, 10);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p2, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 10, 230, 10);
+        get_eigen_vecs_and_vals<K>(debug_me, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 10, 10, 230);
+
+        get_eigen_vecs_and_vals<K>(intersection_cd, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 230, 10);
+        get_eigen_vecs_and_vals<K>(intersection_de, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 10, 230, 230);
+        get_eigen_vecs_and_vals<K>(intersection_ce, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 10, 230);
+
+        get_eigen_vecs_and_vals<K>(intersection_cde, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 230, 190);
+        get_eigen_vecs_and_vals<K>(intersection_ced, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 190, 230, 230);
+        get_eigen_vecs_and_vals<K>(intersection_dec, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 190, 230);
+        */
+
+        //-------------------------------------------------------------------------------------
+        // Mean tensor
+        /*
+        Point_3 p2bis(-10,10,10);
+        Eigen::Matrix3d debug_mf;
+        debug_mf(0,0) = 0.5*(debug_mc(0,0)+debug_md(0,0));  debug_mf(0,1) = 0.5*(debug_mc(0,1)+debug_md(0,1));  debug_mf(0,2) = 0.5*(debug_mc(0,2)+debug_md(0,2));
+        debug_mf(1,0) = 0.5*(debug_mc(1,0)+debug_md(1,0));  debug_mf(1,1) = 0.5*(debug_mc(1,1)+debug_md(1,1));  debug_mf(1,2) = 0.5*(debug_mc(1,2)+debug_md(1,2));
+        debug_mf(2,0) = 0.5*(debug_mc(2,0)+debug_md(2,0));  debug_mf(2,1) = 0.5*(debug_mc(2,1)+debug_md(2,1));  debug_mf(2,2) = 0.5*(debug_mc(2,2)+debug_md(2,2));
+        get_eigen_vecs_and_vals<K>(debug_mf, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p2bis, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 230, 10);
+        std::cout << "debug_mf : " << std::endl << en << " " << e1 << " " << e2 << std::endl;
+        std::cout << vn << std::endl << v1 << std::endl << v2 << std::endl;
+        */
+
+        //----------------------------------------------------------------------------------------
+        //debug
+        Point_3 p3(-25,-25,25);
+        Eigen::Matrix3d debug_mg;
+        debug_mg(0,0) = 0.594683;  debug_mg(0,1) = 0.19953;  debug_mg(0,2) = -0.148157;
+        debug_mg(1,0) = 0.19953;  debug_mg(1,1) = 1.1824;  debug_mg(1,2) = 0.0558353;
+        debug_mg(2,0) = -0.1481574;  debug_mg(2,1) = 0.0558353;  debug_mg(2,2) = 1.19346;
+        Eigen::Matrix3d debug_mh;
+        debug_mh(0,0) = 0.594224;  debug_mh(0,1) = 0.202379;  debug_mh(0,2) = -0.147779;
+        debug_mh(1,0) = 0.202379;  debug_mh(1,1) = 1.16473;  debug_mh(1,2) = 0.0534928;
+        debug_mh(2,0) = -0.147779;  debug_mh(2,1) = 0.0534928;  debug_mh(2,2) = 1.19315;
+        Eigen::Matrix3d intersection_gh = matrix_intersection<K>(debug_mg, debug_mh, true /*verbose*/);
+        get_eigen_vecs_and_vals<K>(debug_mg, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p3, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 170, 170, 10);
+        std::cout << "debug_mg : " << std::endl;
+        std::cout << en << " " << e1 << " " << e2 << std::endl;
+        std::cout << vn << std::endl << v1 << std::endl << v2 << std::endl;
+        get_eigen_vecs_and_vals<K>(debug_mh, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p3, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 10, 170, 170);
+        std::cout << "debug_mh : " << std::endl;
+        std::cout << en << " " << e1 << " " << e2 << std::endl;
+        std::cout << vn << std::endl << v1 << std::endl << v2 << std::endl;
+        get_eigen_vecs_and_vals<K>(intersection_gh, vn, v1, v2, en, e1, e2);
+        gl_draw_ellipsoid<K>(CGAL::ORIGIN, p3, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 150, 150, 150);
+        std::cout << "intersection_gh : " << std::endl << intersection_gh << std::endl;
+        std::cout << en << " " << e1 << " " << e2 << std::endl;
+        std::cout << vn << std::endl << v1 << std::endl << v2 << std::endl;
+
+        /*
+         10.101  6.13181 0.171724
+        6.13181  4.88435 0.251533
+        0.171724 0.251533 0.628569
+        */
      }
 
 public:

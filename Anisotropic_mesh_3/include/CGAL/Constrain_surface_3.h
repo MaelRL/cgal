@@ -526,6 +526,9 @@ namespace CGAL
       void gl_draw_colored_polyhedron_one_vertex(const int vertex_num) const
       {
         Vertex_handle v = m_colored_poly_vertex_index[vertex_num];
+        std::cout << "-------------------------------------------------------------" << std::endl;
+        std::cout << "draw one : " << v->tag() << " rank is : " << v->colored_rank() << std::endl;
+        std::cout << "tensor : " << v->metric() << std::endl;
         Point_3 p = v->point();
         int rank = v->colored_rank();
 
@@ -546,6 +549,8 @@ namespace CGAL
         ::glVertex3f(p.x(), p.y(), p.z());
         ::glEnd();
 
+        int count = 0;
+
         HV_circulator h = v->vertex_begin();
         HV_circulator hend = h;
         do
@@ -554,21 +559,24 @@ namespace CGAL
           if(!vi->is_colored())
             continue;
 
+          count++;
+          std::cout << count << " || " << vi->tag() << " is colored with rank : " << vi->colored_rank() << std::endl;
+          std::cout << vi->metric() << std::endl;
           Point_3 pi = vi->point();
           get_eigen_vecs_and_vals<K>(vi->metric(), vn, v1, v2, en, e1, e2);
 
           if(vi->colored_rank() > rank)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 20, 20,
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 40, 40,
                                  1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
                                  vn, v1, v2, 243, 239, 13);
           else if(vi->colored_rank() == -1)
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 20, 20,
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 40, 40,
                                  1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
                                  vn, v1, v2, 43, 39, 234);
           else // vi rank < rank
-            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 20, 20,
+            gl_draw_ellipsoid<K>(CGAL::ORIGIN, pi, 40, 40,
                                  1./std::sqrt(en), 1./std::sqrt(e1), 1./std::sqrt(e2),
-                                 vn, v1, v2, 43, 239, 234);
+                                 vn, v1, v2, 43, 230 + count, 224);
           h++;
         }
         while(h != hend);
