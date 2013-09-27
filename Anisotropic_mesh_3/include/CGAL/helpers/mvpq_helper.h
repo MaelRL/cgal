@@ -1,5 +1,5 @@
-#ifndef mvpq_HELPER_H
-#define mvpq_HELPER_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_MVPQ_HELPER_H
+#define CGAL_ANISOTROPIC_MESH_3_MVPQ_HELPER_H
 
 //mutable vertex priority queue :
 //vertices with a null metric are sorted according to the number of vertices with a non null metric in the first ring.

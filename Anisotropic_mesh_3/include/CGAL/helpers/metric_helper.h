@@ -1,5 +1,5 @@
-#ifndef METRIC_HELPER_H
-#define METRIC_HELPER_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_METRIC_HELPER_H
+#define CGAL_ANISOTROPIC_MESH_3_METRIC_HELPER_H
 
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>

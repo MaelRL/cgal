@@ -1,5 +1,5 @@
-#ifndef MPQ_HELPER_H
-#define MPQ_HELPER_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_MPQ_HELPER_H
+#define CGAL_ANISOTROPIC_MESH_3_MPQ_HELPER_H
 
 #include <CGAL/assertions.h>
 #include <CGAL/Modifiable_priority_queue.h>
