@@ -36,6 +36,7 @@
 #include <CGAL/Criteria.h>
 #include <CGAL/Facet_refine_queue.h>
 #include <CGAL/Output_facets.h>
+#include <CGAL/Polyhedron_painter.h>
 
 #include <CGAL/helpers/metric_helper.h>
 #include <CGAL/helpers/statistics_helper.h>
@@ -86,6 +87,9 @@ namespace CGAL
       typedef Constrain_surface_3<K>              Constrain_surface;
       typedef CGAL::Anisotropic_mesh_3::Metric_field<K> Metric_field;
       typedef typename Metric_field::Metric       Metric;
+      //if a polyhedron type is specified for the painter,
+      //it needs to be used in Constrain_surface declaration too
+      typedef CGAL::Anisotropic_mesh_3::Polyhedron_painter<K, Constrain_surface, Metric_field> Poly_painter;
       typedef typename K::Point_3                 Point_3;
       typedef Criteria_base<K>                    Criteria;
       typedef std::set<Point_3>                   Point_set;
@@ -119,6 +123,7 @@ namespace CGAL
       typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
       const Metric_field* m_metric_field;
+      const Poly_painter m_poly_painter;
       const Criteria* m_criteria;
       Star_vector m_stars;
       Refine_queue m_refine_queue;
@@ -187,8 +192,9 @@ private:
     public:
       std::size_t pickvalid_problematic_facets_size() const {return pickvalid_problematic_facets.size();}
       const Constrain_surface* const constrain_surface() const { return m_pConstrain; }
-      const Criteria* criteria() const { return m_criteria; }
       const Metric_field* metric_field() const { return m_metric_field; }
+      const Poly_painter* poly_painter() const { return &m_poly_painter; }
+      const Criteria* criteria() const { return m_criteria; }
       void set_criteria(const Criteria* criteria_) { m_criteria = criteria_; }
       void set_metric_field(const Metric_field* metric_field_) { m_metric_field = metric_field_; }
 
@@ -2130,7 +2136,7 @@ public:
 #ifdef ANISO_COLOR_POLY_FACETS
             double new_ratio = 0.;
             //double old_ratio = m_p.get_max_eigenvalue()/m_p.get_min_eigenvalue();
-            constrain_surface()->get_color_from_poly(p, new_ratio);
+            m_poly_painter->get_color_from_poly(p, new_ratio);
             if(new_ratio <= 0.)
               std::cout << "new ratio is in the depths of hell... : " << new_ratio << std::endl;
             FT new_min = m_p.get_max_eigenvalue() / new_ratio;
@@ -2145,7 +2151,7 @@ public:
             std::vector<Vector_3> v(3);
             std::vector<FT> e(3);
             Eigen::Matrix3d M;
-            constrain_surface()->get_color_from_poly(p, M);
+            m_poly_painter.get_color_from_poly(p, M);
             get_eigen_vecs_and_vals<K>(M, v[0], v[1], v[2], e[0], e[1], e[2]);
 
             int n_ind = -1;
@@ -3027,7 +3033,7 @@ public:
             if(!visited_points[p])
             {
               Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
-              m_pConstrain->color_poly(p, pcolor, 1);
+              m_poly_painter.color_poly(p, pcolor, 1);
               visited_points[p] = 1;
             }
           }
@@ -3095,17 +3101,17 @@ public:
 
             if(!visited_points[pa])
             {
-              m_pConstrain->color_poly(pa, color_a);
+              m_poly_painter.color_poly(pa, color_a, 2);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              m_pConstrain->color_poly(pb, color_b);
+              m_poly_painter.color_poly(pb, color_b, 2);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              m_pConstrain->color_poly(pc, color_c);
+              m_poly_painter.color_poly(pc, color_c, 2);
               visited_points[pc] = 1;
             }
 
@@ -3118,20 +3124,20 @@ public:
       {
         if(step == 1)
         {
-          constrain_surface()->build_colored_polyhedron();
-          constrain_surface()->build_colored_poly_tree();
-          constrain_surface()->number_colored_poly();
+          m_poly_painter.build_colored_polyhedron();
+          m_poly_painter.build_colored_poly_tree();
+          m_poly_painter.number_colored_poly();
         }
         else
-          constrain_surface()->clear_colors();
+          m_poly_painter.clear_colors();
 
         color_polyhedron_from_starset();
 
 #ifdef ANISO_COLOR_POLY_FACETS
-        constrain_surface()->average_facet_color_contributor();
-        constrain_surface()->spread_facets_colors();
+        m_poly_painter->average_facet_color_contributor();
+        m_poly_painter->spread_facets_colors();
 #else
-        constrain_surface()->spread_vertices_colors();
+        m_poly_painter.spread_vertices_colors();
 #endif
       }
 
@@ -4268,6 +4274,7 @@ public:
         :
         m_pConstrain(pconstrain_),
         m_metric_field(metric_field_),
+        m_poly_painter(pconstrain_, metric_field_),
         m_criteria(criteria_),
         m_stars(),
         m_refine_queue(),

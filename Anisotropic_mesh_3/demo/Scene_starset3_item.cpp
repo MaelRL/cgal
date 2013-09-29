@@ -236,9 +236,11 @@ Scene_starset3_item::direct_draw() const
   if(m_draw_metric_operations_debug)
     star_set().gl_draw_metric_op_debug();
   if(m_draw_colored_poly)
-    star_set().constrain_surface()->gl_draw_colored_polyhedron(star_set().constrain_surface()->m_colored_poly, plane, m_draw_colored_poly_vertex_id);
+    star_set().poly_painter()->gl_draw_colored_polyhedron(star_set().poly_painter()->colored_poly(),
+                                                         plane,
+                                                         m_draw_colored_poly_vertex_id);
   if(m_draw_colored_poly_mem)
-    star_set().constrain_surface()->gl_draw_colored_polyhedron(star_set().constrain_surface()->m_colored_poly_mem, plane);
+    star_set().poly_painter()->gl_draw_colored_polyhedron(star_set().poly_painter()->colored_poly_mem(), plane);
 
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);

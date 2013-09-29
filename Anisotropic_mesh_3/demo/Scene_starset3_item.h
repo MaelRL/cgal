@@ -58,7 +58,7 @@ public:
   bool isFinite() const { return true; }
   bool isEmpty() const  { return star_set().empty(); }
   int nbStars() const { return (int)star_set().size(); }
-  int nbColoredVertices() const { return (int)star_set().constrain_surface()->m_colored_poly.size_of_vertices(); }
+  int nbColoredVertices() const { return (int)star_set().poly_painter()->colored_poly().size_of_vertices(); }
 
   Bbox bbox() const;
 

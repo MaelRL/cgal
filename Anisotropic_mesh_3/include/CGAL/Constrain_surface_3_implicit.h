@@ -408,14 +408,14 @@ public:
         w = p.base2();
       }
 
-      virtual void build_colored_polyhedron() const
+      void build_colored_polyhedron(Colored_polyhedron& poly) const
       {
-        std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
+        std::cout << "trying to convert c3t3 to polyhedron and outputing it (I)...";
         Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
-        this->m_colored_poly = Colored_polyhedron();
-        this->m_colored_poly.delegate(builder);
+        poly = Colored_polyhedron();
+        poly.delegate(builder);
         std::ofstream out("colored_poly.off");
-        out << this->m_colored_poly;
+        out << poly;
         std::cout << "done" << std::endl;
       }
 

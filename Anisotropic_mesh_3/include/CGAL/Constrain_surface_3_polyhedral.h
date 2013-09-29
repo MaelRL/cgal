@@ -239,16 +239,8 @@ class Constrain_surface_3_polyhedral :
       mutable bool m_cache_min_curvature;
       
     public:
-      virtual FT get_bounding_radius() const
-      {
-        return bounding_radius;
-      }
-
-      virtual std::string name() const
-      {
-        return std::string("Polyhedron");
-      }
-
+      virtual FT get_bounding_radius() const { return bounding_radius; }
+      virtual std::string name() const { return std::string("Polyhedron"); }
       virtual typename CGAL::Bbox_3 get_bbox() const
       {
         //note : compute_bounding_box was run in constructor
@@ -1515,14 +1507,14 @@ class Constrain_surface_3_polyhedral :
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 
-      virtual void build_colored_polyhedron() const
+      void build_colored_polyhedron(Colored_polyhedron& poly) const
       {
-        std::cout << "trying to convert c3t3 to polyhedron and outputing it" << std::endl;
+        std::cout << "trying to convert c3t3 to polyhedron and outputing it (P)...";
         Complex_3_in_triangulation_3_polyhedron_builder<C3t3, Colored_polyhedron> builder(m_c3t3);
-        this->m_colored_poly = Colored_polyhedron();
-        this->m_colored_poly.delegate(builder);
+        poly = Colored_polyhedron();
+        poly.delegate(builder);
         std::ofstream out("colored_poly.off");
-        out << this->m_colored_poly;
+        out << poly;
         std::cout << "done" << std::endl;
       }
 
