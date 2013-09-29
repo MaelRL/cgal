@@ -46,7 +46,7 @@ namespace CGAL
         return this->build_metric(en, e1, e2, std::sqrt(vpn), std::sqrt(vp1), std::sqrt(vp2));
       }
 
-      Implicit_curvature_metric_field(const Constrain_surface &surface_, 
+      Implicit_curvature_metric_field(const Constrain_surface &surface_,
                                       const FT epsilon_ = 1.0,
                                       const double& en_factor_ = 1.) 
         : Metric_field<K>(epsilon_, en_factor_), surface(surface_) { }

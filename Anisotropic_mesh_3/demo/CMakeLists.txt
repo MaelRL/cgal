@@ -27,7 +27,8 @@ add_definitions(
     -DANISO_VERBOSE
     -DANISO_IMPLICIT_INTERSECTION_STEPS
 #    -DANISO_DEBUG_MATRIX_OPERATIONS
-)
+)
+
 
 if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)

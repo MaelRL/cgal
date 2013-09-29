@@ -115,6 +115,7 @@ namespace CGAL
       typedef typename Kd_tree::Box_query                         Kd_Box_query;
       typedef typename Kd_tree::key_type                          Kd_point_info;
 
+
     public :
       struct Facet_ijk;
       struct Edge_ij;
@@ -3691,7 +3692,6 @@ public:
 
       void gl_draw_metric_colors() const
       {
-
         std::ifstream input("geometry_input.off");
         std::ifstream ratio_colors("metric_colors.txt");
         if(!input || !ratio_colors)
@@ -4068,7 +4068,7 @@ public:
       }
 
       void gl_draw_metric_honoring(const typename K::Plane_3& plane,
-                                  const int star_id = -1) const
+                                   const int star_id = -1) const
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
         if(was)
