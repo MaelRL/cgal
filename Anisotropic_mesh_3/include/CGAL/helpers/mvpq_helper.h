@@ -71,6 +71,7 @@ class Colored_modifiable_vertex_priority_queue :
     typedef typename std::pair<typename Colored_polyhedron::Vertex_handle, int> Cmvpq_type;
 
     typedef typename Colored_polyhedron::Traits::Kernel                    K;
+    typedef typename K::FT                                                 FT;
     typedef typename Colored_polyhedron::Point_3                           Point_3;
     typedef typename Colored_polyhedron::Vertex_handle                     Vertex_handle;
     typedef typename Colored_polyhedron::Facet_handle                      Facet_handle;
@@ -157,6 +158,77 @@ class Colored_modifiable_vertex_priority_queue :
           increase_vertex_value(*it);
     }
 
+    void color_top_vertex_blend(int rank)
+    {
+      Cmvpq_type* top_vertex = this->extract_top().get();
+
+      if(top_vertex->second == 0)
+      {
+        std::cout << "top vertex has zero neighbors colored" << std::endl;
+        return;
+      }
+
+      std::set<Vertex_handle, Vertex_Compare> neigh_vertices;
+      get_first_ring(top_vertex->first, neigh_vertices);
+
+      //extend to second ring if distortion is high here
+
+      Point_3 p = top_vertex->first->point();
+
+      typename std::set<Vertex_handle, Vertex_Compare>::iterator it = neigh_vertices.begin();
+      typename std::set<Vertex_handle, Vertex_Compare>::iterator itend = neigh_vertices.end();
+
+      std::cout << "*--*-*-**-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl;
+      std::cout << "coloring : " << top_vertex->first->tag() << " " << top_vertex->first->point() << std::endl;
+
+      FT sum_dist = 0.;
+      int counter = 0;
+      std::vector<FT> sq_distances;
+      for(; it!=itend; ++it)
+      {
+        if((*it)->is_colored())
+        {
+          std::cout << "in : " << (*it)->tag() << " ranked : " << (*it)->colored_rank() << std::endl;
+          sq_distances.push_back(CGAL::squared_distance(p, (*it)->point()));
+          sum_dist += std::sqrt(sq_distances[counter]);
+          counter++;
+        }
+      }
+
+      FT rb = sum_dist / (counter);
+      FT wpp_inv = 1./(rb * rb);
+
+      // blend
+      Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
+      FT wsum = 0.;
+      it = neigh_vertices.begin();
+      counter = 0;
+      for(; it!=itend; ++it)
+      {
+        if((*it)->is_colored())
+        {
+          FT w = std::exp(-wpp_inv * sq_distances[counter]);
+          wsum += w;
+          for(int j = 0; j < 3; j++)
+            for(int k = 0; k < 3; k++)
+              m(j,k) = m(j,k) + w * ((*it)->metric())(j,k);
+          counter++;
+        }
+      }
+
+      FT wsum_inv = 1. / wsum;
+      for(int j = 0; j < 3; j++)
+        for(int k = 0; k < 3; k++)
+          m(j,k) = m(j,k) * wsum_inv;
+
+      std::cout << "finished : " << counter << " " << top_vertex->second << std::endl;
+      top_vertex->first->metric() = m;
+      top_vertex->first->metric_origin() = 3;
+      top_vertex->first->colored_rank() =  rank;
+
+      increase_neigh_vertices(neigh_vertices);
+    }
+
     void color_top_vertex(int rank)
     {
       Cmvpq_type* top_vertex = this->extract_top().get();
@@ -209,7 +281,7 @@ class Colored_modifiable_vertex_priority_queue :
       std::cout << "spreading colors..." << std::endl;
       int rank = 0;
       while(!this->empty())
-        color_top_vertex(rank++);
+        color_top_vertex_blend(rank++);
     }
 
     Colored_modifiable_vertex_priority_queue(size_type largest_ID,
