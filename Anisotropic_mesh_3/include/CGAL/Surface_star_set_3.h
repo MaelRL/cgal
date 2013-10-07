@@ -1942,7 +1942,7 @@ public:
           if (refine_facet.star->has_facet(refine_facet.vertices, facet))
           {
             //skipping inconsistencies resolution during first pass
-            if((m_pass_n > 1) && m_pass_wo_incons && queue_type > 4)
+            if(m_pass_wo_incons && queue_type > 4)
               return false;
 
             need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
@@ -3026,7 +3026,7 @@ public:
       void add_grid_pts_from_triangle(const Point_3& pa, const Color_type& color_a,
                                       const Point_3& pb, const Color_type& color_b,
                                       const Point_3& pc, const Color_type& color_c,
-                                      const int& pts_on_side)
+                                      const int pts_on_side, const bool is_metric_computed)
                                       //std::map<Point_3, int>& visited_points
       {
         if(pts_on_side < 1)
@@ -3126,31 +3126,36 @@ public:
 
             Color_type color_a, color_b, color_c;
             get_colors(star_a, color_a, star_b, color_b, star_c, color_c);
+            bool is_metric_computed = (m_pass_count >= m_pass_n);
 
             if(!visited_points[pa])
             {
-              m_poly_painter.color_poly(pa, color_a, 2);
+              m_poly_painter.color_poly(pa, color_a, is_metric_computed, 2);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              m_poly_painter.color_poly(pb, color_b, 2);
+              m_poly_painter.color_poly(pb, color_b, is_metric_computed, 2);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              m_poly_painter.color_poly(pc, color_c, 2);
+              m_poly_painter.color_poly(pc, color_c, is_metric_computed , 2);
               visited_points[pc] = 1;
             }
 
-            add_grid_pts_from_triangle(pa, color_a, pb, color_b, pc, color_c, pts_on_side);
+            add_grid_pts_from_triangle(pa, color_a, pb, color_b, pc, color_c, pts_on_side, is_metric_computed);
           }
         }
+        m_poly_painter.count_colored_elements();
+#ifndef ANISO_COLOR_POLY_FACETS
+        m_poly_painter.count_red_green_elements();
+#endif
       }
 
       void fill_c3t3_grid(int step)
       {
-        if(step == 1)
+        if(step == 0)
         {
           m_poly_painter.build_colored_polyhedron();
           m_poly_painter.build_colored_poly_tree();
@@ -3159,14 +3164,27 @@ public:
         else
           m_poly_painter.clear_colors();
 
-        color_polyhedron_from_starset();
+        if(step != (m_pass_n-1) || step == 0)
+        {
+          color_polyhedron_from_starset();
+          m_poly_painter.color_uncolored_vertices_red();
+        }
 
+        if(step == (m_pass_n-1))
+        {
+          m_use_c3t3_colors = true;
+          m_poly_painter.color_vertices_with_acceptable_rg_ratio();
+        }
+
+        if(step >= (m_pass_n-1))
+        {
 #ifdef ANISO_COLOR_POLY_FACETS
-        m_poly_painter->average_facet_color_contributor();
-        m_poly_painter->spread_facets_colors();
+          m_poly_painter->average_facet_color_contributor();
+          m_poly_painter->spread_facets_colors();
 #else
-        m_poly_painter.spread_vertices_colors();
+          m_poly_painter.spread_vertices_colors();
 #endif
+        }
       }
 
 public:
@@ -3304,10 +3322,9 @@ public:
                       const int pick_valid_max_failures = 100,
                       const bool pick_valid_use_probing = false)
       {
-        while(++m_pass_count < m_pass_n)
+        while(m_pass_count < m_pass_n)
         {
           refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
-          m_use_c3t3_colors = true;
           std::ostringstream oss;
           oss << "pass_" << m_pass_count << ".off" << std::ends;
           output(oss.str().c_str());
@@ -3316,9 +3333,13 @@ public:
           std::cout << "done with pass : " << m_pass_count << " , entering local eps functions & stuff" << std::endl;
           std::cout << "--------------------------------------------------------" << std::endl;
           fill_c3t3_grid(m_pass_count);
+          std::cout << "--------------------------------------------------------" << std::endl;
+          std::cout << "post fill c3t3: " << m_pass_count << std::endl;
+          std::cout << "--------------------------------------------------------" << std::endl;
           reset();
           if(!continue_)
             return;
+          m_pass_count++;
         }
 
         //last pass

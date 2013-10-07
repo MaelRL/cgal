@@ -125,7 +125,7 @@ public:
 #endif
   }
 
-  void color_poly(const Point_3& p, const Eigen::Matrix3d& m, int origin = 0) const
+  void color_poly(const Point_3& p, const Eigen::Matrix3d& m, const bool is_metric_computed, int origin = 0) const
   {
     Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
     Point_3 closest_point = pp.first;
@@ -149,11 +149,20 @@ public:
 
     if(!v->contributors())
     {
-      Metric mp = m_mf->compute_metric(p);
-      Eigen::Matrix3d transf = mp.get_transformation();
-      v->metric() = transf.transpose()*transf;
-      v->metric_origin() = origin;
+      v->green()++;
       v->contributors()++;
+      v->metric_origin() = origin;
+
+      if(is_metric_computed)
+      {
+        std::cout << "brute force search in the previous FULLY colored polyhedron" << std::endl;
+      //super brute force / ugly, replace todo
+        Vertex_iterator vi;
+        for(vi = m_colored_poly_prev.vertices_begin(); vi != m_colored_poly_prev.vertices_end(); ++vi)
+          if(vi->point() == v->point())
+            break;
+        v->metric() = vi->metric();
+      }
     }
 
     /*
