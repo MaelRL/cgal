@@ -76,9 +76,12 @@ public:
 
   void number_colored_poly() const
   {
-    std::ofstream out("coordinates_to_num.txt");
-
     std::size_t index = 0;
+#ifdef ANISO_COLOR_POLY_FACETS
+    for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
+      f->tag() = index;
+#else
+    std::ofstream out("coordinates_to_num.txt");
     m_colored_poly_vertex_index.reserve(m_colored_poly.size_of_vertices());
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v, ++index)
     {
@@ -86,10 +89,25 @@ public:
       m_colored_poly_vertex_index[index] = v;
       out << v->point() << " -- " << index << std::endl;
     }
+#endif
+  }
 
-    index = 0;
-    for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
-      f->tag() = index;
+  void count_colored_elements() const
+  {
+    int count = 0;
+#ifdef ANISO_COLOR_POLY_FACETS
+    for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
+      if(f->color() != 0)
+        count ++;
+    std::cout << count << " / " << m_colored_poly.size_of_facets() << " colored facets" << std::endl;
+#else
+    for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
+      if(v->is_colored())
+        count++;
+    std::cout << count << " / " << m_colored_poly.size_of_vertices() << " colored vertices" << std::endl;
+#endif
+  }
+
   void count_red_green_elements() const
   {
     int count = 0;
@@ -205,7 +223,7 @@ public:
         v->red()++;
   }
 
-  void color_poly(const Point_3& p, const FT& ratio) const
+  void color_poly(const Point_3& p, const FT& ratio, const bool useless, int uuseless = 0) const
   {
     Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
     Face_handle closest_f = pp.second; // closest primitive id
