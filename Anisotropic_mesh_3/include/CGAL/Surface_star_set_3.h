@@ -3514,6 +3514,90 @@ private:
        }
      }
 
+     void matrix_spread_debug() const
+     {
+       Point_3 p1(-4,2,-2);
+       Point_3 p2(-10,4,-2);
+       Point_3 p3(-2,10,-4);
+       Point_3 p4(-6,8,-6);
+
+       Eigen::Matrix3d m1, m2, m3, m3bis;
+       Eigen::Matrix3d m4 = Eigen::Matrix3d::Zero();
+
+       m1(0,0) = 0.110597; m1(0,1) = -0.146641; m1(0,2) = 9.23321e-05;
+       m1(1,0) = -0.146641; m1(1,1) = 1.01894; m1(1,2) = -0.000582981;
+       m1(2,0) = 9.23321e-05; m1(2,1) = -0.000582981; m1(2,2) = 1.04375;
+
+       m2(0,0) = 0.628699; m2(0,1) = -0.499819; m2(0,2) = 0.000162285;
+       m2(1,0) = -0.499819; m2(1,1) = 0.555995; m2(1,2) = -0.00015102;
+       m2(2,0) = 0.000162285; m2(2,1) = -0.00015102; m2(2,2) = 1.09563;
+
+       m3(0,0) = 0.231554; m3(0,1) = -0.327045; m3(0,2) = -0.000330057;
+       m3(1,0) = -0.327045; m3(1,1) = 0.88463; m3(1,2) = 0.000794931;
+       m3(2,0) = -0.000330057; m3(2,1) = 0.000794931; m3(2,2) = 1.02134;
+
+       m3bis(0,0) = 0.231554; m3bis(0,1) = -0.327045; m3bis(0,2) = -0.000330057;
+       m3bis(1,0) = -0.327045; m3bis(1,1) = 0.88463; m3bis(1,2) = 0.000794931;
+       m3bis(2,0) = -0.000330057; m3bis(2,1) = 0.000794931; m3bis(2,2) = 1.02134;
+
+       Vector_3 v1,v2,vn;
+       FT e1,e2,en;
+
+       get_eigen_vecs_and_vals<K>(m1, vn, v1, v2, en, e1, e2);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, p1, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 23, 234);
+       get_eigen_vecs_and_vals<K>(m2, vn, v1, v2, en, e1, e2);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, p2, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 23, 234);
+       get_eigen_vecs_and_vals<K>(m3, vn, v1, v2, en, e1, e2);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, p3, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 23, 234);
+
+       //---------------------------------------------------------------------------------
+
+       FT sq_d14 = CGAL::squared_distance(p1, p4);
+       FT sq_d24 = CGAL::squared_distance(p2, p4);
+       FT sq_d34 = CGAL::squared_distance(p3, p4);
+
+       FT rb = (std::sqrt(sq_d14) + std::sqrt(sq_d24) + std::sqrt(sq_d34)) / 3.;
+       FT wpp_inv = 1./(rb * rb);
+
+       // blend
+       FT w1 = std::exp(-wpp_inv * sq_d14);
+       FT w2 = std::exp(-wpp_inv * sq_d24);
+       FT w3 = std::exp(-wpp_inv * sq_d34);
+       FT wsum = w1 + w2 + w3;
+
+       for(int j = 0; j < 3; j++)
+         for(int k = 0; k < 3; k++)
+           m4(j,k) = w1 * m1(j,k) + w2 * m2(j,k) + w3 * m3(j,k);
+
+       FT wsum_inv = 1. / wsum;
+       for(int j = 0; j < 3; j++)
+         for(int k = 0; k < 3; k++)
+           m4(j,k) = m4(j,k) * wsum_inv;
+
+       get_eigen_vecs_and_vals<K>(m4, vn, v1, v2, en, e1, e2);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, p4, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 234, 234);
+
+       //---------------------------------------------------------------------------------
+       FT sum = 1./sq_d14 + 1./sq_d24 + 1./sq_d34;
+       std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
+       w_metrics.push_back(std::make_pair(m1, 1./(sum*sq_d14)));
+       w_metrics.push_back(std::make_pair(m2, 1./(sum*sq_d24)));
+       w_metrics.push_back(std::make_pair(m3, 1./(sum*sq_d34)));
+       m4 = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_metrics);
+       get_eigen_vecs_and_vals<K>(m4, vn, v1, v2, en, e1, e2);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, p4, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 234, 34);
+
+       //---------------------------------------------------------------------------------
+       sum = 1./std::sqrt(sq_d14) + 1./std::sqrt(sq_d24) + 1./std::sqrt(sq_d34);
+       w_metrics.clear();
+       w_metrics.push_back(std::make_pair(m1, 1./(sum*std::sqrt(sq_d14))));
+       w_metrics.push_back(std::make_pair(m2, 1./(sum*std::sqrt(sq_d24))));
+       w_metrics.push_back(std::make_pair(m3, 1./(sum*std::sqrt(sq_d34))));
+       m4 = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_metrics);
+       get_eigen_vecs_and_vals<K>(m4, vn, v1, v2, en, e1, e2);
+       gl_draw_ellipsoid<K>(CGAL::ORIGIN, p4, 30, 30, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 230, 34, 34);
+     }
+
      void matrix_intersection_debug() const
      {
        //double intersection debug
@@ -4220,6 +4304,7 @@ public:
             
       void gl_draw_metric_op_debug() const
       {
+        matrix_spread_debug();
         matrix_intersection_debug();
         matrix_scaling_debug();
         matrix_interpoltion_debug();
