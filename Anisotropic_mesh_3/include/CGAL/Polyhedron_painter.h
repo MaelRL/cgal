@@ -90,6 +90,13 @@ public:
     index = 0;
     for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
       f->tag() = index;
+  void count_red_green_elements() const
+  {
+    int count = 0;
+    for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
+      if(v->green() > 0)
+        count++;
+    std::cout << count << " / " << m_colored_poly.size_of_vertices() << " green vertices" << std::endl;
   }
 
   void build_colored_poly_tree() const
@@ -162,6 +169,31 @@ public:
     }
     v->contributors()++;
     */
+  }
+
+  void color_vertices_with_acceptable_rg_ratio(double ratio_limit = 0.8) const
+  {
+    std::cout << "coloring vertices with acceptable ratios"<< std::endl;
+    for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
+    {
+      double v_ratio = v->ratio();
+      //std::cout << v->tag() << " " << v->green() << " " << v->red() << " " << v_ratio << std::endl;
+      if(v_ratio > ratio_limit)
+      {
+        Point_3 p = v->point();
+        Metric mp = m_mf->compute_metric(p);
+        Eigen::Matrix3d transf = mp.get_transformation();
+        v->metric() = transf.transpose()*transf;
+      }
+    }
+    count_colored_elements();
+  }
+
+  void color_uncolored_vertices_red() const
+  {
+    for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
+      if(v->contributors() == 0)
+        v->red()++;
   }
 
   void color_poly(const Point_3& p, const FT& ratio) const
@@ -375,12 +407,28 @@ public:
       if(!is_above_plane<K>(plane, pi))
         continue;
 
+      float tot = vi->red() + vi->green();
+      float redc = ((float) vi->red())/tot;
+      float greenc = ((float) vi->green())/tot;
+
+      if(greenc > 0.8)
+      {
+        ::glPointSize(9.);
+        ::glBegin(GL_POINTS);
+        ::glColor3d(0.1,0.1,0.7);
+        ::glVertex3f(pi.x(), pi.y(), pi.z());
+        ::glEnd();
+      }
+
       ::glPointSize(7.);
       ::glBegin(GL_POINTS);
+      /*
       if(!vi->is_colored())
         ::glColor3d(1.,0.,0.);
       else
         ::glColor3d(0.,1.,0.);
+      */
+      ::glColor3d(redc,greenc,0.1);
       ::glVertex3f(pi.x(), pi.y(), pi.z());
       ::glEnd();
 
