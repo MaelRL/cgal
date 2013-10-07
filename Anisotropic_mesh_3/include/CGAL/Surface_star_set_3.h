@@ -498,6 +498,23 @@ private:
         return facets.size();
       }
 
+      int count_consistent_restricted_facets(Star_handle star) const
+      {
+        if(!star->is_surface_star())
+          return 0;
+
+        int count = 0;
+        typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+        typename Star::Facet_set_iterator fend = star->end_restricted_facets();
+        for(; fit != fend; ++fit)
+        {
+          Facet f = *fit;
+          if(is_consistent(f))
+            count++;
+        }
+        return count;
+      }
+
       bool check_consistency_and_sliverity(Star_handle to_be_refined, //facet to be refined belongs to this star
                                            Star_handle new_star,     //the newly created star
                                            const Index_set& modified_stars,
@@ -3081,6 +3098,10 @@ public:
           Star_handle star = get_star(it);
           if(!star->is_surface_star())
             continue;
+
+          if(count_consistent_restricted_facets(star) < 2)
+            continue;
+
           typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
           typename Star::Facet_set_iterator fend = star->end_restricted_facets();
           for(; fit != fend; ++fit)
