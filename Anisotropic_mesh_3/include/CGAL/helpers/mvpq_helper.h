@@ -139,7 +139,7 @@ class Colored_modifiable_vertex_priority_queue :
     {
       int index = v->tag();
       data[index].second = value;
-      update(&data[0]+index, true);
+      this->update(&data[0]+index, true);
     }
 
     void increase_vertex_value(const Vertex_handle& v)

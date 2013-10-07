@@ -278,7 +278,7 @@ public:
     Vertex_handle v = m_colored_poly_vertex_index[vertex_num];
     std::cout << "-------------------------------------------------------------" << std::endl;
     std::cout << "draw one : " << v->tag() << " rank is : " << v->colored_rank() << std::endl;
-    std::cout << "tensor : " << v->metric() << std::endl;
+    std::cout << "tensor : " << std::endl << v->metric() << std::endl;
     Point_3 p = v->point();
     int rank = v->colored_rank();
 
@@ -409,8 +409,6 @@ public:
   }
 
 };
-
-
 
 }
 }

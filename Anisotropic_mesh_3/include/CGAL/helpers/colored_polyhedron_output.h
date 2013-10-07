@@ -1,12 +1,15 @@
-#ifndef COLORED_POLYHEDRON_OUTPUT_H
-#define COLORED_POLYHEDRON_OUTPUT_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_COLORED_POLYHEDRON_OUTPUT_H
+#define CGAL_ANISOTROPIC_MESH_3_COLORED_POLYHEDRON_OUTPUT_H
 
 #include <CGAL/basic.h>
 #include <CGAL/Inverse_index.h>
 #include <CGAL/IO/binary_file_io.h>
 #include <iostream>
 
-namespace CGAL {
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<class Writer>
 void write_color( std::ostream& out, Writer& writer, double c) {
@@ -71,6 +74,7 @@ output_colored_polyhedron(std::ostream& out,
   writer.write_footer();
 }
 
+}
 }
 #endif
 

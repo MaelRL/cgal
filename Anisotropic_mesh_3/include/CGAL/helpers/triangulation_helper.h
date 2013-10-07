@@ -4,6 +4,11 @@
 #include <vector>
 
 
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
+
 // compute poles (1/2) (1 per vertex : the furthest)
 // compute poles (2/2) (1 per vertex : the furthest on the other side)
 template<typename C3T3, typename OutputIterator>
@@ -70,6 +75,9 @@ void compute_triangulation_poles(const C3T3& c3t3,
     if(min_scal_prod < 0. && CGAL::do_intersect(bbox, pole))
       *oit++ = pole;
   }
+}
+
+}
 }
 
 #endif

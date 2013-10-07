@@ -1519,7 +1519,7 @@ class Constrain_surface_3_polyhedral :
       }
 
       virtual Point_container get_surface_points(unsigned int nb,
-                                          double facet_distance_coeff /*= 0.05*/) const
+                                                 double facet_distance_coeff /*= 0.05*/) const
       {
         std::vector<Point_3> all_points;
         typename C3t3::Triangulation::Finite_vertices_iterator v;
