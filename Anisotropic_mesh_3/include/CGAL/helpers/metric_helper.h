@@ -255,14 +255,16 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p,
 }
 
 template<typename K>
-Eigen::Matrix3d interpolate_colors(const Eigen::Matrix3d& color_a, const typename K::FT& coeff_a,
-                                   const Eigen::Matrix3d& color_b, const typename K::FT& coeff_b,
-                                   const Eigen::Matrix3d& color_c, const typename K::FT& coeff_c)
+Eigen::Matrix3d interpolate_colors(const std::vector<std::pair<Eigen::Matrix3d, typename K::FT> >& w_metrics)
 {
 #ifdef ANISO_DEBUG_MATRIX_OPERATIONS
-  std::cout << "coeffs of matrix interpolation : " << coeff_a << " " << coeff_b << " " << coeff_c << std::endl;
+  std::cout << "interpolating " << w_metrics.size() << " matrices" << std::endl;
 #endif
-  return matrix_exp<K>(matrix_log<K>(color_a, coeff_a) + matrix_log<K>(color_b, coeff_b) + matrix_log<K>(color_c, coeff_c)); //Prod(Miˆalphai)
+  Eigen::Matrix3d log_sum = Eigen::Matrix3d::Zero();
+  for(std::size_t i=0; i<w_metrics.size(); ++i)
+    log_sum += matrix_log<K>(w_metrics[i].first, w_metrics[i].second);
+
+  return matrix_exp<K>(log_sum); //Prod(Miˆalphai)
 }
 
 template<typename K>

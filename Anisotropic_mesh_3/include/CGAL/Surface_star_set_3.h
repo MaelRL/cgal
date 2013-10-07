@@ -2996,11 +2996,13 @@ public:
       
 public:
       template<typename Kernel>
-      FT interpolate_colors(const FT& color_a, const FT& coeff_a,
-                            const FT& color_b, const FT& coeff_b,
-                            const FT& color_c, const FT& coeff_c)
+      FT interpolate_colors(const std::vector<std::pair<FT, FT> >& w_FT)
       {
-        return color_a*coeff_a + color_b*coeff_b + color_c*coeff_c;
+        FT sum = 0.;
+        for(int i=0; i<w_FT.size(); ++i)
+          sum += w_FT[i].first*w_FT[i].second;
+
+        return sum;
       }
 
       template<typename Color_type>
@@ -3033,8 +3035,12 @@ public:
 
             if(!visited_points[p])
             {
-              Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(color_a, coeff_a, color_b, coeff_b, color_c, coeff_c);
-              m_poly_painter.color_poly(p, pcolor, 1);
+              std::vector<std::pair<Color_type, FT> > w_colors;
+              w_colors.push_back(std::make_pair(color_a, coeff_a));
+              w_colors.push_back(std::make_pair(color_b, coeff_b));
+              w_colors.push_back(std::make_pair(color_c, coeff_c));
+              Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_colors);
+              m_poly_painter.color_poly(p, pcolor, is_metric_computed, 1);
               visited_points[p] = 1;
             }
           }
@@ -3433,7 +3439,11 @@ private:
            FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
            Point_3 p(px,py,pz);
 
-           Eigen::Matrix3d pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(ma, coeff_a, mb, coeff_b, mc, coeff_c);
+           std::vector<std::pair<Color_type, FT> > w_metrics;
+           w_metrics.push_back(std::make_pair(ma, coeff_a));
+           w_metrics.push_back(std::make_pair(mb, coeff_b));
+           w_metrics.push_back(std::make_pair(mc, coeff_c));
+           Eigen::Matrix3d pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_metrics);
 
            get_eigen_vecs_and_vals<K>(pcolor, vn, v1, v2, en, e1, e2);
            gl_draw_ellipsoid<K>(CGAL::ORIGIN, p, 20, 20, 1./std::sqrt(e1), 1./std::sqrt(e2), 1./std::sqrt(en), v1, v2, vn, 20, 205, 23);

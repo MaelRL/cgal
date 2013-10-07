@@ -238,7 +238,11 @@ public:
     FT w = (d00 * d21 - d01 * d20) / denom;
     FT u = 1.0f - v - w;
 
-    m = interpolate_colors<K>(va->metric(), u, vb->metric(), v, vc->metric(), w);
+    std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
+    w_metrics.push_back(std::make_pair(va->metric(), u));
+    w_metrics.push_back(std::make_pair(vb->metric(), v));
+    w_metrics.push_back(std::make_pair(vc->metric(), w));
+    m = interpolate_colors<K>(w_metrics);
   }
 
   void get_color_from_poly(const Point_3& p, FT& ratio) const
