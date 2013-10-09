@@ -2151,18 +2151,6 @@ public:
           if(m_use_c3t3_colors)
           {
             //now in second phase, the metric is computed with the c3t3 grid
-#ifdef ANISO_COLOR_POLY_FACETS
-            double new_ratio = 0.;
-            //double old_ratio = m_p.get_max_eigenvalue()/m_p.get_min_eigenvalue();
-            m_poly_painter->get_color_from_poly(p, new_ratio);
-            if(new_ratio <= 0.)
-              std::cout << "new ratio is in the depths of hell... : " << new_ratio << std::endl;
-            FT new_min = m_p.get_max_eigenvalue() / new_ratio;
-            m_p = metric_field()->build_metric(m_p.get_vn(), m_p.get_vmax(), m_p.get_vmin(),
-                                               m_p.get_third_eigenvalue(),
-                                               m_p.get_max_eigenvalue(),
-                                               new_min);
-#else
             Vector_3 normal;
             m_p.get_third_eigenvector(normal);
 
@@ -2178,7 +2166,6 @@ public:
             int id_2 = (n_ind + 2) % 3;
 
             m_p = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2], std::sqrt(e[n_ind]), std::sqrt(e[id_1]), std::sqrt(e[id_2]));
-#endif
           }
 
           star->reset(p, pid, m_p, surface_star);
@@ -3118,13 +3105,7 @@ public:
             Point_3& pb = star_b->center_point();
             Point_3& pc = star_c->center_point();
 
-#ifdef ANISO_COLOR_POLY_FACETS
-#define Color_type FT
-#else
-#define Color_type Eigen::Matrix3d
-#endif
-
-            Color_type color_a, color_b, color_c;
+            Eigen::Matrix3d color_a, color_b, color_c;
             get_colors(star_a, color_a, star_b, color_b, star_c, color_c);
             bool is_metric_computed = (m_pass_count >= m_pass_n);
 
@@ -3148,9 +3129,7 @@ public:
           }
         }
         m_poly_painter.count_colored_elements();
-#ifndef ANISO_COLOR_POLY_FACETS
         m_poly_painter.count_red_green_elements();
-#endif
       }
 
       void fill_c3t3_grid(int step)
@@ -3176,15 +3155,8 @@ public:
           m_poly_painter.color_vertices_with_acceptable_rg_ratio();
         }
 
-        if(step >= (m_pass_n-1))
-        {
-#ifdef ANISO_COLOR_POLY_FACETS
-          m_poly_painter->average_facet_color_contributor();
-          m_poly_painter->spread_facets_colors();
-#else
+        if(step >= (m_pass_n-1)) // potential passes using the colored polyhedron, unused atm
           m_poly_painter.spread_vertices_colors();
-#endif
-        }
       }
 
 public:
@@ -3481,7 +3453,7 @@ private:
            FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
            Point_3 p(px,py,pz);
 
-           std::vector<std::pair<Color_type, FT> > w_metrics;
+           std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
            w_metrics.push_back(std::make_pair(ma, coeff_a));
            w_metrics.push_back(std::make_pair(mb, coeff_b));
            w_metrics.push_back(std::make_pair(mc, coeff_c));

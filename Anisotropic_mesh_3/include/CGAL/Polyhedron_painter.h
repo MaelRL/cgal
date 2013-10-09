@@ -77,10 +77,6 @@ public:
   void number_colored_poly() const
   {
     std::size_t index = 0;
-#ifdef ANISO_COLOR_POLY_FACETS
-    for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f, ++index)
-      f->tag() = index;
-#else
     std::ofstream out("coordinates_to_num.txt");
     m_colored_poly_vertex_index.reserve(m_colored_poly.size_of_vertices());
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v, ++index)
@@ -89,23 +85,15 @@ public:
       m_colored_poly_vertex_index[index] = v;
       out << v->point() << " -- " << index << std::endl;
     }
-#endif
   }
 
   void count_colored_elements() const
   {
     int count = 0;
-#ifdef ANISO_COLOR_POLY_FACETS
-    for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
-      if(f->color() != 0)
-        count ++;
-    std::cout << count << " / " << m_colored_poly.size_of_facets() << " colored facets" << std::endl;
-#else
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
       if(v->is_colored())
         count++;
     std::cout << count << " / " << m_colored_poly.size_of_vertices() << " colored vertices" << std::endl;
-#endif
   }
 
   void count_red_green_elements() const
@@ -128,19 +116,11 @@ public:
 
   void clear_colors() const
   {
-#ifdef ANISO_COLOR_POLY_FACETS
-    for(Facet_iterator f = m_colored_poly.facets_begin(); f != m_colored_poly.facets_end(); ++f)
-    {
-      f->color() = 0.;
-      f->contributors() = 0.;
-    }
-#else
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
     {
       v->metric() = Eigen::Matrix3d::Zero();
       v->contributors() = 0.;
     }
-#endif
   }
 
   void color_poly(const Point_3& p, const Eigen::Matrix3d& m, const bool is_metric_computed, int origin = 0) const
@@ -405,17 +385,17 @@ public:
       return;
     }
 
-    typedef typename Colored_polyhedron::Facet_iterator  FI;
-    typedef typename Colored_polyhedron::Vertex_iterator VI;
+    GLboolean was = (::glIsEnabled(GL_LIGHTING));
+    if(was)
+      ::glDisable(GL_LIGHTING);
 
+    /*
+    typedef typename Colored_polyhedron::Facet_iterator  FI;
     double strongest_color = -1;
     for(FI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
       if(fi->color() > strongest_color)
         strongest_color = fi->color();
 
-    GLboolean was = (::glIsEnabled(GL_LIGHTING));
-    if(was)
-      ::glDisable(GL_LIGHTING);
 
     if(strongest_color > 0)
       for(FI fi = P.facets_begin(); fi != P.facets_end(); ++fi)
@@ -425,7 +405,9 @@ public:
           continue;
         gl_draw_colored_polyhedron_facet<Colored_polyhedron>(fi, f_color);
       }
+    */
 
+    typedef typename Colored_polyhedron::Vertex_iterator VI;
     int index = 0;
     for (VI vi = P.vertices_begin(); vi != P.vertices_end(); ++vi, ++index)
     {

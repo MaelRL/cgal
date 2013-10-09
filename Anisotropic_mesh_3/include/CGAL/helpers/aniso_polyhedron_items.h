@@ -82,11 +82,13 @@ struct Aniso_items : public CGAL::Polyhedron_items_3
     typedef Metric_vertex<Refs, CGAL::Tag_true, Point> Vertex;
   };
 
+  /*
   template<class Refs, class Traits>
   struct Face_wrapper
   {
     typedef Colored_facet<Refs, CGAL::Tag_true> Face;
   };
+  */
 };
 
 }
