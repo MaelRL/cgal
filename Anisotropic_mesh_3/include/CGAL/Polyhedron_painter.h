@@ -463,7 +463,7 @@ public:
       if(!vi->is_colored() || (vi->metric_origin() != 0 && index%100 != 0))
         continue;
 
-      gl_draw_ellipsoid_with_origin_color(vi);
+      //gl_draw_ellipsoid_with_origin_color(vi);
     }
 
     if(was)
