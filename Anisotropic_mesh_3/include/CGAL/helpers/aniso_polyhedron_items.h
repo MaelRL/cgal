@@ -21,6 +21,7 @@ class Metric_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
   int m_metric_origin; //1=pt on starset, 2=pt on a triangle, 3=colored in spread
   int m_colored_rank;
   int m_red, m_green;
+  bool m_colored_this_pass;
 
 public:
   Metric_vertex()  {}
@@ -32,7 +33,8 @@ public:
       m_metric_origin(0),
       m_colored_rank(-1),
       m_red(0),
-      m_green(0)
+      m_green(0),
+      m_colored_this_pass(false)
   {}
 
   // tag
@@ -50,6 +52,8 @@ public:
   int& red() { return m_red; }
   const int& green() const { return m_green; }
   int& green() { return m_green; }
+  const bool& colored_this_pass() const { return m_colored_this_pass; }
+  bool& colored_this_pass() { return m_colored_this_pass; }
 
   bool is_colored() const {return m_metric != Eigen::Matrix3d::Zero();}
   double ratio() const { return ((double)m_green)/((double) m_green+m_red);}

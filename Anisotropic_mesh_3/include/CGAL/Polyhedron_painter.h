@@ -114,16 +114,17 @@ public:
     std::cout << "tree has size : " << m_colored_poly_tree->size() << std::endl;
   }
 
-  void clear_colors() const
+  void reset(bool color_reset = false) const
   {
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
     {
-      v->metric() = Eigen::Matrix3d::Zero();
-      v->contributors() = 0.;
+      v->colored_this_pass() = false;
+      if(color_reset)
+       v->metric() = Eigen::Matrix3d::Zero();
     }
   }
 
-  void color_poly(const Point_3& p, const Eigen::Matrix3d& m, const bool is_metric_computed, int origin = 0) const
+  void color_poly(const Point_3& p, const Eigen::Matrix3d& m, const bool use_previous_colors, int origin = 0) const
   {
     Point_and_primitive_id pp = m_colored_poly_tree->closest_point_and_primitive(p);
     Point_3 closest_point = pp.first;
@@ -145,13 +146,14 @@ public:
     if(dc < dmin)
       v = vc;
 
-    if(!v->contributors())
+    if(!v->colored_this_pass())
     {
       v->green()++;
       v->contributors()++;
       v->metric_origin() = origin;
+      v->colored_this_pass() = true;
 
-      if(is_metric_computed)
+      if(use_previous_colors)
       {
         std::cout << "brute force search in the previous FULLY colored polyhedron" << std::endl;
       //super brute force / ugly, replace todo
@@ -160,6 +162,17 @@ public:
           if(vi->point() == v->point())
             break;
         v->metric() = vi->metric();
+      }
+      else
+      {
+        double n = v->contributors();
+        if(n >= 2)
+        {
+          std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
+          w_metrics.push_back(std::make_pair(v->metric(), (n-1.)/n));
+          w_metrics.push_back(std::make_pair(m, 1./n));
+          v->metric() = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_metrics);
+        }
       }
     }
 
@@ -187,11 +200,17 @@ public:
       //std::cout << v->tag() << " " << v->green() << " " << v->red() << " " << v_ratio << std::endl;
       if(v_ratio > ratio_limit)
       {
+        /*
         Point_3 p = v->point();
         Metric mp = m_mf->compute_metric(p);
         Eigen::Matrix3d transf = mp.get_transformation();
         v->metric() = transf.transpose()*transf;
+        */
+        if(v->metric() == Eigen::Matrix3d::Zero())
+          std::cout << "welp" << std::endl;
       }
+      else
+        v->metric() = Eigen::Matrix3d::Zero();
     }
     count_colored_elements();
   }
@@ -199,7 +218,7 @@ public:
   void color_uncolored_vertices_red() const
   {
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
-      if(v->contributors() == 0)
+      if(!v->colored_this_pass())
         v->red()++;
   }
 

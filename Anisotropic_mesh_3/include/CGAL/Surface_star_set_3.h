@@ -3013,7 +3013,7 @@ public:
       void add_grid_pts_from_triangle(const Point_3& pa, const Color_type& color_a,
                                       const Point_3& pb, const Color_type& color_b,
                                       const Point_3& pc, const Color_type& color_c,
-                                      const int pts_on_side, const bool is_metric_computed)
+                                      const int pts_on_side, const bool get_color_from_prev_poly)
                                       //std::map<Point_3, int>& visited_points
       {
         if(pts_on_side < 1)
@@ -3044,7 +3044,7 @@ public:
               w_colors.push_back(std::make_pair(color_b, coeff_b));
               w_colors.push_back(std::make_pair(color_c, coeff_c));
               Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_colors);
-              m_poly_painter.color_poly(p, pcolor, is_metric_computed, 1);
+              m_poly_painter.color_poly(p, pcolor, get_color_from_prev_poly, 1);
               visited_points[p] = 1;
             }
           }
@@ -3107,25 +3107,25 @@ public:
 
             Eigen::Matrix3d color_a, color_b, color_c;
             get_colors(star_a, color_a, star_b, color_b, star_c, color_c);
-            bool is_metric_computed = (m_pass_count >= m_pass_n);
+            bool get_color_from_prev_poly = (m_pass_count >= m_pass_n);
 
             if(!visited_points[pa])
             {
-              m_poly_painter.color_poly(pa, color_a, is_metric_computed, 2);
+              m_poly_painter.color_poly(pa, color_a, get_color_from_prev_poly, 2);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              m_poly_painter.color_poly(pb, color_b, is_metric_computed, 2);
+              m_poly_painter.color_poly(pb, color_b, get_color_from_prev_poly, 2);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              m_poly_painter.color_poly(pc, color_c, is_metric_computed , 2);
+              m_poly_painter.color_poly(pc, color_c, get_color_from_prev_poly , 2);
               visited_points[pc] = 1;
             }
 
-            add_grid_pts_from_triangle(pa, color_a, pb, color_b, pc, color_c, pts_on_side, is_metric_computed);
+            add_grid_pts_from_triangle(pa, color_a, pb, color_b, pc, color_c, pts_on_side, get_color_from_prev_poly);
           }
         }
         m_poly_painter.count_colored_elements();
@@ -3141,7 +3141,7 @@ public:
           m_poly_painter.number_colored_poly();
         }
         else
-          m_poly_painter.clear_colors();
+          m_poly_painter.reset();
 
         if(step != (m_pass_n-1) || step == 0)
         {
