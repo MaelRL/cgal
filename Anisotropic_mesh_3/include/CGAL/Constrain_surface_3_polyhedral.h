@@ -416,11 +416,11 @@ class Constrain_surface_3_polyhedral :
         Halfedge_handle he2 = he1->next();
         Halfedge_handle he3 = he2->next();
         neighbors.push_back(he1->vertex());
-        neighbors.push_back(he1->opposite()->vertex());
+        neighbors.push_back(he1->opposite()->next()->vertex());
         neighbors.push_back(he2->vertex());
-        neighbors.push_back(he2->opposite()->vertex());
+        neighbors.push_back(he2->opposite()->next()->vertex());
         neighbors.push_back(he3->vertex());
-        neighbors.push_back(he3->opposite()->vertex());
+        neighbors.push_back(he3->opposite()->next()->vertex());
       }
 
       bool are_equal(const Vector_3& v1,        //unit vector
