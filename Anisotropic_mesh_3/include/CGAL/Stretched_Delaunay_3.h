@@ -309,6 +309,15 @@ public:
         // we choose the one with the greatest index to get the facet on the finite side
       }
 
+      bool is_facet_visited(const Facet& f) const
+      {
+        if(this->dimension() < 3)
+          return f.first->is_facet_visited(f.second);
+
+        Facet f2 = this->mirror_facet(f);
+        return f.first->is_facet_visited(f.second) && f2.first->is_facet_visited(f2.second);
+      }
+
 public:
       void update_bbox(const bool verbose = false) const
       {
@@ -1389,7 +1398,7 @@ public:
         if(super_verbose)
           facet_indices(facet);
 
-        if(use_cache && facet.first->is_facet_visited(facet.second))
+        if(use_cache && is_facet_visited(facet))
         {
           p = facet.first->get_facet_surface_center(facet.second);
           return true;
@@ -1574,7 +1583,7 @@ public:
         if(!is_restricted(facet))// point is not computed here
           return false;
 
-        if(use_cache && facet.first->is_facet_visited(facet.second))
+        if(use_cache && is_facet_visited(facet))
         {
           p = facet.first->get_facet_surface_center(facet.second);
           return true;
