@@ -59,6 +59,7 @@ private:
   mutable Colored_polyhedron m_colored_poly;
   mutable std::vector<Vertex_handle> m_colored_poly_vertex_index;
   mutable Colored_polyhedron m_colored_poly_mem;
+  mutable Colored_polyhedron m_colored_poly_prev;
   mutable Tree* m_colored_poly_tree;
   const Constrain_surface* const m_surface;
   const Metric_field* m_mf;
@@ -261,6 +262,7 @@ public:
     Cvmpq q(m_colored_poly.size_of_vertices(), typename Cvmpq::Compare(), typename Cvmpq::ID());
     q.initialize_cmvpq(m_colored_poly);
     q.color_all_vertices();
+    m_colored_poly_prev = Colored_polyhedron(m_colored_poly);
   }
 
   void spread_facets_colors() const
@@ -270,6 +272,7 @@ public:
     Cmpq q(m_colored_poly.size_of_facets(), typename Cmpq::Compare(), typename Cmpq::ID());
     q.initialize_cmpq(m_colored_poly);
     q.color_all_facets();
+    m_colored_poly_prev = Colored_polyhedron(m_colored_poly);
   }
 
   void get_color_from_poly(const Point_3& p, Eigen::Matrix3d& m) const
@@ -477,6 +480,7 @@ public:
     m_colored_poly(Colored_polyhedron ()),
     m_colored_poly_vertex_index(),
     m_colored_poly_mem(Colored_polyhedron ()),
+    m_colored_poly_prev(Colored_polyhedron ()),
     m_colored_poly_tree(NULL),
     m_surface(surface_),
     m_mf(mf_)
