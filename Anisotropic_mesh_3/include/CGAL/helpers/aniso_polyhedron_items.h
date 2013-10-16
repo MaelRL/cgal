@@ -15,13 +15,13 @@ template <class Refs, class T, class P>
 class Metric_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
 {
   // tag
-  std::size_t m_tag;
-  Eigen::Matrix3d m_metric; // THIS IS Mp, NOT Fp
-  int m_contributors;
-  int m_metric_origin; //1=pt on starset, 2=pt on a triangle, 3=colored in spread
-  int m_colored_rank;
-  int m_red, m_green;
-  bool m_colored_this_pass;
+  std::size_t m_tag; //numbering
+  Eigen::Matrix3d m_metric; // !! THIS IS Mp, NOT Fp !!
+  int m_contributors; //number of points of the starset in coherent zones with that vertex closest
+  int m_metric_origin; //1=colored from a pt on starset, 2=from a pt within a triangle, 3=colored during spread()
+  int m_colored_rank; //order of coloration during spread. -1=originally colored
+  int m_red, m_green; //number of times the point was in coherent (green) or incoherent (red) zone during the probing
+  bool m_colored_this_pass; // == was it already present in a coherent zone this pass
 
 public:
   Metric_vertex()  {}

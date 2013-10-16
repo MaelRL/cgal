@@ -2401,7 +2401,9 @@ public:
         //check if the facet trying to be refined is too small + success = false => enter metric smoothing
         bool smoothing = false;
         CGAL::Bbox_3 m_bbox = m_pConstrain->get_bbox();
-        double min_sq_circumradius = 0.005*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(), m_bbox.ymax()-m_bbox.ymin()), m_bbox.zmax()-m_bbox.zmin()));
+        double min_sq_circumradius = 0.005*((std::max)((std::max)(m_bbox.xmax()-m_bbox.xmin(),
+                                                                  m_bbox.ymax()-m_bbox.ymin()),
+                                                       m_bbox.zmax()-m_bbox.zmin()));
         min_sq_circumradius = min_sq_circumradius * min_sq_circumradius;
         double min_facet_volume = 0.01;
         double min_criteria = min_facet_volume; //min_sq_circumradius; //
@@ -2563,6 +2565,7 @@ public:
                 std::cout << m_stars[ind_v2]->bbox_needs_aabb_update() << " ";
                 std::cout << m_stars[ind_v3]->bbox_needs_aabb_update() << std::endl;
 
+                //pop_back_star();
                 //return false;
               }
               else
@@ -3134,7 +3137,7 @@ public:
 
       void fill_c3t3_grid(int step)
       {
-        if(step == 0)
+        if(step == 0) //initialization
         {
           m_poly_painter.build_colored_polyhedron();
           m_poly_painter.build_colored_poly_tree();
@@ -3143,13 +3146,13 @@ public:
         else
           m_poly_painter.reset();
 
-        if(step != (m_pass_n-1) || step == 0)
+        if(step != (m_pass_n-1) || step == 0) // partial coloration steps (second check is if m_pass_n = 1)
         {
           color_polyhedron_from_starset();
           m_poly_painter.color_uncolored_vertices_red();
         }
 
-        if(step == (m_pass_n-1))
+        if(step == (m_pass_n-1))  // one from last = full coloration
         {
           m_use_c3t3_colors = true;
           m_poly_painter.color_vertices_with_acceptable_rg_ratio();
@@ -4298,7 +4301,7 @@ public:
       void gl_draw_metric_op_debug() const
       {
         matrix_spread_debug();
-        matrix_intersection_debug();
+        //matrix_intersection_debug();
         matrix_scaling_debug();
         matrix_interpoltion_debug();
       }

@@ -213,7 +213,7 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p,
   diag_lambda(2,2) = lambda_2;
   Eigen::Matrix3d checkM_p = inverse_real_vecs.transpose() * diag_lambda * inverse_real_vecs;
 
-  Eigen::Matrix3d diag_mu= Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d diag_mu = Eigen::Matrix3d::Zero();
   diag_mu(0,0) = mu_0;
   diag_mu(1,1) = mu_1;
   diag_mu(2,2) = mu_2;
@@ -264,7 +264,7 @@ Eigen::Matrix3d interpolate_colors(const std::vector<std::pair<Eigen::Matrix3d, 
   for(std::size_t i=0; i<w_metrics.size(); ++i)
     log_sum += matrix_log<K>(w_metrics[i].first, w_metrics[i].second);
 
-  return matrix_exp<K>(log_sum); //Prod(Miˆalphai)
+  return matrix_exp<K>(log_sum); // exp(sum(alpha_i*log(Mi)) (== Prod(Mi^alpha_i) if the Mi commute)
 }
 
 template<typename K>
