@@ -97,7 +97,7 @@ public:
     std::cout << count << " / " << m_colored_poly.size_of_vertices() << " colored vertices" << std::endl;
   }
 
-  void count_red_green_elements() const
+  void count_green_elements() const
   {
     int count = 0;
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
@@ -444,7 +444,7 @@ public:
 
       if(greenc > 0.8)
       {
-        ::glPointSize(9.);
+        ::glPointSize(3.);
         ::glBegin(GL_POINTS);
         ::glColor3d(0.1,0.1,0.7);
         ::glVertex3f(pi.x(), pi.y(), pi.z());

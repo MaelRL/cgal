@@ -3132,7 +3132,7 @@ public:
           }
         }
         m_poly_painter.count_colored_elements();
-        m_poly_painter.count_red_green_elements();
+        m_poly_painter.count_green_elements();
       }
 
       void fill_c3t3_grid(int step)
