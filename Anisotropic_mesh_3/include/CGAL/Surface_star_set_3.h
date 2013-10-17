@@ -240,8 +240,10 @@ private:
     public:
       FT compute_approximation_error(const bool verbose = false) const
       {
-//        std::vector<int> histogram(100, 0);
-        FT sq_approx = 0.;
+        int divisions = 100;
+        std::vector<int> histogram(divisions, 0);
+        FT sq_approx = 0., count = 0., sum = 0.;
+
         typename Star_vector::const_iterator it;
         for(it = m_stars.begin(); it != m_stars.end(); ++it)
         {
@@ -259,14 +261,21 @@ private:
               continue;
 
             FT sqd = sq_distance_to_surface(f, s);
-            //FT d = std::sqrt(sqd);
-            //histogram[std::floor(100*d)]++;
+            FT d = std::sqrt(sqd);
+            sum += d;
+            count++;
+            histogram[std::floor(((double) divisions)*d/m_criteria->approximation)]++;
             sq_approx = (std::max)(sq_approx, sqd);
           }
         }
-        //std::cout << "Histogram : " << std::endl;
-        //for(unsigned int i = 0; i < 100; i++)
-        //  std::cout << "\t" << i << " : " << histogram[i] << std::endl;
+        std::cout << "Histogram : " << std::endl;
+        for(unsigned int i = 0; i < divisions; i++)
+        {
+          double inf = ((double) i)/((double) divisions)*m_criteria->approximation;
+          double sup = ((double) i+1)/((double) divisions)*m_criteria->approximation;
+          std::cout << "\t" << inf << " " << sup << " : " << histogram[i] << std::endl;
+        }
+        std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
         return std::sqrt(sq_approx);
       }
 
@@ -3240,9 +3249,10 @@ public:
         std::cout << "picking rate:         " << (double)vertex_with_picking_count /
           (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
         //std::cout << "Picking avoided:      " << avoid_pick_valid_count << std::endl;
-        std::cout << "Approximation error : " << compute_approximation_error() << std::endl;
-        std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
-        std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
+        FT approx = compute_approximation_error();
+        std::cout << "Approximation error : " << approx << std::endl;
+        //std::cout << "Vertices with smoothing:  " << vertex_with_smoothing_counter << std::endl;
+        //std::cout << "Vertices w/out smoothing: " << vertex_without_smoothing_counter << std::endl;
 
         report();
         histogram_vertices_per_star<Self>(*this);
