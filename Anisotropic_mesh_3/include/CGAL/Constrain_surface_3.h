@@ -118,7 +118,12 @@ namespace CGAL
       }
 
     public:
-      virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const = 0;
+      virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3 &ref) const = 0;
+
+      Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const
+      {
+        return intersection(p0, p1, p0); //default ref point is p0
+      }
 
       Object_3 intersection(const Object_3 &obj) const
       {

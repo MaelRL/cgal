@@ -1249,8 +1249,17 @@ public:
         return false;
       }
 
-      typename K::Object_3 constrain_ray_intersection(const Point_3 &p1, //source
-                                                      const Point_3 &p2) const //target
+      bool constrain_ray_intersection(const Point_3 &p1,
+                                      const Point_3 &p2,
+                                      Point_3 &res) const
+      {
+        return constrain_ray_intersection(p1, p2, res, p1); //taking default ref point as p1
+      }
+
+      bool constrain_ray_intersection(const Point_3 &p1, //source
+                                      const Point_3 &p2, //target
+                                      Point_3 &res, //intersection (if any)
+                                      const Point_3 &ref) const //reference point
       {
         if(p1 == p2)
         {
@@ -1258,17 +1267,23 @@ public:
           std::cout << "CONSTRAIN_RAY_INTERSECTION : source cannot be == target ";
           std::cout << " ("<< p1 << ")" << std::endl;
 #endif
-          return typename K::Object_3();
+          return false;
         }
-        Point_3 res;
-        typename K::Ray_3 ray(p1, p2);
-        if (m_pConstrain->intersection(make_object(ray)).assign(res))
-          return make_object(res);
-        else return typename K::Object_3();
+        Vector_3 v(p1, p2);
+        return (m_pConstrain->intersection(p1, p1+v*(m_pConstrain->get_bounding_radius()*2./std::sqrt(v*v)), ref).assign(res));
       }
 
-      typename K::Object_3 constrain_segment_intersection(const Point_3 &p1, //point1
-                                                          const Point_3 &p2) const //point2
+      bool constrain_segment_intersection(const Point_3 &p1,
+                                          const Point_3 &p2,
+                                          Point_3 &res) const
+      {
+        return constrain_segment_intersection(p1, p2, res, p1); //taking default ref point as p1
+      }
+
+      bool constrain_segment_intersection(const Point_3 &p1, //point1
+                                          const Point_3 &p2, //point2
+                                          Point_3 &res, //intersection (if any)
+                                          const Point_3 &ref) const //reference point
       {
         if(p1 == p2)
         {
@@ -1276,13 +1291,10 @@ public:
           std::cout << "CONSTRAIN_SEGMENT_INTERSECTION : source cannot be == target ";
           std::cout << " ("<< p1 << ")" << std::endl;
 #endif
-          return typename K::Object_3();
+          return false;
         }
-        Point_3 res;
-        typename K::Segment_3 seg(p1, p2);
-        if (m_pConstrain->intersection(make_object(seg)).assign(res))
-          return make_object(res);
-        else return typename K::Object_3();
+
+        return (m_pConstrain->intersection(p1, p2, ref).assign(res));
       }
 
       bool is_restricted_2_in_3(const Facet& f,
@@ -1302,14 +1314,14 @@ public:
 #else
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(f));
 #endif
-          return (constrain_ray_intersection(fc, fc-n).assign(surface_delaunay_ball_center)
-               || constrain_ray_intersection(fc, fc+n).assign(surface_delaunay_ball_center));
+          return (constrain_ray_intersection(fc, fc-n, surface_delaunay_ball_center)
+               || constrain_ray_intersection(fc, fc+n, surface_delaunay_ball_center));
         }
         else
         {
           Point_3 fc = m_metric.inverse_transform(compute_circumcenter(f));
-          return (constrain_ray_intersection(fc, fc-n).assign(surface_delaunay_ball_center)
-               || constrain_ray_intersection(fc, fc+n).assign(surface_delaunay_ball_center));
+          return (constrain_ray_intersection(fc, fc-n, surface_delaunay_ball_center)
+               || constrain_ray_intersection(fc, fc+n, surface_delaunay_ball_center));
         }
       }
 
@@ -1450,7 +1462,7 @@ public:
                 cp2 = temp;
               }
 
-              if(m_pConstrain->intersection(back_from_exact(cp1), back_from_exact(cp2)).assign(p))
+              if(constrain_segment_intersection(back_from_exact(cp1), back_from_exact(cp2), p, back_from_exact(fc)))
                 ret_val = true;
             }
             else // !f2
@@ -1476,15 +1488,15 @@ public:
                 if(o1 == o2) //n points towards ps3
                   n = -n;
                 Exact_Point_3 ep = cp + n;
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep)).assign(p))
+                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(ep), p, back_from_exact(fc)))
                   ret_val = true;
               }
-              else if(o1 == o3 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc)).assign(p))
+              else if(o1 == o3 && constrain_ray_intersection(back_from_exact(cp), back_from_exact(fc), p, back_from_exact(fc)))
                 ret_val = true;
               else if(o1 != o3)
               {
                 Exact_Point_3 target(cp + Exact_Vector_3(fc, cp));
-                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target)).assign(p))
+                if(constrain_ray_intersection(back_from_exact(cp), back_from_exact(target), p, back_from_exact(fc)))
                   ret_val = true;
               }
               if(super_verbose)
@@ -1556,8 +1568,8 @@ public:
         Vector_3 n = tr.supporting_plane().orthogonal_vector();
 
         bool b1 = false; bool b2 = false;
-        if(constrain_ray_intersection(fc, fc-n).assign(p1)) b1 = true;
-        if(constrain_ray_intersection(fc, fc+n).assign(p2)) b2 = true;
+        if(constrain_ray_intersection(fc, fc-n, p1)) b1 = true;
+        if(constrain_ray_intersection(fc, fc+n, p2)) b2 = true;
         if(b1 && b2)
         {
           if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
@@ -1600,8 +1612,8 @@ public:
 
           bool b1 = false;
           bool b2 = false;
-          if(constrain_ray_intersection(fc, fc - n).assign(p1)) b1 = true;
-          if(constrain_ray_intersection(fc, fc + n).assign(p2)) b2 = true;
+          if(constrain_ray_intersection(fc, fc - n, p1)) b1 = true;
+          if(constrain_ray_intersection(fc, fc + n, p2)) b2 = true;
           if(b1 && b2)
           {
             if (CGAL::squared_distance(fc, p1) > CGAL::squared_distance(fc, p2))
@@ -1661,7 +1673,7 @@ public:
                 p = cp1;
                 ret_val = true;
               }
-              else if(m_pConstrain->intersection(cp1, cp2).assign(p))
+              else if(constrain_segment_intersection(cp1, cp2, p, fc))
                 ret_val = true;
             }
             else // !f2
@@ -1683,12 +1695,12 @@ public:
                 }
                 if(o1 == o2) //n points towards ps3
                   n = -n;
-                if(constrain_ray_intersection(cp, cp + n).assign(p))
+                if(constrain_ray_intersection(cp, cp + n, p, facet_bar))
                   ret_val = true;
               }
-              else if(o1 == o3 && constrain_ray_intersection(cp, fc).assign(p))
+              else if(o1 == o3 && constrain_ray_intersection(cp, fc, p, fc))
                 ret_val = true;
-              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp))).assign(p))
+              else if(o1 != o3 && constrain_ray_intersection(cp, Point_3(cp + Vector_3(fc, cp)), p, fc))
                 ret_val = true;
 
               if(super_verbose)
@@ -1754,15 +1766,15 @@ public:
           Point_3 facetp = m_metric.inverse_transform(tfacetp);
           Triangle tr = m_metric.inverse_transform(Base::triangle(facet));
           Vector_3 n = tr.supporting_plane().orthogonal_vector();
-          return (constrain_ray_intersection(facetp, facetp - n).assign(p)
-                 || constrain_ray_intersection(facetp, facetp + n).assign(p));
+          return (constrain_ray_intersection(facetp, facetp - n, p)
+                 || constrain_ray_intersection(facetp, facetp + n, p));
         }
         else
         {
           if(candidate_1 == candidate_2) // just in case
             return false;
 
-          if(m_pConstrain->intersection(candidate_1, candidate_2).assign(p))
+          if(constrain_segment_intersection(candidate_1, candidate_2, p))
           {
             //check if not too far away from the intersection of the dual & surface (should never happen)
             TPoint_3 tp = m_metric.transform(p);

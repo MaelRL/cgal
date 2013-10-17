@@ -256,19 +256,19 @@ class Constrain_surface_3_polyhedral :
       }
 
     public:
-      struct by_distance_to_p0
+      struct by_distance_to_p
       {
-        Point_3 p0;
+        Point_3 p;
 
         bool operator()(const Point_3 &pi, const Point_3& pj)
         {
-          return CGAL::squared_distance(p0, pi) < CGAL::squared_distance(p0, pj);
+          return CGAL::squared_distance(p, pi) < CGAL::squared_distance(p, pj);
         }
 
-        by_distance_to_p0(const Point_3 &pini) : p0(pini) { }
+        by_distance_to_p(const Point_3 &pini) : p(pini) { }
       };
 
-      virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const
+      virtual Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3 &ref) const
       {
         typedef typename Tree::Object_and_primitive_id Object_and_primitive_id;
         std::list<Object_and_primitive_id> intersections;
@@ -290,18 +290,20 @@ class Constrain_surface_3_polyhedral :
         if(intersection_points.size()%2 == 0)
           return Object_3();
 
-        std::sort(intersection_points.begin(), intersection_points.end(), by_distance_to_p0(p0));
+        std::sort(intersection_points.begin(), intersection_points.end(), by_distance_to_p(ref));
 
 #ifdef ANISO_DEBUG_INTERSECTION
         if(intersection_points.size() > 1)
         {
-          std::cout << "intersection poly : " << std::endl << p0 << std::endl << p1 << std::endl;
+          std::cout << "intersection poly : " << std::endl << p0 << std::endl << p1 << std::endl << ref << std::endl;
           std::cout << intersection_points.size() << " intersections" << std::endl;
           for(typename std::vector<Point_3>::iterator vit = intersection_points.begin(); vit != intersection_points.end(); ++vit)
             std::cout << *vit << " || " << CGAL::squared_distance(*vit, p0) << std::endl;
         }
 #endif
-        return make_object(intersection_points.front());
+        //std::cout << "intersection returns : " << intersection_points.front() << std::endl;
+
+        return make_object(intersection_points.back());
       }
 
       FT compute_sq_approximation(const Point_3& p) const
