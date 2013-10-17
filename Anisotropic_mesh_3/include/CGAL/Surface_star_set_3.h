@@ -241,7 +241,7 @@ private:
       FT compute_approximation_error(const bool verbose = false) const
       {
         int divisions = 100;
-        std::vector<int> histogram(divisions, 0);
+        std::vector<int> histogram(divisions+1, 0);
         FT sq_approx = 0., count = 0., sum = 0.;
 
         typename Star_vector::const_iterator it;
@@ -264,17 +264,22 @@ private:
             FT d = std::sqrt(sqd);
             sum += d;
             count++;
-            histogram[std::floor(((double) divisions)*d/m_criteria->approximation)]++;
+            if(std::floor(((double) divisions)*d/m_criteria->approximation) >= divisions)
+              histogram[divisions]++;
+            else
+              histogram[std::floor(((double) divisions)*d/m_criteria->approximation)]++;
+
             sq_approx = (std::max)(sq_approx, sqd);
           }
         }
         std::cout << "Histogram : " << std::endl;
-        for(unsigned int i = 0; i < divisions; i++)
+        for(unsigned int i = 0; i<divisions; i++)
         {
           double inf = ((double) i)/((double) divisions)*m_criteria->approximation;
           double sup = ((double) i+1)/((double) divisions)*m_criteria->approximation;
           std::cout << "\t" << inf << " " << sup << " : " << histogram[i] << std::endl;
         }
+        std::cout << "\tabove : " << histogram[divisions] << std::endl; //this should only be non null if the program was interrupted
         std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
         return std::sqrt(sq_approx);
       }
