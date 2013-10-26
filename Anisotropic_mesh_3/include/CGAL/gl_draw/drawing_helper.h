@@ -301,6 +301,20 @@ void gl_draw_c3t3(const C3T3& c3t3,
   typedef typename C3T3::Triangulation Tr;
   typedef typename Tr::Geom_traits K;
   typedef typename Tr::Facet Facet;
+
+  typename C3T3::Facets_in_complex_iterator fit = c3t3.facets_in_complex_begin();
+  typename C3T3::Facets_in_complex_iterator fend = c3t3.facets_in_complex_end();
+  for(; fit != fend; ++fit)
+  {
+    Facet f=*fit;
+    const typename K::Point_3& p0 = f.first->vertex((f.second+1)%4)->point();
+    const typename K::Point_3& p1 = f.first->vertex((f.second+2)%4)->point();
+    const typename K::Point_3& p2 = f.first->vertex((f.second+3)%4)->point();
+    if(is_above_plane<K>(plane, p0, p1, p2))
+      gl_draw_facet<K, Facet>(f, EDGES_AND_FACES, 44, 117, 255);
+  }
+
+  /*
   typename C3T3::Cells_in_complex_iterator cit = c3t3.cells_in_complex_begin();
   for(; cit != c3t3.cells_in_complex_end(); ++cit)
   {
@@ -318,6 +332,8 @@ void gl_draw_c3t3(const C3T3& c3t3,
         }
       }
   }
+  */
+
 }
 
 template<typename Colored_polyhedron>
