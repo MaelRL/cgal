@@ -3342,7 +3342,8 @@ public:
                       const int pick_valid_max_failures = 100,
                       const bool pick_valid_use_probing = false)
       {
-        refine_all(true /*continue*/, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+        bool cont = true;
+        refine_all(cont, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
       }
 
       bool pick_valid_failed() const

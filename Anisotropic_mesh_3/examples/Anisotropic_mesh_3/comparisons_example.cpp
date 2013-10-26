@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
 
   Implicit_curvature_metric_field<K>* curvature_mf =
     new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
-  Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, condition);
+  Surface_star_set_3<K, RCondition> curvature_mesh(criteria_curvature, curvature_mf, pdomain, nb, 0 /*pass_n*/, condition);
   curvature_mesh.refine_all();
   fx << "Aniso :\n";
   fx << "  nb stars = " << curvature_mesh.number_of_surface_stars() << std::endl;
@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
   fx << std::endl;
   
   Euclidean_metric_field<K>* euclid_mf = new Euclidean_metric_field<K>();
-  Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, condition);
+  Surface_star_set_3<K, RCondition> euclidean_mesh(criteria_euclidean, euclid_mf, pdomain, nb, 0 /*pass_n*/, condition);
   euclidean_mesh.refine_all(); 
   fx << "Iso :\n";
   fx << "  nb stars = " << euclidean_mesh.number_of_surface_stars() << std::endl;

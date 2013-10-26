@@ -48,7 +48,7 @@ public:
   typedef typename CGAL::Poisson_reconstruction_function<K> Poisson_reconstruction_function;
   typedef typename CGAL::Implicit_surface_3<K, Poisson_reconstruction_function> Surface_3;
 
-  typedef typename Constrain_surface_3<K>::Point_container Point_container;
+  typedef typename Constrain_surface_3<K>::Pointset Point_container;
 
 protected:
   PointList points;
