@@ -151,7 +151,7 @@ private:
     Vertex_handle v1 = arete.first;
     Vertex_handle v2 = arete.second;
     Cell_handle c;
-    int index1, index2;
+    int index1 = -1, index2 = -1;
 
     CGAL_assertion_code(bool is_edge =)
     r_tr_.is_edge(v1, v2, c, index1, index2);
