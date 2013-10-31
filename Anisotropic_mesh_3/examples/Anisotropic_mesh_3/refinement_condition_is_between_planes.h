@@ -7,9 +7,9 @@ struct Is_between
 public:
   bool operator()(const PointType& p) const
   {
-    if(xcondition && p.x() < 0 ||
-       ycondition && p.y() < 0 ||
-       zcondition && p.z() < 0)
+    if((xcondition && p.x() < 0) ||
+       (ycondition && p.y() < 0) ||
+       (zcondition && p.z() < 0))
       return false;
     PointType pp1 = plane1.projection(p);
     PointType pp2 = plane2.projection(p);

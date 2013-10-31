@@ -206,31 +206,30 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p,
     std::cout << "real_vecs not invertible...." << std::endl;
 
   Eigen::Matrix3d intersected_M = inverse_real_vecs.transpose() * intersected_eigen_diag * inverse_real_vecs;
-
-  Eigen::Matrix3d diag_lambda = Eigen::Matrix3d::Zero();
-  diag_lambda(0,0) = lambda_0;
-  diag_lambda(1,1) = lambda_1;
-  diag_lambda(2,2) = lambda_2;
-  Eigen::Matrix3d checkM_p = inverse_real_vecs.transpose() * diag_lambda * inverse_real_vecs;
-
-  Eigen::Matrix3d diag_mu = Eigen::Matrix3d::Zero();
-  diag_mu(0,0) = mu_0;
-  diag_mu(1,1) = mu_1;
-  diag_mu(2,2) = mu_2;
-  Eigen::Matrix3d checkM_q = inverse_real_vecs.transpose() * diag_mu * inverse_real_vecs;
-
-  Eigen::Matrix3d tPMpP = real_vecs.transpose() * M_p * real_vecs;
-  Eigen::Matrix3d tPMqP = real_vecs.transpose() * M_p * real_vecs;
-
-  Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::Matrix3d> ges(M_q,M_p);
-  Eigen::Matrix3d gvecs = es.eigenvectors().real();
-
-  Eigen::Matrix3d tPMpP2 = gvecs.transpose() * M_p * gvecs;
-  Eigen::Matrix3d tPMqP2 = gvecs.transpose() * M_p * gvecs;
-
   if(verbose)
   {
-#if 1//def ANISO_DEBUG_MATRIX_OPERATIONS
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
+    Eigen::Matrix3d diag_lambda = Eigen::Matrix3d::Zero();
+    diag_lambda(0,0) = lambda_0;
+    diag_lambda(1,1) = lambda_1;
+    diag_lambda(2,2) = lambda_2;
+    Eigen::Matrix3d checkM_p = inverse_real_vecs.transpose() * diag_lambda * inverse_real_vecs;
+
+    Eigen::Matrix3d diag_mu = Eigen::Matrix3d::Zero();
+    diag_mu(0,0) = mu_0;
+    diag_mu(1,1) = mu_1;
+    diag_mu(2,2) = mu_2;
+    Eigen::Matrix3d checkM_q = inverse_real_vecs.transpose() * diag_mu * inverse_real_vecs;
+
+    Eigen::Matrix3d tPMpP = real_vecs.transpose() * M_p * real_vecs;
+    Eigen::Matrix3d tPMqP = real_vecs.transpose() * M_p * real_vecs;
+
+    Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::Matrix3d> ges(M_q,M_p);
+    Eigen::Matrix3d gvecs = es.eigenvectors().real();
+
+    Eigen::Matrix3d tPMpP2 = gvecs.transpose() * M_p * gvecs;
+    Eigen::Matrix3d tPMqP2 = gvecs.transpose() * M_p * gvecs;
+
     std::cout.precision(15);
     std::cout << "in : " << std::endl << M_p << std::endl << inverse_M_p << std::endl << M_q << std::endl;
     std::cout << "check tPMP" << std::endl << tPMpP << std::endl << tPMqP << std::endl;
