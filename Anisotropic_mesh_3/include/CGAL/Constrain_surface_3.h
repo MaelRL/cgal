@@ -87,7 +87,6 @@ namespace CGAL
       virtual double global_min_curvature() const = 0;
 
       virtual void gl_draw_intermediate_mesh_3(const Plane_3& plane) const = 0;
-      virtual void gl_draw_tiling(const Plane_3& plane, const int star_id) const = 0;
 
       virtual void build_colored_polyhedron(Colored_polyhedron& poly) const = 0;
 

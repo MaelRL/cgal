@@ -540,12 +540,6 @@ public:
         maxc = (std::max)(e1, e2);
       }
 
-      void gl_draw_tiling(const Plane_3& plane,
-                          const int star_id = -1) const
-      {
-        std::cout << "nothing to draw for implicit tiling." << std::endl;
-      }
-
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
       {
         gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);

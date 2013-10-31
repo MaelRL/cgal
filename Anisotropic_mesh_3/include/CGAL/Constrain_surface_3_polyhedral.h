@@ -48,7 +48,6 @@
 #include <CGAL/make_mesh_3.h>
 
 #include <CGAL/gl_draw/drawing_helper.h>
-#include <CGAL/helpers/tiling_helper.h>
 #include <CGAL/helpers/c3t3_polyhedron_builder.h>
 
 namespace CGAL
@@ -98,11 +97,6 @@ class Enriched_vertex : public CGAL::HalfedgeDS_vertex_base<Refs, T, P>
   // tag
   std::size_t m_tag;
   Vector m_normal;
-  FT m_aniso_ratio;
-
-#if 1//def TILING_DRAW
-  std::vector<Point> m_tile_points;
-#endif
 
 public:
   // life cycle
@@ -110,11 +104,11 @@ public:
   // repeat mandatory constructors
   Enriched_vertex(const P& pt)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0), m_normal(CGAL::NULL_VECTOR), m_aniso_ratio(0) {}
+      m_tag(0), m_normal(CGAL::NULL_VECTOR) {}
 
   Enriched_vertex(const P& pt, const Vector& n)
     : CGAL::HalfedgeDS_vertex_base<Refs, T, P>(pt),
-      m_tag(0), m_normal(n), m_aniso_ratio(0) {}
+      m_tag(0), m_normal(n) {}
 
   // tag
   std::size_t& tag() {  return m_tag; }
@@ -122,12 +116,6 @@ public:
   // normal
   Vector& normal() {  return m_normal; }
   const Vector& normal() const {  return m_normal; }
-  // aniso_ratio
-  FT& aniso_ratio() {  return m_aniso_ratio; }
-  const FT& aniso_ratio() const {  return m_aniso_ratio; }
-  // tile_points
-  std::vector<Point>& tile_points() {  return m_tile_points; }
-  const std::vector<Point>& tile_points() const {  return m_tile_points; }
 };
 
 struct Enriched_items : public CGAL::Polyhedron_items_3
@@ -960,550 +948,6 @@ class Constrain_surface_3_polyhedral :
         std::cout << "smoothed the metric field!" << std::endl;
       }
 
-      void gl_draw_tiling(const Plane_3& plane,
-                          const int star_id = -1) const
-      {
-        bool draw_all = (star_id < 0);
-        std::size_t start = draw_all ? 0 : star_id;
-        std::size_t N = draw_all ? m_vertices.size() : (star_id + 1);
-
-        for(std::size_t i = start; i < N; i++)
-        {
-          Vertex_handle vi = m_vertices[i];
-          /*
-          if(!is_above_plane<K>(plane, vi->point()))
-            continue;
-          */
-
-          ::glDisable(GL_LIGHTING);
-          ::glColor3ub( rand()%255, rand()%255, rand()%255 );
-
-          ::glBegin(GL_POINTS);
-          ::glVertex3d(vi->point().x(), vi->point().y(), vi->point().z());
-          ::glEnd();
-
-          std::vector<Point_3> tile_points = vi->tile_points();
-
-          ::glBegin(GL_LINE_LOOP);
-          for (std::size_t j = 0; j < tile_points.size(); ++j)
-          {
-            ::glVertex3d(tile_points[j].x(), tile_points[j].y(), tile_points[j].z());
-          }
-          ::glEnd();
-          ::glEnable(GL_LIGHTING);
-        }
-      }
-
-      void anisotropy_bounding_with_tiling(const FT& epsilon)
-      {
-        time_t start = time(NULL);
-
-        Tiling<Polyhedron> Aniso_tiling;
-
-        double tolerance_angle = 0.3;
-        std::ifstream tiling_input("tiling_angle.txt");
-        tiling_input >> tolerance_angle;
-
-        if(tolerance_angle < 0)
-          return;
-        else
-          std::cout << "tolerance is : " << tolerance_angle << std::endl;
-
-        for (std::size_t i = 0; i < m_vertices.size(); ++i)
-        {
-          Vertex_handle vi = m_vertices[i];
-          std::cout << "i : " << i << std::endl;
-          //check on curvatures here, skip if it's ~ a plane
-
-          //compute the aniso_ratio
-          Aniso_tiling.compute(vi, tolerance_angle);
-
-          FT vi_eps = vi->aniso_ratio();
-
-          std::cout << "vi eps : " << vi_eps << std::endl;
-
-          //compute new principal directions & curvature values
-          double e0,e1,e2;
-          Vector_3 v0,v1,v2;
-          Eigen::Matrix3d m = m_metrics[i];
-          get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
-
-          e0 = std::sqrt(e0);
-          e1 = std::sqrt(e1);
-          e2 = std::sqrt(e2);
-
-          std::cout << "es : " << e0 << " " << e1 << " " << e2 << std::endl;
-
-          FT emax = (std::max)((std::max)(e0, e1), e2);
-          FT emin = (std::min)((std::min)(e0, e1), e2);
-
-          if(emin > (emax/vi_eps)) // don't want to increase the anisotropy
-          {
-            std::cout << "increasing aniso ignored" << std::endl;
-            continue;
-          }
-
-          if(emin == e0)
-            e0 = emax / vi_eps;
-          if(emin == e1)
-            e1 = emax / vi_eps;
-          if(emin == e2)
-            e2 = emax / vi_eps;
-
-          std::cout << "es : " << e0 << " " << e1 << " " << e2 << std::endl;
-          std::cout << "v0 : " << v0 << std::endl;
-          std::cout << "v1 : " << v1 << std::endl;
-          std::cout << "v2 : " << v2 << std::endl;
-
-          Metric_base<K, K> M(v0, v1, v2, e0, e1, e2, epsilon);
-          Eigen::Matrix3d transf = M.get_transformation();
-          m_metrics[i] = transf.transpose()*transf;
-        }
-
-        time_t end = time(NULL);
-        double time_seconds = end - start;
-
-        std::cout << "duration: " << time_seconds << " s." << std::endl;
-      }
-
-      struct Facet_Compare
-      {
-        private:
-          Point_3 ref_point;
-        public:
-        bool operator()(const Facet_handle& fh1, const Facet_handle& fh2) const
-        { //compare facets by comparing the furthest points from the ref point.
-          Point_3 fh1_a = fh1->halfedge()->vertex()->point();
-          FT sq_d_p1a = CGAL::squared_distance(ref_point, fh1_a);
-          Point_3 fh1_b = fh1->halfedge()->next()->vertex()->point();
-          FT sq_d_p1b = CGAL::squared_distance(ref_point, fh1_b);
-          Point_3 fh1_c = fh1->halfedge()->next()->next()->vertex()->point();
-          FT sq_d_p1c = CGAL::squared_distance(ref_point, fh1_c);
-          FT sq_d_p1 = (std::max)((std::max)(sq_d_p1a, sq_d_p1b), sq_d_p1c);
-
-          Point_3 fh2_a = fh2->halfedge()->vertex()->point();
-          FT sq_d_p2a = CGAL::squared_distance(ref_point, fh2_a);
-          Point_3 fh2_b = fh2->halfedge()->next()->vertex()->point();
-          FT sq_d_p2b = CGAL::squared_distance(ref_point, fh2_b);
-          Point_3 fh2_c = fh2->halfedge()->next()->next()->vertex()->point();
-          FT sq_d_p2c = CGAL::squared_distance(ref_point, fh2_c);
-          FT sq_d_p2 = (std::max)((std::max)(sq_d_p2a, sq_d_p2b), sq_d_p2c);
-
-          //don't want to miss some facets due to same distance
-          if(sq_d_p1 == sq_d_p2)
-            return fh1 < fh2;
-
-          //general result
-          return sq_d_p1 < sq_d_p2;
-        }
-
-        Facet_Compare(const Point_3& p) : ref_point(p) {}
-      };
-
-      void find_facet_first_ring(const Vertex_handle& v,
-                                 std::set<Facet_handle, Facet_Compare>& facet_first_ring)
-      {
-        facet_first_ring.clear();
-        HV_circulator h = v->vertex_begin();
-        HV_circulator hend = h;
-        do
-        {
-          facet_first_ring.insert(h->facet());
-          h++;
-        }
-        while(h != hend);
-      }
-
-      void find_facet_first_ring(const Facet_handle& f,
-                                 std::set<Facet_handle, Facet_Compare>& facet_queue)
-      {
-        std::vector<Vertex_handle> v(3);
-        v[0] = f->halfedge()->vertex();
-        v[1] = f->halfedge()->next()->vertex();
-        v[2] = f->halfedge()->next()->next()->vertex();
-
-        for(int i=0; i<3; ++i)
-        {
-          HV_circulator h = v[i]->vertex_begin();
-          HV_circulator hend = h;
-          do
-          {
-            facet_queue.insert(h->facet());
-            h++;
-          }
-          while(h != hend);
-        }
-      }
-
-      bool project_on_plane_along_vector(const Exact_Point_3& p,
-                                         const Exact_Plane_3& pl,
-                                         const Exact_Vector_3& n,
-                                         Exact_Point_3& res)
-      {
-        Exact_FT a = pl.a();
-        Exact_FT b = pl.b();
-        Exact_FT c = pl.c();
-        Exact_FT d = pl.d();
-
-        Exact_FT nx = n.x();
-        Exact_FT ny = n.y();
-        Exact_FT nz = n.z();
-
-        Exact_FT lambda;
-        Exact_FT den = a*nx + b*ny + c*nz;
-
-        if(den == 0)
-          return false;
-        else
-        {
-          lambda = -(a*p.x() + b*p.y() + c*p.z() + d) / den;
-          res = p + lambda * n;
-          return true;
-        }
-      }
-
-      bool approx_bound_reached_in_triangle(const Plane_3& pl_k1k2,
-                                            const Point_3& pa,
-                                            const Point_3& pb,
-                                            const Point_3& pc,
-                                            const FT& h)
-      {
-        Point_3 ppa = pl_k1k2.projection(pa);
-        Point_3 ppb = pl_k1k2.projection(pb);
-        Point_3 ppc = pl_k1k2.projection(pc);
-
-        FT da = std::sqrt(CGAL::squared_distance(pa, ppa));
-        FT db = std::sqrt(CGAL::squared_distance(pb, ppb));
-        FT dc = std::sqrt(CGAL::squared_distance(pc, ppc));
-
-        std::cout << "approximation at triangle points : " << std::endl;
-        std::cout << pa << " || " << da << std::endl;
-        std::cout << pb << " || " << db << std::endl;
-        std::cout << pc << " || " << dc << std::endl;
-
-        if((da > h) && (db > h) && (dc > h))
-          std::cout << "triangle has all 3 points above approximation bound..." << std::endl;
-
-        return ((da > h) || (db > h) || (dc > h));
-      }
-
-      bool facet_reaches_approx_bound(const Point_3& p,
-                                      const Facet_handle& fh,
-                                      const Plane_3& pl,
-                                      const FT& h,
-                                      const Segment_3& seg,
-                                      Point_3& pi,
-                                      std::set<Facet_handle, Facet_Compare>& facet_queue,
-                                      FT& max_dist_from_p)
-      {
-        //project seg on the facet
-        Exact_Point_3 pa = to_exact(fh->halfedge()->vertex()->point());
-        Exact_Point_3 pb = to_exact(fh->halfedge()->next()->vertex()->point());
-        Exact_Point_3 pc = to_exact(fh->halfedge()->next()->next()->vertex()->point());
-        Exact_Triangle_3 tr_fh(pa, pb, pc);
-        Exact_Plane_3 pl_fh = tr_fh.supporting_plane();
-        Exact_Plane_3 pl_k1k2 = to_exact(pl);
-        Exact_Point_3 pseg_ki_source, pseg_ki_target;
-        Exact_Segment_3 seg_ki(to_exact(seg));
-        bool skip_inter = false;
-
-        if(!(project_on_plane_along_vector(seg_ki.source(), pl_fh, pl_k1k2.orthogonal_vector(), pseg_ki_source)))
-        {
-#ifdef ANISO_DEBUG_APPROX_ANISO
-          std::cout << "Warning : plan of the facet is parallel to the normal of the plan made of eigen vectors" << std::endl;
-#endif
-          find_facet_first_ring(fh, facet_queue);
-          skip_inter = true;
-        }
-        project_on_plane_along_vector(seg_ki.target(), pl_fh, pl_k1k2.orthogonal_vector(), pseg_ki_target);
-        Exact_Segment_3 pseg_ki(pseg_ki_source, pseg_ki_target); //projected seg_ki on facet plane
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-        std::cout << std::endl << "entered facet reaches approx bound with : " << std::endl;
-        std::cout << fh->halfedge()->vertex()->tag() << " " << pa << std::endl;
-        std::cout << fh->halfedge()->next()->vertex()->tag() << " " << pb << std::endl;
-        std::cout << fh->halfedge()->next()->next()->vertex()->tag() << " " << pc << std::endl;
-        std::cout << pseg_ki_source << std::endl << pseg_ki_target << std::endl;
-#endif
-
-        if(skip_inter || CGAL::do_intersect(tr_fh, pseg_ki))
-        {
-          //if(approx_bound_reached_in_triangle(pl_k1k2, pa, pb, pc, h) ||
-          //   (pa == p || pb == p || pc == p)) //if in the first ring around p, need to compute anyway
-          {
-            //compute intersection of triangle & segment
-            typename KExact::Object_3 inter_obj = CGAL::intersection(tr_fh, pseg_ki);
-
-            Exact_Point_3 pres;
-            Exact_Segment_3 sres;
-            if(inter_obj.assign(pres))
-            {
-#ifdef ANISO_DEBUG_APPROX_ANISO
-              std::cout << "intersection is a point : " << pres << std::endl;
-#endif
-
-              if(pres == pa || pres == pb || pres == pc)
-              {
-                //it is equal to initial p, skipping this facet
-                return false;
-              }
-
-              Exact_Point_3 ppres = pl_k1k2.projection(pres);
-              FT sq_approx_pres = CGAL::squared_distance(back_from_exact(pres),
-                                                         back_from_exact(ppres));
-
-              if(sq_approx_pres > (h*h))
-              {
-                pi = back_from_exact(ppres);
-                return true;
-              }
-            }
-            else if(inter_obj.assign(sres))
-            {
-              Exact_Point_3 source = sres.source();
-              Exact_Point_3 target = sres.target();
-              Exact_Point_3 psource = pl_k1k2.projection(source);
-              Exact_Point_3 ptarget = pl_k1k2.projection(target);
-              FT source_h = std::sqrt(CGAL::squared_distance(back_from_exact(source),
-                                                             back_from_exact(psource)));
-              FT target_h = std::sqrt(CGAL::squared_distance(back_from_exact(target),
-                                                             back_from_exact(ptarget)));
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-              std::cout << "intersection is a segment " << std::endl;
-              std::cout << source << std::endl << target << std::endl;
-#endif
-
-              if((source_h > h) != (target_h > h)) //xor
-              {
-                Exact_Vector_3 svec(source, target);
-                Exact_Point_3 p0 = source + ((h - source_h) / (target_h - source_h)) * svec;
-                pi = back_from_exact(pl_k1k2.projection(p0));
-#ifdef ANISO_DEBUG_APPROX_ANISO
-                std::cout << "xor is 0-1 / 1-0 : " << h << " " << source_h << " " << target_h << std::endl;
-                std::cout << "projected : " << p0 << " |-> " << pi << std::endl;
-#endif
-                return true;
-              }
-              else if((source_h > h) && (target_h > h))
-              {
-                //std::cout << "warning : xor 1 1!" << std::endl;
-              }
-              else //xor 0 0
-              {//check if either intersection is furthest point from p
-#ifdef ANISO_DEBUG_APPROX_ANISO
-                std::cout << "xor 0 0 " << source_h << " " << target_h << std::endl;
-#endif
-                FT dist_psource_p = CGAL::sqrt(CGAL::squared_distance(back_from_exact(psource), p));
-                FT dist_ptarget_p = CGAL::sqrt(CGAL::squared_distance(back_from_exact(ptarget), p));
-
-                if(dist_psource_p > max_dist_from_p)
-                {
-                  max_dist_from_p = dist_psource_p;
-                  pi = back_from_exact(psource);
-#ifdef ANISO_DEBUG_APPROX_ANISO
-                  std::cout << "source>maxdist : " << dist_psource_p << " new pi : " << pi << std::endl;
-#endif
-                }
-                if(dist_ptarget_p > max_dist_from_p)
-                {
-                  max_dist_from_p = dist_ptarget_p;
-                  pi = back_from_exact(ptarget);
-#ifdef ANISO_DEBUG_APPROX_ANISO
-                  std::cout << "target>maxdist : " << dist_ptarget_p << " new pi : " << pi << std::endl;
-#endif
-                }
-              }
-            }
-            else
-            {//no intersection but CGAL::do_intersect says there is an intersection...
-              std::cout << "problem in intersection computations of projected segment and triangle" << std::endl;
-            }
-          }
-
-          find_facet_first_ring(fh, facet_queue);
-#ifdef ANISO_DEBUG_APPROX_ANISO
-          std::cout << "intersect but does not reach approximation error : find neighbours of fh and carry on" << std::endl;
-          std::cout << "added new first facet ring. Size of ring is : " << facet_queue.size() << std::endl;
-#endif
-        }
-#ifdef ANISO_DEBUG_APPROX_ANISO
-        else
-          std::cout << "no intersection" << std::endl;
-#endif
-
-        return false;
-      }
-
-      void compute_aniso_ratio_at_point(const Vertex_handle& v,
-                                        FT& ratio,
-                                        std::vector<Point_3>& points,
-                                        std::vector<Vector_3>& dirs, //k1+, k1-, k2+, k2-, n
-                                        const FT& h)
-      {
-        Point_3 p = v->point();
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-        std::cout << "computing ratio (polyhedron) for : " << p << std::endl;
-        std::cout << dirs[0] << std::endl << dirs[1] << std::endl;
-        std::cout << dirs[2] << std::endl << dirs[3] << std::endl;
-        std::cout << dirs[4] << std::endl;
-#endif
-
-        Plane_3 pl_k1k2(p, p + dirs[0], p + dirs[2]);
-
-        points.clear();
-        points.resize(4, p);
-
-        //ring of facets around f
-        Facet_Compare fc(p);
-        std::set<Facet_handle, Facet_Compare> facet_queue(fc);
-
-        for(int i=0; i<4; ++i) //k1+, k1-, k2+, k2-
-        {
-          std::set<Facet_handle> done; //facets already checked
-          Vector_3 dir_i = dirs[i];
-          Segment_3 seg_ki(p, p + dir_i*(get_bounding_radius() * 2.0 / std::sqrt(dir_i * dir_i)));
-          FT max_distance_to_p = 0; // distance between pi and p
-
-          find_facet_first_ring(v, facet_queue);
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-          std::cout << "direction : k" << i << " " << dirs[i] << std::endl;
-          std::cout << "first ring around p has size : " << facet_queue.size() << std::endl;
-#endif
-
-          while(!(facet_queue.empty()))
-          {
-            Facet_handle fh = *(facet_queue.begin());
-            facet_queue.erase(facet_queue.begin());
-
-            if(done.find(fh) != done.end())
-              continue;
-            done.insert(fh);
-
-            if(facet_reaches_approx_bound(p, fh, pl_k1k2, h, seg_ki, points[i], facet_queue, max_distance_to_p))
-              break;
-          }
-
-          if(facet_queue.empty() && points[i] == p)
-          {
-            std::cout << "Warning : facet_queue empty but p[i]==p" << std::endl;
-          }
-
-          //to be safe : check that points[i] belongs to dirs[i];
-          //todo
-        }
-        FT d0 = std::sqrt(CGAL::squared_distance(p, points[0]));
-        FT d1 = std::sqrt(CGAL::squared_distance(p, points[1]));
-        FT d2 = std::sqrt(CGAL::squared_distance(p, points[2]));
-        FT d3 = std::sqrt(CGAL::squared_distance(p, points[3]));
-        ratio = (std::max)((d0+d1)/(d2+d3), (d2+d3)/(d0+d1));
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-        std::cout << "final points : " << std::endl;
-        std::cout << points[0] << std::endl << points[1] << std::endl << points[2] << std::endl << points[3] << std::endl;
-        std::cout << "ds : " << d0 << " " << d1 << " " << d2 << " " << d3 << std::endl;
-        std::cout << "long ratio : " << ratio << std::endl;
-#endif
-      }
-
-      void compute_aniso_ratio_with_approximation(const FT& epsilon,
-                                                  const FT& approximation)
-      {
-        std::cout << "compute aniso ratio w/ approx" << std::endl;
-        for (std::size_t i = 0; i < m_vertices.size(); ++i)
-        {
-          Vertex_handle vi = m_vertices[i];
-          std::cout << "i : " << i << std::endl;
-
-          //check on curvatures here, skip if it's ~ a plane
-
-
-          //compute principal directions & curvature values
-          std::vector<double> e(3);
-          std::vector<Vector_3> v(3);
-          int indn = -1, ind1 = -1, ind2 = -1;
-          FT maxsp = -1e308;
-
-          Eigen::Matrix3d m = m_metrics[i];
-
-          get_eigen_vecs_and_vals<K>(m, v[0], v[1], v[2], e[0], e[1], e[2]);
-
-          e[0] = std::sqrt(e[0]);
-          e[1] = std::sqrt(e[1]);
-          e[2] = std::sqrt(e[2]);
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-          std::cout << "es : " << e[0] << " " << e[1] << " " << e[2] << std::endl;
-          std::cout << "vs" << std::endl << v[0] << std::endl << v[1] << std::endl << v[2] << std::endl;
-#endif
-
-          FT emax = (std::max)((std::max)(e[0], e[1]), e[2]);
-          FT emin = (std::min)((std::min)(e[0], e[1]), e[2]);
-
-          Vector_3 vi_n = vi->normal();
-          for(int it=0; it<3; it++)
-          {
-            //One of the eigenvectors should be vi_n, but Eigen doesn't always manage to find (exactly)
-            //in the eigen vectors of a matrix M one of the eigenvectors M was created with...
-            FT sp = std::abs(v[it]*vi_n);
-            if(sp > maxsp)
-            {
-              maxsp = sp;
-              indn = it;
-            }
-          }
-
-          ind1 = (indn + 1)%3;
-          ind2 = (indn + 2)%3;
-
-#ifdef ANISO_DEBUG_APPROX_ANISO
-          std::cout << "index : " << indn << " " << ind1 << " " << ind2 << std::endl;
-          std::cout << "normal check : " << std::endl << v[indn] << std::endl << vi_n << std::endl;
-          std::cout << "other two : " << std::endl << v[ind1] << std::endl << v[ind2] << std::endl;
-#endif
-
-          //compute local anisotropy
-          FT vi_eps;
-          std::vector<Vector_3> dirs(5);
-
-          dirs[0] = v[ind1];
-          dirs[1] = -v[ind1];
-          dirs[2] = v[ind2];
-          dirs[3] = -v[ind2];
-          dirs[4] = v[indn];
-
-          compute_aniso_ratio_at_point(vi, vi_eps, vi->tile_points(), dirs, approximation);
-
-          std::cout << "exited vi_eps computations : " << vi->point();
-          std::cout << " ratios : " << vi_eps << " " << emax/emin << std::endl;
-
-          //compute new eigenvalues
-          if(emin > (emax/vi_eps)) // don't want to increase the anisotropy
-          {
-            std::cout << "increasing aniso ignored"<< std::endl;
-            continue;
-          }
-
-          if(emin == e[0])
-            e[0] = emax / vi_eps;
-          if(emin == e[1])
-            e[1] = emax / vi_eps;
-          if(emin == e[2])
-            e[2] = emax / vi_eps;
-
-          std::cout << "es : " << e[0] << " " << e[1] << " " << e[2] << std::endl;
-          std::cout << "v0 : " << v[0] << std::endl;
-          std::cout << "v1 : " << v[0] << std::endl;
-          std::cout << "v2 : " << v[2] << std::endl;
-
-          Metric_base<K, K> M(v[indn], v[ind1], v[ind2], e[indn], e[ind1], e[ind2], epsilon);
-          Eigen::Matrix3d transf = M.get_transformation();
-          m_metrics[i] = transf.transpose()*transf;
-        }
-      }
-
       virtual void compute_poles(std::set<Point_3>& poles) const
       {
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
@@ -1612,7 +1056,6 @@ class Constrain_surface_3_polyhedral :
 
       void initialize(const FT& epsilon,
                       const FT& en_factor = 1.0,
-                      const FT& approximation = 1.0,
                       const bool smooth_metric = false)
       {
         set_aabb_tree();
@@ -1629,16 +1072,9 @@ class Constrain_surface_3_polyhedral :
         else
           compute_local_metric(epsilon, en_factor, smooth_metric);
 
-        std::ifstream useless("smoothing.txt");
-        if(useless)
+        std::ifstream is_file_present("smoothing.txt");
+        if(is_file_present)
           heat_kernel_smoothing(epsilon);
-
-        std::ifstream approx_aniso("approx_aniso.txt");
-        std::ifstream tiling_input("tiling_angle.txt");
-        if(approx_aniso)
-          compute_aniso_ratio_with_approximation(epsilon, approximation);
-        else if(tiling_input)
-          anisotropy_bounding_with_tiling(epsilon);
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
@@ -1649,8 +1085,7 @@ class Constrain_surface_3_polyhedral :
       Constrain_surface_3_polyhedral(const char *filename,
                                      const FT& epsilon,
                                      const FT& en_factor = 1.0,
-                                     const FT& approximation = 1.0,
-                                     const bool smooth_metric = false) 
+                                     const bool smooth_metric = false)
         : m_vertices(),
           m_metrics(),
           m_cache_max_curvature(false), 
@@ -1662,14 +1097,13 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(filename);
-          initialize(epsilon, en_factor, approximation, smooth_metric);
+          initialize(epsilon, en_factor, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral(const Polyhedron& p, 
                                      const FT& epsilon,
                                      const FT& en_factor = 1.0,
-                                     const FT& approximation = 1.0,
-                                     const bool smooth_metric = false) 
+                                     const bool smooth_metric = false)
         : m_vertices(),
           m_metrics(),
           m_cache_max_curvature(false), 
@@ -1681,7 +1115,7 @@ class Constrain_surface_3_polyhedral :
           normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
 #endif
           set_domain_and_polyhedron(p);
-          initialize(epsilon, en_factor, approximation, smooth_metric);
+          initialize(epsilon, en_factor, smooth_metric);
         }
 
       Constrain_surface_3_polyhedral* clone() const

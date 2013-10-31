@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
                                                     approx);
 
   Constrain_surface_3_polyhedral<K>* pdomain
-    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon, en_factor, approx, false/*heat smoothing*/);
+    = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon, en_factor);
 
   Polyhedral_curvature_metric_field<K>* metric_field =
     new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon, en_factor);
