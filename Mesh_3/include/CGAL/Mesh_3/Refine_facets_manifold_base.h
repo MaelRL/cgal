@@ -30,6 +30,8 @@
 #include <boost/foreach.hpp>
 #include <boost/mpl/has_xxx.hpp>
 
+#include <CGAL/Mesh_facet_topology.h>
+
 namespace CGAL {
 
 namespace Mesh_3 {
