@@ -20,8 +20,9 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
-//#include <Metric_field/Ellipsoid_metric_field.h>
+#include <Metric_field/Ellipsoid_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
+#include <CGAL/Euclidean_metric_field.h>
 
 #include <Domain/Constrain_surface_3_ellipse.h>
 
@@ -48,20 +49,21 @@ int main(int argc, char* argv[])
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 
-  K::FT a = (argc > 1) ? atof(argv[1]) : 10.;
+  K::FT a = (argc > 1) ? atof(argv[1]) : 10000.;
   K::FT b = (argc > 2) ? atof(argv[2]) : 1.;
   K::FT c = (argc > 3) ? atof(argv[3]) : 1.;
 
   K::FT epsilon = (argc > 4) ? atof(argv[4]) : 0.;
 
-  K::FT r0 = (argc > 5) ? atof(argv[5]) : 0./*default*/;
+  K::FT r0 = (argc > 5) ? atof(argv[5]) : 0.0/*default*/;
   K::FT gamma0 = (argc > 6) ? atof(argv[6]) : 0.;
-  K::FT approx = (argc > 7) ? atof(argv[7]) : 0.;
+  K::FT rho0 = (argc > 7) ? atof(argv[7]) : 0.0;
+  K::FT approx = (argc > 8) ? atof(argv[8]) : 0.001;
 
-  int nb = (argc > 8) ? atoi(argv[8]) : 10;
+  int nb = (argc > 9) ? atoi(argv[9]) : 10000;
 
-  K::FT beta = (argc > 9) ? atof(argv[9]) : 2.5;
-  K::FT delta = (argc > 10) ? atof(argv[10]) : 0.3;
+  K::FT beta = (argc > 10) ? atof(argv[10]) : 2.5;
+  K::FT delta = (argc > 11) ? atof(argv[11]) : 0.3;
 
   fx << "Ellipsoid :" << std::endl;
   fx << "\ta = " << a << std::endl;
@@ -74,7 +76,7 @@ int main(int argc, char* argv[])
   fx << "\tbeta = " << beta << std::endl;
   fx << "\tdelta = " << delta << std::endl;
   
-  Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_
+  Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
                                                     0.2,    //sliverity_
                                                     r0,     //circumradius_ 0.1
                                                     gamma0, //distortion_ 1.3
@@ -88,20 +90,22 @@ int main(int argc, char* argv[])
 
   Constrain_surface_3_ellipse<K>* pdomain = new Constrain_surface_3_ellipse<K>(a, b, c);
 
-  Implicit_curvature_metric_field<K>* metric_field =
-    new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
-  //Ellipsoid_metric_field<K>* metric_field =
-  //  new Ellipsoid_metric_field<K>(a, b, c, epsilon);
+  //Implicit_curvature_metric_field<K>* metric_field =new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
+  //Ellipsoid_metric_field<K>* metric_field = new Ellipsoid_metric_field<K>(a, b, c, epsilon);
+  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
-  int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x
-  K::Plane_3 plane1(1., 0., 0., -4);
-  K::Plane_3 plane2(1., 0., 0., 4);
+  //int xcondition = (argc > 10) ? atoi(argv[10]) : -1;//default : no condition on x
+
+  double plane_angle = M_PI/2.;
+
+  K::Plane_3 plane1(CGAL::ORIGIN, K::Point_3(0.,0.,1.), K::Point_3(1.,0.,0.));
+  K::Plane_3 plane2(CGAL::ORIGIN, K::Point_3(0.,std::sin(plane_angle),std::cos(plane_angle)), K::Point_3(1.,0.,0.));
 
   typedef Is_between<K::Plane_3, K::Point_3> RCondition;
 
-  RCondition condition(plane1, plane2, (xcondition == 1));
-  //Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, 1, condition);
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
+  RCondition condition(plane1, plane2, 1, 1, 1); //x,y,z>0
+  Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, 0., condition);
+  //Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
   timer.stop();
   starset.output("base_ellipse.off", false);
