@@ -4156,7 +4156,7 @@ public:
         const Metric_field* metric_field_,
         const Constrain_surface* const pconstrain_,
         const int nb_initial_points = 10,
-        const int nb_pass = 1,
+        const int nb_pass = 0,
         //const FT& distortion_pickvalid_bound = 2.,
         const RefinementCondition& rc_ = No_condition<Point_3>()
 #ifdef ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
