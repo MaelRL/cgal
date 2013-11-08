@@ -38,10 +38,11 @@
 #include <CGAL/Output_facets.h>
 #include <CGAL/Polyhedron_painter.h>
 
+#include <CGAL/helpers/combinatorics_helper.h>
 #include <CGAL/helpers/metric_helper.h>
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/timer_helper.h>
-#include <CGAL/helpers/combinatorics_helper.h>
+#include <CGAL/helpers/triangle_bisection.h>
 
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
@@ -91,6 +92,7 @@ namespace CGAL
       //it needs to be used in Constrain_surface declaration too
       typedef CGAL::Anisotropic_mesh_3::Polyhedron_painter<K, Constrain_surface, Metric_field> Poly_painter;
       typedef typename K::Point_3                 Point_3;
+      typedef typename K::Triangle_3              Triangle_3;
       typedef Criteria_base<K>                    Criteria;
       typedef std::set<Point_3>                   Point_set;
 
@@ -2785,44 +2787,36 @@ public:
         return sum;
       }
 
-      template<typename Color_type>
-      void add_grid_pts_from_triangle(const Point_3& pa, const Color_type& color_a,
-                                      const Point_3& pb, const Color_type& color_b,
-                                      const Point_3& pc, const Color_type& color_c,
-                                      const int pts_on_side, const bool get_color_from_prev_poly)
+      void add_grid_pts_from_triangle(const Point_3& pa, const Eigen::Matrix3d& m_a,
+                                      const Point_3& pb, const Eigen::Matrix3d& m_b,
+                                      const Point_3& pc, const Eigen::Matrix3d& m_c,
+                                      const bool get_color_from_prev_poly,
+                                      const int sample_points_n = 10)
                                       //std::map<Point_3, int>& visited_points
       {
-        if(pts_on_side < 1)
-          return;
+        std::vector<Point_3> sample_points;
+        std::vector<FT> coeffs;
+        Triangle_3 tri(pa, pb, pc);
 
-        FT denom = pts_on_side + 1.;
+        get_sample_points<K>(tri, sample_points_n, sample_points, coeffs);
 
-        for(int i=1; i<=pts_on_side; ++i)
+        for(std::size_t i=0; i<sample_points.size(); ++i)
         {
-          FT coeff_a0 = ((FT) i)/denom;
-          FT coeff_b0 = 1. - coeff_a0;
-          for(int j=1; j<=pts_on_side; ++j)
+          Point_3 p = sample_points[i];
+
+          assert(p.x == coeffs[3*i]*pa.x() + coeffs[3*i+1]*pb.x() + coeffs[3*i+2]*pc.x() &&
+                 p.y == coeffs[3*i]*pa.y() + coeffs[3*i+1]*pb.y() + coeffs[3*i+2]*pc.y() &&
+                 p.z == coeffs[3*i]*pa.z() + coeffs[3*i+1]*pb.z() + coeffs[3*i+2]*pc.z() );
+
+          if(!visited_points[p])
           {
-            FT coeff_c = ((FT) j)/denom;
-            FT delta = 1. - coeff_c;
-            FT coeff_a = coeff_a0 * delta;
-            FT coeff_b = coeff_b0 * delta;
-
-            FT px = pa.x()*coeff_a + pb.x()*coeff_b + pc.x()*coeff_c;
-            FT py = pa.y()*coeff_a + pb.y()*coeff_b + pc.y()*coeff_c;
-            FT pz = pa.z()*coeff_a + pb.z()*coeff_b + pc.z()*coeff_c;
-            Point_3 p(px,py,pz);
-
-            if(!visited_points[p])
-            {
-              std::vector<std::pair<Color_type, FT> > w_colors;
-              w_colors.push_back(std::make_pair(color_a, coeff_a));
-              w_colors.push_back(std::make_pair(color_b, coeff_b));
-              w_colors.push_back(std::make_pair(color_c, coeff_c));
-              Color_type pcolor = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_colors);
-              m_poly_painter.color_poly(p, pcolor, get_color_from_prev_poly, 1);
-              visited_points[p] = 1;
-            }
+            std::vector<std::pair<Eigen::Matrix3d, FT> > w_colors;
+            w_colors.push_back(std::make_pair(m_a, coeffs[3*i]));
+            w_colors.push_back(std::make_pair(m_b, coeffs[3*i+1]));
+            w_colors.push_back(std::make_pair(m_c, coeffs[3*i+2]));
+            Eigen::Matrix3d m_p = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_colors);
+            m_poly_painter.color_poly(p, m_p, get_color_from_prev_poly, 1 /*origin = within a triangle*/);
+            visited_points[p] = 1;
           }
         }
       }
@@ -2887,27 +2881,35 @@ public:
             Point_3& pb = star_b->center_point();
             Point_3& pc = star_c->center_point();
 
-            Eigen::Matrix3d color_a, color_b, color_c;
-            get_colors(star_a, color_a, star_b, color_b, star_c, color_c);
+            Eigen::Matrix3d m_a, m_b, m_c;
+            get_colors(star_a, m_a, star_b, m_b, star_c, m_c);
             bool get_color_from_prev_poly = (m_pass_count >= m_pass_n);
 
             if(!visited_points[pa])
             {
-              m_poly_painter.color_poly(pa, color_a, get_color_from_prev_poly, 2);
+              m_poly_painter.color_poly(pa, m_a, get_color_from_prev_poly, 2);
               visited_points[pa] = 1;
             }
             if(!visited_points[pb])
             {
-              m_poly_painter.color_poly(pb, color_b, get_color_from_prev_poly, 2);
+              m_poly_painter.color_poly(pb, m_b, get_color_from_prev_poly, 2);
               visited_points[pc] = 1;
             }
             if(!visited_points[pc])
             {
-              m_poly_painter.color_poly(pc, color_c, get_color_from_prev_poly , 2);
+              m_poly_painter.color_poly(pc, m_c, get_color_from_prev_poly , 2);
               visited_points[pc] = 1;
             }
 
-            add_grid_pts_from_triangle(pa, color_a, pb, color_b, pc, color_c, pts_on_side, get_color_from_prev_poly);
+            //need the average anisotropy from the three stars to compute the number
+            //of sample points within the aniso triangle.
+            FT r_a = star_a->metric().get_max_eigenvalue()/star_a->metric().get_min_eigenvalue();
+            FT r_b = star_b->metric().get_max_eigenvalue()/star_b->metric().get_min_eigenvalue();
+            FT r_c = star_c->metric().get_max_eigenvalue()/star_c->metric().get_min_eigenvalue();
+            int r = std::ceil(((r_a + r_b + r_c)/3.)/2);
+
+            add_grid_pts_from_triangle(pa, m_a, pb, m_b, pc, m_c,
+                                       get_color_from_prev_poly, r);
           }
         }
         m_poly_painter.count_colored_elements();
