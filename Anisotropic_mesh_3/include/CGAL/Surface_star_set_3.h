@@ -2855,6 +2855,7 @@ public:
 
         visited_points.clear();
 
+        std::set<Facet_ijk> done;
         typename Star_vector::const_iterator it;
         for(it = m_stars.begin(); it != m_stars.end(); ++it)
         {
@@ -2862,6 +2863,8 @@ public:
           if(!star->is_surface_star())
             continue;
 
+          //a single consistent facet in the star is most probably an anomaly
+          //so we skip it
           if(count_consistent_restricted_facets(star) < 2)
             continue;
 
@@ -2872,6 +2875,9 @@ public:
             Facet f = *fit;
             if(!is_consistent(f))
               continue;
+            if(done.find(Facet_ijk(f)) != done.end())
+              continue;
+            done.insert(Facet_ijk(f));
 
             Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
             Star_handle star_b = m_stars[f.first->vertex((f.second+2)%4)->info()];
