@@ -79,7 +79,7 @@ namespace CGAL
       virtual Oriented_side side_of_constraint(const Point_3 &p) const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
       virtual void compute_poles(std::set<Point_3>&) const = 0;
-      virtual Point_container get_surface_points(unsigned int nb, double facet_distance_coeff = 1e-3) const = 0;
+      virtual Point_container get_surface_points(unsigned int nb, double facet_distance_coeff = 0.01) const = 0;
       virtual std::string name() const  = 0;
       virtual FT compute_sq_approximation(const Point_3& p) const = 0;
 

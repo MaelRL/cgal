@@ -419,6 +419,34 @@ public:
         std::cout << "done" << std::endl;
       }
 
+      // Sizing field
+      template<typename CSI>
+      struct Aniso_sizing_field
+      {
+        const CSI* const csi;
+
+        typedef typename CSI::FT                 FT;
+        typedef typename CSI::Mesh_domain::Index Index;
+        FT operator()(const Point_3& p, const int, const Index&) const
+        {
+          Vector_3 n, v1, v2;
+          double e1, e2;
+          csi->tensor_frame(p, n, v1, v2, e1, e2, 1e-5);
+          e1 = std::max(e1, 1e-10);
+          e2 = std::max(e2, 1e-10);
+          FT ratio = 1./std::sqrt(std::max(e1/e2, e2/e1));
+          FT ret = std::max(1e-3, ratio);
+
+          ret *= 0.1*csi->get_bounding_radius();
+
+          //std::cout << "ratio : " << ratio << " " << 1./ratio << std::endl;
+          //std::cout << "ret : " << ret << std::endl;
+          return ret;
+        }
+
+        Aniso_sizing_field(const CSI* const csi_):csi(csi_){}
+      };
+
       virtual Point_container get_surface_points(unsigned int nb,
                                                  double facet_distance_coeff /*= 0.05*/) const
       {
@@ -445,11 +473,13 @@ public:
           Function_wrapper fw(this, fct);
           Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
 
+          Aniso_sizing_field<Self> size(this);
           Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
-                                 CGAL::parameters::facet_size = r * 0.05,
+                                 CGAL::parameters::facet_size = r * 0.05, //size
                                  CGAL::parameters::facet_distance = r * facet_distance_coeff,
                                  CGAL::parameters::facet_topology = MANIFOLD);
                                  // cell criteria are ignored
+
           // run Mesh_3
           m_c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
                                            CGAL::parameters::no_perturb(),
