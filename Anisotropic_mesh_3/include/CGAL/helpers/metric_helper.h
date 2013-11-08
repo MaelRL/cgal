@@ -90,6 +90,27 @@ void get_eigen_vecs_and_vals(const Eigen::Matrix3d& matrix,
 }
 
 template<typename Kernel>
+typename Kernel::FT compute_distortion(const Eigen::Matrix3d& matrix1,
+                                       const Eigen::Matrix3d& matrix2)
+{
+  typename Kernel::Vector_3 vn, v1, v2;
+  typename Kernel::FT en, e1, e2;
+  get_eigen_vecs_and_vals<Kernel>(matrix1, vn, v1, v2, en, e1, e2);
+  en = std::sqrt(en); e1 = std::sqrt(e1); e2 = std::sqrt(e2);
+  Eigen::Matrix3d Fp = build_UDUt<Kernel>(vn, v1, v2, en, e1, e2);
+  Eigen::Matrix3d Fpm1 = build_UDUt<Kernel>(vn, v1, v2, 1./en, 1./e1, 1./e2);
+
+  get_eigen_vecs_and_vals<Kernel>(matrix2, vn, v1, v2, en, e1, e2);
+  en = std::sqrt(en); e1 = std::sqrt(e1); e2 = std::sqrt(e2);
+  Eigen::Matrix3d Fq = build_UDUt<Kernel>(vn, v1, v2, en, e1, e2);
+  Eigen::Matrix3d Fqm1 = build_UDUt<Kernel>(vn, v1, v2, 1./en, 1./e1, 1./e2);
+
+  double eigen_dis1 = (Fp * Fqm1).operatorNorm();
+  double eigen_dis2 = (Fq * Fpm1).operatorNorm();
+  return max(eigen_dis1, eigen_dis2);
+}
+
+template<typename Kernel>
 Eigen::Matrix3d matrix_log(const Eigen::Matrix3d& m, const typename Kernel::FT& alpha = 1)
 {
   typename Kernel::Vector_3 v_0, v_1, v_2;
