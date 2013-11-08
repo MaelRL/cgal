@@ -1737,6 +1737,20 @@ public:
             std::cerr << m_metric.inverse_transform(c2->vertex(2)->point()) << std::endl;
             std::cerr << c2->vertex(3)->info() << " ";
             std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
+            std::cerr << "cp1/cp2" << std::endl;
+            if(f1 && f2)
+            {
+              Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
+              Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
+              std::cerr << cp1 << " " << cp2 << std::endl;
+              std::cerr << "is inside : " << is_inside(c1) << " " << is_inside(c2) << std::endl;
+              std::cerr << "check : " << m_pConstrain->side_of_constraint(cp1) << " " << m_pConstrain->side_of_constraint(cp2) << std::endl;
+            }
+            else
+            {
+              std::cerr << m_metric.inverse_transform(c1->circumcenter(*(m_traits))) << std::endl;
+              std::cerr << m_metric.inverse_transform(offset_point) << std::endl;
+            }
           }
           if(super_verbose)
             std::cout << " Normal ("<< n <<")" << std::endl;

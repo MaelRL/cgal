@@ -1661,9 +1661,32 @@ public:
             star->compute_dual_intersection(*fi, cc);
             if(!m_refinement_condition(cc))
               continue;
-            
+
             Cell_handle cell = fi->first;
             int offset = fi->second;
+
+#ifdef ANISO_DEBUG_REFINEMENT_PP
+            //check for absurdities
+            Vertex_handle v1 = cell->vertex((offset+1)%4);
+            Vertex_handle v2 = cell->vertex((offset+2)%4);
+            Vertex_handle v3 = cell->vertex((offset+3)%4);
+
+            if(CGAL::squared_distance(star->metric().inverse_transform(v1->point()), m_stars[v1->info()]->center_point()) > 1e-10 ||
+               CGAL::squared_distance(star->metric().inverse_transform(v2->point()), m_stars[v2->info()]->center_point()) > 1e-10 ||
+               CGAL::squared_distance(star->metric().inverse_transform(v3->point()), m_stars[v3->info()]->center_point()) > 1e-10)
+            {
+              std::cout.precision(20);
+              std::cout << "points differ in fill_ref_queue: " << v1->info() << " " << v2->info() << " " << v3->info() << std::endl;
+              std::cout << "index in star set : " <<  star->index_in_star_set() << std::endl;
+              std::cout << star->metric().inverse_transform(v1->point()) << std::endl;
+              std::cout << star->metric().inverse_transform(v2->point()) << std::endl;
+              std::cout << star->metric().inverse_transform(v3->point()) << std::endl;
+              std::cout << m_stars[v1->info()]->center_point() << std::endl;
+              std::cout << m_stars[v2->info()]->center_point() << std::endl;
+              std::cout << m_stars[v3->info()]->center_point() << std::endl;
+            }
+#endif
+
             if (relative_point >= 0) // we don't consider not-relative facets
             {
               bool relative = false;
@@ -2276,10 +2299,17 @@ public:
               if(bad_facet.star->is_restricted(ff))
               {
                 std::cout.precision(15);
-                std::cout << "Bad facet still there. Bad_facet.star : " << bad_facet.star->index_in_star_set() << std::endl;
+                std::cout << "Bad facet still there. Bad_facet.star : " << bad_facet.star->index_in_star_set() << ". stars : " << m_stars.size() << std::endl;
+                std::cout << "star's metric" << std::endl << bad_facet.star->metric().get_transformation() << std::endl;
+                std::cout << "evs : " << bad_facet.star->metric().get_max_eigenvalue() << " ";
+                std::cout << bad_facet.star->metric().get_min_eigenvalue() << " ";
+                std::cout << bad_facet.star->metric().get_third_eigenvalue() << std::endl;
                 std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
+                std::cout << "check : " << m_stars[v1->info()]->center_point() << std::endl;
                 std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
+                std::cout << "check : " << m_stars[v2->info()]->center_point() << std::endl;
                 std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
+                std::cout << "check : " << m_stars[v3->info()]->center_point() << std::endl;
 
 #ifdef ANISO_DEBUG_REFINEMENT_COLORING
                 refinement_debug_coloring = true;
@@ -2295,9 +2325,7 @@ public:
                 std::cout << ", pid = " << pid;
                 std::cout << ", f(p) = " << m_pConstrain->side_of_constraint(steiner_point);
                 std::cout << ", picking : " << need_picking_valid << std::endl;
-                std::cout << "\tp = " << steiner_point  << std::endl;
-                bad_facet.star->debug_steiner_point(steiner_point, ff, true);
-                std::cout << "\t(Exact)" << std::endl;
+                std::cout << "\tp = " << steiner_point  << " " << m_pConstrain->side_of_constraint(steiner_point) << std::endl;
 
                 Cell_handle useless;
                 std::cout << "checking conflicts with all three stars : ";
@@ -2309,6 +2337,8 @@ public:
                 std::cout << m_stars[ind_v1]->bbox_needs_aabb_update() << " ";
                 std::cout << m_stars[ind_v2]->bbox_needs_aabb_update() << " ";
                 std::cout << m_stars[ind_v3]->bbox_needs_aabb_update() << std::endl;
+
+                bad_facet.star->debug_steiner_point(steiner_point, ff, true);
 
                 //pop_back_star();
                 //return false;
