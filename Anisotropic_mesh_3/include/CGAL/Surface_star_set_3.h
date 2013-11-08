@@ -3083,9 +3083,9 @@ public:
           std::cout << "--------------------------------------------------------" << std::endl;
           std::cout << "post fill c3t3: " << m_pass_count << std::endl;
           std::cout << "--------------------------------------------------------" << std::endl;
-          reset();
           if(!continue_)
             return;
+          reset();
           m_pass_count++;
         }
 
