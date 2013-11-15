@@ -219,9 +219,9 @@ void Mesh_3_plugin::mesh_3()
   ui.tetSizing->setValue(sizing_default); // default value
   
   double approx_default = get_approximate(diag * 0.005, 2, decimals);
-  ui.approx->setDecimals(-decimals+2);
+  ui.approx->setDecimals(7);
   ui.approx->setSingleStep(std::pow(10.,decimals));
-  ui.approx->setRange(diag * 10e-7, // min
+  ui.approx->setRange(0, // min
                       diag); // max
   ui.approx->setValue(approx_default);
 

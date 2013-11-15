@@ -1065,7 +1065,7 @@ class Constrain_surface_3_polyhedral :
         m_vertices.reserve(point_count);
         m_metrics.reserve(point_count);
 
-        compute_bounding_box();        
+        compute_bounding_box();
 
         std::ifstream metric_input("metrics.txt");
         if(metric_input)

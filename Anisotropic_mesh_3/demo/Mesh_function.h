@@ -172,6 +172,10 @@ launch()
   
   // Ensure c3t3 is ok (usefull if process has been stop by the user)
   mesher_->fix_c3t3();
+
+  //out
+  std::ofstream out("mesh_3_iso.mesh");
+  c3t3_.output_to_medit(out);
 }
 
 

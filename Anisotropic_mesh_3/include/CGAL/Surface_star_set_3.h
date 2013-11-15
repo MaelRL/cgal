@@ -2843,9 +2843,7 @@ public:
 
       void color_polyhedron_from_starset()
       {
-        //loop on consistent restricted facets and color with the aniso at the 3 pts
-        int pts_on_side = 7; //size of grid of pts obtained from barycentric coordinates on the triangle
-
+        //loop on consistent restricted facets and color with the aniso at the 3 pts + sampling
         visited_points.clear();
 
         std::set<Facet_ijk> done;
@@ -3203,9 +3201,9 @@ private:
        FT e11 = 4.4;
        FT e12 = 2.0;
        FT e13 = 0.6;
-       FT e21 = 1.;
-       FT e22 = 1.;
-       FT e23 = 1.;
+       FT e21 = 2.15;
+       FT e22 = 0.47;
+       FT e23 = 1.14;
        FT e31 = 4.98357;
        FT e32 = 0.857174;
        FT e33 = 1.05617;
@@ -3872,8 +3870,8 @@ public:
         typename std::set<Point_3>::const_iterator it;
         for(it = m_poles.begin(); it != m_poles.end(); ++it)
         {
-          // if(!is_above_plane<K>(plane, *it))
-          //   continue;
+           if(!is_above_plane<K>(plane, *it))
+             continue;
           ::glVertex3d((*it).x(), (*it).y(), (*it).z());
         }
         ::glEnd();
