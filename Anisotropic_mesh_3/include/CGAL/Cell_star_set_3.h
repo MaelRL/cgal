@@ -16,1005 +16,1238 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_STAR_SET_3_H
 #define CGAL_ANISOTROPIC_MESH_3_STAR_SET_3_H
 
-#include <CGAL/Stretched_Delaunay_3.h>
-#include <CGAL/Constrain_surface_3.h>
-#include <CGAL/Metric_field.h>
-#include <CGAL/Criteria.h>
 #include <CGAL/Cell_refine_queue.h>
+#include <CGAL/Constrain_surface_3.h>
+#include <CGAL/Criteria.h>
+#include <CGAL/Metric_field.h>
+#include <CGAL/Stretched_Delaunay_3.h>
+#include <CGAL/Output_facets.h>
 #include <CGAL/Output_cells.h>
+
+#include <CGAL/helpers/statistics_helper.h>
+#include <CGAL/helpers/metric_helper.h>
+
 #include <iostream>
 #include <fstream>
 #include <utility>
 #include "stdio.h"
 
-#include <CGAL/helpers/statistics_helper.h>
 
 namespace CGAL{
-  namespace Anisotropic_mesh_3{
-
-    template<typename K>
-    class Cell_star_set_3 {
-    public:
-      typedef typename Cell_star_set_3<K>         Self;
-      typedef typename K::FT			  FT;
-      typedef Stretched_delauney_3<K>		  Star;
-      typedef Star*				  Star_handle;
-      typedef std::vector<Star_handle>	          Star_vector;
-      typedef typename Star_vector::iterator	  Star_iterator;
-      typedef Constrain_surface_3<K>		  Constrain_surface;
-      typedef Metric_field<K>			  Metric_field;
-      typedef typename Metric_field::Metric	  Metric;
-      typedef typename K::Point_3		  Point_3;
-      typedef Criteria_base<K>		  Criteria;
-      typedef typename Star::Vertex_handle	  Vertex_handle;
-      typedef typename Star::Cell_handle	  Cell_handle;
-      typedef typename Star::Facet_handle	  Facet_handle;
-      typedef typename Star::Cell_handle_handle Cell_handle_handle;
-      typedef typename Star::Facet		  Facet;
-      typedef typename Cell_refine_queue<K>	  Refine_queue;
-      typedef typename Refine_cell<K>		  Refine_cell;
-
-      typedef typename std::pair<unsigned, int>	Global_triangulation_vertex_info;
-      typedef typename CGAL::Triangulation_data_structure_3<
-        CGAL::Triangulation_vertex_base_with_info_3<Global_triangulation_vertex_info, K> >
-        Global_triangulation_ds;
-      typedef typename CGAL::Delaunay_triangulation_3<K, Global_triangulation_ds>
-        Global_triangulation;
-      typedef typename Global_triangulation_ds::Vertex_handle	Global_triangulation_vertex_handle;
-
-    public:
-      Constrain_surface* m_pConstrain;
-      const Metric_field &metric_field;
-      const Criteria &criteria;
-      Star_vector m_stars;
-      Global_triangulation global_triangulation;
-      std::vector<Point_3> m_points;
-      std::vector<int> point_rounds;
-      Refine_queue refine_queue;
-
-      // the following global variables are only for debugging or benchmark
-      int current_round;
-      int pick_count;
-      int vertex_with_picking_count;
-      int vertex_without_picking_count;
-      int intersection_count;
-      time_t start_time;
-
-    public:
-      bool empty() const
-      {
-        return m_stars.empty();
-      }
-    public:
-      Constrain_surface* constrain_surface() { return m_pConstrain; }
-      void set_constrain_surface(Constrain_surface* pcs){ m_pConstrain = pcs; }
-
-    public:
-      bool is_valid_point(const Point_3 &p, const FT radius_bound, Star_handle &star)
-      {
-        int new_vertex_id = (int)m_points.size();
-        Global_triangulation_vertex_handle gh = global_triangulation.insert(p);
-        if (gh == Global_triangulation_vertex_handle())
-          return false;
-        else
-          gh->info() = Global_triangulation_vertex_info((unsigned)new_vertex_id, 0);
-        star = create_star(p, new_vertex_id, gh);
-        global_triangulation.remove(gh);
-
-
-        // only check adjacent stars for sliver
-        Star::Vertex_handle_handle nsi = star->begin_neighboring_vertices();
-        Star::Vertex_handle_handle nsiend = star->end_neighboring_vertices();
-        for (; nsi != nsiend; nsi++) {
-          if (star->is_infinite(*nsi))
-            continue;
-          if (m_stars[(*nsi)->info()]->can_form_sliver(p, radius_bound)) {
-            std::cout << ("S");
-            delete star;
-            star = NULL;
-            return false;
-          }
-        }
-
-        // check conflicts
-        bool is_cospherical = false;
-        Cell_handle_handle ci = star->begin_finite_star_cells();
-        Cell_handle_handle ciend = star->end_finite_star_cells();
-        for (; ci != ciend; ci++) {
-          if (!star->is_inside(*ci))
-            continue;			
-
-          bool is_in_bound = (star->criteria().compute_squared_circumradius(
-            (*ci)->vertex(0)->point(), (*ci)->vertex(1)->point(), 
-            (*ci)->vertex(2)->point(), (*ci)->vertex(3)->point()) < radius_bound);
-          for (int i = 0; i < 4; i++) {
-            Star::Vertex_handle v = (*ci)->vertex(i);
-            if (v == star->center())
-              continue;
-            Star_handle foreign_star = m_stars[v->info()];
-            if (foreign_star->metric().compute_distortion(star->metric()) > sqrt(criteria.distortion))
-              continue;
-            // if there is a point in foreign star falls into the circum-sphere of the 
-            // four points under the metric of the foreign star, it is inconsistent
-            Star::Vertex_handle_handle fvi = foreign_star->begin_neighboring_vertices();
-            Star::Vertex_handle_handle fviend = foreign_star->end_neighboring_vertices();
-            Point_3 foreign_cc = foreign_star->traits()->construct_circumcenter_3_object()(
-              (*ci)->vertex(0)->point(), (*ci)->vertex(1)->point(), 
-              (*ci)->vertex(2)->point(), (*ci)->vertex(3)->point());
-            Star::Traits::Compute_squared_distance_3 o = foreign_star->traits()->compute_squared_distance_3_object();
-            FT squared_foreign_cr = o(foreign_cc, (*ci)->vertex(0)->point());
-            for (; fvi != fviend; fvi++) {
-              if (foreign_star->is_infinite(*fvi)) continue;
-              if ((*fvi)->info() == (*ci)->vertex(0)->info()) continue;
-              if ((*fvi)->info() == (*ci)->vertex(1)->info()) continue;
-              if ((*fvi)->info() == (*ci)->vertex(2)->info()) continue;
-              if ((*fvi)->info() == (*ci)->vertex(3)->info()) continue;
-              if (o(foreign_cc, (*fvi)->point()) < squared_foreign_cr) {
-                if (!is_in_bound) {
-                  for (int k = 0; k < 4; k++) {
-                    if (star->criteria().compute_volume(
-                      (*ci)->vertex((k + 0) % 4)->point(),
-                      (*ci)->vertex((k + 1) % 4)->point(),
-                      (*ci)->vertex((k + 2) % 4)->point(),
-                      (*fvi)->point()) < 1e-6) {
-                        continue;
-                    }
-                    if (star->criteria().compute_squared_circumradius(
-                      (*ci)->vertex((k + 0) % 4)->point(),
-                      (*ci)->vertex((k + 1) % 4)->point(),
-                      (*ci)->vertex((k + 2) % 4)->point(),
-                      (*fvi)->point()) < radius_bound) {
-                        is_in_bound = true;
-                        break;
-                    }
-                  }
-                }
-                if (!is_in_bound)
-                  continue;
-                is_cospherical = true;
-                break;
-              }
-            }
-            if (is_cospherical)
-              break;
-          }
-          if (is_cospherical)
-            break;
-        }
-        if (is_cospherical) {
-          delete star;
-          std::cout << ("C");
-          star = NULL;
-          return false;
-        }
-
-        return true;
-      }
-
-      Point_3 pick_valid(const Star_handle star, const Cell_handle &cell, Star_handle &retstar) 
-      {
-        Point_3 circumcenter = cell->circumcenter(*(star->traits()));
-        FT squared_circum_radius = star->traits()->compute_squared_distance_3_object()
-          (circumcenter, cell->vertex(0)->point());
-        FT radius_bound = squared_circum_radius *  criteria.beta * criteria.beta;
-        FT circum_radius = sqrt(squared_circum_radius) * criteria.delta;
-        Star::Traits::Compute_random_point_3 random = 
-          star->traits()->compute_random_point_3_object();
-
-        int tried_times = 0;
-        while (true) {
-          pick_count++;
-          Point_3 p = random(circumcenter, 
-            ((FT)tried_times / criteria.max_times_to_try_in_picking_region) * circum_radius);
-
-          if (is_valid_point(p, radius_bound, retstar))
-            return p;
-          if ((tried_times++) > criteria.max_times_to_try_in_picking_region) {
-            std::cout << ("X\n");
-            retstar = NULL;
-            return circumcenter;
-          }
-        }
-      }
-
-      Point_3 pick_valid(const Star_handle star, const Facet &facet, Star_handle &retstar) 
-      {
-        Point_3 circumcenter = star->compute_circumcenter(facet);
-        Point_3 cell_circumcenter = facet.first->circumcenter(*(star->traits()));
-        FT squared_circum_radius = star->traits()->compute_squared_distance_3_object()
-          (circumcenter, facet.first->vertex((facet.second + 1) % 4)->point());
-        FT radius_bound = squared_circum_radius * criteria.beta * criteria.beta;
-        FT circum_radius = sqrt(squared_circum_radius) * criteria.delta;
-        Star::Traits::Compute_random_point_3 random = 
-          star->traits()->compute_random_point_3_object();
-
-        std::size_t tried_times = 0;
-        while (true) {
-          pick_count++;
-          intersection_count++;
-          Point_3 p = star->compute_exact_dual_intersection(random(circumcenter, 
-            cell_circumcenter, ((FT)tried_times / criteria.max_times_to_try_in_picking_region) * circum_radius), facet);
-
-          if (is_valid_point(p, radius_bound, retstar))
-            return p;
-          if ((tried_times++) > criteria.max_times_to_try_in_picking_region) {
-            std::cout << ("X\n");
-            retstar = NULL;
-            return compute_insert_or_snap_point(star, facet);
-          }
-        }
-      }
-
-      Point_3 compute_insert_or_snap_point(const Star_handle star, const typename Constrain_surface::EdgeIterator &edge)
-      {
-        Point_3 p = edge->first;
-        Point_3 q = edge->second;
-        Point_3 c((p.x() + q.x()) / 2.0, (p.y() + q.y()) / 2.0, (p.z() + q.z()) / 2.0);
-        m_pConstrain->edge_split(edge, c);
-        return c;
-      }
-
-      Point_3 compute_insert_or_snap_point(const Star_handle star, const Facet &facet) 
-      {
-        intersection_count++;
-        Point_3 p = star->compute_exact_dual_intersection(facet);
-
-        // test encroachment
-#ifdef CHECK_EDGE_ENCROACHMENT
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        Constrain_surface::EdgeIterator encroached_edge;
-        for (; si != siend; si++) {
-          if ((*si)->is_encroached(p, encroached_edge))
-            return compute_insert_or_snap_point(*si, encroached_edge);
-        }
-#endif
-        return p;
-      }
-
-      Point_3 compute_insert_or_snap_point(const Star_handle star, const Cell_handle cell)
-      {
-        Point_3 p = cell->circumcenter(*(star->traits()));
-        // test encroachment
-
-#ifdef CHECK_EDGE_ENCROACHMENT
-        {
-          Star_iterator si = m_stars.begin();
-          Star_iterator siend = m_stars.end();
-          Constrain_surface::EdgeIterator encroached_edge;
-          for (; si != siend; si++) {
-            if ((*si)->is_encroached(p, encroached_edge))
-              return compute_insert_or_snap_point(*si, encroached_edge);
-          }
-        }
-#endif
-#ifdef CHECK_FACE_ENCROACHMENT
-        {
-#ifdef ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
-          Facet encroached_facet;
-          if (m_stars.size() < 1000) {
-            Star_iterator si = m_stars.begin();
-            Star_iterator siend = m_stars.end();
-            Facet encroached_facet;
-            for (; si != siend; si++) {
-              if ((*si)->is_encroached(p, encroached_facet))
-                return compute_insert_or_snap_point(*si, encroached_facet);
-            }
-          } else {
-            if (star->is_encroached(p, encroached_facet))
-              return compute_insert_or_snap_point(star, encroached_facet);
-
-            Star::Vertex_handle_handle nvi = star->begin_neighboring_vertices();
-            Star::Vertex_handle_handle nviend = star->end_neighboring_vertices();
-            for (; nvi != nviend; nvi++) {
-              if (star->is_infinite(*nvi))
-                continue;
-              Star_handle css = m_stars[(*nvi)->info()];
-              if (css->is_encroached(p, encroached_facet))
-                return compute_insert_or_snap_point(css, encroached_facet);
-            }
-          }
-#else
-          Star_iterator si = m_stars.begin();
-          Star_iterator siend = m_stars.end();
-          Facet encroached_facet;
-          for (; si != siend; si++) {
-            if ((*si)->is_encroached(p, encroached_facet))
-              return compute_insert_or_snap_point(*si, encroached_facet);
-          }
-#endif
-        }
-#endif
-        return p;
-      }
-
-      Point_3 compute_insert_or_snap_valid_point(const Star_handle star, const Facet &facet, Star_handle &retstar)
-      {
-        Point_3 p = pick_valid(star, facet, retstar);
-        // test encroachment
-
-#ifdef CHECK_EDGE_ENCROACHMENT
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        Constrain_surface::EdgeIterator encroached_edge;
-        for (; si != siend; si++) {
-          if ((*si)->is_encroached(p, encroached_edge)) {
-            delete retstar;
-            retstar = NULL;
-            return compute_insert_or_snap_point(*si, encroached_edge);
-          }
-        }
-#endif
-        return p;
-      }
-
-      Point_3 compute_insert_or_snap_valid_point(const Star_handle star, const Cell_handle cell, Star_handle &retstar) 
-      {
-        Point_3 p = pick_valid(star, cell, retstar);
-        // test encroachment
-
-#ifdef CHECK_EDGE_ENCROACHMENT
-        {
-          Star_iterator si = m_stars.begin();
-          Star_iterator siend = m_stars.end();
-          Constrain_surface::EdgeIterator encroached_edge;
-          for (; si != siend; si++) {
-            if ((*si)->is_encroached(p, encroached_edge)) {
-              delete retstar;
-              retstar = NULL;
-              return compute_insert_or_snap_point(*si, encroached_edge);
-            }
-          }
-        }
-#endif
-#ifdef CHECK_FACE_ENCROACHMENT
-        {
-
-#ifdef ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
-          Facet encroached_facet;
-          {
-            if (star->is_encroached(p, encroached_facet)) {
-              delete retstar;
-              retstar = NULL;
-              return compute_insert_or_snap_valid_point(star, encroached_facet, retstar);
-            }
-
-            Star::Vertex_handle_handle nvi = star->begin_neighboring_vertices();
-            Star::Vertex_handle_handle nviend = star->end_neighboring_vertices();
-            for (; nvi != nviend; nvi++) {
-              if (star->is_infinite(*nvi))
-                continue;
-              Star_handle css = m_stars[(*nvi)->info()];
-              if (css->is_encroached(p, encroached_facet)) {
-                delete retstar;
-                retstar = NULL;
-                return compute_insert_or_snap_valid_point(css, encroached_facet, retstar);
-              }
-            }
-          }
-#else
-          Star_iterator si = m_stars.begin();
-          Star_iterator siend = m_stars.end();
-          Facet encroached_facet;
-          for (; si != siend; si++) {
-            if ((*si)->is_encroached(p, encroached_facet)) {
-              delete retstar;
-              retstar = NULL;
-              return compute_insert_or_snap_valid_point(*si, encroached_facet, retstar);
-            }
-          }
-#endif
-        }
-#endif
-        return p;
-      }
-
-      int insert(const Point_3 &point, 
-                 Star_vector &modified_stars, 
-                 Global_triangulation_vertex_handle &global_handle) 
-      {
-        //global triangulation
-        int this_id = (int)m_points.size();
-        Global_triangulation_vertex_handle gh = global_triangulation.insert(point);
-        if (gh == Global_triangulation_vertex_handle())
-          return -1;
-        else
-          gh->info() = Global_triangulation_vertex_info((unsigned)this_id, 0);
-
-        modified_stars.clear();
-
-        // insert p into all stars
-#ifdef	INSERT_POINT_ENHANCEMENT
-        if (m_stars.size() > 1000) 
-        {
-          current_round++;
-          std::list<Global_triangulation_vertex_handle> queue;
-          std::back_insert_iterator<std::list<Global_triangulation_vertex_handle> > 
-            queue_insertor(queue);
-          gh->info().second = current_round;
-          global_triangulation.adjacent_vertices(gh, queue_insertor);
-          while (!queue.empty()) 
-          {
-            Global_triangulation_vertex_handle h = queue.front();
-            if (h->info().second == current_round)// visited
-            { 
-              queue.pop_front();
-              continue;
-            }
-            unsigned vid = h->info().first;
-            h->info().second = current_round;
-            if (m_stars[vid]->insert_to_star(point, (int)m_points.size()) != Star::Vertex_handle()) 
-            {
-              global_triangulation.adjacent_vertices(h, queue_insertor);
-              modified_stars.push_back(m_stars[vid]);
-            }
-            queue.pop_front();
-          }
-        } 
-        else 
-          naive_insertion(point, modified_stars);
-
-#else
-        naive_insertion(point, modified_stars);
-
-#endif
-        m_points.push_back(point);
-        point_rounds.push_back(0);
-        global_handle = gh;
-        return this_id;
-      }
-
-      void naive_insertion(const Point_3 &point, 
-                           Star_vector &modified_stars)
-      {
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        for (; si != siend; si++) 
-        {
-          if ((*si)->insert_to_star(point, (int)m_points.size()) != Star::Vertex_handle())
-            modified_stars.push_back(*si);
-        }
-      }
-
-      void check_conflicts(Star_vector &modified_stars, int relative_point = -1) 
-      {
-        Star_iterator si = modified_stars.begin();
-        Star_iterator siend = modified_stars.end();
-        for (; si != siend; si++) {
-          Star_handle star = *si;
-
-          // check encroachment
-          Facet_handle bi = star->begin_restricted_facets();
-          Facet_handle biend = star->end_restricted_facets();
-          for (; bi != biend; bi++) 
-          {
-            if ((relative_point >= 0) && (bi->first->vertex(bi->second)->info() != relative_point))
-              continue;
-#ifdef CHECK_FACE_ENCROACHMENT
-            if (star->is_facet_encroached(bi->first->vertex(bi->second)->point(), *bi))
-              refine_queue.push_encroachment(star, bi->first, star->compute_volume(bi->first), bi->second);
-#endif
-          }
-
-          Cell_handle_handle ci = star->begin_finite_star_cells();
-          Cell_handle_handle ciend = star->end_finite_star_cells();
-          for (; ci != ciend; ci++) 
-          {
-            Cell_handle c = *ci;
-            if (!star->is_inside(c))
-              continue;
-            assert(!star->is_infinite(c));
-
-            if (relative_point >= 0) 
-            {
-              bool relative = false;
-              for (int i = 0; i < 4; i++)
-                if (relative_point == c->vertex(i)->info()) 
-                {
-                  relative = true;
-                  break;
-                }
-                if (!relative)
-                  continue;
-            }
-
-            // over distortion
-            for (int i = 0; i < 4; i++)
-              for (int j = i + 1; j < 4; j++) {
-                FT over_distoration = 					
-                  m_stars[c->vertex(i)->info()]->metric().compute_distortion(
-                  m_stars[c->vertex(j)->info()]->metric()) - criteria.distortion;
-                if (over_distoration > 0) {
-                  refine_queue.push_over_distortion(star, c, over_distoration, 0);
-                  goto next_cell;
-                }
-              }
-
-              // too big
-              FT over_circumradius =
-                star->compute_circumradius_overflow(c);
-              if (over_circumradius > 0) {
-                refine_queue.push_over_circumradius(star, c, over_circumradius, 0);
-                goto next_cell;
-              }
-
-              // bad shape
-              FT over_radius_edge_ratio =
-                star->compute_radius_edge_ratio_overflow(c);
-              if (over_radius_edge_ratio > 0) {
-                refine_queue.push_bad_shape(star, c, over_radius_edge_ratio, 0);
-                goto next_cell;
-              }
-
-              // sliverity
-              FT over_sliverity =
-                star->compute_sliverity_overflow(c);
-              if (over_sliverity > 0) {
-                refine_queue.push_sliver(star, c, over_sliverity, 0);
-                goto next_cell;
-              }
-
-              // consistency
-              for (int i = 0; i < 4; i++) {
-                Vertex_handle v = c->vertex(i);
-                if (star->center() == v)
-                  continue;
-                if (!m_stars[v->info()]->has_cell(c)) {
-                  refine_queue.push_inconsistent(star, c, star->compute_volume(c), 0);
-                  goto next_cell;
-                }
-              }
-next_cell:	;
-          } // for cells
-        } // for stars
-      }
-
-      void initialize_stars() 
-      {
-        std::cout << ("Initializing stars...");
-        Constrain_surface::Pointset initial_points = m_pConstrain->initial_points();
-        Constrain_surface::Pointset::iterator pi = initial_points.begin();
-        Constrain_surface::Pointset::iterator pend = initial_points.end();
-        for (int i = 0; pi != pend; pi++, i++) 
-        {
-          std::cout << (".");
-          Point_3 p = *pi;
-          Global_triangulation_vertex_handle h = global_triangulation.insert(p);
-          if (h == Global_triangulation_vertex_handle())
-            continue;
-          else
-            h->info() = std::pair<unsigned, int>(i, 0);
-        
-          Star_handle star = new Star(criteria, p, i, metric_field.compute_metric(p), m_pConstrain);
-          Constrain_surface::Pointset::iterator qj = initial_points.begin();
-          Constrain_surface::Pointset::iterator qend = initial_points.end();
-          for (int j = 0; qj != qend; qj++, j++)
-            if (i != j)
-              star->insert_to_star(*qj, j);
-          m_stars.push_back(star);
-          m_points.push_back(p);
-          point_rounds.push_back(0);
-
-        }
-        std::cout << ("\nInitializing conflicts...\n");
-        check_conflicts(m_stars);
-        std::cout << (" [ok]" << std::endl);
-      }
-
-      bool next_refine_cell(Refine_cell &refine_cell, Cell_handle &cell, bool &need_picking_valid, int &queue_type)
-      {
-        while (true) 
-        {
-          if (!refine_queue.top(refine_cell, queue_type))
-            return false;
-          refine_queue.pop();
-          if (refine_cell.star->has_cell_ref(refine_cell.vertices, cell)) 
-          {
-            if (!refine_cell.star->is_inside(cell))
-              continue;
-            need_picking_valid = refine_queue.need_picking_valid(queue_type);
-            return true;
-          }
-        }
-      }
-
-      Star_handle create_star(const Point_3 &p, int pid, Global_triangulation_vertex_handle &global_handle) 
-      {
-        Star_handle star = new Star(criteria, p, pid, metric_field.compute_metric(p), m_pConstrain);
-
-#ifdef	CREATE_STAR_ENHANCEMENT
-        if (m_stars.size() > 1000) {
-          current_round++;
-          std::list<Global_triangulation_vertex_handle> queue;
-          std::back_insert_iterator<std::list<Global_triangulation_vertex_handle> > 
-            queue_insertor(queue);
-          global_handle->info().second = current_round;
-          global_triangulation.adjacent_vertices(global_handle, queue_insertor);
-          while (!queue.empty()) {
-            Global_triangulation_vertex_handle h = queue.front();
-            if (h->info().second == current_round)	{ // visited
-              queue.pop_front();
-              continue;
-            }
-            unsigned vid = h->info().first;
-            h->info().second = current_round;
-            if (star->insert_to_star(m_points[vid], vid) != Star::Vertex_handle())
-              global_triangulation.adjacent_vertices(h, queue_insertor);
-            queue.pop_front();
-          }
-        } else {
-          for (int i = 0; i < pid; i++)
-            star->insert_to_star(m_points[i], i);
-        }
-#else
-        for (int i = 0; i < pid; i++)
-          star->insert_to_star(m_points[i], i);
-#endif
-        return star;
-      }
-
-      bool refine()
-      {
-        int this_id = (int)m_points.size();
-
-        Point_3 p;
-        int queue_type = 0;
-        Refine_cell cell;
-        bool need_picking_valid;
-        Cell_handle c;
-        Star_handle star = NULL;		
-
-repick_cell:
-        {
-          if (!next_refine_cell(cell, c, need_picking_valid, queue_type))
-            return false;
-#ifdef ONLY_CONSIDER_SURFACE
-          if (!cell.star->is_boundary_star())
-            return true;
-#endif
-          if (queue_type == 0) { // encroachment
-            int tag = 0;
-            for (int i = 0; i < 4; i++)
-              if (c->vertex(i)->info() == cell.vertices[0]) {
-                tag = i;
-                break;
-              }
-              if (!cell.star->has_facet(Facet(c, tag))) {
-                std::cout << ("[repick]");
-                goto repick_cell;
-              }
-              p = compute_insert_or_snap_point(cell.star, Facet(c, tag));
-              vertex_without_picking_count++;
-          } else {
-            if (need_picking_valid) {
-              p = compute_insert_or_snap_valid_point(cell.star, c, star);
-              vertex_with_picking_count++;
-            } else {
-              p = compute_insert_or_snap_point(cell.star, c);
-              vertex_without_picking_count++;
-            }
-          }
-
-
-#ifdef CHECK_EXISTING_VERTICES
-          // check already exists
-          for (int i = (int)m_points.size() - 1; i >= 0; i--) {
-            Point_3 q = m_points[i];
-            if (fabs(p.x() - q.x()) +
-              fabs(p.y() - q.y()) +
-              fabs(p.z() - q.z()) < 1e-4)
-            {
-              std::cout << "\nsame with " << i << std::endl;
-              std::cout << p << " vs. " << q << std::endl;
-              return true;
-            }
-          }
-#endif
-
-          std::cout << (this_id << " refine: " << p << " [" << 
-            c->vertex(0)->info() << "-" <<
-            c->vertex(1)->info() << "-" <<
-            c->vertex(2)->info() << "-" <<
-            c->vertex(3)->info() << "] " <<
-            "t:" << queue_type << " i:" << cell.vertices[0] << " s:" << cell.star->center()->info() <<
-            std::endl);
-        }
-
-        Star_vector affected_stars;
-        Global_triangulation_vertex_handle global_handle;
-        int pid = insert(p, affected_stars, global_handle);
-        if (pid < 0) {
-          std::cout << ("[Already exists!]");
-          return true;
-        }
-
-        // create star
-        if (star == NULL)
-          star = create_star(p, pid, global_handle);
-        m_stars.push_back(star);
-        check_conflicts(affected_stars, pid);
-        return true;
-      }
-
-      void dump(const bool nb = false) 
-      {
-        std::ostringstream nbs;
-        nbs << m_points.size();
-        
-        std::string title("dump");
-        if(nb) title.append(nbs.str());
-        title.append(".off");
-        
-        std::cout << "Write " << title << " (" << nbs.str() << " vertices)...";
-        typename std::ofstream fx(title);
-
-        fx << "OFF" << std::endl;
-        fx << m_points.size() << " 0 0 " << std::endl;
-        for (int i = 0; i < (int)m_points.size(); i++)
-          fx << m_points[i] << std::endl;
-
-        /*fx << 0 << std::endl;
-        for (int i = 0; i < (int)m_stars.size(); i++) 
-        {
-          Star_handle star = m_stars[i];
-          Star::Vertex_iterator vi = star->vertices_begin();
-          Star::Vertex_iterator viend = star->vertices_end();
-          for (; vi != viend; vi++) 
-          {
-            if (star->is_infinite(vi))
-              continue;
-            fx << (*vi).info() << " ";
-          }
-          fx << -1 << std::endl;
-       }*/
-       std::cout << "done.\n";
-       fx.close();
-      }
-
-/*      void load_dump() 
-      {
-        m_stars.clear();
-        m_points.clear();
-
-        typename std::ifstream fx("dump.txt");
-        std::cout << ("Loading...");
-        int dimension;
-        fx >> dimension;
-        int point_count;
-        fx >> point_count;
-        for (int i = 0; i < point_count; i++) 
-        {
-          Point_3 p;
-          fx >> p;
-          m_points.push_back(p);
-          point_rounds.push_back(0);
-        }
-        int cell_count_zero;
-        fx >> cell_count_zero;
-        for (int i = 0; i < point_count; i++) 
-        {
-          Star_handle star = new Star(
-            criteria, m_points[i], i, metric_field.compute_metric(m_points[i]), m_pConstrain);
-          while (true) 
-          {
-            int pid;
-            fx >> pid;
-            if (pid < 0)
-              break;
-            if (pid != i)
-              star->insert_to_star(m_points[pid], pid);
-          }
-          m_stars.push_back(star);
-          std::cout << ".";
-        }
-        std::cout << ("\nInitializing conflicts...");
-        check_conflicts(m_stars);
-        std::cout << ("\n\n");
-      }
-      */
-      void report() 
-      {
-        typename std::ofstream fx("report.txt");
-
-        fx << "[Parameters]" << std::endl << std::endl;
-        criteria.report(fx);
-
-        fx << std::endl << "[Metric field]" << std::endl << std::endl;
-        metric_field.report(fx);
-
-        fx << std::endl << "[Statistics]" << std::endl << std::endl;
-        fx << "elapsed time:       " << time(NULL) - start_time << " sec." << std::endl;
-        fx << "number of vertices: " << m_stars.size() << std::endl;
-        fx << "picking times:      " << pick_count << std::endl;
-        fx << "vertex via picking: " << vertex_with_picking_count << std::endl;
-        fx << "vertex non-picking: " << vertex_without_picking_count << std::endl;
-        fx << "picking rate:       " << (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
-        fx << "picking time rate:  " << (double)pick_count / (double)(pick_count + vertex_without_picking_count) << std::endl;
-        fx << "mean picking times: " << (double)pick_count / (double)vertex_with_picking_count << std::endl;
-        fx << "intersection count: " << intersection_count << std::endl;
-        fx.close();
-      }
-
-      void output() 
-      {
-        typename std::ofstream fx("mesh.volume.cgal");
-        fx << 3 << std::endl;
-        fx << m_points.size() << std::endl;
-        for (int i = 0; i < (int)m_points.size(); i++)
-          fx << m_points[i] << std::endl;
-
-        Output_cells output_cells;
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        for (; si != siend; si++) 
-        {
-          Star_handle star = *si;
-          Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-          Star::Cell_handle_handle ciend = star->end_finite_star_cells();
-          for (; ci != ciend; ci++) {
-            if (!star->is_inside(*ci))
-              continue;
-            bool consistent = true;
-            for (int i = 0; i < 4; i++)
-              if (!m_stars[(*ci)->vertex(i)->info()]->has_cell(*ci)) 
-              {
-                consistent = false;
-                break;
-              }
-              if (consistent)
-                output_cells.insert(
-                (*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(), 
-                (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
-          }
-        }
-        Output_cells::Cell_handle oci = output_cells.begin();
-        Output_cells::Cell_handle ociend = output_cells.end();
-        fx << output_cells.size() << std::endl;
-        for (; oci != ociend; oci++) 
-        {
-          fx << oci->vertices[0] + 1 << " " << oci->vertices[1] + 1 << " "
-            << oci->vertices[2] + 1 << " " << oci->vertices[3] + 1 << std::endl;
-        }
-        fx.close();		
-      }
-
-      void output_medit() 
-      {
-        unsigned int nb_inconsistent_stars = 0;
-        typename std::ofstream fx("meshvolume.cgal.mesh");
-        fx << "MeshVersionFormatted 1\n";
-        fx << "Dimension 3\n";
-
-        fx << "Vertices\n";
-        fx << m_points.size() << std::endl;
-        for (int i = 0; i < (int)m_points.size(); i++)
-          fx << m_points[i] << " " << (i+1) << std::endl; // warning : indices start at 1 in Medit
-
-        Output_cells output_cells;
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        for (; si != siend; si++) 
-        {
-          Star_handle star = *si;
-          Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-          Star::Cell_handle_handle ciend = star->end_finite_star_cells();
-          for (; ci != ciend; ci++) 
-          {
-            if (!star->is_inside(*ci))
-              continue;
-            bool consistent = true;
-            for (int i = 0; i < 4; i++)
-              if (!m_stars[(*ci)->vertex(i)->info()]->has_cell(*ci)) 
-              {
-                consistent = false;
-                nb_inconsistent_stars++;
-                break;
-              }
-              if (consistent)
-                output_cells.insert(
-                (*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(), 
-                (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
-          }
-        }
-        fx << "Tetrahedra\n";
-        fx << output_cells.size() << std::endl;
-        Output_cells::Cell_handle oci = output_cells.begin();
-        Output_cells::Cell_handle ociend = output_cells.end();
-        for (; oci != ociend; oci++) 
-        {
-          fx << (oci->vertices[0] + 1) << " " << (oci->vertices[1] + 1) << " "
-             << (oci->vertices[2] + 1) << " " << (oci->vertices[3] + 1) << " "
-             << "1" /*color*/<< std::endl;
-        }
-        fx.close();	
-        if(nb_inconsistent_stars > 0)
-          std::cout << "\nWarning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
-      }
-
-      void refine_all(std::size_t max_count = (std::size_t) -1)
-      {
-        typename std::ofstream fe("report_times.txt");
-        fe.close();
-
-        pick_count = 0;
-        vertex_with_picking_count = 0;
-        vertex_without_picking_count = (int)m_points.size();
-        intersection_count = 0;
-        start_time = time(NULL);
-
-        while (m_points.size() < max_count)
-        {
-//          int before_refinement = (int)m_points.size();
-          if (!refine())
-            break;
-          /*if (m_points.size() != before_refinement) 
-          {
-            if (m_points.size() % 1000 == 0)
-              dump();
-          }*/
-        }
-        report(); // prints time
-        output_medit();
-        dump(true);
-        histogram_vertices_per_star<Self>(*this);
-
-      }
-
-    public:
-
-      Cell_star_set_3(const Criteria &criteria_, 
-        const Metric_field &metric_field_, 
-        Constrain_surface* pconstrain_, 
-        bool init_new) :
-      metric_field(metric_field_), 
-        m_pConstrain(pconstrain_), 
-        criteria(criteria_), 
-        m_stars(), 
-        m_points(), 
-        refine_queue(),
-        global_triangulation(), 
-        current_round(0), 
-        point_rounds() 
-      {
-        if (init_new)
-          initialize_stars();
-        //else
-        //  load_dump();
-      }
-      Cell_star_set_3(const Cell_star_set_3& css) :
-      metric_field(css.metric_field), 
-        m_pConstrain(css.m_pConstrain), 
-        criteria(css.criteria), 
-        m_stars(), 
-        m_points(), 
-        refine_queue(),
-        global_triangulation(), 
-        current_round(0), 
-        point_rounds() 
-      {}
-      Cell_star_set_3() :
-      metric_field(Metric_field()),
-        m_pConstrain(NULL), 
-        criteria(Criteria()),
-        m_stars(),
-        m_points(), 
-        refine_queue(),
-        global_triangulation(), 
-        current_round(0), 
-        point_rounds() 
-      {}
-
-
-      ~Cell_star_set_3() 
-      {
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        for (; si != siend; si++)
-          delete (*si);
-      }
-    };
+namespace Anisotropic_mesh_3{
+
+template<typename K>
+class Cell_star_set_3 {
+public:
+  typedef Cell_star_set_3<K>               Self;
+
+  typedef typename K::FT                            FT;
+  typedef typename K::Point_3                       Point_3;
+
+  typedef Stretched_Delaunay_3<K>                   Star;
+  typedef Star*                                     Star_handle;
+  typedef std::set<Star_handle>                     Star_set;
+  typedef std::vector<Star_handle>                  Star_vector;
+  typedef typename Star_vector::iterator            Star_iterator;
+  typedef typename Star::Vertex_handle              Vertex_handle;
+  typedef typename Star::Cell_handle                Cell_handle;
+  typedef typename Star::Facet_handle               Facet_handle;
+  typedef typename Star::Cell_handle_handle         Cell_handle_handle;
+  typedef typename Star::Facet                      Facet;
+  typedef typename Star::TPoint_3                   TPoint_3;
+  typedef typename Star::Vector_3                   Vector_3;
+  typedef typename Star::Index                      Index;
+  typedef std::set<Index>                           Index_set;
+
+  typedef Constrain_surface_3<K>                    Constrain_surface;
+  typedef CGAL::Anisotropic_mesh_3::Metric_field<K>                           Metric_field;
+  typedef typename Metric_field::Metric             Metric;
+  typedef Criteria_base<K>                          Criteria;
+
+  typedef typename CGAL::Anisotropic_mesh_3::Cell_refine_queue<K>             Refine_queue;
+  typedef typename CGAL::Anisotropic_mesh_3::Refine_cell<K>                   Refine_cell;
+
+public:
+  const Constrain_surface* const m_pConstrain;
+  const Metric_field* m_metric_field;
+  const Criteria* m_criteria;
+  Star_vector m_stars;
+  Refine_queue m_refine_queue;
+
+  // the following global variables are only for debugging or benchmark
+  int current_round;
+  int pick_count;
+  int vertex_with_picking_count;
+  int vertex_without_picking_count;
+  int intersection_count;
+  time_t start_time;
+
+public:
+  const Constrain_surface* constrain_surface() { return m_pConstrain; }
+  const Constrain_surface* const constrain_surface() const { return m_pConstrain; }
+  const Metric_field* metric_field() const { return m_metric_field; }
+  const Criteria* criteria() const { return m_criteria; }
+  void set_criteria(const Criteria* criteria_) { m_criteria = criteria_; }
+  void set_metric_field(const Metric_field* metric_field_) { m_metric_field = metric_field_; }
+
+
+public:
+  std::size_t number_of_stars() const { return m_stars.size(); }
+  bool empty() const { return m_stars.empty(); }
+  std::size_t size() const { return m_stars.size(); }
+  bool is_infinite_vertex(int i) const { return (i == Star::infinite_vertex_index()); }
+
+private:
+  Star_handle get_star(Star_handle s) const { return s; }
+  Star_handle get_star(int i) const         { return m_stars[i]; }
+  Star_handle get_star(typename Index_set::const_iterator it) const   { return m_stars[*it]; }
+  Star_handle get_star(typename Star_set::const_iterator it) const    { return *it; }
+  Star_handle get_star(typename Star_vector::const_iterator it) const { return *it; }
+
+public:
+  TPoint_3 transform_to_star_point(const Point_3& p, Star_handle star) const
+  {
+    return star->metric().transform(p);
+  }
+  Point_3 transform_from_star_point(const TPoint_3& p, Star_handle star) const
+  {
+    return star->metric().inverse_transform(p);
+  }
+
+public:
+  double duration(const time_t& start) const
+  {
+    return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
+  }
+
+public:
+  void create_star(const Point_3 &p,
+                   int pid,
+                   const Index_set& modified_stars,//by p's insertion
+                   Star_handle& star,
+                   const bool surface_star = true) const
+  {
+    //todo if(surf)
+    star->reset(p, pid, m_metric_field->compute_metric(p), surface_star);
+    //std::cout << "new point : " << p << " id " << pid << " surf " << surface_star << " metric" << std::endl;
+    //std::cout << star->metric().get_transformation() << std::endl;
+    //std::cout << "insert : ";
+
+    typename Index_set::const_iterator cit = modified_stars.begin();
+    typename Index_set::const_iterator citend = modified_stars.end();
+    for (; cit != citend; cit++)
+    {
+      Star_handle si = get_star(cit);
+      //std::cout << si->index_in_star_set() << " ";
+      star->insert_to_star(si->center_point(), si->index_in_star_set(), false);
+    }
+    //std::cout << std::endl;
+    //std::cout << "star has : " << star->number_of_vertices() << std::endl;
 
   }
-}
+
+  Star_handle create_star(const Point_3 &p,
+                          int pid,
+                          const Index_set& modified_stars)
+  {
+    Star_handle star = new Star(m_criteria, m_pConstrain, true /*surface star*/);
+    create_star(p, pid, modified_stars, star, true /*surface star*/);
+    return star;
+  }
+
+  Star_handle create_inside_star(const Point_3 &p,
+                                 int pid,
+                                 const Index_set& modified_stars) const //by p's insertion
+  {
+    Star_handle star = new Star(m_criteria, m_pConstrain, false/*surface*/);
+    create_star(p, pid, modified_stars, star, false/*surface*/);
+    return star;
+  }
+
+  Index insert_to_stars(const Point_3& p,
+                       Index_set& modified_stars,
+                       const bool conditional)
+  {
+    Index this_id = static_cast<Index>(m_stars.size());
+
+    //todo mirror perform_insertions (one more level of functions)
+    Star_iterator it = m_stars.begin();
+    Star_iterator itend = m_stars.end();
+    for(; it != itend; it++)
+    {
+      Star_handle si = *it;
+      Vertex_handle vi = si->insert_to_star(p, this_id, conditional);
+
+      if(vi == Vertex_handle()) //no conflict
+        continue;
+      else if(vi->info() < this_id)
+      {
+        std::cout << "already in star set (should not happen)" << std::endl;
+        return vi->info();
+      }
+      else
+      {
+        modified_stars.insert(si->index_in_star_set());
+        //std::cout << "star : " << si->index_in_star_set() << " has point " << this_id << " ";
+        //std::cout << si->has_vertex(this_id) << std::endl;
+      }
+    }
+    return this_id;
+  }
+
+  Index simulate_insert_to_stars(const Point_3& p,
+                                 Index_set& modified_stars) const
+  {
+    Index this_id = static_cast<Index>(m_stars.size());
+
+    // find conflicted stars
+    typename std::vector<Star_handle>::const_iterator it = m_stars.begin();
+    typename std::vector<Star_handle>::const_iterator itend = m_stars.end();
+    for(; it != itend; it++)
+    {
+      Star_handle si = get_star(it);
+      int id = si->simulate_insert_to_star(p, this_id);
+
+      if(id == -1)
+        continue;
+      else if(id < (int)this_id)
+        return id;
+      else
+        modified_stars.insert(si->index_in_star_set());
+    }
+    return this_id;
+  }
+
+  Index insert(const Point_3& p, const bool conditional)
+  {
+    Index_set modified_stars;
+    return insert(p, modified_stars, conditional);
+  }
+
+  Index insert(const Point_3 &p,
+               Index_set& modified_stars,
+               const bool conditional)
+  {
+    Index id = insert_to_stars(p, modified_stars, conditional);
+    if(id < 0 || id < (int)m_stars.size())
+      return id;
+
+    Star_handle star = create_star(p, id, modified_stars);
+    m_stars.push_back(star);
+    modified_stars.insert(star->index_in_star_set());
+
+    std::cout << "size of modified stars : " << modified_stars.size();
+    std::cout << " " << number_of_stars() << std::endl;
+
+    //deal with aabbkd tree stuff todo
+
+    return id;
+  }
+
+  Index insert_in_domain(const Point_3& p, const bool conditional)
+  {
+    Index_set modified_stars;
+    return insert_in_domain(p, modified_stars, conditional);
+  }
+
+  Index insert_in_domain(const Point_3& p,
+                         Index_set& modified_stars,
+                         const bool conditional)
+  {
+    Index id = insert_to_stars(p, modified_stars, conditional);
+
+    if(id < 0 || id < (int)m_stars.size())
+      return id;
+
+    Star_handle star = create_inside_star(p, id, modified_stars);
+    m_stars.push_back(star);
+    modified_stars.insert(star->index_in_star_set());
+
+    std::cout << "size of modified stars : " << modified_stars.size();
+    std::cout << " " << number_of_stars() << std::endl;
+
+    //deal with aabbkd tree stuff todo
+
+    return id;
+  }
+
+  bool check_consistency(const Star_handle& star,
+                         const FT sq_radiusbound) //todo check what is done here
+  {
+    Cell_handle_handle ci = star->begin_finite_star_cells();
+    Cell_handle_handle ciend = star->end_finite_star_cells();
+    for(; ci != ciend; ci++)
+    {
+      if(!star->is_inside(*ci))
+        continue;
+
+      bool is_in_bound = (star->criteria()->compute_squared_circumradius(
+        (*ci)->vertex(0)->point(), (*ci)->vertex(1)->point(),
+        (*ci)->vertex(2)->point(), (*ci)->vertex(3)->point()) < sq_radiusbound);
+      for(int i = 0; i < 4; i++)
+      {
+        typename Star::Vertex_handle v = (*ci)->vertex(i);
+        if(v == star->center())
+          continue;
+        Star_handle foreign_star = m_stars[v->info()];
+        if(foreign_star->metric().compute_distortion(star->metric()) > sqrt(m_criteria->distortion))
+          continue;
+
+        // if there is a point in foreign star falls into the circum-sphere of the
+        // four points under the metric of the foreign star, it is inconsistent
+        typename Star::Vertex_handle_handle fvi = foreign_star->begin_neighboring_vertices();
+        typename Star::Vertex_handle_handle fviend = foreign_star->end_neighboring_vertices();
+        Point_3 foreign_cc = foreign_star->traits()->construct_circumcenter_3_object()(
+          (*ci)->vertex(0)->point(), (*ci)->vertex(1)->point(),
+          (*ci)->vertex(2)->point(), (*ci)->vertex(3)->point());
+        typename Star::Traits::Compute_squared_distance_3 o =
+            foreign_star->traits()->compute_squared_distance_3_object();
+        FT squared_foreign_cr = o(foreign_cc, (*ci)->vertex(0)->point());
+        for(; fvi != fviend; fvi++)
+        {
+          if(foreign_star->is_infinite_vertex(*fvi)) continue;
+          if((*fvi)->info() == (*ci)->vertex(0)->info()) continue;
+          if((*fvi)->info() == (*ci)->vertex(1)->info()) continue;
+          if((*fvi)->info() == (*ci)->vertex(2)->info()) continue;
+          if((*fvi)->info() == (*ci)->vertex(3)->info()) continue;
+          if(o(foreign_cc, (*fvi)->point()) < squared_foreign_cr)
+          {
+            if(!is_in_bound)
+            {
+              for(int k = 0; k < 4; k++)
+              {
+                if(star->criteria()->compute_volume(
+                  (*ci)->vertex((k + 0) % 4)->point(),
+                  (*ci)->vertex((k + 1) % 4)->point(),
+                  (*ci)->vertex((k + 2) % 4)->point(),
+                  (*fvi)->point()) < 1e-6)
+                {
+                    continue;
+                }
+                if(star->criteria()->compute_squared_circumradius(
+                  (*ci)->vertex((k + 0) % 4)->point(),
+                  (*ci)->vertex((k + 1) % 4)->point(),
+                  (*ci)->vertex((k + 2) % 4)->point(),
+                  (*fvi)->point()) < sq_radiusbound)
+                {
+                    is_in_bound = true;
+                    break;
+                }
+              }
+            }
+            if(!is_in_bound)
+              continue;
+
+            return false;
+          }
+        }
+      }
+    }
+    return true; //todo check
+  }
+
+  bool is_valid_point(const Point_3 &p,
+                      const FT sq_radiusbound,
+                      const Star_handle& star,
+                      Star_handle& new_star)
+  {
+    //simulate insert to stars
+    Index_set modified_stars;
+    int id = simulate_insert_to_stars(p, modified_stars);
+    if(id < 0)
+      return false;
+    else if(id < (int)m_stars.size())
+    {
+      std::cout << "already in star set is_valid_point" << std::endl;
+      new_star = m_stars[id];
+      return false;
+    }
+    else
+      create_star(p, id, modified_stars, new_star, new_star->is_surface_star());
+
+    // only check adjacent stars for sliver
+    typename Star::Vertex_handle_handle nsi = star->begin_neighboring_vertices();
+    typename Star::Vertex_handle_handle nsiend = star->end_neighboring_vertices();
+    for(; nsi != nsiend; nsi++)
+    {
+      if(star->is_infinite_vertex(*nsi))
+        continue;
+
+      Star_handle star_i = m_stars[(*nsi)->info()];
+
+      if(star_i->can_form_sliver(transform_to_star_point(p, star_i), sq_radiusbound))
+      {
+        new_star->invalidate();
+        std::cout << ("S");
+        return false;
+      }
+    }
+
+    bool is = check_consistency(star, sq_radiusbound);
+    if(!is)
+    {
+      new_star->invalidate();
+      std::cout << ("C");
+      return false;
+    }
+
+    return is;
+  }
+
+  Point_3 pick_valid(const Star_handle star, const Cell_handle &cell)
+  {
+    std::cout << "pick valid : " << star->index_in_star_set() << std::endl;
+
+    TPoint_3 circumcenter = cell->circumcenter(*(star->traits()));
+    TPoint_3 tp2 = cell->vertex(0)->point();
+
+    FT sq_circumradius = star->traits()->compute_squared_distance_3_object() (circumcenter, tp2);
+    FT sq_radiusbound = sq_circumradius *  m_criteria->beta * m_criteria->beta;
+    FT circumradius = sqrt(sq_circumradius) * m_criteria->delta;
+    typename Star::Traits::Compute_random_point_3 random =
+             star->traits()->compute_random_point_3_object();
+
+    Star_handle new_star = new Star(m_criteria, m_pConstrain, false/*surface star*/);
+    std::size_t tried_times = 0;
+
+    while(true)
+    {
+      pick_count++;
+
+      TPoint_3 tp = random(circumcenter,
+        ((FT)tried_times / m_criteria->max_times_to_try_in_picking_region) * circumradius);
+      Point_3 p = transform_from_star_point(tp, star);
+
+      if(is_valid_point(p, sq_radiusbound, star, new_star))
+        return p;
+      if((tried_times++) > m_criteria->max_times_to_try_in_picking_region)
+      {
+        std::cout << ("X\n");
+        return transform_from_star_point(circumcenter, star);
+      }
+    }
+    delete new_star;
+  }
+
+  Point_3 compute_random_steiner_point(const Star_handle star,
+                                       const Facet& facet,
+                                       const TPoint_3& tccf,
+                                       const FT& circumradius) const
+  {
+    typename Star::Traits::Compute_random_point_3 random =
+             star->traits()->compute_random_point_3_object();
+
+    bool found_acceptable_steiner_point = false;
+    int failures_count = 0;
+    Point_3 steiner_point;
+    TPoint_3 random_point_within_sphere_1;
+    TPoint_3 random_point_within_sphere_2;
+
+    while(!found_acceptable_steiner_point)
+    {
+      if(++failures_count > 100)
+        std::cout << "failures_count is getting big : " << failures_count << std::endl;
+
+      random_point_within_sphere_1 = random(tccf, circumradius);
+      random_point_within_sphere_2 = random(tccf, circumradius);
+
+      found_acceptable_steiner_point =
+            star->compute_steiner_dual_intersection(steiner_point,
+                                                    random_point_within_sphere_1,
+                                                    random_point_within_sphere_2,
+                                                    tccf,
+                                                    facet,
+                                                    circumradius,
+                                                    failures_count);
+    }
+    return steiner_point;
+  }
+
+  Point_3 pick_valid(const Star_handle star, const Facet &facet)
+  {
+    Point_3 center;
+    star->compute_exact_dual_intersection(facet, center);
+    TPoint_3 tccf = transform_to_star_point(center, star);
+    TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
+
+    FT sq_circumradius = star->traits()->compute_squared_distance_3_object()(tccf, tp2);
+    FT sq_radiusbound = sq_circumradius * m_criteria->beta * m_criteria->beta;
+    FT circumradius = sqrt(sq_circumradius) * m_criteria->delta;
+
+    Star_handle new_star = new Star(m_criteria, m_pConstrain, true/*surface star*/);
+    std::size_t tried_times = 0;
+
+    while(true)
+    {
+      pick_count++;
+      intersection_count++;
+      Point_3 p = compute_random_steiner_point(star, facet, tccf, circumradius);
+
+      if(is_valid_point(p, sq_radiusbound, star, new_star))
+        return p;
+      if((tried_times++) > m_criteria->max_times_to_try_in_picking_region)
+      {
+        std::cout << ("X\n");
+        return compute_insert_or_snap_point(star, facet);
+      }
+    }
+    delete new_star;
+  }
+
+  Point_3 compute_insert_or_snap_point(const typename Constrain_surface::EdgeIterator &edge)
+  {
+    //todo is this correct?
+    Point_3 p = edge->first;
+    Point_3 q = edge->second;
+    Point_3 c((p.x() + q.x()) / 2.0, (p.y() + q.y()) / 2.0, (p.z() + q.z()) / 2.0);
+    m_pConstrain->edge_split(edge, c);
+    return c;
+  }
+
+  Point_3 compute_insert_or_snap_point(const Star_handle star, const Facet &facet)
+  {
+    intersection_count++;
+    Point_3 p;
+    star->compute_exact_dual_intersection(facet, p);
+    //CHECK_EDGE_ENCROACHMENT
+    return p;
+  }
+
+  Point_3 compute_insert_or_snap_point(const Star_handle star, const Cell_handle& cell)
+  {
+    Point_3 p = transform_from_star_point(star->compute_circumcenter(cell), star);
+    std::cout << "in star " << star->index_in_star_set() << " cell : " << std::endl;
+    std::cout << cell->vertex(0)->info() << " " << cell->vertex(0)->point() << std::endl;
+    std::cout << cell->vertex(1)->info() << " " << cell->vertex(1)->point() << std::endl;
+    std::cout << cell->vertex(2)->info() << " " << cell->vertex(2)->point() << std::endl;
+    std::cout << cell->vertex(3)->info() << " " << cell->vertex(3)->point() << std::endl;
+    std::cout << "insert or snap : " << p << std::endl;
+
+    /*
+    std::cout << m_stars[0]->bbox() << std::endl;
+    Cell_handle useless;
+    std::cout << "check conflicts : " << std::endl;
+    std::cout << m_stars[cell->vertex(0)->info()]->is_conflicted(p, useless) << " "; //no transf coz iso met
+    std::cout << m_stars[cell->vertex(1)->info()]->is_conflicted(p, useless) << " "; //no transf coz iso met
+    std::cout << m_stars[cell->vertex(2)->info()]->is_conflicted(p, useless) << " "; //no transf coz iso met
+    std::cout << m_stars[cell->vertex(3)->info()]->is_conflicted(p, useless) << std::endl; //no transf coz iso met
+    */
+
+    //CHECK_EDGE_ENCROACHMENT
+    //CHECK_FACE_ENCROACHMENT
+    //ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
+    return p;
+  }
+
+  Point_3 compute_insert_or_snap_valid_point(const Star_handle star,
+                                             const Facet &facet)
+  {
+    Point_3 p = pick_valid(star, facet);
+    //CHECK_EDGE_ENCROACHMENT
+    return p;
+  }
+
+  Point_3 compute_insert_or_snap_valid_point(const Star_handle& star,
+                                             const Cell_handle& cell)
+  {
+    Point_3 p = pick_valid(star, cell);
+    // test encroachment
+    //CHECK_EDGE_ENCROACHMENT
+    //CHECK_FACE_ENCROACHMENT
+    //ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
+    return p;
+  }
+
+
+  FT compute_distortion(const Cell_handle& c) const
+  {
+    FT distortion = 1.0;
+    for(int i = 0; i < 4; i++)
+    {
+      for(int j = i + 1; j < 4; j++)
+      {
+        distortion = (std::max)(distortion,
+          m_stars[c->vertex(i)->info()]->metric().compute_distortion(
+          m_stars[c->vertex(j)->info()]->metric()));
+      }
+    }
+    return distortion;
+  }
+
+  bool is_consistent(const Cell_handle& c,
+                     std::vector<bool>& inconsistent_points,
+                     const bool verbose = true) const
+  {
+    bool retval = true;
+    bool cell_told = false;
+    for(int i = 0; i < 4; i++)
+    {
+      int index = c->vertex(i)->info();
+      if(is_infinite_vertex(index))
+        continue;
+      if(!m_stars[index]->has_cell(c))
+      {
+        if(verbose)
+        {
+          if(!cell_told)
+          {
+            m_stars[index]->cell_indices(c);
+            std::cout << " inconsistent : ";
+            cell_told = true;
+          }
+          std::cout << c->vertex(0)->info() << " " << c->vertex(1)->info() << " ";
+          std::cout << c->vertex(2)->info() << " " << c->vertex(3)->info();
+          std::cout << " not in S_" << index << ", ";
+        }
+        retval = false;
+        inconsistent_points[i] = true;
+      }
+    }
+    if(verbose && !retval)
+      std::cout << "." << std::endl;
+    return retval;
+  }
+
+  bool is_consistent(const Cell_handle& c,
+                     const bool verbose = true) const
+  {
+    std::vector<bool> not_used(4);
+    return is_consistent(c, not_used, verbose);
+  }
+
+  bool is_consistent(const bool verbose = true) const
+  {
+    std::size_t N = m_stars.size();
+    for(std::size_t i = 0; i < N; i++)
+    {
+      Star_handle star = get_star(i);
+      Cell_handle_handle cit = star->begin_star_cells();
+      Cell_handle_handle citend = star->end_star_cells();
+      for(; cit != citend; cit++)
+        if(!is_consistent(*cit, verbose))
+          return false;
+    }
+    return true;
+  }
+
+  template<typename Stars>
+  void fill_refinement_queue(const Stars &modified_stars, int relative_point = -1)
+  {
+    typename Stars::const_iterator si = modified_stars.begin();
+    typename Stars::const_iterator siend = modified_stars.end();
+    for(; si != siend; si++)
+    {
+      Star_handle star = get_star(si);
+
+      typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+      typename Star::Facet_set_iterator fend = star->end_restricted_facets();
+      for(; fit != fend; fit++)
+      {
+        if((relative_point >= 0) && (fit->first->vertex(fit->second)->info() != relative_point))
+          continue;
+       //CHECK_FACE_ENCROACHMENT
+      }
+
+      Cell_handle_handle ci = star->begin_finite_star_cells();
+      Cell_handle_handle ciend = star->end_finite_star_cells();
+      for(; ci != ciend; ci++)
+      {
+        Cell_handle c = *ci;
+        if(!star->is_inside(c))
+          continue;
+        assert(!star->is_infinite(c));
+
+        if(relative_point >= 0)
+        {
+          bool relative = false;
+          for(int i = 0; i < 4; i++)
+            if(relative_point == c->vertex(i)->info())
+            {
+              relative = true;
+              break;
+            }
+            if(!relative)
+              continue;
+        }
+
+        /*
+        std::cout << "fill ";
+        std::cout << c->vertex(0)->info() << " ";
+        std::cout << c->vertex(1)->info() << " ";
+        std::cout << c->vertex(2)->info() << " ";
+        std::cout << c->vertex(3)->info() << std::endl;
+        */
+
+        // over distortion
+        if(0 && m_criteria->distortion > 0.)
+        {
+          FT over_distortion = compute_distortion(c) - m_criteria->distortion;
+          if(over_distortion > 0.)
+          {
+            m_refine_queue.push_over_distortion(star, c, over_distortion, 0);
+            continue;
+          }
+        }
+
+        // too big
+        FT over_circumradius = star->compute_circumradius_overflow(c);
+        if(over_circumradius > 0)
+        {
+          //std::cout << "over circum : " <<  over_circumradius << std::endl;
+          m_refine_queue.push_over_circumradius(star, c, over_circumradius, 0);
+          continue;
+        }
+
+        // bad shape
+        FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(c);
+        /*
+        std::cout << "bad shape : " << star->criteria()->compute_squared_circumradius(c->vertex(0)->point(),
+                                                                          c->vertex(1)->point(),
+                                                                          c->vertex(2)->point(),
+                                                                          c->vertex(3)->point());
+        std::cout << " " << star->criteria()->compute_squared_shortest_edge(c->vertex(0)->point(),
+                                                                            c->vertex(1)->point(),
+                                                                            c->vertex(2)->point(),
+                                                                            c->vertex(3)->point())
+                 << std::endl;
+        */
+        if(over_radius_edge_ratio > 0)
+        {
+          m_refine_queue.push_bad_shape(star, c, over_radius_edge_ratio, 0);
+          continue;
+        }
+
+        // sliverity
+        FT over_sliverity = star->compute_sliverity_overflow(c);
+        if(over_sliverity > 0)
+        {
+          m_refine_queue.push_sliver(star, c, over_sliverity, 0);
+          continue;
+        }
+
+        // consistency
+        if(!is_consistent(c))
+        {
+          m_refine_queue.push_inconsistent(star, c, star->compute_volume(c), 0);
+          continue;
+        }
+      } // for cells
+    } // for stars
+  }
+
+  bool next_refine_cell(Refine_cell &refine_cell,
+                        Cell_handle &cell,
+                        bool &need_picking_valid,
+                        int &queue_type)
+  {
+    while(true)
+    {
+      //m_refine_queue.print();
+      if(!m_refine_queue.top(refine_cell, queue_type))
+        return false;
+      m_refine_queue.pop();
+      if(refine_cell.star->has_cell(refine_cell.vertices, cell))
+      {
+        if(!refine_cell.star->is_inside(cell))
+        {
+          std::cout << "out" << std::endl;
+          continue;
+        }
+        need_picking_valid = m_refine_queue.need_picking_valid(queue_type);
+        return true;
+      }
+      //else
+      //  std::cout << "doesn't exist anymore" << std::endl;
+    }
+  }
+
+  void clean_stars()
+  {
+    for(std::size_t i = 0; i < m_stars.size(); i++)
+      m_stars[i]->clean();
+  }
+
+  bool refine()
+  {
+    Point_3 p;
+    int queue_type = 0;
+    Refine_cell bad_cell;
+    bool need_picking_valid;
+    Cell_handle c;
+
+    if(!next_refine_cell(bad_cell, c, need_picking_valid, queue_type))
+    {
+      std::cout << "get next fail" << std::endl;
+      return false;
+    }
+
+    Vertex_handle v1 = c->vertex(0);
+    Vertex_handle v2 = c->vertex(1);
+    Vertex_handle v3 = c->vertex(2);
+    Vertex_handle v4 = c->vertex(3);
+
+/*
+#ifdef ONLY_CONSIDER_SURFACE
+    if(!bad_cell.star->is_boundary_star())
+      return true;
+#endif
+*/
+
+    if(queue_type == 0)
+    { // encroachment
+      std::cerr << "Error : encroachment is not implemented.\n";
+      return true;
+      /*
+      int tag = 0;
+      for(int i = 0; i < 4; i++)
+        if(c->vertex(i)->info() == bad_cell.vertices[0])
+        {
+          tag = i;
+          break;
+        }
+      if(!bad_cell.star->has_facet(Facet(c, tag)))
+      {
+        std::cout << ("[repick]");
+        return true; //todo check that this is correct
+      }
+      p = compute_insert_or_snap_point(bad_cell.star, Facet(c, tag));
+      vertex_without_picking_count++;
+      */
+    }
+    else
+    {
+      if(need_picking_valid)
+      {
+        p = compute_insert_or_snap_valid_point(bad_cell.star, c);
+        vertex_with_picking_count++;
+      }
+      else
+      {
+        p = compute_insert_or_snap_point(bad_cell.star, c);
+        vertex_without_picking_count++;
+      }
+    }
+
+    std::cout << number_of_stars() << " refine: " << p << " [" << c->vertex(0)->info() << "-";
+    std::cout << c->vertex(1)->info() << "-" << c->vertex(2)->info() << "-";
+    std::cout << c->vertex(3)->info() << "] " << "t:" << queue_type << " i:";
+    std::cout << bad_cell.vertices[0] << " s:" << bad_cell.star->center()->info() << std::endl;
+
+    Index_set modified_stars;
+    Index pid = insert_in_domain(p, modified_stars, true);
+
+    Cell_handle ctest;
+    int i,j,k,l;
+    if(bad_cell.star->is_cell(v1,v2,v3,v4,ctest,i,j,k,l))
+    {
+      std::cout << "welp" << std::endl;
+      return false;
+    }
+    else
+      std::cout << "not welp" << std::endl;
+
+    if(!modified_stars.empty())
+      fill_refinement_queue(modified_stars, pid);
+    return true;
+  }
+
+  void print_stars()
+  {
+    Star_iterator it = m_stars.begin();
+    Star_iterator itend = m_stars.end();
+
+    for(; it!=itend; ++it)
+    {
+      Star_handle si = get_star(it);
+      std::cout << "star " << si->index_in_star_set() << " || " << si->center_point() << " || ";
+      std::cout << si->center()->info() << " || " << si->center()->point() << std::endl;
+      std::cout << "neighbours : ";
+      typename Star::Vertex_handle_handle nsi = si->begin_neighboring_vertices();
+      typename Star::Vertex_handle_handle nsiend = si->end_neighboring_vertices();
+      for(; nsi != nsiend; nsi++)
+        std::cout << (*nsi)->info() << " ";
+      std::cout << std::endl;
+
+      /*
+      std::cout << "double tap " << std::endl;
+      Star_iterator it2 = m_stars.begin();
+      Star_iterator it2end = m_stars.end();
+      for(; it2!=it2end; ++it2)
+      {
+        Star_handle si2 = get_star(it2);
+        if(si2->index_in_star_set() != si->index_in_star_set())
+          si->insert_to_star(si2->center_point(), si2->index_in_star_set(), false);
+      }
+
+      nsi = si->begin_neighboring_vertices();
+      for(; nsi != nsiend; nsi++)
+        std::cout << (*nsi)->info() << " ";
+      std::cout << std::endl;
+      */
+
+      Cell_handle_handle ci = si->begin_star_cells();
+      Cell_handle_handle ciend = si->end_star_cells();
+      for (; ci != ciend; ++ci)
+      {
+        Cell_handle c = *ci;
+        if(!is_consistent(c))
+        {
+          std::cout << c->vertex(0)->info() << " ";
+          std::cout << c->vertex(1)->info() << " ";
+          std::cout << c->vertex(2)->info() << " ";
+          std::cout << c->vertex(3)->info() << " consist : " << is_consistent(c) << std::endl;
+        }
+      }
+    }
+  }
+
+  void update_bboxes() const
+  {
+    std::size_t i;
+    std::size_t N = m_stars.size();
+    for(i = 0; i < N; i++)
+      m_stars[i]->update_bbox();
+  }
+
+  void refine_all(std::size_t max_count = (std::size_t) -1)
+  {
+    typename std::ofstream fe("report_times.txt");
+    fe.close();
+
+    pick_count = 0;
+    intersection_count = 0;
+    start_time = clock();
+
+    std::cout << "\nInitializing conflicts...\n";
+    fill_refinement_queue(m_stars, -1);
+    m_refine_queue.print();
+    std::cout << " [ok]" << std::endl;
+
+    vertex_with_picking_count = 0;
+    vertex_without_picking_count = (int)m_stars.size();
+
+    std::size_t nbv = m_stars.size();
+    while(nbv < max_count)
+    {
+      if(nbv % 100 == 0)
+      {
+        clean_stars();
+        std::cout << " " << nbv << " vertices, ";
+        std::cout << duration(start_time) << " sec.,\t";
+        m_refine_queue.print();
+        output_medit();
+      }
+
+      if(!refine())
+      {
+        std::cout << "refine fail" << std::endl;
+        clean_stars();
+        break;
+      }
+
+      if(0 && number_of_stars() > 10000)
+        break;
+
+      nbv = m_stars.size();
+    }
+
+    //checking if really done!
+    fill_refinement_queue(m_stars, -1);
+    if(!m_refine_queue.empty())
+      std::cout << "Stopped too early! Not done!" << std::endl;
+    else
+      std::cout << "Finished properly" << std::endl;
+    m_refine_queue.print();
+
+    print_stars();
+    std::cout << "triangulation is consistent : " << is_consistent() << std::endl;
+    report();
+    histogram_vertices_per_star<Self>(*this);
+  }
+
+  void initialize_stars(const int nb = 10)
+  {
+    std::cout << "Initializing stars...";
+    int nbdone = 0;
+
+    typename Constrain_surface::Pointset initial_points = m_pConstrain->get_surface_points(nb);
+    typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
+    typename Constrain_surface::Pointset::iterator pend = initial_points.end();
+    for(int i = 0; pi != pend; pi++, i++)
+    {
+      std::size_t this_id = m_stars.size();
+      int id = -1;
+      id = insert_in_domain(*pi, false/*under no condition*/);
+      if(this_id == id)
+        nbdone++;
+    }
+    std::cout << "done : " << nbdone << std::endl;
+    clean_stars();
+  }
+
+  void dump(const bool nb = false)
+  {
+    std::ostringstream nbs;
+    nbs << "dump";
+    if(nb)
+      nbs << number_of_stars();
+    nbs << ".off" << std::ends;
+    std::ofstream fx(nbs.str().c_str());
+
+    std::cout << "Saving dump...";
+    std::map<Index, int> match_indices;//because we won't use all of them
+    int off_index = 0; // the corresponding index in .off
+    std::vector<Point_3> points;
+    Output_facets output_facets;
+    Output_cells output_cells;
+
+    Star_iterator it = m_stars.begin();
+    Star_iterator itend = m_stars.end();
+    for (; it != itend; ++it)
+    {
+      Star_handle star = *it;
+
+      points.push_back(star->center_point());
+      match_indices[star->index_in_star_set()] = off_index++;
+
+      Cell_handle_handle ci = star->begin_star_cells();
+      Cell_handle_handle ciend = star->end_star_cells();
+      for (; ci != ciend; ++ci)
+      {
+        Cell_handle c = *ci;
+        if(!star->is_infinite(c) && is_consistent(c))
+        {
+          output_cells.insert(c->vertex(0)->info(), c->vertex(1)->info(),
+                              c->vertex(2)->info(), c->vertex(3)->info());
+          output_facets.insert(c->vertex(0)->info(), c->vertex(1)->info(), c->vertex(2)->info());
+          output_facets.insert(c->vertex(0)->info(), c->vertex(2)->info(), c->vertex(3)->info());
+          output_facets.insert(c->vertex(0)->info(), c->vertex(1)->info(), c->vertex(3)->info());
+          output_facets.insert(c->vertex(3)->info(), c->vertex(1)->info(), c->vertex(2)->info());
+        }
+      }
+    }
+
+    fx << "OFF" << std::endl;
+    fx << points.size() << " " << output_facets.size() << " " << output_cells.size() << std::endl;
+    for(unsigned int i = 0; i < points.size(); i++)
+      fx << points[i] << std::endl;
+
+    Output_facets::Facet_handle ofi = output_facets.begin();
+    Output_facets::Facet_handle ofiend = output_facets.end();
+    for (; ofi != ofiend; ofi++)
+    {
+      fx << "3  " << match_indices[ofi->vertices[0] ]
+         << " "   << match_indices[ofi->vertices[1] ]
+         << " "   << match_indices[ofi->vertices[2] ] << std::endl;
+    }
+
+    Output_cells::Cell_handle oci = output_cells.begin();
+    Output_cells::Cell_handle ociend = output_cells.end();
+    for (; oci != ociend; oci++)
+    {
+      fx << "4  " << match_indices[oci->vertices[0] ]
+         << " "   << match_indices[oci->vertices[1] ]
+         << " "   << match_indices[oci->vertices[2] ]
+         << " "   << match_indices[oci->vertices[3] ] << std::endl;
+    }
+
+    fx.close();
+    std::cout << "done.\n";
+  }
+
+  void report()
+  {
+    typename std::ofstream fx("report.txt");
+
+    fx << "[Parameters]" << std::endl << std::endl;
+    m_criteria->report(fx);
+
+    fx << std::endl << "[Metric field]" << std::endl << std::endl;
+    m_metric_field->report(fx);
+
+    fx << std::endl << "[Statistics]" << std::endl << std::endl;
+    fx << "elapsed time:       " << time(NULL) - start_time << " sec." << std::endl;
+    fx << "number of vertices: " << m_stars.size() << std::endl;
+    fx << "picking times:      " << pick_count << std::endl;
+    fx << "vertex via picking: " << vertex_with_picking_count << std::endl;
+    fx << "vertex non-picking: " << vertex_without_picking_count << std::endl;
+    fx << "picking rate:       " << (double)vertex_with_picking_count / (double)(vertex_without_picking_count + vertex_with_picking_count) << std::endl;
+    fx << "picking time rate:  " << (double)pick_count / (double)(pick_count + vertex_without_picking_count) << std::endl;
+    fx << "mean picking times: " << (double)pick_count / (double)vertex_with_picking_count << std::endl;
+    fx << "intersection count: " << intersection_count << std::endl;
+    fx.close();
+  }
+
+/*
+  void load_dump()
+  {
+    m_stars.clear();
+
+    typename std::ifstream fx("dump.txt");
+    std::cout << ("Loading...");
+    int dimension;
+    fx >> dimension;
+    int point_count;
+    fx >> point_count;
+    for(int i = 0; i < point_count; i++)
+    {
+      Point_3 p;
+      fx >> p;
+      m_points.push_back(p);
+    }
+    int cell_count_zero;
+    fx >> cell_count_zero;
+    for(int i = 0; i < point_count; i++)
+    {
+      Star_handle star = new Star(
+        criteria, m_points[i], i, metric_field.compute_metric(m_points[i]), m_pConstrain);
+      while(true)
+      {
+        int pid;
+        fx >> pid;
+        if(pid < 0)
+          break;
+        if(pid != i)
+          star->insert_to_star(m_points[pid], pid);
+      }
+      m_stars.push_back(star);
+      std::cout << ".";
+    }
+    std::cout << ("\nInitializing conflicts...");
+    fill_refinement_queue(m_stars);
+    std::cout << ("\n\n");
+  }
+
+  void output()
+  {
+    typename std::ofstream fx("mesh.volume.cgal");
+    fx << 3 << std::endl;
+    fx << m_points.size() << std::endl;
+    for(int i = 0; i < (int)m_points.size(); i++)
+      fx << m_points[i] << std::endl;
+
+    Output_cells output_cells;
+    Star_iterator it = m_stars.begin();
+    Star_iterator itend = m_stars.end();
+    for(; it != itend; it++)
+    {
+      Star_handle star = *it;
+      Cell_handle_handle ci = star->begin_finite_star_cells();
+      Cell_handle_handle ciend = star->end_finite_star_cells();
+      for(; ci != ciend; ci++)
+      {
+        if(!star->is_inside(*ci))
+          continue;
+        bool consistent = true;
+        for(int i = 0; i < 4; i++)
+          if(!m_stars[(*ci)->vertex(i)->info()]->has_cell(*ci))
+          {
+            consistent = false;
+            break;
+          }
+          if(consistent)
+            output_cells.insert(
+            (*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(),
+            (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
+      }
+    }
+    Output_cells::Cell_handle oci = output_cells.begin();
+    Output_cells::Cell_handle ociend = output_cells.end();
+    fx << output_cells.size() << std::endl;
+    for(; oci != ociend; oci++)
+    {
+      fx << oci->vertices[0] + 1 << " " << oci->vertices[1] + 1 << " "
+        << oci->vertices[2] + 1 << " " << oci->vertices[3] + 1 << std::endl;
+    }
+    fx.close();
+  }
+*/
+
+  void output_medit()
+  {
+    std::cout << "Saving medit" << std::endl;
+    unsigned int nb_inconsistent_stars = 0;
+    typename std::ofstream fx("cell_mesher.mesh");
+    fx << "MeshVersionFormatted 1\n";
+    fx << "Dimension 3\n";
+
+    fx << "Vertices\n";
+    fx << number_of_stars() << std::endl;
+    for(std::size_t i = 0; i < number_of_stars(); i++)
+      fx << get_star(i)->center_point() << " " << (i+1) << std::endl; // warning : indices start at 1 in Medit
+
+    Output_cells output_cells;
+    Star_iterator it = m_stars.begin();
+    Star_iterator itend = m_stars.end();
+    for(; it != itend; it++)
+    {
+      Star_handle star = *it;
+      Cell_handle_handle ci = star->begin_finite_star_cells();
+      Cell_handle_handle ciend = star->end_finite_star_cells();
+      for(; ci != ciend; ci++)
+      {
+        if(!star->is_inside(*ci))
+          continue;
+        if(is_consistent(*ci))
+          output_cells.insert((*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(),
+                              (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
+        else
+          nb_inconsistent_stars++;
+      }
+    }
+    fx << "Tetrahedra\n";
+    fx << output_cells.size() << std::endl;
+    Output_cells::Cell_handle oci = output_cells.begin();
+    Output_cells::Cell_handle ociend = output_cells.end();
+    for(; oci != ociend; oci++)
+    {
+      fx << (oci->vertices[0] + 1) << " " << (oci->vertices[1] + 1) << " "
+         << (oci->vertices[2] + 1) << " " << (oci->vertices[3] + 1) << " "
+         << "1" << std::endl;
+    }
+    fx.close();
+    if(nb_inconsistent_stars > 0)
+      std::cout << "Warning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
+    std::cout << "done" << std::endl;
+  }
+
+public:
+  Cell_star_set_3(const Criteria* criteria_,
+                  const Metric_field* metric_field_,
+                  const Constrain_surface* const pconstrain_,
+                  int nb = 10) :
+    m_pConstrain(pconstrain_),
+    m_metric_field(metric_field_),
+    m_criteria(criteria_),
+    m_stars(),
+    m_refine_queue(),
+    current_round(0)
+  {
+    if(nb)
+      initialize_stars(20);
+  }
+
+  Cell_star_set_3(const Cell_star_set_3& css) :
+    m_pConstrain(css.m_pConstrain),
+    m_metric_field(css.metric_field()),
+    m_criteria(css.criteria()),
+    m_stars(),
+    m_refine_queue(),
+    current_round(0)
+  {}
+
+  ~Cell_star_set_3()
+  {
+    delete m_metric_field;
+    delete m_criteria;
+    Star_iterator it = m_stars.begin();
+    Star_iterator itend = m_stars.end();
+    for(; it != itend; it++)
+      delete (*it);
+  }
+};
+
+} //namespace Anisotropic_mesh_3
+} //namespace CGAL
 
 #endif // CGAL_ANISOTROPIC_MESH_3_STAR_SET_3_H

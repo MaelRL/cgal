@@ -27,12 +27,12 @@
 // whether or not to check surface encroachment.
 // for volume mesher, if we do not check the encroachment of 
 // the surface domain, comment the following macro definition.
-#define CHECK_FACE_ENCROACHMENT
+//#define CHECK_FACE_ENCROACHMENT
 
 // if the following switcher is on, the insertion operation
 // is gurenteed to be O(1) so that the entire algorithm can be
 // O(n), where n is the number of vertices.
-#define CREATE_STAR_ENHANCEMENT
+//#define CREATE_STAR_ENHANCEMENT
 
 // if the following switcher is on, the insertion operation
 // is guaranteed to be O(1) so that the entire algorithm can be
@@ -42,12 +42,12 @@
 // #define INSERT_POINT_ENHANCEMENT
 
 // always on
-#define ONLY_CONSIDER_SURFACE
+//#define ONLY_CONSIDER_SURFACE
 
 // for volume mesher, if checking encroachment, only
 // check the encroachment of the neigbhoring facets.
 // this can accelarate the speed.
-#define ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
+//#define ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
 
 // show debug info.
 #define CGAL_ANISOTROPIC_MESH_3_DEBUG_INFO
@@ -62,8 +62,8 @@
 // sometimes statistics are not needed/wanted
 #define MAKE_STATISTICS
 
-#define VERBOSE_REFINEMENT 0
+//#define VERBOSE_REFINEMENT 0
 
-#define USE_AABB_TREE_OF_BBOXES  1
+//#define USE_AABB_TREE_OF_BBOXES  1
 
 #endif // CGAL_ANISOTROPIC_MESH_3_DEFAULT_CONFIGURATION_H

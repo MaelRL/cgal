@@ -2,10 +2,7 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_ANISOTROPIC_TET_MESHER_3_H
 #define CGAL_ANISOTROPIC_MESH_3_ANISOTROPIC_TET_MESHER_3_H
 
-#include <CGAL/Constrain_surface_3.h>
-#include <CGAL/Metric_field.h>
 #include <CGAL/Cell_star_set_3.h>
-#include <CGAL/Criteria.h>
 
 namespace CGAL 
 {
@@ -16,19 +13,13 @@ namespace CGAL
     class Anisotropic_tet_mesher_3 
     {
     public:
-      typedef Constrain_surface_3<K>  Domain;
-      typedef Metric_field<K>         Metric_field;
-      typedef Criteria_base<K>        Criteria;
       typedef Cell_star_set_3<K>   Star_set;
 
     public:
-      Star_set      star_set;
-      Domain        &domain;
-      Criteria      &criteria;
-      Metric_field  &metric_field;
+      Star_set      &star_set;
 
     public:
-      void refine() 
+      void refine_all()
       {
         star_set.refine_all();
       }
@@ -36,6 +27,11 @@ namespace CGAL
       const Star_set& starset() const 
       {
         return star_set;
+      }
+
+      void output(const std::string& filename) const
+      {
+        star_set.output(filename.data());
       }
 
 #ifdef CGAL_MESH_3_MESHER_STATUS_ACTIVATED
@@ -51,13 +47,8 @@ namespace CGAL
 #endif
   
     public:
-      Anisotropic_tet_mesher_3(Domain &domain_, 
-                               Metric_field &metric_field_, 
-                               Criteria &criteria_)
-        : domain(domain_), 
-          metric_field(metric_field_), 
-          criteria(criteria_),
-          star_set(criteria_, metric_field_, &domain_, true) 
+      Anisotropic_tet_mesher_3(Star_set &star_set_)
+        : star_set(star_set_)
         { }
       
       ~Anisotropic_tet_mesher_3() { }

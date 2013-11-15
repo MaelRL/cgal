@@ -30,97 +30,109 @@
 #include "utility"
 #include "vector"
 
-namespace CGAL{
-namespace Anisotropic_mesh_3{
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
-class Output_cells {
+class Output_cells
+{
 public:
-    struct Cell {
-        int vertices[4];
-        Cell(int a, int b, int c, int d) 
-        {
-            vertices[0] = a;
-            vertices[1] = b;
-            vertices[2] = c;
-            vertices[3] = d;	
-            for (int i = 3; i >= 0; i--)
-                for (int j = 1; j <= i; j++)
-                    if (vertices[j] < vertices[j - 1])
-                        std::swap(vertices[j], vertices[j - 1]);
-        }
-        bool operator<(const Cell &other) const 
-        {
-            for (int i = 0; i < 4; i++) {
-                if (vertices[i] < other.vertices[i])
-                    return true;
-                else if (vertices[i] > other.vertices[i])
-                    return false;
-            }
-            return false;
-        }
-        bool operator==(const Cell &other) const 
-        {
-            for (int i = 0; i < 4; i++)
-                if (vertices[i] != other.vertices[i])
-                    return false;
-            return true;
-        }
-    };
-
-public:
-	typedef std::vector<Cell> CellList;
-    typedef CellList::iterator Cell_handle;
-
-protected:
-    CellList cells;
-
-protected:
-    bool insert(const Cell &cell) 
+  struct Cell
+  {
+    int vertices[4];
+    Cell(int a, int b, int c, int d)
     {
-        if (cells.size() == 0) {
-            cells.push_back(cell);
-            return true;
-        }
-        int lp = 0, rp = (int)cells.size() - 1;
-        int mp = (lp + rp) / 2;
-        while (rp - lp > 1) {
-            if (cells[mp] == cell)
-                return false;
-            else if (cells[mp] < cell)
-                lp = mp;
-            else
-                rp = mp;
-            mp = (lp + rp) / 2;
-        }
-        if (cells[lp] == cell)
-            return false;
-        if (cells[rp] == cell)
-            return false;
-        if (rp == lp)
-            if (cells[lp] < cell)
-                cells.insert(cells.begin() + lp + 1, cell);
-            else
-                cells.insert(cells.begin() + lp, cell);
-        else
-            if (cell < cells[lp])
-                cells.insert(cells.begin() + lp, cell);
-            else if (cells[rp] < cell)
-                cells.insert(cells.begin() + rp + 1, cell);
-            else
-                cells.insert(cells.begin() + rp, cell);
-        return true;
+      vertices[0] = a;
+      vertices[1] = b;
+      vertices[2] = c;
+      vertices[3] = d;
+      for (int i = 3; i >= 0; i--)
+        for (int j = 1; j <= i; j++)
+          if (vertices[j] < vertices[j - 1])
+            std::swap(vertices[j], vertices[j - 1]);
     }
 
-public:
-    Cell_handle begin() { return cells.begin(); }
-    Cell_handle end() { return cells.end(); }
-    int size() { return (int)cells.size(); }
-    bool insert(int a, int b, int c, int d) {
-        return insert(Cell(a, b, c, d));
+    bool operator<(const Cell &other) const
+    {
+      for (int i = 0; i < 4; i++) {
+        if (vertices[i] < other.vertices[i])
+          return true;
+        else if (vertices[i] > other.vertices[i])
+          return false;
+      }
+      return false;
     }
-    
-    Output_cells() : cells() { }
-    ~Output_cells() { }
+
+    bool operator==(const Cell &other) const
+    {
+      for (int i = 0; i < 4; i++)
+        if (vertices[i] != other.vertices[i])
+          return false;
+      return true;
+    }
+  };
+
+public:
+  typedef std::vector<Cell> CellList;
+  typedef CellList::iterator Cell_handle;
+
+protected:
+  CellList cells;
+
+protected:
+  bool insert(const Cell &cell)
+  {
+    if (cells.size() == 0)
+    {
+      cells.push_back(cell);
+      return true;
+    }
+    int lp = 0, rp = (int)cells.size() - 1;
+    int mp = (lp + rp) / 2;
+    while (rp - lp > 1)
+    {
+      if (cells[mp] == cell)
+        return false;
+      else if (cells[mp] < cell)
+        lp = mp;
+      else
+        rp = mp;
+      mp = (lp + rp) / 2;
+    }
+    if (cells[lp] == cell)
+      return false;
+    if (cells[rp] == cell)
+      return false;
+    if (rp == lp)
+    {
+      if (cells[lp] < cell)
+        cells.insert(cells.begin() + lp + 1, cell);
+      else
+        cells.insert(cells.begin() + lp, cell);
+    }
+    else
+    {
+      if (cell < cells[lp])
+        cells.insert(cells.begin() + lp, cell);
+      else if (cells[rp] < cell)
+        cells.insert(cells.begin() + rp + 1, cell);
+      else
+        cells.insert(cells.begin() + rp, cell);
+    }
+    return true;
+  }
+
+public:
+  Cell_handle begin() { return cells.begin(); }
+  Cell_handle end() { return cells.end(); }
+  int size() { return (int)cells.size(); }
+  bool insert(int a, int b, int c, int d) {
+      return insert(Cell(a, b, c, d));
+  }
+
+  Output_cells() : cells() { }
+  ~Output_cells() { }
 };
 }
 }

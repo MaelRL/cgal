@@ -88,10 +88,10 @@ namespace CGAL{
       typedef Criteria_base<K>          Criteria;
       typedef CGAL::Bbox<K>             Bbox;
 
-      typedef std::vector<Facet>                        Facet_vector;
-      typedef std::set<Facet>                           Facet_set;
-      typedef std::vector<Cell_handle>                  Cell_handle_vector;
       typedef std::vector<Vertex_handle>                Vertex_handle_vector;
+      typedef std::vector<Facet>                        Facet_vector;
+      typedef std::vector<Cell_handle>                  Cell_handle_vector;
+      typedef std::set<Facet>                           Facet_set;
       typedef std::vector<Point_3>                      Point_vector;
       typedef typename Facet_set::iterator              Facet_set_iterator;
       typedef typename Facet_vector::iterator           Facet_handle;
@@ -1120,44 +1120,41 @@ public:
         return (nbv - backup.size());
       }
 
-      // Note (JT) : this function is commented because it is not used anywhere
-      // Note 2 : p should be transformed before anything
-      //bool can_form_sliver(const Point_3 &p, const FT &squared_radius_bound)
-      //{
-      //  Cell_handle_handle ci = begin_star_cells();
-      //  Cell_handle_handle cend = end_star_cells();
-      //  for (; ci != cend; ci++)
-      //  {
-      //    if (Base::side_of_sphere((*ci), p) == CGAL::ON_UNBOUNDED_SIDE)
-      //      continue;
-      //    Cell_handle c = *ci;
-      //    Point_3 points[3];
-      //    Point_3 centerpoint = m_center->point();
-      //    int k = 0;
-      //    for (int i = 0; i < 4; i++)
-      //    {
-      //      if (c->vertex(i) != m_center)
-      //        points[k++] = c->vertex(i)->point();
-      //    }
-      //    assert(k == 3);
-      //    for (int i = 0; i < 3; i++)
-      //    {
-      //      FT sliver_overflow = m_criteria->sliverity_overflow(
-      //        centerpoint, points[i], points[(i + 1) % 3], p);
-      //      if (sliver_overflow <= 0.0)
-      //        continue;
-      //      if (m_criteria->compute_volume(
-      //        centerpoint, points[i], points[(i + 1) % 3], p) < 1e-7)
-      //        continue;
-      //      // here, we have to check coplanar and colinear cases
-      //      if (m_criteria->compute_squared_circumradius(centerpoint, points[i],
-      //        points[(i + 1) % 3], p) >= squared_radius_bound)
-      //        continue;
-      //      return true;
-      //    }
-      //  }
-      //  return false;
-      //}
+      bool can_form_sliver(const TPoint_3 &p, const FT &squared_radius_bound)
+      {
+        Cell_handle_handle ci = begin_star_cells();
+        Cell_handle_handle cend = end_star_cells();
+        for (; ci != cend; ci++)
+        {
+          if (Base::side_of_sphere((*ci), p) == CGAL::ON_UNBOUNDED_SIDE)
+            continue;
+          Cell_handle c = *ci;
+          TPoint_3 points[3];
+          TPoint_3 centerpoint = m_center->point();
+          int k = 0;
+          for (int i = 0; i < 4; i++)
+          {
+            if (c->vertex(i) != m_center)
+              points[k++] = c->vertex(i)->point();
+          }
+          assert(k == 3);
+          for (int i = 0; i < 3; i++)
+          {
+            FT sliver_overflow = m_criteria->sliverity_overflow(
+              centerpoint, points[i], points[(i + 1) % 3], p);
+            if (sliver_overflow <= 0.0)
+              continue;
+            if (m_criteria->compute_volume(
+              centerpoint, points[i], points[(i + 1) % 3], p) < 1e-7)
+              continue; //should be return true? todo
+            if (m_criteria->compute_squared_circumradius(centerpoint, points[i],
+              points[(i + 1) % 3], p) >= squared_radius_bound)
+              continue;
+            return true;
+          }
+        }
+        return false;
+      }
 
       inline void get_inverse_transformed_points(Point_3 *ps, const Facet &facet) const
       {
@@ -1840,6 +1837,19 @@ public:
         }
       }
 
+      void cell_indices(const Cell_handle& c) const
+      {
+        std::cout << "Cell[";
+        std::vector<int> indices;
+        indices.push_back(c->vertex(0)->info());
+        indices.push_back(c->vertex(1)->info());
+        indices.push_back(c->vertex(2)->info());
+        indices.push_back(c->vertex(3)->info());
+        std::sort(indices.begin(), indices.end());
+        std::cout << indices[0] << " " << indices[1] << " " << indices[2] << " " << indices[3];
+        std::cout << "]";
+      }
+
       void facet_indices(const Facet& f) const
       {
         std::cout << "Facet[";
@@ -1890,32 +1900,38 @@ public:
         return bug;
       }
 
-      //not used yet
-      //bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet)
-      //{
-      //  TPoint_3 tc = m_metric.transform(compute_exact_dual_intersection(facet));
-      //  TPoint_3 tq = facet.first->vertex((facet.second + 1) % 4)->point();
-      //  Traits::Compute_squared_distance_3 o = m_traits->compute_squared_distance_3_object();
-      //  return o(tc, tp) < o(tc, tq);
-      //}
+      bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet)
+      {
+        std::cout << "encroachement todo" << std::endl;
+        /*
+        TPoint_3 tc = m_metric.transform(compute_exact_dual_intersection(facet));
+        TPoint_3 tq = facet.first->vertex((facet.second + 1) % 4)->point();
+        Traits::Compute_squared_distance_3 o = m_traits->compute_squared_distance_3_object();
+        return o(tc, tp) < o(tc, tq);
+        */
+        return false;
+      }
 
-      ////not used yet
-      //bool is_encroached(const Point_3 &p, Facet &facet)
-      //{
-      //  TPoint_3 tp = m_metric.transform(p);
+      bool is_encroached(const Point_3 &p, Facet &facet)
+      {
+        std::cout << "encroachement todo" << std::endl;
+        /*
+        TPoint_3 tp = m_metric.transform(p);
 
-      //  Facet_set_iterator fi = begin_restricted_facets();
-      //  Facet_set_iterator fend = end_restricted_facets();
-      //  for (; fi != fend; fi++)
-      //  {
-      //    if (is_facet_encroached(tp, *fi))
-      //    {
-      //      facet = *fi;
-      //      return true;
-      //    }
-      //  }
-      //  return false;
-      //}
+        Facet_set_iterator fi = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
+        for (; fi != fend; fi++)
+        {
+          if (is_facet_encroached(tp, *fi))
+          {
+            facet = *fi;
+            return true;
+          }
+        }
+        return false;
+        */
+        return false;
+      }
 
       void gl_draw_center() const
       {
