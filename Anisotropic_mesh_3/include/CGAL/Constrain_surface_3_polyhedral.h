@@ -463,7 +463,7 @@ class Constrain_surface_3_polyhedral :
         std::set<Vertex_handle> visited;
         std::map<FT, Vertex_handle/*sqd to center : closest come first*/> ring;
 
-        ring.insert(std::make_pair<FT,Vertex_handle>(0.,v));       
+        ring.insert(std::make_pair(0.,v));
         visited.insert(v);
 
         while(points.size() < count && !ring.empty())
@@ -481,19 +481,20 @@ class Constrain_surface_3_polyhedral :
                               Vertex_handle v,
                               std::set<Vertex_handle>& visited,
                               std::map<FT,Vertex_handle>& ring,
-                              const double max_sqd = 0.)/**/
+                              const double max_sqd = 0.)
       {
         HV_circulator h = v->vertex_begin();
         HV_circulator hend = h;
         do
         {
           Vertex_handle vv = h->opposite()->vertex();
-          if(visited.find(vv) == visited.end()) //vertex not already visited
+          std::pair<typename std::set<Vertex_handle>::iterator, bool> is_insert_successful;
+          is_insert_successful = visited.insert(vv);
+          if(is_insert_successful.second)
           {
-            visited.insert(vv);
             FT sqd = CGAL::squared_distance(center, vv->point());
             if(max_sqd == 0. || sqd < max_sqd)
-              ring.insert(std::make_pair<FT,Vertex_handle>(sqd,vv));
+              ring.insert(std::make_pair(sqd,vv));
           }
           h++;
         }

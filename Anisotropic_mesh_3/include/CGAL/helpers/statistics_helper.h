@@ -20,10 +20,10 @@ void histogram_vertices_per_star(StarSet& stars)
     std::size_t nb = star->number_of_vertices(); 
     maxnb = (std::max)(maxnb, nb);
 
-    if(countmap.find(nb) == countmap.end())
-      countmap.insert(std::pair<std::size_t,std::size_t>(nb, 1));
-    else
-      countmap[nb]++;
+    std::pair<std::map<std::size_t, std::size_t>::iterator, bool> is_insert_successful;
+    is_insert_successful = countmap.insert(std::make_pair(nb, 1));
+    if(!is_insert_successful.second)
+      (is_insert_successful.first)->second++;
   }
 
   typename std::ofstream fx("vertices_per_star.cgal.txt");

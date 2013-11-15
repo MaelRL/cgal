@@ -921,11 +921,10 @@ private:
       template<typename Element, typename OneMap>
       void add_to_map(const Element& e, OneMap& m) const
       {
-        typename OneMap::iterator it = m.find(e);
-        if(it != m.end())  
-          m[e] = m[e] + 1;
-        else 
-          m.insert(std::pair<Element,int>(e,1));
+        std::pair<typename OneMap::iterator, bool> is_insert_successful;
+        is_insert_successful = m.insert(std::make_pair(e,1));
+        if(!is_insert_successful.second)
+          (is_insert_successful.first)->second += 1; // m[e] += 1
       }
 
       Point_3 compute_circumcenter(const Facet& f, Star_handle here) const
@@ -2869,9 +2868,11 @@ public:
             Facet f = *fit;
             if(!is_consistent(f))
               continue;
-            if(done.find(Facet_ijk(f)) != done.end())
+
+            std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+            is_insert_successful = done.insert(Facet_ijk(f));
+            if(!is_insert_successful.second)
               continue;
-            done.insert(Facet_ijk(f));
 
             Star_handle star_a = m_stars[f.first->vertex((f.second+1)%4)->info()];
             Star_handle star_b = m_stars[f.first->vertex((f.second+2)%4)->info()];
@@ -3175,8 +3176,11 @@ private:
        for(std::size_t i = 0; i < m_stars.size(); i++)
        {
          int box = (m_stars[i]->number_of_vertices()/step)*step;
-         if(sizes.find(box) == sizes.end()) sizes[box] = 1;
-         else                               sizes[box]++;
+
+         std::pair<std::map<int, int>::iterator, bool> is_insert_successful;
+         is_insert_successful = sizes.insert(std::make_pair(box, 1));
+         if(!is_insert_successful.second)
+           (is_insert_successful.first)->second++; // sizes[box]++;
        }
        std::cout << "\t\tHistogram of nbv/star : " << std::endl;
        for(std::map<int, int>::iterator it = sizes.begin(); it != sizes.end(); it++)
@@ -3545,9 +3549,10 @@ public:
           for(; fit != fitend; fit++)
           {
             Facet f = *fit;
-            if(done.find(Facet_ijk(f)) != done.end())
+            std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+            is_insert_successful = done.insert(Facet_ijk(f));
+            if(!is_insert_successful.second)
               continue;
-            done.insert(Facet_ijk(f));
 
             const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
@@ -3796,9 +3801,10 @@ public:
           for(; fit != fend; fit++)
           {
             Facet f = *fit;
-            if(done.find(Facet_ijk(f)) != done.end())
+            std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+            is_insert_successful = done.insert(Facet_ijk(f));
+            if(!is_insert_successful.second)
               continue;
-            done.insert(Facet_ijk(f));
 
             Point_3 cc;
             star->compute_dual_intersection(f, cc);
@@ -3931,9 +3937,10 @@ public:
           for(; fit != fitend; fit++)
           {
             Facet f = *fit;
-            if(done.find(Facet_ijk(f)) != done.end())
+            std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+            is_insert_successful = done.insert(Facet_ijk(f));
+            if(!is_insert_successful.second)
               continue;
-            done.insert(Facet_ijk(f));
 
             const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
@@ -3982,9 +3989,10 @@ public:
           for(; fit != fend; fit++)
           {
             Facet f = *fit;
-            if(done.find(Facet_ijk(f)) != done.end())
+            std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+            is_insert_successful = done.insert(Facet_ijk(f));
+            if(!is_insert_successful.second)
               continue;
-            done.insert(Facet_ijk(f));
 
             const Point_3& pa = transform_from_star_point(f.first->vertex((f.second+1)%4)->point(), star);
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);

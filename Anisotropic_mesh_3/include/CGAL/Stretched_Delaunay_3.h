@@ -676,9 +676,10 @@ public:
             if(v != m_center)
             {
               Index j = v->info();
-              if(vertices_around.find(j) == vertices_around.end())
-                vertices_around.insert(j);
-              else vertices_around.erase(j);
+              std::pair<std::set<Index>::iterator,bool> is_insert_successful;
+              is_insert_successful = vertices_around.insert(j);
+              if(!is_insert_successful.second)
+                vertices_around.erase(is_insert_successful.first);
             }
           }
         }
