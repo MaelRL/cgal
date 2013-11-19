@@ -395,6 +395,11 @@ public:
     CGAL::output_to_medit(os,*this,rebind,show_patches);
   }
 
+  void output_to_medit_boundary(std::ofstream& os) const
+  {
+    CGAL::Mesh_3::output_to_medit_boundary(os, *this);
+  }
+
   //-------------------------------------------------------
   // Undocumented features
   //-------------------------------------------------------

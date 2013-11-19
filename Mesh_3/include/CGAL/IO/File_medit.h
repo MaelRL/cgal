@@ -651,6 +651,114 @@ int get(const Null_vertex_pmap<C3T3, Cell_pmap, Facet_pmap>&,
 
 
 // -----------------------------------
+// Single_boundary_cell_pmap
+// -----------------------------------
+template <typename C3T3>
+class Single_boundary_cell_pmap
+{
+  typedef typename C3T3::Subdomain_index Subdomain_index;
+  typedef typename C3T3::Cell_handle Cell_handle;
+  typedef unsigned int size_type;
+
+public:
+  int subdomain_number(const Cell_handle& ch) const
+  {
+    return (r_c3t3_.is_in_complex(ch,0) ||
+            r_c3t3_.is_in_complex(ch,1) ||
+            r_c3t3_.is_in_complex(ch,2) ||
+            r_c3t3_.is_in_complex(ch,3));
+  }
+
+  Single_boundary_cell_pmap(const C3T3& c3t3)
+    : r_c3t3_(c3t3) {}
+
+private:
+  const C3T3& r_c3t3_;
+};
+
+// Accessor
+template <typename C3T3>
+int
+get(const Single_boundary_cell_pmap<C3T3>& cmap,
+    const typename C3T3::Cell_handle& ch)
+{
+  return cmap.subdomain_number(ch);
+}
+
+
+// -----------------------------------
+// Single_boundary_facet_pmap
+// -----------------------------------
+template <typename C3T3>
+class Single_boundary_facet_pmap
+{
+  typedef typename C3T3::Facet Facet;
+
+public:
+  Single_boundary_facet_pmap(const C3T3& c3t3)
+    : r_c3t3_(c3t3) { }
+
+  int surface_index(const Facet& f) const
+  {
+    return r_c3t3_.is_in_complex(f);
+  }
+
+private:
+  const C3T3& r_c3t3_;
+};
+
+// Accessors
+template <typename C3T3>
+int
+get(const Single_boundary_facet_pmap<C3T3>& fmap,
+    const typename C3T3::Facet& f)
+{
+  return fmap.surface_index(f);
+}
+
+
+// -----------------------------------
+// Single_boundary_vertex_pmap
+// -----------------------------------
+template <typename C3T3>
+class Single_boundary_vertex_pmap
+{
+  typedef typename C3T3::Vertex_handle Vertex_handle;
+  typedef typename C3T3::Facet Facet;
+
+public:
+  Single_boundary_vertex_pmap(const C3T3& c3t3)
+    : r_c3t3_(c3t3) { }
+
+  int index(const Vertex_handle& vh) const
+  {
+    // Check if there is any incident surface facet
+    typename std::vector<Facet> facets;
+    r_c3t3_.triangulation().finite_incident_facets(
+        vh, std::back_inserter(facets));
+
+    typename std::vector<Facet>::iterator it_facet = facets.begin();
+    while ( ! r_c3t3_.is_in_complex(*it_facet) )
+    {
+      if ( ++it_facet == facets.end() )
+        return 0;
+    }
+    return 1;
+  }
+
+private:
+  const C3T3& r_c3t3_;
+};
+
+template <typename C3T3>
+int
+get(const Single_boundary_vertex_pmap<C3T3>& vmap,
+    const typename C3T3::Vertex_handle& vh)
+{
+  return vmap.index(vh);
+}
+
+// -----------------------------------
 // Generator
 // -----------------------------------
 template <typename C3T3, bool rebind, bool no_patch>
@@ -708,6 +816,24 @@ struct Medit_pmap_generator<C3T3, false, false>
 // IO functions
 //-------------------------------------------------------
 
+
+template <class C3T3>
+void
+output_to_medit_boundary(std::ostream& os,
+                         const C3T3& c3t3)
+{
+  std::cerr << "Output to medit boundary version:\n";
+  Single_boundary_cell_pmap<C3T3> cell_pmap(c3t3);
+  Single_boundary_facet_pmap<C3T3> facet_pmap(c3t3);
+  Single_boundary_vertex_pmap<C3T3> vertex_pmap(c3t3);
+  No_patch_facet_pmap_second<C3T3, Single_boundary_cell_pmap<C3T3> > facet_pmap_twice(c3t3, cell_pmap);
+
+  output_to_medit(os, c3t3,
+                  vertex_pmap,
+                  facet_pmap,
+                  cell_pmap,
+                  facet_pmap_twice);
+}
 
   
 template <class C3T3, bool rebind, bool no_patch>
