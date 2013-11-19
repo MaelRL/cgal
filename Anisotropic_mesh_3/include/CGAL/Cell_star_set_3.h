@@ -980,10 +980,10 @@ public:
     {
       std::size_t this_id = m_stars.size();
       int id = -1;
-      id = insert_in_domain(*pi, false/*under no condition*/);
-      if(this_id == id)
-        nbdone++;
-    }
+      id = insert_in_domain(*pi, false/*under no condition*/); //points on the surface are marked as inside stars here...
+      if(this_id == id)                                        //The problem is that if a point is a surface star, the eval
+        nbdone++;                                              //of the the conflict zone is different in stretched delaunay.
+    }                                                          //Need something better todo.
     std::cout << "done : " << nbdone << std::endl;
     clean_stars();
   }
