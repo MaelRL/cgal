@@ -780,6 +780,8 @@ public:
       std::cout << "get next fail" << std::endl;
       return false;
     }
+    if(need_picking_valid && compute_distortion(c) > m_criteria->distortion)
+      need_picking_valid = false;
 
     Vertex_handle v1 = c->vertex(0);
     Vertex_handle v2 = c->vertex(1);
