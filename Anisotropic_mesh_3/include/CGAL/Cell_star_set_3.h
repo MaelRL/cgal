@@ -99,6 +99,7 @@ public:
 
 private:
   Star_handle get_star(Star_handle s) const { return s; }
+  Star_handle get_star(std::size_t i) const { return m_stars[i]; }
   Star_handle get_star(int i) const         { return m_stars[i]; }
   Star_handle get_star(typename Index_set::const_iterator it) const   { return m_stars[*it]; }
   Star_handle get_star(typename Star_set::const_iterator it) const    { return *it; }
@@ -913,9 +914,6 @@ public:
 
   void refine_all(std::size_t max_count = (std::size_t) -1)
   {
-    typename std::ofstream fe("report_times.txt");
-    fe.close();
-
     pick_count = 0;
     intersection_count = 0;
     start_time = clock();
@@ -937,8 +935,11 @@ public:
         std::cout << " " << nbv << " vertices, ";
         std::cout << duration(start_time) << " sec.,\t";
         m_refine_queue.print();
-        output_medit();
+        dump();
       }
+
+      if(nbv % 1000 == 0)
+        output_medit();
 
       if(!refine())
       {
@@ -987,16 +988,37 @@ public:
     clean_stars();
   }
 
-  void dump(const bool nb = false)
+  void dump()
+  {
+    std::ofstream fx("dump.txt");
+
+    std::size_t ns = number_of_stars();
+    fx << number_of_stars() << std::endl;
+    for(std::size_t i=0; i<ns; ++i)
+      fx << get_star(i)->center_point() << std::endl;
+
+    for(std::size_t i=0; i<ns; ++i)
+    {
+      Star_handle star_i = get_star(i);
+      typename Star::Vertex_handle_handle nsi = star_i->begin_neighboring_vertices();
+      typename Star::Vertex_handle_handle nsiend = star_i->end_neighboring_vertices();
+      fx << nsiend - nsi;
+      for(; nsi != nsiend; nsi++)
+        fx << " " << (*nsi)->info();
+      fx << std::endl;
+    }
+  }
+
+  void save_off(const bool nb = false)
   {
     std::ostringstream nbs;
-    nbs << "dump";
+    nbs << "aniso_3D_";
     if(nb)
       nbs << number_of_stars();
     nbs << ".off" << std::ends;
     std::ofstream fx(nbs.str().c_str());
 
-    std::cout << "Saving dump...";
+    std::cout << "Saving as .off...";
     std::map<Index, int> match_indices;//because we won't use all of them
     int off_index = 0; // the corresponding index in .off
     std::vector<Point_3> points;
@@ -1053,7 +1075,6 @@ public:
          << " "   << match_indices[oci->vertices[3] ] << std::endl;
     }
 
-    fx.close();
     std::cout << "done.\n";
   }
 
@@ -1077,49 +1098,45 @@ public:
     fx << "picking time rate:  " << (double)pick_count / (double)(pick_count + vertex_without_picking_count) << std::endl;
     fx << "mean picking times: " << (double)pick_count / (double)vertex_with_picking_count << std::endl;
     fx << "intersection count: " << intersection_count << std::endl;
-    fx.close();
   }
 
-/*
   void load_dump()
   {
     m_stars.clear();
+    std::ifstream fx("dump.txt");
+    assert(fx.is_open());
+    std::cout << ("Loading dump file...");
+    int ns, nn, id;
+    fx >> ns;
 
-    typename std::ifstream fx("dump.txt");
-    std::cout << ("Loading...");
-    int dimension;
-    fx >> dimension;
-    int point_count;
-    fx >> point_count;
-    for(int i = 0; i < point_count; i++)
+    for(int i = 0; i < ns; i++)
     {
       Point_3 p;
       fx >> p;
-      m_points.push_back(p);
-    }
-    int cell_count_zero;
-    fx >> cell_count_zero;
-    for(int i = 0; i < point_count; i++)
-    {
-      Star_handle star = new Star(
-        criteria, m_points[i], i, metric_field.compute_metric(m_points[i]), m_pConstrain);
-      while(true)
-      {
-        int pid;
-        fx >> pid;
-        if(pid < 0)
-          break;
-        if(pid != i)
-          star->insert_to_star(m_points[pid], pid);
-      }
+      Star_handle star = new Star(m_criteria, m_pConstrain, false);
+      star->reset(p, i, m_metric_field->compute_metric(p), false);
       m_stars.push_back(star);
-      std::cout << ".";
     }
-    std::cout << ("\nInitializing conflicts...");
-    fill_refinement_queue(m_stars);
-    std::cout << ("\n\n");
+
+    for(int i = 0; i < ns; i++)
+    {
+      fx >> nn;
+      Star_handle star_i = get_star(i);
+      for(int i = 0; i < nn; i++)
+      {
+        fx >> id;
+        if(id >= 0)
+        {
+          Star_handle star_id = get_star(id);
+          star_i->insert_to_star(star_id->center_point(), star_id->index_in_star_set(), false);
+        }
+      }
+    }
+
+    std::cout << number_of_stars() << " stars" << std::endl;
   }
 
+/*
   void output()
   {
     typename std::ofstream fx("mesh.volume.cgal");
@@ -1161,7 +1178,6 @@ public:
       fx << oci->vertices[0] + 1 << " " << oci->vertices[1] + 1 << " "
         << oci->vertices[2] + 1 << " " << oci->vertices[3] + 1 << std::endl;
     }
-    fx.close();
   }
 */
 
@@ -1207,7 +1223,6 @@ public:
          << (oci->vertices[2] + 1) << " " << (oci->vertices[3] + 1) << " "
          << "1" << std::endl;
     }
-    fx.close();
     if(nb_inconsistent_stars > 0)
       std::cout << "Warning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
     std::cout << "done" << std::endl;
@@ -1226,7 +1241,9 @@ public:
     current_round(0)
   {
     if(nb)
-      initialize_stars(20);
+      initialize_stars(nb);
+    else
+      load_dump();
   }
 
   Cell_star_set_3(const Cell_star_set_3& css) :
