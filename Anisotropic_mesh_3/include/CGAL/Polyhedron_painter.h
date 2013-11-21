@@ -174,6 +174,8 @@ public:
           w_metrics.push_back(std::make_pair(m, 1./n));
           v->metric() = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_metrics);
         }
+        else
+          v->metric() = m;
       }
     }
 
@@ -208,7 +210,7 @@ public:
         v->metric() = transf.transpose()*transf;
         */
         if(v->metric() == Eigen::Matrix3d::Zero())
-          std::cout << "welp" << std::endl;
+          std::cout << "acceptable but not colored...?" << std::endl;
       }
       else
         v->metric() = Eigen::Matrix3d::Zero();
