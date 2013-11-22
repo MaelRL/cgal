@@ -542,20 +542,18 @@ private:
                              Star_handle new_star,     //the newly created star
                              const Index_set& modified_stars,
                              const double& sq_radius_bound,
-                             std::vector<int>& problematic_facets,
-                             const bool do_check_sliverity = false) const
+                             std::vector<int>& problematic_facets) const
       {
         //list all facets that would be created by p's insertion
         Point_3 p = new_star->center_point();
         int p_index = new_star->index_in_star_set();
 
         std::map<Facet_ijk, int> facets;
-        std::vector<Index> bfacets_quads; //used for sliverity check, three point index  + star index
         facets_created(new_star, facets);
 
         typename Index_set::const_iterator it;
         for(it = modified_stars.begin(); it != modified_stars.end(); it++)
-          facets_created(p, p_index, m_stars[(*it)], facets, bfacets_quads);
+          facets_created(p, p_index, m_stars[(*it)], facets);
 
         typename std::map<Facet_ijk, int>::iterator itf;
         for(itf = facets.begin(); itf != facets.end(); itf++)
@@ -579,8 +577,11 @@ private:
             double sqr = to_be_refined->compute_squared_circumradius(tp0, tp1, tp2);
             if(sqr < sq_radius_bound)
             {
-              CGAL_PROFILER("[is_valid failure : small inconsistency]");
               // small inconsistency (radius) is forbidden. A big one is fine.
+              CGAL_PROFILER("[is_valid failure : small inconsistency]");
+              return false;
+
+              //comment the line above to use problematic facets
               for(int i=0; i<3; ++i)
                 if( (*itf).first.vertex(i) != nmax )
                 {
@@ -591,113 +592,6 @@ private:
           }
         }
 
-        //consistency ok, check sliverity now
-        if(do_check_sliverity && m_criteria->sliverity > 0.)
-        {
-          typename std::vector<Index>::iterator itp;
-          for(itp = bfacets_quads.begin(); itp != bfacets_quads.end();)
-          {
-            CGAL::cpp11::array<TPoint_3, 4> ps;
-
-            Star_handle quad_star = m_stars[*itp++];
-            ps[0] = transform_to_star_point(p, quad_star);
-
-            int index = 1;
-            for(int i = 0; i < 3; ++i)
-            {
-              //std::cout << "index : " << index << " itp : " << *itp << std::endl;
-              ps[index++] = transform_to_star_point(m_stars[*itp++]->center_point(), quad_star);
-            }
-
-            //todo : we should check sliverity in each star involved, not only in one star (?)
-            if(quad_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
-            {
-              CGAL_PROFILER("[is_valid failure : sliverity]");
-              return false;
-            }
-          }
-        }
-
-#ifdef ANISO_SLIVERITY_USE_BRUTE_FORCE
-        if(do_check_sliverity && m_criteria->sliverity > 0.)
-        {
-          CGAL::cpp11::array<Point_3, 4> ps;
-
-            //fill set with all points involved
-          std::set<int> point_ids;
-          for(it = modified_stars.begin(); it != modified_stars.end(); it++)
-          {
-              point_ids.insert(*it);
-
-              typename std::vector<Vertex_handle>::iterator nvi = m_stars[*it]->begin_neighboring_vertices();
-              typename std::vector<Vertex_handle>::iterator nviend = m_stars[*it]->end_neighboring_vertices();
-              for (; nvi != nviend; nvi++)
-              {
-                if (m_stars[*it]->is_infinite_vertex(*nvi))
-                  continue;
-                point_ids.insert((*nvi)->info());
-              }
-          }
-
-            //pick three points from that set
-          for(std::set<int>::iterator it1 = point_ids.begin(); it1 != point_ids.end(); ++it1)
-          {
-            for(std::set<int>::iterator it2 = it1; ++it2 != point_ids.end();)
-            {
-              for(std::set<int>::iterator it3 = it2; ++it3 != point_ids.end();)
-              {
-                  //build the 4 points and check sliverity for three points + p in each star metric
-                //std::cout << "4 points : " << p_index << " " << *it1 << " " << *it2 << " " << *it3 << std::endl;
-                assert(p_index != *it1 && p_index != *it2 && p_index != *it3 &&
-                       *it1 != *it2 && *it1 != *it3 && it2 != *it3);
-
-                  //using modified stars' metrics
-                for(it = modified_stars.begin(); it != modified_stars.end(); it++)
-                {
-                  ps[0] = transform_to_star_point(p, m_stars[*it]);
-                  ps[1] = transform_to_star_point(m_stars[*it1]->center_point(), m_stars[*it]);
-                  ps[2] = transform_to_star_point(m_stars[*it2]->center_point(), m_stars[*it]);
-                  ps[3] = transform_to_star_point(m_stars[*it3]->center_point(), m_stars[*it]);
-
-                  if(m_stars[(*it)]->is_sliver(ps[0], ps[1], ps[2], ps[3]))
-                  {
-                    //std::cout << "failed for a modified star : " << *it << std::endl;
-                    CGAL_PROFILER("[is_valid failure : sliverity1]");
-                    return false;
-                  }
-                }
-
-                  //using to_be_refined's metric
-                ps[0] = transform_to_star_point(p, to_be_refined);
-                ps[1] = transform_to_star_point(m_stars[*it1]->center_point(), to_be_refined);
-                ps[2] = transform_to_star_point(m_stars[*it2]->center_point(), to_be_refined);
-                ps[3] = transform_to_star_point(m_stars[*it3]->center_point(), to_be_refined);
-
-                if(to_be_refined->is_sliver(ps[0], ps[1], ps[2], ps[3]))
-                {
-                  //std::cout << "failed for to_be_refined : " << to_be_refined->index_in_star_set() << std::endl;
-                  CGAL_PROFILER("[is_valid failure : sliverity2]");
-                  return false;
-                }
-
-                  //using new_star's metric
-                ps[0] = transform_to_star_point(p, new_star);
-                ps[1] = transform_to_star_point(m_stars[*it1]->center_point(), new_star);
-                ps[2] = transform_to_star_point(m_stars[*it2]->center_point(), new_star);
-                ps[3] = transform_to_star_point(m_stars[*it3]->center_point(), new_star);
-
-                if(new_star->is_sliver(ps[0], ps[1], ps[2], ps[3]))
-                {
-                  //std::cout << "failed for new_star : " << new_star->index_in_star_set() << std::endl;
-                  CGAL_PROFILER("[is_valid failure : sliverity3]");
-                  return false;
-                }
-
-              }
-            }
-          }
-        }
-#endif
         if(problematic_facets.empty())
         {
           CGAL_PROFILER("[is_valid success]");
@@ -740,8 +634,7 @@ private:
       void facets_created(const Point_3& p, // new point, not yet in the star set
                           const int p_id,   // index of p in star set
                           Star_handle star, 
-                          std::map<Facet_ijk, int>& facets,
-                          std::vector<Index>& bfacets_quads) const
+                          std::map<Facet_ijk, int>& facets) const
       {
         int center_id = star->index_in_star_set();
         if(center_id == p_id)
@@ -777,29 +670,6 @@ private:
           get_cycle(local_bfacets, edges_around_c, center_id);
         }
         else std::cerr << "Warning : in 'facets_created', no conflict zone!\n";
-        
-        //add new facets to the list of sliverity test facets
-        typename std::vector<Facet>::iterator it;
-        for(it = local_bfacets.begin(); it != local_bfacets.end(); it++)
-        {
-          Index p1 = ((*it).first->vertex( ((*it).second + 1)%4 ))->info();
-          Index p2 = ((*it).first->vertex( ((*it).second + 2)%4 ))->info();
-          Index p3 = ((*it).first->vertex( ((*it).second + 3)%4 ))->info();
-
-          if( p1 != star->infinite_vertex_index() &&
-              p2 != star->infinite_vertex_index() &&
-              p3 != star->infinite_vertex_index() )
-          {
-              //and center of the star to know the metric later on
-            bfacets_quads.push_back( star->index_in_star_set() );
-            assert(star->index_in_star_set() != -10);
-
-              //three points for the facet
-            bfacets_quads.push_back(p1);
-            bfacets_quads.push_back(p2);
-            bfacets_quads.push_back(p3);
-          }
-        }
 
         // get the set (circular if dim is 3) of vertices around the center
         std::set<int> vertices_around_c;
@@ -1095,8 +965,6 @@ private:
           }
           else
           {
-            assert(!problematic_facets.empty());
-
             //check for 3 inconsistences within four points
             if(probing)
             {
