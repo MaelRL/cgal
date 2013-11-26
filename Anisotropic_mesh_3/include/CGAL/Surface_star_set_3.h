@@ -770,7 +770,7 @@ private:
         }
       }
 
-      void debug_is_cycle(const std::set<Edge_ij>& edges)
+      void debug_is_cycle(const std::set<Edge_ij>& edges) const
       {
         std::map<int, int> m;
         typename std::set<Edge_ij>::const_iterator it;
