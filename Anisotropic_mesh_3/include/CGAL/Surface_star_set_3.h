@@ -117,11 +117,6 @@ namespace CGAL
       typedef typename Kd_tree::Box_query                         Kd_Box_query;
       typedef typename Kd_tree::key_type                          Kd_point_info;
 
-
-    public :
-      struct Facet_ijk;
-      struct Edge_ij;
-
     public:
       typename Constrain_surface::Pointset initial_points;
       const Constrain_surface* const m_pConstrain;
@@ -364,140 +359,6 @@ private:
         if(verbose)
           std::cout << "\t --> { "<< f.get<0>() << " " << f.get<1>() << " " << f.get<2>() << "}";
       }
-
-      struct Facet_ijk
-      {
-      private:
-        typename boost::tuple<int,int,int> m_facet;
-      public :
-        Facet_ijk(const Facet& f)
-        {
-          m_facet = boost::make_tuple(
-            f.first->vertex((f.second + 1) % 4)->info(),
-            f.first->vertex((f.second + 2) % 4)->info(),
-            f.first->vertex((f.second + 3) % 4)->info());
-          sort(m_facet);
-        }
-        Facet_ijk(const int i = -1, const int j = -1, const int k = -1)
-        {
-          m_facet = boost::make_tuple(i,j,k);
-          sort(m_facet);
-        }
-        int vertex(const int index) const
-        {
-          if(index == 0)      return m_facet.get<0>();
-          else if(index == 1) return m_facet.get<1>();
-          else if(index == 2) return m_facet.get<2>();
-          else std::cerr << "Facet_ijk does not have vertex number " << index << "!\n";
-          return -1;
-        }
-        bool has(const int index) const
-        {
-          return (vertex(0) == index) || (vertex(1) == index) || (vertex(2) == index);
-        }
-        bool has(const int index, int& other1, int& other2) const
-        {
-          for(int i = 0; i < 3; i++)
-          {
-            if(vertex(i) == index)
-            {
-              other1 = vertex((i+1)%3);
-              other2 = vertex((i+2)%3);
-              return true;
-            }
-          }
-          return false;
-        }
-        bool operator==(const Facet_ijk& f) const
-        {
-          return vertex(0) == f.vertex(0)
-            && vertex(1) == f.vertex(1)
-            && vertex(2) == f.vertex(2);
-        }
-        bool operator<(const Facet_ijk& f) const
-        {
-          if (this->vertex(0) != f.vertex(0))   return (this->vertex(0) < f.vertex(0));
-          if (this->vertex(1) != f.vertex(1))   return (this->vertex(1) < f.vertex(1));
-          if (this->vertex(2) != f.vertex(2))   return (this->vertex(2) < f.vertex(2));
-          return false;
-        }
-        Facet_ijk& operator=(const Facet_ijk& f)
-        {
-          m_facet = boost::make_tuple(f.vertex(0), f.vertex(1), f.vertex(2));
-          return *this;
-        }
-        bool is_infinite() const
-        {
-          return has(-10);
-        }
-      }; // end struct Facet_ijk
-      
-      struct Edge_ij
-      {
-      private:
-        std::pair<int, int> m_edge;
-      public:
-        Edge_ij(const Edge& e)
-        {
-          int i = e.first->vertex(e.second)->info();
-          int j = e.first->vertex(e.third)->info();
-          m_edge = std::pair<int, int>((std::min)(i,j), (std::max)(i,j));
-        }
-        Edge_ij(const int i = -1, const int j = -1)
-          : m_edge(std::pair<int, int>((std::min)(i,j), (std::max)(i,j))) {}
-
-        Edge_ij(const Edge_ij& e)
-          : m_edge(std::pair<int, int>(e.vertex(0), e.vertex(1))) {}
-
-        int vertex(const int index) const
-        {
-          if(index == 0)      return m_edge.first;
-          else if(index == 1) return m_edge.second;
-          std::cerr << "Edge_ij does not have vertex number " << index << "!\n";
-          return -1;
-        }
-        bool has(const int i)
-        {
-          return (vertex(0) == i) || (vertex(1) == i);
-        }
-        bool has(const int& i, int& other)
-        {
-          if(vertex(0) == i)
-          {
-            other = vertex(1);
-            return true;
-          }
-          if(vertex(1) == i)
-          {
-            other = vertex(0);
-            return true;
-          }
-          return false;
-        }
-        bool operator==(const Edge_ij& e) const
-        {
-          return vertex(0) == e.vertex(0) && vertex(1) == e.vertex(1);
-        }
-        bool operator<(const Edge_ij& e) const
-        {
-          if (this->vertex(0) != e.vertex(0))   return (this->vertex(0) < e.vertex(0));
-          if (this->vertex(1) != e.vertex(1))   return (this->vertex(1) < e.vertex(1));
-          return false;
-        }          
-        Edge_ij& operator=(const Edge_ij& e)
-        {
-          m_edge = std::pair<int, int>(e.vertex(0), e.vertex(1));
-          return *this;
-        }
-        bool is_infinite()
-        {
-          return has(-10);
-        }
-        bool is_valid()
-        {
-          return !has(-1);
-        }
-      };
 
       std::size_t count_restricted_facets() const
       {
@@ -752,11 +613,11 @@ private:
         for( ; fit != bfacets.end(); fit++)
         {
           Facet_ijk f(*fit);
-          int i1, i2;
-          if(f.has(center_id, i1, i2))
-            edges_around_c.insert(Edge_ij(i1, i2));
+          boost::array<int,2> others;
+          if(f.has(center_id, others))
+            edges_around_c.insert(Edge_ij(others[0], others[1]));
         }
-        //debug_is_cycle(edges_around_c);
+        debug_is_cycle(edges_around_c);
       }
 
       template<typename Edge_ijSet, typename IndexOutputIterator>
