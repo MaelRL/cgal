@@ -487,6 +487,14 @@ public:
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
+      inline FT compute_squared_circumradius(const TPoint_3& p1,
+                                             const TPoint_3& p2,
+                                             const TPoint_3& p3,
+                                             const TPoint_3& p4)
+      {
+        return m_criteria->compute_squared_circumradius(p1, p2, p3, p4);
+      }
+
       inline FT compute_sliverity_overflow(const Point_3& p1,
                                            const Point_3& p2,
                                            const Point_3& p3,

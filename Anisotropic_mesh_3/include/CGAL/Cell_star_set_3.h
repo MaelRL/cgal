@@ -122,6 +122,32 @@ public:
   }
 
 public:
+  Point_3 compute_circumcenter(const Point_3& p0, const Point_3& p1,
+                               const Point_3& p2, const Point_3& p3,
+                               Star_handle here) const
+  {
+#ifdef ANISO_USE_CC_EXACT
+    return back_from_exact(
+       transform_from_star_point(here->compute_circumcenter(
+              transform_to_star_point(to_exact(p0), here),
+              transform_to_star_point(to_exact(p1), here),
+              transform_to_star_point(to_exact(p2), here),
+              transform_to_star_point(to_exact(p3), here)), here));
+#else
+    return transform_from_star_point(here->compute_circumcenter(
+              transform_to_star_point(p0, here),
+              transform_to_star_point(p1, here),
+              transform_to_star_point(p2, here),
+              transform_to_star_point(p3, here)), here);
+#endif
+  }
+
+  bool is_inside_domain(const Point_3& p) const
+  {
+    return (m_pConstrain->side_of_constraint(p) == ON_POSITIVE_SIDE);
+  }
+
+public:
   void create_star(const Point_3 &p,
                    int pid,
                    const Index_set& modified_stars,//by p's insertion
@@ -272,79 +298,126 @@ public:
     return id;
   }
 
-  bool check_consistency(const Star_handle& star,
-                         const FT sq_radiusbound) //todo check what is done here
+  template<typename Element, typename OneMap>
+  void add_to_map(const Element& e, OneMap& m) const
+  {
+    std::pair<typename OneMap::iterator, bool> is_insert_successful;
+    is_insert_successful = m.insert(std::make_pair(e,1));
+    if(!is_insert_successful.second)
+      (is_insert_successful.first)->second += 1; // m[e] += 1
+  }
+
+  void cells_created(Star_handle star,
+                      std::map<Cell_ijkl, int>& cells) const
   {
     Cell_handle_handle ci = star->begin_finite_star_cells();
     Cell_handle_handle ciend = star->end_finite_star_cells();
     for(; ci != ciend; ci++)
+      add_to_map(Cell_ijkl(*ci), cells);
+  }
+
+  // finite cells(i,j,k,l) which would be created by the insertion
+  // of 'p' in 'star' are added to 'cells'
+  void cells_created(const Point_3& p, // new point, not yet in the star set
+                      const int p_id,   // index of p in star set
+                      Star_handle star,
+                      std::map<Cell_ijkl, int>& cells) const
+  {
+    std::vector<Facet> bfacets;
+    star->find_conflicts(p, std::back_inserter(bfacets));
+
+    typename std::vector<Facet>::const_iterator fit = bfacets.begin();
+    for( ; fit != bfacets.end(); fit++)
     {
-      if(!star->is_inside(*ci))
+      int id1 = fit->first->vertex((fit->second+1)%4)->info();
+      int id2 = fit->first->vertex((fit->second+2)%4)->info();
+      int id3 = fit->first->vertex((fit->second+3)%4)->info();
+      int sid = star->index_in_star_set();
+
+      if(id1 == star->infinite_vertex_index() ||
+         id2 == star->infinite_vertex_index() ||
+         id3 == star->infinite_vertex_index())
         continue;
 
-      bool is_in_bound = (star->criteria()->compute_squared_circumradius(
-        (*ci)->vertex(0)->point(), (*ci)->vertex(1)->point(),
-        (*ci)->vertex(2)->point(), (*ci)->vertex(3)->point()) < sq_radiusbound);
-      for(int i = 0; i < 4; i++)
+      if(id1 != sid && id2 != sid && id3 != sid)
+        continue;
+
+      Point_3 c = compute_circumcenter(m_stars[id1]->center_point(),
+                                       m_stars[id2]->center_point(),
+                                       m_stars[id3]->center_point(),
+                                       p, star);
+      if(is_inside_domain(c))
+        add_to_map(Cell_ijkl(id1, id2, id3, p_id), cells);
+    }
+  }
+
+  bool check_consistency_and_sliverity(Star_handle to_be_refined,
+                                       const Star_handle& new_star,
+                                       const Index_set& modified_stars,
+                                       FT sq_radius_bound) const
+  {
+    Point_3 p = new_star->center_point();
+    int p_index = new_star->index_in_star_set();
+
+    std::map<Cell_ijkl, int> cells;
+    cells_created(new_star, cells);
+
+    typename Index_set::iterator it;
+    for(it = modified_stars.begin(); it != modified_stars.end(); ++it)
+      cells_created(p, p_index, m_stars[(*it)], cells);
+
+    typename std::map<Cell_ijkl, int>::iterator itc;
+    for(itc = cells.begin(); itc != cells.end(); ++itc)
+    {
+      std::size_t nmax = number_of_stars();
+      int c0 = (*itc).first.vertex(0);
+      int c1 = (*itc).first.vertex(1);
+      int c2 = (*itc).first.vertex(2);
+      int c3 = (*itc).first.vertex(3);
+      if((*itc).second != 4 )
       {
-        typename Star::Vertex_handle v = (*ci)->vertex(i);
-        if(v == star->center())
-          continue;
-        Star_handle foreign_star = m_stars[v->info()];
-        if(foreign_star->metric().compute_distortion(star->metric()) > sqrt(m_criteria->distortion))
-          continue;
+        if((*itc).first.is_infinite())
+          return false;
 
-        // if there is a point in foreign star falls into the circum-sphere of the
-        // four points under the metric of the foreign star, it is inconsistent
-        typename Star::Vertex_handle_handle fvi = foreign_star->begin_neighboring_vertices();
-        typename Star::Vertex_handle_handle fviend = foreign_star->end_neighboring_vertices();
-        Point_3 foreign_cc = foreign_star->traits()->construct_circumcenter_3_object()(
-          (*ci)->vertex(0)->point(), (*ci)->vertex(1)->point(),
-          (*ci)->vertex(2)->point(), (*ci)->vertex(3)->point());
-        typename Star::Traits::Compute_squared_distance_3 o =
-            foreign_star->traits()->compute_squared_distance_3_object();
-        FT squared_foreign_cr = o(foreign_cc, (*ci)->vertex(0)->point());
-        for(; fvi != fviend; fvi++)
-        {
-          if(foreign_star->is_infinite_vertex(*fvi)) continue;
-          if((*fvi)->info() == (*ci)->vertex(0)->info()) continue;
-          if((*fvi)->info() == (*ci)->vertex(1)->info()) continue;
-          if((*fvi)->info() == (*ci)->vertex(2)->info()) continue;
-          if((*fvi)->info() == (*ci)->vertex(3)->info()) continue;
-          if(o(foreign_cc, (*fvi)->point()) < squared_foreign_cr)
-          {
-            if(!is_in_bound)
-            {
-              for(int k = 0; k < 4; k++)
-              {
-                if(star->criteria()->compute_volume(
-                  (*ci)->vertex((k + 0) % 4)->point(),
-                  (*ci)->vertex((k + 1) % 4)->point(),
-                  (*ci)->vertex((k + 2) % 4)->point(),
-                  (*fvi)->point()) < 1e-6)
-                {
-                    continue;
-                }
-                if(star->criteria()->compute_squared_circumradius(
-                  (*ci)->vertex((k + 0) % 4)->point(),
-                  (*ci)->vertex((k + 1) % 4)->point(),
-                  (*ci)->vertex((k + 2) % 4)->point(),
-                  (*fvi)->point()) < sq_radiusbound)
-                {
-                    is_in_bound = true;
-                    break;
-                }
-              }
-            }
-            if(!is_in_bound)
-              continue;
+        TPoint_3 tp0, tp1, tp2, tp3;
+        TPoint_3 tp = transform_to_star_point(p, to_be_refined);
+        tp0 = (c0 == nmax) ? tp : transform_to_star_point(m_stars[c0]->center_point(),
+                                                          to_be_refined);
+        tp1 = (c1 == nmax) ? tp : transform_to_star_point(m_stars[c1]->center_point(),
+                                                          to_be_refined);
+        tp2 = (c2 == nmax) ? tp : transform_to_star_point(m_stars[c2]->center_point(),
+                                                          to_be_refined);
+        tp3 = (c3 == nmax) ? tp : transform_to_star_point(m_stars[c3]->center_point(),
+                                                          to_be_refined);
 
-            return false;
-          }
-        }
+        double sqr = to_be_refined->compute_squared_circumradius(tp0, tp1, tp2, tp3);
+        if(sqr < sq_radius_bound)
+          return false; // small inconsistency (radius) is forbidden.
+      }
+
+      //check sliverity
+      for(int i=0; i<4; ++i)
+      {
+        Star_handle star;
+        if((*itc).first.vertex(i) == nmax)
+          star = new_star;
+        else
+          star = m_stars[(*itc).first.vertex(i)];
+
+        Point_3 p0, p1, p2, p3;
+        p0 = (c0 == nmax) ? p : m_stars[c0]->center_point();
+        p1 = (c1 == nmax) ? p : m_stars[c1]->center_point();
+        p2 = (c2 == nmax) ? p : m_stars[c2]->center_point();
+        p3 = (c3 == nmax) ? p : m_stars[c3]->center_point();
+
+        FT sliver_overflow = star->compute_sliverity_overflow(p0, p1, p2, p3);
+        if (sliver_overflow > 0.0)
+          return false;
+
+        //add squared_radius_bound & volume? todo
       }
     }
-    return true; //todo check
+    return true;
   }
 
   bool is_valid_point(const Point_3 &p,
@@ -366,30 +439,12 @@ public:
     else
       create_star(p, id, modified_stars, new_star, new_star->is_surface_star());
 
-    // only check adjacent stars for sliver
-    typename Star::Vertex_handle_handle nsi = star->begin_neighboring_vertices();
-    typename Star::Vertex_handle_handle nsiend = star->end_neighboring_vertices();
-    for(; nsi != nsiend; nsi++)
-    {
-      if(star->is_infinite_vertex(*nsi))
-        continue;
-
-      Star_handle star_i = m_stars[(*nsi)->info()];
-
-      if(star_i->can_form_sliver(transform_to_star_point(p, star_i), sq_radiusbound))
-      {
-        new_star->invalidate();
-        std::cout << ("S");
-        return false;
-      }
-    }
-
-    bool is = check_consistency(star, sq_radiusbound);
+    bool is = check_consistency_and_sliverity(star, new_star,
+                                              modified_stars, sq_radiusbound);
     if(!is)
     {
       new_star->invalidate();
       std::cout << ("C");
-      return false;
     }
 
     return is;
