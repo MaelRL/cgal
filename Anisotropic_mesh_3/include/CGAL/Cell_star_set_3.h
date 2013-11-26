@@ -24,12 +24,15 @@
 #include <CGAL/Output_facets.h>
 #include <CGAL/Output_cells.h>
 
+#include <CGAL/helpers/combinatorics_helper.h>
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/metric_helper.h>
 
 #include <iostream>
 #include <fstream>
+#include <map>
 #include <utility>
+#include <vector>
 #include "stdio.h"
 
 
@@ -39,7 +42,7 @@ namespace Anisotropic_mesh_3{
 template<typename K>
 class Cell_star_set_3 {
 public:
-  typedef Cell_star_set_3<K>               Self;
+  typedef Cell_star_set_3<K>                        Self;
 
   typedef typename K::FT                            FT;
   typedef typename K::Point_3                       Point_3;
@@ -51,16 +54,16 @@ public:
   typedef typename Star_vector::iterator            Star_iterator;
   typedef typename Star::Vertex_handle              Vertex_handle;
   typedef typename Star::Cell_handle                Cell_handle;
+  typedef typename Star::Facet                      Facet;
   typedef typename Star::Facet_handle               Facet_handle;
   typedef typename Star::Cell_handle_handle         Cell_handle_handle;
-  typedef typename Star::Facet                      Facet;
   typedef typename Star::TPoint_3                   TPoint_3;
   typedef typename Star::Vector_3                   Vector_3;
   typedef typename Star::Index                      Index;
   typedef std::set<Index>                           Index_set;
 
   typedef Constrain_surface_3<K>                    Constrain_surface;
-  typedef CGAL::Anisotropic_mesh_3::Metric_field<K>                           Metric_field;
+  typedef CGAL::Anisotropic_mesh_3::Metric_field<K> Metric_field;
   typedef typename Metric_field::Metric             Metric;
   typedef Criteria_base<K>                          Criteria;
 
@@ -89,7 +92,6 @@ public:
   const Criteria* criteria() const { return m_criteria; }
   void set_criteria(const Criteria* criteria_) { m_criteria = criteria_; }
   void set_metric_field(const Metric_field* metric_field_) { m_metric_field = metric_field_; }
-
 
 public:
   std::size_t number_of_stars() const { return m_stars.size(); }
@@ -452,7 +454,6 @@ public:
 
   Point_3 pick_valid(const Star_handle star, const Cell_handle &cell)
   {
-    std::cout << "pick valid : " << star->index_in_star_set() << std::endl;
 
     TPoint_3 circumcenter = cell->circumcenter(*(star->traits()));
     TPoint_3 tp2 = cell->vertex(0)->point();
@@ -478,7 +479,7 @@ public:
         return p;
       if((tried_times++) > m_criteria->max_times_to_try_in_picking_region)
       {
-        std::cout << ("X\n");
+        std::cout << ("X");
         return transform_from_star_point(circumcenter, star);
       }
     }
@@ -572,6 +573,7 @@ public:
   Point_3 compute_insert_or_snap_point(const Star_handle star, const Cell_handle& cell)
   {
     Point_3 p = transform_from_star_point(star->compute_circumcenter(cell), star);
+    /*
     std::cout << "in star " << star->index_in_star_set() << " cell : " << std::endl;
     std::cout << cell->vertex(0)->info() << " " << cell->vertex(0)->point() << std::endl;
     std::cout << cell->vertex(1)->info() << " " << cell->vertex(1)->point() << std::endl;
@@ -579,7 +581,6 @@ public:
     std::cout << cell->vertex(3)->info() << " " << cell->vertex(3)->point() << std::endl;
     std::cout << "insert or snap : " << p << std::endl;
 
-    /*
     std::cout << m_stars[0]->bbox() << std::endl;
     Cell_handle useless;
     std::cout << "check conflicts : " << std::endl;
@@ -677,11 +678,15 @@ public:
     for(std::size_t i = 0; i < N; i++)
     {
       Star_handle star = get_star(i);
-      Cell_handle_handle cit = star->begin_star_cells();
-      Cell_handle_handle citend = star->end_star_cells();
+      Cell_handle_handle cit = star->begin_finite_star_cells();
+      Cell_handle_handle citend = star->end_finite_star_cells();
       for(; cit != citend; cit++)
+      {
+        if(!star->is_inside(*cit))
+          continue;
         if(!is_consistent(*cit, verbose))
           return false;
+      }
     }
     return true;
   }
@@ -734,7 +739,7 @@ public:
         std::cout << c->vertex(3)->info() << std::endl;
         */
 
-        // over distortion
+        // over distortion 1
         if(0 && m_criteria->distortion > 0.)
         {
           FT over_distortion = compute_distortion(c) - m_criteria->distortion;
@@ -745,7 +750,7 @@ public:
           }
         }
 
-        // too big
+        // too big 2
         FT over_circumradius = star->compute_circumradius_overflow(c);
         if(over_circumradius > 0)
         {
@@ -754,7 +759,7 @@ public:
           continue;
         }
 
-        // bad shape
+        // bad shape 3
         FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(c);
         /*
         std::cout << "bad shape : " << star->criteria()->compute_squared_circumradius(c->vertex(0)->point(),
@@ -773,7 +778,7 @@ public:
           continue;
         }
 
-        // sliverity
+        // sliverity 4
         FT over_sliverity = star->compute_sliverity_overflow(c);
         if(over_sliverity > 0)
         {
@@ -781,7 +786,7 @@ public:
           continue;
         }
 
-        // consistency
+        // consistency 5
         if(!is_consistent(c))
         {
           m_refine_queue.push_inconsistent(star, c, star->compute_volume(c), 0);
@@ -886,7 +891,7 @@ public:
       }
     }
 
-    std::cout << number_of_stars() << " refine: " << p << " [" << c->vertex(0)->info() << "-";
+    std::cout << std::endl << number_of_stars() << " refine: " << p << " [" << c->vertex(0)->info() << "-";
     std::cout << c->vertex(1)->info() << "-" << c->vertex(2)->info() << "-";
     std::cout << c->vertex(3)->info() << "] " << "t:" << queue_type << " i:";
     std::cout << bad_cell.vertices[0] << " s:" << bad_cell.star->center()->info() << std::endl;
@@ -948,6 +953,8 @@ public:
       for (; ci != ciend; ++ci)
       {
         Cell_handle c = *ci;
+        if(!si->is_inside(c))
+          continue;
         if(!is_consistent(c))
         {
           std::cout << c->vertex(0)->info() << " ";
@@ -1144,7 +1151,7 @@ public:
     m_metric_field->report(fx);
 
     fx << std::endl << "[Statistics]" << std::endl << std::endl;
-    fx << "elapsed time:       " << time(NULL) - start_time << " sec." << std::endl;
+    fx << "elapsed time:       " << duration(start_time) << " sec." << std::endl;
     fx << "number of vertices: " << m_stars.size() << std::endl;
     fx << "picking times:      " << pick_count << std::endl;
     fx << "vertex via picking: " << vertex_with_picking_count << std::endl;
