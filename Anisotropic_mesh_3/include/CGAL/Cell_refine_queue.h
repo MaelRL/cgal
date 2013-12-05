@@ -48,6 +48,15 @@ public:
       vertices[i] = cell_->vertex((tag_ + i) % 4)->info();
   }
   ~Refine_cell() { }
+  bool operator==(Refine_cell<K> right)
+  {
+    return star == right.star &&
+           vertices[0] == right.vertices[0] &&
+           vertices[1] == right.vertices[1] &&
+           vertices[2] == right.vertices[2] &&
+           vertices[3] == right.vertices[3] &&
+           value == right.value;
+  }
 };
 
 template<typename K>
@@ -177,6 +186,57 @@ public:
     for(int i = 0; i < nb_queues; i++)
       std::cout << queues[i]->size() <<" ";
     std::cout << ") " << std::endl;
+  }
+
+  std::size_t count()
+  {
+    std::size_t count = 0;
+    for(int i=0; i< nb_queues; ++i)
+      count += queues[i]->size();
+    return count;
+  }
+
+  //temp hack to access the priority queues underlying container
+  template <class T, class S, class C>
+  S& Container(std::priority_queue<T, S, C>& q)
+  {
+    struct HackedQueue : private std::priority_queue<T, S, C>
+    {
+      static S& Container(std::priority_queue<T, S, C>& q)
+      {
+        return q.*&HackedQueue::c;
+      }
+    };
+    return HackedQueue::Container(q);
+  }
+
+  bool is_cell_in(Star_handle star, Cell_handle cell, FT value, int tag,
+                  int queue_id)
+  {
+    Refine_cell rc(star, cell, value, tag);
+    Refine_cell_queue* qi = queues[queue_id];
+    std::vector<Refine_cell>& vi = Container(*qi);
+    typename std::vector<Refine_cell>::iterator vit = vi.begin();
+    typename std::vector<Refine_cell>::iterator viend = vi.end();
+    for(; vit!=viend; ++vit)
+      if(*vit == rc)
+        return true;
+    return false;
+  }
+
+  void print_queue(int queue_id)
+  {
+    Refine_cell_queue* qi = queues[queue_id];
+    std::vector<Refine_cell>& vi = Container(*qi);
+    typename std::vector<Refine_cell>::iterator vit = vi.begin();
+    typename std::vector<Refine_cell>::iterator viend = vi.end();
+    for(; vit!=viend; ++vit)
+    {
+      Refine_cell rci = *vit;
+      std::cout << rci.star->index_in_star_set() << " || ";
+      std::cout << rci.vertices[0] << " " << rci.vertices[1] << " " << rci.vertices[2] << " " << rci.vertices[3];
+      std::cout << " || " << rci.value << std::endl;
+    }
   }
 
 public:
