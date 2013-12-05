@@ -28,6 +28,10 @@
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/metric_helper.h>
 
+#include <CGAL/aabb_tree/aabb_tree_bbox.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
+#include <CGAL/kd_tree/Kd_tree_for_star_set.h>
+
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -51,6 +55,7 @@ public:
   typedef Star*                                     Star_handle;
   typedef std::set<Star_handle>                     Star_set;
   typedef std::vector<Star_handle>                  Star_vector;
+  typedef typename Star::Base                       DT;
   typedef typename Star_vector::iterator            Star_iterator;
   typedef typename Star::Vertex_handle              Vertex_handle;
   typedef typename Star::Cell_handle                Cell_handle;
@@ -61,6 +66,14 @@ public:
   typedef typename Star::Vector_3                   Vector_3;
   typedef typename Star::Index                      Index;
   typedef std::set<Index>                           Index_set;
+
+  typedef CGAL::AABB_tree_bbox<K, Star>             AABB_tree;
+  typedef CGAL::AABB_bbox_primitive<Star>           AABB_primitive;
+
+  typedef CGAL::Kd_tree_for_star_set<K, Star_handle>          Kd_tree;
+  typedef typename Kd_tree::Traits                            Kd_traits;
+  typedef typename Kd_tree::Box_query                         Kd_Box_query;
+  typedef typename Kd_tree::key_type                          Kd_point_info;
 
   typedef Constrain_surface_3<K>                    Constrain_surface;
   typedef CGAL::Anisotropic_mesh_3::Metric_field<K> Metric_field;
@@ -77,8 +90,11 @@ public:
   Star_vector m_stars;
   Refine_queue m_refine_queue;
 
+  DT m_ch_triangulation;
+  mutable AABB_tree m_aabb_tree; //bboxes of stars
+  Kd_tree m_kd_tree;
+
   // the following global variables are only for debugging or benchmark
-  int current_round;
   int pick_count;
   int vertex_with_picking_count;
   int vertex_without_picking_count;
@@ -123,6 +139,16 @@ public:
     return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
   }
 
+  void update_aabb_tree(Star_handle star) const
+  {
+    m_aabb_tree.update_primitive(AABB_primitive(star));
+  }
+
+  void build_aabb_tree()
+  {
+    m_aabb_tree.rebuild(m_stars.begin(), m_stars.end());
+  }
+
 public:
   Point_3 compute_circumcenter(const Point_3& p0, const Point_3& p1,
                                const Point_3& p2, const Point_3& p3,
@@ -150,6 +176,111 @@ public:
   }
 
 public:
+  void update_bboxes() const
+  {
+#ifdef DEBUG_UPDATE_AABB_TREE
+    std::cout << "updating bboxes. tree : " << m_aabb_tree.size() << " " << m_aabb_tree.m_insertion_buffer_size() << std::endl;
+#endif
+    std::size_t i;
+    std::size_t N = m_stars.size();
+    for(i = 0; i < N; i++)
+    {
+      m_stars[i]->update_bbox();
+      if(m_aabb_tree.m_insertion_buffer_size() == 1) // tree has just been rebuilt
+        m_stars[i]->set_bbox_needs_aabb_update(false);
+      if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+      {
+        m_stars[i]->set_bbox_needs_aabb_update(false);
+        update_aabb_tree(m_stars[i]);
+      }
+    }
+
+    for(i = 0; i < N; i++)
+      if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+        std::cout << "forgot some stars in the update" << std::endl;
+  }
+
+  template<typename OutputIterator>
+  void finite_stars_in_conflict(const Point_3& p,
+                                OutputIterator oit) const
+  {
+    update_bboxes();
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    //bigger set of stars
+    m_aabb_tree.all_intersected_primitives(p, oit);
+#else
+    //exact set
+    for(unsigned int i = 0; i < m_stars.size(); i++)
+    {
+      Star_handle s = m_stars[i];
+      Cell_handle ch;
+      if(s->is_conflicted(transform_to_star_point(p, s), ch))
+        *oit++ = s;
+    }
+#endif
+  }
+
+  template<typename OutputIterator>
+  void all_stars(OutputIterator oit) const
+  {
+    for(std::size_t i = 0; i < m_stars.size(); i++)
+      *oit++ = m_stars[i];
+  }
+
+  template<typename OutputIterator>
+  bool infinite_stars_in_conflict(const Point_3& p,
+                                  OutputIterator oit,
+                                  const bool collect = true) const
+  {
+    if(m_ch_triangulation.dimension() < 3)
+    {
+      all_stars(oit);
+      return true;
+    }
+
+    int li, lj;
+    typename DT::Locate_type lt;
+    typename DT::Cell_handle c = m_ch_triangulation.locate(p, lt, li, lj);
+
+    if(lt != DT::OUTSIDE_CONVEX_HULL && lt != DT::OUTSIDE_AFFINE_HULL)
+      return false;
+
+    std::vector<typename DT::Facet> bfacets;
+    m_ch_triangulation.find_conflicts(p, c, std::back_inserter(bfacets), Emptyset_iterator());
+
+    if(!collect)
+       return !bfacets.empty();
+
+    typename std::vector<typename DT::Facet>::iterator fit = bfacets.begin();
+    typename std::vector<typename DT::Facet>::iterator fitend = bfacets.end();
+    for(; fit != fitend; fit++)
+    {
+      typename DT::Facet f = *fit;
+      if(m_ch_triangulation.is_infinite(f))
+        continue;
+
+      *oit++ = m_stars[f.first->vertex((f.second + 1) % 4)->info()];
+      *oit++ = m_stars[f.first->vertex((f.second + 2) % 4)->info()];
+      *oit++ = m_stars[f.first->vertex((f.second + 3) % 4)->info()];
+    }
+    return true;
+  }
+
+public:
+  template<typename StarConstIterator>
+  void remove_from_stars(const Index& id,
+                         StarConstIterator begin,
+                         StarConstIterator end)
+  {
+    StarConstIterator it;
+    for(it = begin; it != end; it++)
+    {
+      Star_handle s = get_star(it);
+      if(id != s->index_in_star_set())
+        s->remove(id);
+    }
+  }
+
   void create_star(const Point_3 &p,
                    int pid,
                    const Index_set& modified_stars,//by p's insertion
@@ -158,21 +289,34 @@ public:
   {
     //todo if(surf)
     star->reset(p, pid, m_metric_field->compute_metric(p), surface_star);
-    //std::cout << "new point : " << p << " id " << pid << " surf " << surface_star << " metric" << std::endl;
-    //std::cout << star->metric().get_transformation() << std::endl;
-    //std::cout << "insert : ";
 
     typename Index_set::const_iterator cit = modified_stars.begin();
     typename Index_set::const_iterator citend = modified_stars.end();
     for (; cit != citend; cit++)
     {
       Star_handle si = get_star(cit);
-      //std::cout << si->index_in_star_set() << " ";
       star->insert_to_star(si->center_point(), si->index_in_star_set(), false);
     }
-    //std::cout << std::endl;
-    //std::cout << "star has : " << star->number_of_vertices() << std::endl;
 
+    typename Star::Bbox bbox = star->bbox(); // volume bbox + surface bbox when star is not a topo_disk
+    Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
+    Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
+    Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
+    std::set<Kd_point_info> indices;
+    m_kd_tree.search(std::inserter(indices, indices.end()), query);
+
+    if(indices.size() != modified_stars.size())// because 'indices' contains 'modified_stars'
+    {
+      Index_set diff;
+      std::set_difference(indices.begin(), indices.end(),
+        modified_stars.begin(), modified_stars.end(), std::inserter(diff, diff.end()));
+      typename Index_set::iterator it = diff.begin();
+      while(it != diff.end())
+      {
+        Star_handle si = get_star(it++);
+        star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
+      }
+    }
   }
 
   Star_handle create_star(const Point_3 &p,
@@ -193,34 +337,70 @@ public:
     return star;
   }
 
+  Index perform_insertions(const Point_3& p,
+                           const Index& this_id,
+                           const Star_set& target_stars,
+                           Index_set& modified_stars,
+                           const bool conditional,
+                           const bool infinite_stars = false)
+  {
+    Vertex_handle v_in_ch = Vertex_handle();
+    typename Star_set::const_iterator it = target_stars.begin();
+    typename Star_set::const_iterator itend = target_stars.end();
+    for(; it != itend; it++)
+    {
+      Star_handle si = *it;
+      Vertex_handle vi = si->insert_to_star(p, this_id, conditional);
+
+      if(vi == Vertex_handle())  //no conflict
+        continue;
+      else if(vi->info() < this_id) // already in star set (should not happen)
+      {
+        std::cout << "Warning! Insertion of p"<< this_id
+          << " (" << p << ") in S" << si->index_in_star_set() << " failed. vi->info() :"<< vi->info() << std::endl;
+        if(v_in_ch != Vertex_handle())
+          m_ch_triangulation.remove(v_in_ch);
+        remove_from_stars(this_id, target_stars.begin(), ++it);
+
+        si->print_vertices(true);
+        si->print_faces();
+        std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
+        return vi->info();
+      }
+      else // inserted, standard configuration
+      {
+        modified_stars.insert(si->index_in_star_set());
+        // update triangulation of convex hull
+        if(infinite_stars)//(si->is_infinite() && v_in_ch != Vertex_handle())
+        {
+          v_in_ch = m_ch_triangulation.insert(p);
+          v_in_ch->info() = this_id;
+        }
+      }
+    }
+    return this_id;
+  }
+
   Index insert_to_stars(const Point_3& p,
                        Index_set& modified_stars,
                        const bool conditional)
   {
     Index this_id = static_cast<Index>(m_stars.size());
 
-    //todo mirror perform_insertions (one more level of functions)
-    Star_iterator it = m_stars.begin();
-    Star_iterator itend = m_stars.end();
-    for(; it != itend; it++)
-    {
-      Star_handle si = *it;
-      Vertex_handle vi = si->insert_to_star(p, this_id, conditional);
+    // find conflicted stars & insert p to these stars
+    Index id;
+    Star_set target_stars;
+    if(conditional)
+      finite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end())); // aabb tree/exhaustive
+    else
+      all_stars(std::inserter(target_stars, target_stars.end()));
 
-      if(vi == Vertex_handle()) //no conflict
-        continue;
-      else if(vi->info() < this_id)
-      {
-        std::cout << "already in star set (should not happen)" << std::endl;
-        return vi->info();
-      }
-      else
-      {
-        modified_stars.insert(si->index_in_star_set());
-        //std::cout << "star : " << si->index_in_star_set() << " has point " << this_id << " ";
-        //std::cout << si->has_vertex(this_id) << std::endl;
-      }
-    }
+    id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, false);
+
+    target_stars.clear();
+    infinite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end()));//convex hull
+    id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, true);
+
     return this_id;
   }
 
@@ -264,11 +444,10 @@ public:
     Star_handle star = create_star(p, id, modified_stars);
     m_stars.push_back(star);
     modified_stars.insert(star->index_in_star_set());
-
-    std::cout << "size of modified stars : " << modified_stars.size();
-    std::cout << " " << number_of_stars() << std::endl;
-
-    //deal with aabbkd tree stuff todo
+    m_kd_tree.insert(star->index_in_star_set());
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    m_aabb_tree.insert(AABB_primitive(star));
+#endif
 
     return id;
   }
@@ -291,11 +470,10 @@ public:
     Star_handle star = create_inside_star(p, id, modified_stars);
     m_stars.push_back(star);
     modified_stars.insert(star->index_in_star_set());
-
-    std::cout << "size of modified stars : " << modified_stars.size();
-    std::cout << " " << number_of_stars() << std::endl;
-
-    //deal with aabbkd tree stuff todo
+    m_kd_tree.insert(star->index_in_star_set());
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    m_aabb_tree.insert(AABB_primitive(star));
+#endif
 
     return id;
   }
@@ -454,6 +632,7 @@ public:
 
   Point_3 pick_valid(const Star_handle star, const Cell_handle &cell)
   {
+    //std::cout << "pick valid : " << star->index_in_star_set() << std::endl;
 
     TPoint_3 circumcenter = cell->circumcenter(*(star->traits()));
     TPoint_3 tp2 = cell->vertex(0)->point();
@@ -700,6 +879,7 @@ public:
     {
       Star_handle star = get_star(si);
 
+      /*
       typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
       typename Star::Facet_set_iterator fend = star->end_restricted_facets();
       for(; fit != fend; fit++)
@@ -708,6 +888,7 @@ public:
           continue;
        //CHECK_FACE_ENCROACHMENT
       }
+      */
 
       Cell_handle_handle ci = star->begin_finite_star_cells();
       Cell_handle_handle ciend = star->end_finite_star_cells();
@@ -966,14 +1147,6 @@ public:
     }
   }
 
-  void update_bboxes() const
-  {
-    std::size_t i;
-    std::size_t N = m_stars.size();
-    for(i = 0; i < N; i++)
-      m_stars[i]->update_bbox();
-  }
-
   void refine_all(std::size_t max_count = (std::size_t) -1)
   {
     pick_count = 0;
@@ -1001,7 +1174,10 @@ public:
       }
 
       if(nbv % 1000 == 0)
-        output_medit();
+      {
+        std::ofstream fx("cell_mesher_partial.mesh");
+        output_medit(fx);
+      }
 
       if(!refine())
       {
@@ -1024,8 +1200,10 @@ public:
       std::cout << "Finished properly" << std::endl;
     m_refine_queue.print();
 
-    print_stars();
+    //print_stars();
     std::cout << "triangulation is consistent : " << is_consistent() << std::endl;
+    std::cout << duration(start_time) << " sec." << std::endl;
+    std::cout << number_of_stars() << " stars" << std::endl;
     report();
     histogram_vertices_per_star<Self>(*this);
   }
@@ -1243,11 +1421,10 @@ public:
   }
 */
 
-  void output_medit()
+  void output_medit(std::ofstream& fx)
   {
     std::cout << "Saving medit" << std::endl;
     unsigned int nb_inconsistent_stars = 0;
-    typename std::ofstream fx("cell_mesher.mesh");
     fx << "MeshVersionFormatted 1\n";
     fx << "Dimension 3\n";
 
@@ -1300,22 +1477,22 @@ public:
     m_criteria(criteria_),
     m_stars(),
     m_refine_queue(),
-    current_round(0)
+    m_ch_triangulation(),
+    m_aabb_tree(100/*insertion buffer size*/),
+    m_kd_tree(m_stars)
   {
     if(nb)
       initialize_stars(nb);
     else
       load_dump();
-  }
 
-  Cell_star_set_3(const Cell_star_set_3& css) :
-    m_pConstrain(css.m_pConstrain),
-    m_metric_field(css.metric_field()),
-    m_criteria(css.criteria()),
-    m_stars(),
-    m_refine_queue(),
-    current_round(0)
-  {}
+    m_ch_triangulation.infinite_vertex()->info() = -10;
+
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    build_aabb_tree();  // update bboxes and rebuild
+#endif
+
+  }
 
   ~Cell_star_set_3()
   {
