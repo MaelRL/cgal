@@ -362,39 +362,32 @@ class Constrain_surface_3_polyhedral :
                         double& e1,       //eigenvalue corresponding to v1
                         double& e2) const //eigenvalue corresponding to v2
       {
-        //choose r_b for tensor blending
+        //Compute with interpolations & barycentric coordinates
         Facet_handle facet = find_nearest_facet(p);
-        std::vector<Vertex_handle> neighbors;
-        find_neighbors(facet, neighbors);
-        
-        FT sum_dist = 0.;
-        std::vector<FT> sq_distances;
-        for(std::size_t i = 0; i < neighbors.size(); ++i)
-        {
-          sq_distances.push_back(CGAL::squared_distance(p, neighbors[i]->point()));
-          sum_dist += std::sqrt(sq_distances[i]);
-        }
-        FT rb = sum_dist / ((int)neighbors.size());
-        FT wpp_inv = 1./(rb * rb);
+        Vertex_handle va = facet->halfedge()->vertex();
+        Vertex_handle vb = facet->halfedge()->next()->vertex();
+        Vertex_handle vc = facet->halfedge()->next()->next()->vertex();
 
-        // blend
+        //get bary weights
+        Vector_3 v00(va->point(), vb->point());
+        Vector_3 v11(va->point(), vc->point());
+        Vector_3 v22(va->point(), p);
+        FT d00 = v00*v00;
+        FT d01 = v00*v11;
+        FT d11 = v11*v11;
+        FT d20 = v22*v00;
+        FT d21 = v22*v11;
+        FT denom = d00 * d11 - d01 * d01;
+        FT v = (d11 * d20 - d01 * d21) / denom;
+        FT w = (d00 * d21 - d01 * d20) / denom;
+        FT u = 1.0f - v - w;
+
+        std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
+        w_metrics.push_back(std::make_pair(m_metrics[va->tag()], u));
+        w_metrics.push_back(std::make_pair(m_metrics[vb->tag()], v));
+        w_metrics.push_back(std::make_pair(m_metrics[vc->tag()], w));
         Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
-        FT wsum = 0.;
-        for (std::size_t i = 0; i < neighbors.size(); ++i)
-        { 
-          FT w = std::exp(-wpp_inv * sq_distances[i]);
-          wsum += w;
-          std::size_t index = neighbors[i]->tag();
-          for(int j = 0; j < 3; j++)
-            for(int k = 0; k < 3; k++)
-              m(j,k) = m(j,k) + w * m_metrics[index](j,k);
-        }
-
-        FT wsum_inv = 1. / wsum;
-        for(int j = 0; j < 3; j++)
-          for(int k = 0; k < 3; k++)
-            m(j,k) = m(j,k) * wsum_inv;
-        
+        m = interpolate_colors<K>(w_metrics);
 
         get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
       }
