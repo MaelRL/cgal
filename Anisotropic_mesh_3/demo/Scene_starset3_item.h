@@ -114,7 +114,6 @@ public:
   bool& draw_surface_star_set()    { return m_draw_surface_star_set; }
   bool& draw_distortion()          { return m_draw_distortion; }
   bool& draw_metric_honoring()          { return m_draw_metric_honoring; }
-  bool& draw_metric_operations_debug()  { return m_draw_metric_operations_debug; }
   bool& draw_colored_poly()             { return m_draw_colored_poly; }
   bool& draw_colored_poly_mem()         { return m_draw_colored_poly_mem; }
   int& draw_colored_poly_vertex_id()                 { return m_draw_colored_poly_vertex_id; }
@@ -146,7 +145,6 @@ private:
   bool m_draw_mesh_3;
   bool m_draw_distortion;
   bool m_draw_metric_honoring;
-  bool m_draw_metric_operations_debug;
   bool m_draw_colored_poly;
   bool m_draw_colored_poly_mem;
   int m_draw_colored_poly_vertex_id;

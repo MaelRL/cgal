@@ -126,7 +126,6 @@
      <addaction name="actionDraw_metric_field"/>
      <addaction name="actionDraw_metric_honoring"/>
      <addaction name="actionDraw_distortion"/>
-     <addaction name="actionDraw_metric_operations_debug"/>
      <addaction name="actionDraw_colored_poly"/>
      <addaction name="actionDraw_colored_poly_one_vertex"/>
      <addaction name="actionDraw_colored_poly_mem"/>

@@ -195,10 +195,6 @@ public:
     if(actionDraw_metric_honoring)
       connect(actionDraw_metric_honoring, SIGNAL(toggled(bool)), this, SLOT(view_metric_honoring(bool)));
 
-    actionDraw_metric_operations_debug = this->getActionFromMainWindow(mw, "actionDraw_metric_operations_debug");
-    if(actionDraw_metric_operations_debug)
-      connect(actionDraw_metric_operations_debug, SIGNAL(toggled(bool)), this, SLOT(view_metric_operations_debug(bool)));
-
     actionDraw_colored_poly = this->getActionFromMainWindow(mw, "actionDraw_colored_poly");
     if(actionDraw_colored_poly)
       connect(actionDraw_colored_poly, SIGNAL(toggled(bool)), this, SLOT(view_colored_poly(bool)));
@@ -288,7 +284,6 @@ private:
   QAction* actionDraw_mesh_3;
   QAction* actionDraw_distortion;
   QAction* actionDraw_metric_honoring;
-  QAction* actionDraw_metric_operations_debug;
   QAction* actionDraw_colored_poly;
   QAction* actionDraw_colored_poly_one_vertex;
   QAction* actionDraw_colored_poly_mem;
@@ -314,7 +309,6 @@ Anisotropic_mesh_3_plugin()
   , actionDraw_inconsistent_facets(NULL)
   , actionDraw_distortion(NULL)
   , actionDraw_metric_honoring(NULL)
-  , actionDraw_metric_operations_debug(NULL)
   , actionDraw_colored_poly(NULL)
   , actionDraw_colored_poly_one_vertex(NULL)
   , actionDraw_colored_poly_mem(NULL)
@@ -945,18 +939,6 @@ void Anisotropic_mesh_3_plugin::view_mesh_3(bool b)
   if(ssetitem != NULL)
   {
     ssetitem->draw_mesh_3() = b;
-    ssetitem->starset_changed();
-  }
-}
-
-void Anisotropic_mesh_3_plugin::view_metric_operations_debug(bool b)
-{
-  const Scene_interface::Item_id index = scene->mainSelectionIndex();
-  Scene_starset3_item* ssetitem =
-    qobject_cast<Scene_starset3_item*>(scene->item(index));
-  if(ssetitem != NULL)
-  {
-    ssetitem->draw_metric_operations_debug() = b;
     ssetitem->starset_changed();
   }
 }

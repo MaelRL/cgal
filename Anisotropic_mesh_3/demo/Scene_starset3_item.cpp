@@ -92,7 +92,6 @@ Scene_starset3_item(const Criteria* criteria,
   m_draw_mesh_3(false),
   m_draw_distortion(false),
   m_draw_metric_honoring(false),
-  m_draw_metric_operations_debug(false),
   m_draw_colored_poly(false),
   m_draw_colored_poly_mem(false),
   m_draw_colored_poly_vertex_id(-1)
@@ -233,8 +232,6 @@ Scene_starset3_item::direct_draw() const
     star_set().gl_draw_distortion(plane,m_draw_star_id);
   if(m_draw_metric_honoring)
     star_set().gl_draw_metric_honoring(plane, m_draw_star_id);
-  if(m_draw_metric_operations_debug)
-    star_set().gl_draw_metric_op_debug();
   if(m_draw_colored_poly)
     star_set().poly_painter()->gl_draw_colored_polyhedron(star_set().poly_painter()->colored_poly(),
                                                          plane,
