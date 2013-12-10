@@ -257,130 +257,133 @@ public:
                         Vector_3 &v0, //unit normal
                         Vector_3 &v1, //unit eigenvector
                         Vector_3 &v2, //unit eigenvector
+                        double& e0, //eigenvalue corresponding to v0
                         double& e1, //eigenvalue corresponding to v1
                         double& e2, //eigenvalue corresponding to v2
                         const FT delta = 1e-5) const
       {
-          // method in the book
-          Vector_3 gx = gradient(p, delta);
-          Eigen::Vector3d grad(gx.x(), gx.y(), gx.z());
-          double gl = grad.norm();
-          if(gl != 0.)
-            grad.normalize();
-          else
-            std::cout << "Warning : gradient is null vector at "<< p <<"!" << std::endl;
-          Eigen::Vector3d normal = -grad;
+        // method in the book
+        Vector_3 gx = gradient(p, delta);
+        Eigen::Vector3d grad(gx.x(), gx.y(), gx.z());
+        double gl = grad.norm();
+        if(gl != 0.)
+          grad.normalize();
+        else
+          std::cout << "Warning : gradient is null vector at "<< p <<"!" << std::endl;
+        Eigen::Vector3d normal = -grad;
 
-          Eigen::Matrix3d PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
-          Eigen::Matrix3d hess = (1./gl) * hessian(p, delta) ;
-          Eigen::Matrix3d m = (PN * hess * PN);
+        Eigen::Matrix3d PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
+        Eigen::Matrix3d hess = (1./gl) * hessian(p, delta) ;
+        Eigen::Matrix3d m = (PN * hess * PN);
 
 #ifdef ANISO_DEBUG_METRIC
-          std::cout.precision(10);
-          std::cout << "Normal : " << std::endl;
-          std::cout << normal << std::endl;
-          std::cout << "NN^t : " << std::endl;
-          std::cout << normal * normal.transpose() << std::endl;
-          std::cout << "Matrices before EVs computing : " << std::endl;
-          std::cout << "PN : " << std::endl;
-          std::cout << PN << std::endl;
-          std::cout << "Hessian with grad_len = " << gl << std::endl;
-          std::cout << hess << std::endl;
-          std::cout << "M : " << std::endl;
-          std::cout << m << std::endl;
+        std::cout.precision(10);
+        std::cout << "Normal : " << std::endl;
+        std::cout << normal << std::endl;
+        std::cout << "NN^t : " << std::endl;
+        std::cout << normal * normal.transpose() << std::endl;
+        std::cout << "Matrices before EVs computing : " << std::endl;
+        std::cout << "PN : " << std::endl;
+        std::cout << PN << std::endl;
+        std::cout << "Hessian with grad_len = " << gl << std::endl;
+        std::cout << hess << std::endl;
+        std::cout << "M : " << std::endl;
+        std::cout << m << std::endl;
 #endif
 
-          Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
-          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
-          const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
+        Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
+        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
+        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
 
-          // look for smallest eigenvalue
-          FT min_abs_value = DBL_MAX;
-          int min_id = 0;
-          for (int i = 0; i < 3; i++)
+        // look for smallest eigenvalue
+        FT min_abs_value = DBL_MAX;
+        int min_id = 0;
+        for (int i = 0; i < 3; i++)
+        {
+          double avi = std::abs(std::real(vals[i]));
+          if(avi < min_abs_value)
           {
-            double avi = std::abs(std::real(vals[i]));
-            if(avi < min_abs_value)
-            {
-              min_abs_value = avi;
-              min_id = i;
-            }
-          }
-
-          // normal is ok (computed with gradient)
-          v0 = get_vector(normal);
-
-          bool z0, z1, z2;
-          double ev0 = std::abs(std::real(vals[min_id])); //should be the smallest
-          double ev1 = std::abs(std::real(vals[(min_id + 1) % 3]));
-          double ev2 = std::abs(std::real(vals[(min_id + 2) % 3]));
-          int zeros = are_zeros(ev0, ev1, ev2, z0, z1, z2);
-
-          if(zeros == 1) //it is ev0
-          {
-            if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";
-            Vector_3 normal_test = get_eigenvector<K>(vecs.col(min_id));
-            if(!are_equal(v0, normal_test))
-             std::cout << "Error2 : see tensor_frame, zeros==1\n";
-
-            e1 = ev1;
-            e2 = ev2;
-            v1 = get_eigenvector<K>(vecs.col((min_id + 1) % 3));
-            v2 = get_eigenvector<K>(vecs.col((min_id + 2) % 3));
-
-            //make sure the vectors form an orthogonal matrix
-            //when eigenvalues are the same, vectors returned by Eigen are not
-            //necessarily orthogonal
-            if(std::abs(v1*v2) > ZERO_DOT_PRODUCT)
-              v2 = normalize(CGAL::cross_product(v0, v1));
-          }
-          else if(zeros == 2)
-          {
-            int id = -1; // the id of the non-zero eigenvalue
-            if(z0 && z1)      id = ((min_id + 2) % 3); //d2
-            else if(z0 && z2) id = ((min_id + 1) % 3); //d1
-            else if(z1 && z2) id = min_id;//d0
-            else std::cerr << "Error1 : see tensor_frame, zeros==2\n";
-
-            //the non-zero one
-            e1 = std::abs(std::real(vals[id]));
-            v1 = get_eigenvector<K>(vecs.col(id));
-            //the last one : choose the vector which is not // to the normal
-            Vector_3 normal_test_1 = get_eigenvector<K>(vecs.col((id + 1) % 3));
-            Vector_3 normal_test_2 = get_eigenvector<K>(vecs.col((id + 2) % 3));
-            if(are_equal(normal_test_1, v0))
-            {
-              e2 = std::abs(std::real(vals[(min_id + 2) % 3]));
-              v2 = normal_test_2;
-            }
-            else if(are_equal(normal_test_2, v0))
-            {
-              e2 = std::abs(std::real(vals[(min_id + 1) % 3]));
-              v2 = normal_test_1;
-            }
-            else
-            {
-              e2 = 0.;
-              v2 = normalize(CGAL::cross_product(v0, v1));
-              std::cerr << "Error2 : see tensor_frame, zeros==2\n";
-            }
-          }
-          else if(zeros == 3)
-          {
-            orthogonal_vectors(v0, v1, v2);
-            v1 = normalize(v1);
-            v2 = normalize(v2);
-            e1 = 0.;
-            e2 = 0.;
-          }
-          else
-          {//zeros == 0
-            std::cout << "Error : see tensor_frame, zeros==0\n";
-            std::cout << "p : " << p << std::endl;
-            std::cout << ev0 << " " << ev1 << " " << ev2 << std::endl;
-            std::cout << m << std::endl;
+            min_abs_value = avi;
+            min_id = i;
           }
         }
+
+        // normal is ok (computed with gradient)
+        v0 = get_vector(normal);
+
+        bool z0, z1, z2;
+        double ev0 = std::abs(std::real(vals[min_id])); //should be the smallest
+        double ev1 = std::abs(std::real(vals[(min_id + 1) % 3]));
+        double ev2 = std::abs(std::real(vals[(min_id + 2) % 3]));
+        int zeros = are_zeros(ev0, ev1, ev2, z0, z1, z2);
+
+        if(zeros == 1) //it is ev0
+        {
+          if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";
+          Vector_3 normal_test = get_eigenvector<K>(vecs.col(min_id));
+          if(!are_equal(v0, normal_test))
+           std::cout << "Error2 : see tensor_frame, zeros==1\n";
+
+          e1 = ev1;
+          e2 = ev2;
+          v1 = get_eigenvector<K>(vecs.col((min_id + 1) % 3));
+          v2 = get_eigenvector<K>(vecs.col((min_id + 2) % 3));
+
+          //make sure the vectors form an orthogonal matrix
+          //when eigenvalues are the same, vectors returned by Eigen are not
+          //necessarily orthogonal
+          if(std::abs(v1*v2) > ZERO_DOT_PRODUCT)
+            v2 = normalize(CGAL::cross_product(v0, v1));
+        }
+        else if(zeros == 2)
+        {
+          int id = -1; // the id of the non-zero eigenvalue
+          if(z0 && z1)      id = ((min_id + 2) % 3); //d2
+          else if(z0 && z2) id = ((min_id + 1) % 3); //d1
+          else if(z1 && z2) id = min_id;//d0
+          else std::cerr << "Error1 : see tensor_frame, zeros==2\n";
+
+          //the non-zero one
+          e1 = std::abs(std::real(vals[id]));
+          v1 = get_eigenvector<K>(vecs.col(id));
+          //the last one : choose the vector which is not // to the normal
+          Vector_3 normal_test_1 = get_eigenvector<K>(vecs.col((id + 1) % 3));
+          Vector_3 normal_test_2 = get_eigenvector<K>(vecs.col((id + 2) % 3));
+          if(are_equal(normal_test_1, v0))
+          {
+            e2 = std::abs(std::real(vals[(min_id + 2) % 3]));
+            v2 = normal_test_2;
+          }
+          else if(are_equal(normal_test_2, v0))
+          {
+            e2 = std::abs(std::real(vals[(min_id + 1) % 3]));
+            v2 = normal_test_1;
+          }
+          else
+          {
+            e2 = 0.;
+            v2 = normalize(CGAL::cross_product(v0, v1));
+            std::cerr << "Error2 : see tensor_frame, zeros==2\n";
+          }
+        }
+        else if(zeros == 3)
+        {
+          orthogonal_vectors(v0, v1, v2);
+          v1 = normalize(v1);
+          v2 = normalize(v2);
+          e1 = 0.;
+          e2 = 0.;
+        }
+        else
+        {//zeros == 0
+          std::cout << "Error : see tensor_frame, zeros==0\n";
+          std::cout << "p : " << p << std::endl;
+          std::cout << ev0 << " " << ev1 << " " << ev2 << std::endl;
+          std::cout << m << std::endl;
+        }
+
+        e0 = (std::max)(e1, e2);
+      }
 
       bool are_equal(const Vector_3& v1,        //unit vector
                      const Vector_3& v2) const  //unit vector
@@ -429,9 +432,9 @@ public:
         typedef typename CSI::Mesh_domain::Index Index;
         FT operator()(const Point_3& p, const int, const Index&) const
         {
-          Vector_3 n, v1, v2;
-          double e1, e2;
-          csi->tensor_frame(p, n, v1, v2, e1, e2, 1e-5);
+          Vector_3 v0, v1, v2;
+          double e0, e1, e2;
+          csi->tensor_frame(p, v0, v1, v2, e0, e1, e2, 1e-5);
           e1 = std::max(e1, 1e-10);
           e2 = std::max(e2, 1e-10);
           FT ratio = 1./std::sqrt(std::max(e1/e2, e2/e1));
@@ -564,8 +567,8 @@ public:
                               double& maxc) const
       {
         Vector_3 n, v1, v2;
-        double e1, e2;
-        tensor_frame(p, n, v1, v2, e1, e2, 1e-5);
+        double en, e1, e2;
+        tensor_frame(p, n, v1, v2, en, e1, e2, 1e-5);
         minc = (std::min)(e1, e2);
         maxc = (std::max)(e1, e2);
       }

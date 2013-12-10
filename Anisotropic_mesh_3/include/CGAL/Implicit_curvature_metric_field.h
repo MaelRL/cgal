@@ -36,14 +36,11 @@ namespace CGAL
 
       virtual Metric compute_metric(const Point_3 &p) const 
       {
-        Vector_3 en, e1, e2;
-        double vp1, vp2;
-        surface.tensor_frame(p, en, e1, e2, vp1, vp2);
+        Vector_3 vn, v1, v2;
+        double en, e1, e2;
+        surface.tensor_frame(p, vn, v1, v2, en, e1, e2);
 
-        //double vpn = surface.global_max_curvature();//global max of c_max
-        double vpn = (std::max)(vp1, vp2);
-
-        return this->build_metric(en, e1, e2, std::sqrt(vpn), std::sqrt(vp1), std::sqrt(vp2));
+        return this->build_metric(vn, v1, v2, std::sqrt(en), std::sqrt(e1), std::sqrt(e2));
       }
 
       Implicit_curvature_metric_field(const Constrain_surface &surface_,
