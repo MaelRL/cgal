@@ -267,12 +267,16 @@ private:
             sq_approx = (std::max)(sq_approx, sqd);
           }
         }
-        std::cout << "Histogram : " << std::endl;
+        std::cout << "Histogram : ";
         for(unsigned int i = 0; i<divisions; i++)
         {
           double inf = ((double) i)/((double) divisions)*m_criteria->approximation;
           double sup = ((double) i+1)/((double) divisions)*m_criteria->approximation;
-          std::cout << "\t" << inf << " " << sup << " : " << histogram[i] << std::endl;
+          std::cout << "\t" << inf << " " << sup << " : " << histogram[i];
+          if(i%4)
+            std::cout << "    |||    ";
+          else
+            std::cout << std::endl;
         }
         std::cout << "\tabove : " << histogram[divisions] << std::endl; //this should only be non null if the program was interrupted
         std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;

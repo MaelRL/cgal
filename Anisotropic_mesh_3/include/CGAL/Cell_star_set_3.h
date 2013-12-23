@@ -812,7 +812,7 @@ public:
 
   bool is_consistent(const Cell_handle& c,
                      std::vector<bool>& inconsistent_points,
-                     const bool verbose = true) const
+                     const bool verbose = false) const
   {
     bool retval = true;
     bool cell_told = false;
@@ -845,7 +845,7 @@ public:
   }
 
   bool is_consistent(const Cell_handle& c,
-                     const bool verbose = true) const
+                     const bool verbose = false) const
   {
     std::vector<bool> not_used(4);
     return is_consistent(c, not_used, verbose);
@@ -1084,11 +1084,9 @@ public:
     int i,j,k,l;
     if(bad_cell.star->is_cell(v1,v2,v3,v4,ctest,i,j,k,l))
     {
-      std::cout << "welp" << std::endl;
+      std::cout << "bad cell still in..." << std::endl;
       return false;
     }
-    else
-      std::cout << "not welp" << std::endl;
 
     if(!modified_stars.empty())
       fill_refinement_queue(modified_stars, pid);

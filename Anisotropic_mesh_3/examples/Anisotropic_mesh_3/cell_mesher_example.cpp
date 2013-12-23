@@ -92,7 +92,8 @@ int main(int argc, char* argv[])
 
   fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();
-  starset.output_medit();
+  std::ofstream fmedit("cell_mesher_elli.mesh");
+  starset.output_medit(fmedit);
 
   delete pdomain;
   return 0;
