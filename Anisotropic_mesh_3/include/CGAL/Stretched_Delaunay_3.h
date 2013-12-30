@@ -122,6 +122,7 @@ namespace CGAL{
       mutable Bbox m_bbox;
       mutable bool m_is_valid_bbox;
       mutable bool m_bbox_needs_aabb_update;
+      mutable bool m_metric_needs_update;
 
     public:
       int ellipsoid_color;
@@ -173,6 +174,7 @@ namespace CGAL{
     public:
       Vertex_handle center() const      { return m_center; }
       Metric metric() const             { return m_metric; }
+      Metric& metric()                  { return m_metric; }
       Traits* traits() const            { return m_traits; }
       const Constrain_surface* constrain() const { return m_pConstrain; }
       const Stretched_criteria* criteria() const { return m_criteria; }
@@ -199,11 +201,10 @@ namespace CGAL{
         return m_bbox;
       }
 
-      bool bbox_needs_aabb_update(){ return m_bbox_needs_aabb_update;}
-      void set_bbox_needs_aabb_update(const bool& bbox_needs_aabb_update_)
-      {
-        m_bbox_needs_aabb_update = bbox_needs_aabb_update_;
-      }
+      bool& bbox_needs_aabb_update(){ return m_bbox_needs_aabb_update; }
+      const bool& bbox_needs_aabb_update() const { return m_bbox_needs_aabb_update; }
+      bool& metric_needs_update(){ return m_metric_needs_update; }
+      const bool& metric_needs_update() const { return m_metric_needs_update; }
 
     protected: // star configuration caching
       mutable bool is_cache_dirty;
@@ -2200,6 +2201,14 @@ public:
         invalidate_cache();
       }
 
+      void update_metric(const Metric& metric_)
+      {
+        this->clear();
+        m_metric = metric_;
+        m_center = Base::insert(m_metric.transform(m_center_point));
+        invalidate_cache();
+      }
+
     public:
       Stretched_Delaunay_3(const Criteria* criteria_,
                            const Constrain_surface* pconstrain_surface,
@@ -2214,6 +2223,7 @@ public:
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
         m_bbox_needs_aabb_update(false),
+        m_metric_needs_update(false),
         is_cache_dirty(true),
         restricted_facets_cache(),
         neighboring_cells_cache(),
@@ -2241,6 +2251,7 @@ public:
         m_is_valid_topo_disk(false),
         m_is_valid_bbox(false),
         m_bbox_needs_aabb_update(false),
+        m_metric_needs_update(false),
         is_cache_dirty(true),
         restricted_facets_cache(),
         neighboring_cells_cache(),

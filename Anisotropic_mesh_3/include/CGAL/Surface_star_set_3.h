@@ -1263,10 +1263,10 @@ public:
         {
           m_stars[i]->update_bbox();
           if(m_aabb_tree.m_insertion_buffer_size() == 1) // tree has just been rebuilt
-            m_stars[i]->set_bbox_needs_aabb_update(false);
+            m_stars[i]->bbox_needs_aabb_update() = false;
           if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
           {
-            m_stars[i]->set_bbox_needs_aabb_update(false);
+            m_stars[i]->bbox_needs_aabb_update() = false;
             update_aabb_tree(m_stars[i]);
           }
         }
