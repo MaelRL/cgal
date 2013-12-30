@@ -172,7 +172,7 @@ public:
           std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
           w_metrics.push_back(std::make_pair(v->metric(), (n-1.)/n));
           w_metrics.push_back(std::make_pair(m, 1./n));
-          v->metric() = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_metrics);
+          v->metric() = CGAL::Anisotropic_mesh_3::logexp_interpolate<K>(w_metrics);
         }
         else
           v->metric() = m;
@@ -305,7 +305,7 @@ public:
     w_metrics.push_back(std::make_pair(va->metric(), u));
     w_metrics.push_back(std::make_pair(vb->metric(), v));
     w_metrics.push_back(std::make_pair(vc->metric(), w));
-    m = interpolate_colors<K>(w_metrics);
+    m = logexp_interpolate<K>(w_metrics);
   }
 
   void get_color_from_poly(const Point_3& p, FT& ratio) const

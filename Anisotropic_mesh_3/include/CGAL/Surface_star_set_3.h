@@ -2510,7 +2510,7 @@ public:
       
 public:
       template<typename Kernel>
-      FT interpolate_colors(const std::vector<std::pair<FT, FT> >& w_FT)
+      FT logexp_interpolate(const std::vector<std::pair<FT, FT> >& w_FT)
       {
         FT sum = 0.;
         for(int i=0; i<w_FT.size(); ++i)
@@ -2546,7 +2546,7 @@ public:
             w_colors.push_back(std::make_pair(m_a, coeffs[3*i]));
             w_colors.push_back(std::make_pair(m_b, coeffs[3*i+1]));
             w_colors.push_back(std::make_pair(m_c, coeffs[3*i+2]));
-            Eigen::Matrix3d m_p = CGAL::Anisotropic_mesh_3::interpolate_colors<K>(w_colors);
+            Eigen::Matrix3d m_p = CGAL::Anisotropic_mesh_3::logexp_interpolate<K>(w_colors);
             m_poly_painter.color_poly(p, m_p, get_color_from_prev_poly, 1 /*origin = within a triangle*/);
             visited_points[p] = 1;
           }

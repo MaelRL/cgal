@@ -387,7 +387,7 @@ class Constrain_surface_3_polyhedral :
         w_metrics.push_back(std::make_pair(m_metrics[vb->tag()], v));
         w_metrics.push_back(std::make_pair(m_metrics[vc->tag()], w));
         Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
-        m = interpolate_colors<K>(w_metrics);
+        m = logexp_interpolate<K>(w_metrics);
 
         get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
       }

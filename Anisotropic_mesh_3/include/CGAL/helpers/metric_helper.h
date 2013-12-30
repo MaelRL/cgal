@@ -275,7 +275,7 @@ Eigen::Matrix3d matrix_intersection(const Eigen::Matrix3d& M_p,
 }
 
 template<typename K>
-Eigen::Matrix3d interpolate_colors(const std::vector<std::pair<Eigen::Matrix3d, typename K::FT> >& w_metrics)
+Eigen::Matrix3d logexp_interpolate(const std::vector<std::pair<Eigen::Matrix3d, typename K::FT> >& w_metrics)
 {
 #ifdef ANISO_DEBUG_MATRIX_OPERATIONS
   std::cout << "interpolating " << w_metrics.size() << " matrices" << std::endl;

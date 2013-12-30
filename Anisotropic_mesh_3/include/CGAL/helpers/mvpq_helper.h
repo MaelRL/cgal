@@ -391,7 +391,7 @@ class Colored_modifiable_vertex_priority_queue :
         if((*it)->is_colored())
           w_metrics.push_back(std::make_pair((*it)->metric(), coeffs[*it]));
 
-      Eigen::Matrix3d m = interpolate_colors<K>(w_metrics);
+      Eigen::Matrix3d m = logexp_interpolate<K>(w_metrics);
       increase_neigh_vertices(neigh_vertices);
       return m;
     }
