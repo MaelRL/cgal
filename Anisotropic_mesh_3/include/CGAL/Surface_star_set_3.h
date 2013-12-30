@@ -1538,6 +1538,17 @@ public:
         return is_consistent(f, not_used, verbose);
       }
 
+      bool is_consistent(Star_handle s,
+                         const bool verbose = false) const
+      {
+        typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
+        typename Star::Facet_set_iterator fend = s->end_restricted_facets();
+        for(; fit!=fend; ++fit)
+          if(!is_consistent(*fit, verbose))
+            return false;
+        return true;
+      }
+
       bool is_consistent(const bool verbose = false) const
       {
         std::size_t N = m_stars.size();
@@ -2477,9 +2488,7 @@ public:
       void update_stars_criteria()
       {
         for(std::size_t i = 0; i < m_stars.size(); i++)
-        {
           m_stars[i]->set_criteria(m_criteria);
-        }
       }
 
       void clean_stars() //remove useless vertices
@@ -2890,6 +2899,161 @@ public:
     double duration(const time_t& start) const
     {
       return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
+    }
+
+
+public: //debug stuff
+    double facet_distortion(Facet& f) const
+    {
+      FT max_distortion = 0.;
+      for (int i = 0; i < 3; i++)
+      {
+        int index_1 = (f.second + i + 1) % 4;
+        int index_2 = (f.second + (i + 1) % 3 + 1) % 4;
+        FT distortion = m_stars[f.first->vertex(index_1)->info()]->metric().compute_distortion(
+           m_stars[f.first->vertex(index_2)->info()]->metric());
+        max_distortion = (std::max)(distortion, max_distortion);
+      }
+
+      return max_distortion;
+    }
+
+    double average_facet_distortion(bool verbose = true) const
+    {
+      double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
+      double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
+      int nb_coh = 0, nb_incoh = 0;
+
+      std::set<Facet_ijk> done;
+      for(std::size_t i = 0; i <number_of_stars(); i++)
+      {
+        FT max_distortion = 0.;
+        Star_handle star = m_stars[i];
+        if(!star->is_surface_star())
+          continue;
+
+        typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+        typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+        for(; fit != fitend; fit++)
+        {
+          Facet f = *fit;
+          std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+          is_insert_successful = done.insert(Facet_ijk(f));
+          if(!is_insert_successful.second)
+            continue;
+
+          max_distortion = (std::max)(facet_distortion(f), max_distortion);
+
+          if(is_consistent(f))
+          {
+            nb_coh++;
+            avg_coh_dis += max_distortion;
+            if(max_distortion > max_coh_dis)
+              max_coh_dis = max_distortion;
+            if(max_distortion < min_coh_dis)
+              min_coh_dis = max_distortion;
+          }
+          else
+          {
+            nb_incoh++;
+            avg_incoh_dis += max_distortion;
+            if(max_distortion > max_incoh_dis)
+              max_incoh_dis = max_distortion;
+            if(max_distortion < min_incoh_dis)
+              min_incoh_dis = max_distortion;
+          }
+        }
+      }
+
+      if(verbose)
+      {
+        std::cout << "SUM UP OF THE DISTORTION (FACET):" << std::endl;
+        std::cout << nb_coh << " coherent facets with avg: " << avg_coh_dis/(double) nb_coh << std::endl;
+        std::cout << "min: " << min_coh_dis << " max: " << max_coh_dis << std::endl;
+        std::cout << nb_incoh << " incoherent facets with avg " << avg_incoh_dis/(double) nb_incoh << std::endl;
+        std::cout << "min: " << min_incoh_dis << " max: " << max_incoh_dis << std::endl;
+        std::cout << "---------------------------------------------" << std::endl;
+      }
+
+      return avg_coh_dis/(double) nb_coh;
+    }
+
+    double star_distortion(Star_handle star) const
+    {
+      FT max_distortion = 0.;
+
+      /*
+      typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
+      typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+      for(; fit != fitend; fit++)
+      {
+        Facet f = *fit;
+        max_distortion = (std::max)(max_distortion, facet_distortion(f));
+      }
+      return max_distortion;
+      */
+
+      typename std::vector<Vertex_handle>::iterator vit = star->begin_neighboring_vertices();
+      typename std::vector<Vertex_handle>::iterator vend = star->end_neighboring_vertices();
+      for(; vit!=vend; ++vit)
+      {
+        if(is_infinite_vertex((*vit)->info()))
+          continue;
+        if(!(m_stars[(*vit)->info()]->is_surface_star()))
+           continue;
+
+        FT distortion = m_stars[(*vit)->info()]->metric().compute_distortion(star->metric());
+        max_distortion = (std::max)(distortion, max_distortion);
+      }
+
+      return max_distortion;
+    }
+
+    double average_star_distortion(bool verbose = true) const
+    {
+      double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
+      double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
+      int nb_coh = 0, nb_incoh = 0;
+
+      for(std::size_t i=0; i<number_of_stars(); ++i)
+      {
+        Star_handle si = get_star(i);
+        if(!(si->is_surface_star()))
+          continue;
+
+        FT max_distortion = star_distortion(si);
+
+        if(is_consistent(si))
+        {
+          nb_coh++;
+          avg_coh_dis += max_distortion;
+          if(max_distortion > max_coh_dis)
+            max_coh_dis = max_distortion;
+          if(max_distortion < min_coh_dis)
+            min_coh_dis = max_distortion;
+        }
+        else
+        {
+          nb_incoh++;
+          avg_incoh_dis += max_distortion;
+          if(max_distortion > max_incoh_dis)
+            max_incoh_dis = max_distortion;
+          if(max_distortion < min_incoh_dis)
+            min_incoh_dis = max_distortion;
+        }
+      }
+
+      if(verbose)
+      {
+        std::cout << "SUM UP OF THE DISTORTION (STAR) :" << std::endl;
+        std::cout << nb_coh << " coherent (surface) stars with avg: " << avg_coh_dis/(double) nb_coh << std::endl;
+        std::cout << "min: " << min_coh_dis << " max: " << max_coh_dis << std::endl;
+        std::cout << nb_incoh << " incoherent (surface) stars with avg " << avg_incoh_dis/(double) nb_incoh << std::endl;
+        std::cout << "min: " << min_incoh_dis << " max: " << max_incoh_dis << std::endl;
+        std::cout << "---------------------------------------------" << std::endl;
+      }
+
+      return avg_coh_dis/(double) nb_coh;
     }
 
 private:
