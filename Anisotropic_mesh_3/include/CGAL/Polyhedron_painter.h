@@ -194,26 +194,35 @@ public:
     */
   }
 
-  void color_vertices_with_acceptable_rg_ratio(double ratio_limit = 0.8) const
+  void color_vertices_with_acceptable_rg_ratio(double ratio_limit = 0.8,
+                                               bool reset = false) const
   {
     std::cout << "coloring vertices with acceptable ratios"<< std::endl;
     for(Vertex_iterator v = m_colored_poly.vertices_begin(); v != m_colored_poly.vertices_end(); ++v)
     {
+
       double v_ratio = v->ratio();
       //std::cout << v->tag() << " " << v->green() << " " << v->red() << " " << v_ratio << std::endl;
       if(v_ratio > ratio_limit)
       {
-        /*
-        Point_3 p = v->point();
-        Metric mp = m_mf->compute_metric(p);
-        Eigen::Matrix3d transf = mp.get_transformation();
-        v->metric() = transf.transpose()*transf;
-        */
+        v->colored_this_pass() = true;
         if(v->metric() == Eigen::Matrix3d::Zero())
           std::cout << "acceptable but not colored...?" << std::endl;
       }
       else
+      {
+        v->colored_this_pass() = false;
         v->metric() = Eigen::Matrix3d::Zero();
+      }
+
+      if(reset)
+      {
+        Point_3 p = v->point();
+        Metric mp = m_mf->compute_metric(p);
+        Eigen::Matrix3d transf = mp.get_transformation();
+        v->metric() = transf.transpose()*transf;
+        continue;
+      }
     }
     count_colored_elements();
   }
@@ -264,6 +273,10 @@ public:
     Cvmpq q(m_colored_poly.size_of_vertices(), typename Cvmpq::Compare(), typename Cvmpq::ID());
     q.initialize_cmvpq(m_colored_poly);
     q.color_all_vertices();
+    // reset smooth etc ////////////
+    color_vertices_with_acceptable_rg_ratio(0.8, true /*reset*/);
+    smooth_colors();
+    // /////////////////////////////
     m_colored_poly_prev = Colored_polyhedron(m_colored_poly);
   }
 
@@ -275,6 +288,104 @@ public:
     q.initialize_cmpq(m_colored_poly);
     q.color_all_facets();
     m_colored_poly_prev = Colored_polyhedron(m_colored_poly);
+  }
+
+  void get_enough_rings(std::set<Vertex_handle>& vs,
+                        Vertex_handle v) const
+  {
+    int nb_of_rings = 0;
+    bool found_colored = false;
+    std::vector<Vertex_handle> vs_prev_level;
+    std::vector<Vertex_handle> vs_current_level;
+    vs_prev_level.push_back(v);
+
+    int one_more = 1;
+
+    while(!found_colored || one_more--)
+    {
+      nb_of_rings++;
+      while(!vs_prev_level.empty())
+      {
+        Vertex_handle vi = vs_prev_level.back();
+        vs_prev_level.pop_back();
+
+        HV_circulator h = vi->vertex_begin();
+        HV_circulator hend = h;
+        do
+        {
+          Vertex_handle vj = h->opposite()->vertex();
+          vs_current_level.push_back(vj);
+          if(vj->colored_this_pass())
+            found_colored = true;
+          vs.insert(vj);
+          h++;
+        }
+        while(h != hend);
+      }
+      vs_prev_level = vs_current_level;
+      vs_current_level.clear();
+    }
+    std::cout << nb_of_rings << " rings and " << vs.size() << " vertices" << std::endl;
+  }
+
+  void smooth_colors(int nb = 10) const
+  {
+    while(nb--)
+    {
+      std::cout << "smooth " << nb << std::endl;
+      std::vector<Eigen::Matrix3d> new_metrics(m_colored_poly.size_of_vertices());
+
+      typedef typename Colored_polyhedron::Vertex_iterator VI;
+      for (VI vi = m_colored_poly.vertices_begin();
+              vi != m_colored_poly.vertices_end(); ++vi)
+      {
+        std::set<Vertex_handle> vs;
+
+        //if we want the number of rings to be enough to reach a consistent zone
+        //get_enough_rings(vs, vi);
+
+        HV_circulator h = vi->vertex_begin();
+        HV_circulator hend = h;
+        do
+        {
+          Vertex_handle vj = h->opposite()->vertex();
+
+          /* //second ring
+          HV_circulator h2 = vj->vertex_begin();
+          HV_circulator h2end = h;
+          do
+          {
+            Vertex_handle vk = h2->opposite()->vertex();
+            vs.insert(vk);
+            h2++;
+          }
+          while(h2 != h2end);
+          //end sr */
+
+          vs.insert(vj);
+          h++;
+        }
+        while(h != hend);
+
+        std::vector<std::pair<Eigen::Matrix3d, typename K::FT> > w_metrics;
+        double det = 1./(2.*vs.size());
+
+        typename std::set<Vertex_handle>::iterator it = vs.begin();
+        typename std::set<Vertex_handle>::iterator itend = vs.end();
+        for(; it!=itend; ++it)
+          w_metrics.push_back(std::make_pair((*it)->metric(), det));
+        w_metrics.push_back(std::make_pair(vi->metric(), 0.5));
+
+        new_metrics[vi->tag()] = logexp_interpolate<K>(w_metrics);
+      }
+
+      for(Vertex_iterator v = m_colored_poly.vertices_begin();
+                          v != m_colored_poly.vertices_end();
+                          ++v)
+        v->metric() = new_metrics[v->tag()];
+
+      count_colored_elements();
+    }
   }
 
   void get_color_from_poly(const Point_3& p, Eigen::Matrix3d& m) const
