@@ -2203,9 +2203,11 @@ public:
 
       void update_metric(const Metric& metric_)
       {
+        Index id = m_center->info();
         this->clear();
         m_metric = metric_;
         m_center = Base::insert(m_metric.transform(m_center_point));
+        m_center->info() = id;
         invalidate_cache();
       }
 
