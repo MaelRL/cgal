@@ -138,6 +138,7 @@ namespace CGAL
       int m_pass_count;
       bool m_pass_wo_incons;
       bool m_use_c3t3_colors;
+      bool m_compute_metric_from_triangle;
 
       mutable std::map<Point_3, int> visited_points; //temp, this should be a local in fill_c3t3...
 
@@ -1731,41 +1732,48 @@ public:
                        int pid,
                        const Index_set& modified_stars,//by p's insertion
                        Star_handle& star,
-                       const bool surface_star = true) const //o.w. center is inside volume
+                       const bool surface_star = true, //o.w. center is inside volume
+                       const bool metric_reset = true) const
       {
 #ifdef USE_ANISO_TIMERS
         std::clock_t start_time = clock();
 #endif
-        if(surface_star)
+        if(metric_reset)
         {
-          Metric m_p;
-
-          if(m_use_c3t3_colors)
+          if(surface_star)
           {
-            //now in second phase, the metric is computed with the c3t3 grid
-            Vector_3 normal;
-            m_p.get_third_eigenvector(normal);
+            Metric m_p;
 
-            std::vector<Vector_3> v(3);
-            std::vector<FT> e(3);
-            Eigen::Matrix3d M;
-            m_poly_painter.get_color_from_poly(p, M);
-            get_eigen_vecs_and_vals<K>(M, v[0], v[1], v[2], e[0], e[1], e[2]);
+            if(m_use_c3t3_colors || m_compute_metric_from_triangle)
+            {
+              Vector_3 normal;
+              std::vector<Vector_3> v(3);
+              std::vector<FT> e(3);
+              Eigen::Matrix3d M;
+              if(m_use_c3t3_colors)
+                m_poly_painter.get_color_from_poly(p, M);
+              else
+                M = compute_metric_from_index_set(p, modified_stars);
 
-            int n_ind = -1;
-            get_metric_normal_index<K>(normal, v, n_ind);
-            int id_1 = (n_ind + 1) % 3;
-            int id_2 = (n_ind + 2) % 3;
+              get_eigen_vecs_and_vals<K>(M, v[0], v[1], v[2], e[0], e[1], e[2]);
+              int n_ind = -1;
+              m_p.get_third_eigenvector(normal);
+              get_metric_normal_index<K>(normal, v, n_ind);
+              int id_1 = (n_ind + 1) % 3;
+              int id_2 = (n_ind + 2) % 3;
+              m_p = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2],
+                                                 std::sqrt(e[n_ind]),
+                                                 std::sqrt(e[id_1]),
+                                                 std::sqrt(e[id_2]));
+            }
+            else //standard surface case
+              m_p = metric_field()->compute_metric(p);
 
-            m_p = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2], std::sqrt(e[n_ind]), std::sqrt(e[id_1]), std::sqrt(e[id_2]));
+            star->reset(p, pid, m_p, surface_star);
           }
           else
-            m_p = metric_field()->compute_metric(p);
-
-          star->reset(p, pid, m_p, surface_star);
+            star->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
         }
-        else
-          star->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
 
         typename Index_set::const_iterator si = modified_stars.begin();
         typename Index_set::const_iterator siend = modified_stars.end();
@@ -2684,6 +2692,211 @@ public:
           m_poly_painter.spread_vertices_colors();
       }
 
+private:
+      // --------- smoothing related -------------------
+      void geo_dists_on_next_ring(Star_handle star,
+                                  std::map<int, double>& geo_dists,
+                                  std::set<int>& current_ring,
+                                  std::set<int>& next_ring) const
+      {
+        std::cout << "current ring: " << current_ring.size() << " geo dist: " << geo_dists.size() << std::endl;
+        TPoint_3 tcenter = star->center()->point();
+        for(std::set<int>::iterator it=current_ring.begin(); it!=current_ring.end(); ++it)
+        {
+          Star_handle si = get_star(*it);
+          TPoint_3 tcenteri = transform_to_star_point(si->center_point(), star);
+          FT sq_dist = star->traits()->compute_squared_distance_3_object()(tcenter, tcenteri);
+          geo_dists[*it] = sq_dist;
+        }
+
+        for(std::set<int>::iterator it=current_ring.begin(); it!=current_ring.end(); ++it)
+        {
+          Star_handle sit = get_star(*it);
+          typename std::vector<Vertex_handle>::iterator vit = sit->begin_neighboring_vertices();
+          typename std::vector<Vertex_handle>::iterator vend = sit->end_neighboring_vertices();
+          for(; vit!=vend; ++vit)
+          {
+            if(is_infinite_vertex((*vit)->info()))
+              continue;
+            if(!(m_stars[(*vit)->info()]->is_surface_star()))
+               continue;
+            if(geo_dists.find((*vit)->info()) != geo_dists.end())
+              continue; //all the current and previous rings are in the map
+            next_ring.insert((*vit)->info());
+          }
+        }
+        std::swap(next_ring, current_ring);
+        next_ring.clear();
+      }
+
+      Eigen::Matrix3d compute_smoothed_metric(const std::map<int,double>& geo_dists) const
+      {
+        double wsum = 0.;
+        std::map<int, double> weights;
+
+        double dist_sum = 0.;
+
+        std::map<int, double>::const_iterator it = geo_dists.begin();
+        std::map<int, double>::const_iterator itend = geo_dists.end();
+        for(;it!=itend;++it)
+          dist_sum += CGAL::sqrt(it->second);
+
+        double sigma = dist_sum / (double) geo_dists.size();
+        double coeff = -1./(2.*sigma*sigma);
+
+        it = geo_dists.begin();
+        for(;it!=itend;++it)
+        {
+          double w = std::exp(coeff * it->second);
+          weights[it->first] = w;
+          wsum += w;
+        }
+
+        std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
+        for(it=geo_dists.begin(); it!=itend; ++it)
+        {
+          Star_handle si = get_star(it->first);
+          //std::cout << "ID: " << it->first << " weight: " << weights[it->first]/wsum << std::endl;
+          //std::cout << "eigen transfo : " << std::endl << si->metric().get_transformation() << std::endl;
+          //std::cout << "mat : " << std::endl << si->metric().get_mat() << std::endl;
+          w_metrics.push_back(std::make_pair(si->metric().get_mat(),
+                                             weights[it->first]/wsum));
+        }
+
+        return CGAL::Anisotropic_mesh_3::logexp_interpolate<K>(w_metrics);
+      }
+
+      Eigen::Matrix3d compute_metric_from_index_set(const Point_3& center,
+                                                    const Index_set& stars) const
+      {
+        std::map<int,double> geo_dists;
+
+        for(typename Index_set::const_iterator it=stars.begin(); it!=stars.end(); ++it)
+        {
+          Star_handle si = get_star(*it);
+          if(!si->is_surface_star())
+            continue;
+          FT sq_dist = CGAL::squared_distance(center, si->center_point());
+          geo_dists[*it] = sq_dist;
+        }
+
+        return compute_smoothed_metric(geo_dists);
+      }
+
+      //overload to use a custom metric instead of star->metric()
+      double star_distortion(Star_handle star, const Metric& metric) const
+      {
+        FT max_distortion = 0.;
+        typename std::vector<Vertex_handle>::iterator vit = star->begin_neighboring_vertices();
+        typename std::vector<Vertex_handle>::iterator vend = star->end_neighboring_vertices();
+        for(; vit!=vend; ++vit)
+        {
+          if(is_infinite_vertex((*vit)->info()))
+            continue;
+          if(!(m_stars[(*vit)->info()]->is_surface_star()))
+             continue;
+
+          FT distortion = m_stars[(*vit)->info()]->metric().compute_distortion(metric);
+          max_distortion = (std::max)(distortion, max_distortion);
+        }
+
+        return max_distortion;
+      }
+
+      int smooth(std::map<int,Metric>& smoothed_metrics)
+      {
+        // get average distortion of coherent stars
+        double avg_star_distortion = 1.4;//average_star_distortion(false /*verbose*/);
+        std::cout << "smoothing. max dist allowed : " << avg_star_distortion << std::endl;
+
+        int count = 0;
+        for(std::size_t i=0; i<number_of_stars(); ++i)
+        {
+          Star_handle si = get_star(i);
+          if(!si->is_surface_star())
+            continue;
+          //if(is_consistent(si)) // useful or not?
+          //  continue;
+
+          std::cout << "star : " << i << std::endl;
+
+          int nb_of_rings = 0;
+          std::map<int, double> geo_dists;
+          std::set<int> current_ring;
+          std::set<int> next_ring;
+
+          current_ring.insert(i);
+          geo_dists_on_next_ring(si, geo_dists, current_ring, next_ring);
+
+          smoothed_metrics[i] = si->metric();
+          std::cout << "ini distortion : " << star_distortion(si, smoothed_metrics[i]) << std::endl;
+          if(star_distortion(si, smoothed_metrics[i]) > avg_star_distortion)
+            count++;
+
+          while(star_distortion(si, smoothed_metrics[i]) > avg_star_distortion &&
+                nb_of_rings < 5)
+          {
+            geo_dists_on_next_ring(si, geo_dists, current_ring, next_ring);
+            nb_of_rings++;
+
+            Eigen::Matrix3d smoothed_m = compute_smoothed_metric(geo_dists);
+
+            //std::cout << "smoothed : " << std::endl << smoothed_m << std::endl;
+
+            std::vector<Vector_3> v(3);
+            std::vector<FT> e(3);
+            get_eigen_vecs_and_vals<K>(smoothed_m, v[0], v[1], v[2], e[0], e[1], e[2]);
+
+            int n_ind = -1;
+            Vector_3 normal;
+            si->metric().get_third_eigenvector(normal);
+            get_metric_normal_index<K>(normal, v, n_ind);
+            int id_1 = (n_ind + 1) % 3;
+            int id_2 = (n_ind + 2) % 3;
+
+            smoothed_metrics[i] = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2],
+                                                               std::sqrt(e[n_ind]),
+                                                               std::sqrt(e[id_1]),
+                                                               std::sqrt(e[id_2]));
+            si->metric_needs_update() = true;
+            std::cout << "new distortion : " << star_distortion(si, smoothed_metrics[i]) << std::endl;
+          }
+        }
+        std::cout << count << "/" << number_of_stars() << " stars needed smoothing." << std::endl;
+        return count;
+      }
+
+      void update_star_set(std::map<int,Metric>& smoothed_metrics)
+      {
+        std::cout << "updating star set" << std::endl;
+
+        for(std::size_t i=0; i<number_of_stars(); ++i)
+        {
+          Star_handle si = get_star(i);
+          if(!si->metric_needs_update())
+            continue;
+          Index_set modified_stars;
+          //simulate_insert_to_stars(si->center_point(), modified_stars);
+
+          si->update_metric(smoothed_metrics[i]);
+
+          Index_set all_s;
+          for(int i=0; i<number_of_stars(); ++i)
+            all_s.insert(i);
+
+          create_star(si->center_point(), si->index_in_star_set(), all_s,
+                      si, si->is_surface_star(), false/*no metric reset*/);
+
+          //the coordinates don't change so no need to remove it from other stars
+        }
+
+        clean_stars();
+        average_facet_distortion(true);
+        average_star_distortion(true);
+        output("smoothed_out.off");
+
+      }
+
 public:
       void refine_all_one_pass(bool& continue_,
                                const std::size_t max_count = (std::size_t) -1,
@@ -2818,9 +3031,12 @@ public:
                       const int pick_valid_max_failures = 100,
                       const bool pick_valid_use_probing = false)
       {
+#ifdef ANISO_USE_UNDERLYING_MESH
+        //underlying smooth or MCMF ---------------------------------------------
         while(m_pass_count < m_pass_n)
         {
-          refine_all_one_pass(continue_, max_count, pick_valid_causes_stop, pick_valid_max_failures, pick_valid_use_probing);
+          refine_all_one_pass(continue_, max_count, pick_valid_causes_stop,
+                              pick_valid_max_failures, pick_valid_use_probing);
           std::ostringstream oss;
           oss << "pass_" << m_pass_count << ".off" << std::ends;
           output(oss.str().c_str());
@@ -2837,6 +3053,30 @@ public:
           reset();
           m_pass_count++;
         }
+#else
+        // -----------------------------------------------------------------------
+        //smoothing directly into the metric field
+        if(m_pass_n)
+        {
+          refine_all_one_pass(continue_, max_count, pick_valid_causes_stop,
+                              pick_valid_max_failures, pick_valid_use_probing);
+
+          output("smoothed_in.off");
+          int iter = 0;
+          int smoothed_stars;
+          do
+          {
+            iter++;
+            std::map<int, Metric> smoothed_metrics;
+            smoothed_stars = smooth(smoothed_metrics);
+            update_star_set(smoothed_metrics);
+          } while((double) smoothed_stars / (double) number_of_stars() > 0.1 && iter < 10);
+          std::cout << iter << " iterations of smoothing needed" << std::endl;
+          m_compute_metric_from_triangle = true;
+          // !no reset!
+        }
+        // -----------------------------------------------------------------------
+#endif
 
         //last pass
         m_pass_wo_incons = false;
@@ -3735,6 +3975,7 @@ public:
         m_pass_count(0),
         m_pass_wo_incons(true),
         m_use_c3t3_colors(false),
+        m_compute_metric_from_triangle(false),
         //m_distortion_bound_avoid_pick_valid(distortion_pickvalid_bound),
         refinement_debug_coloring(false)
       {
