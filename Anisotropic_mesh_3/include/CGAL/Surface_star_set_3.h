@@ -1447,7 +1447,7 @@ public:
             //}
             //note : distortion is now used only to speed-up pick_valid
             // too big : 2
-            if(m_criteria->circumradius > 0.)
+            if(m_criteria->facet_circumradius > 0.)
             {
               FT over_circumradius = star->compute_circumradius_overflow(*fi);
               if (over_circumradius > 0) 
@@ -1467,7 +1467,7 @@ public:
               }
             }
             // bad shape : 4
-            if(m_criteria->radius_edge_ratio > 0.)
+            if(m_criteria->facet_radius_edge_ratio > 0.)
             {
               FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
               if (over_radius_edge_ratio > 0) 

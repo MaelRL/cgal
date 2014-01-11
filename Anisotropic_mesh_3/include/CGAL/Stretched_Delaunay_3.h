@@ -463,7 +463,7 @@ public:
         TPoint_3 tp = m_metric.transform(p);
         TPoint_3 tp2 = facet.first->vertex((facet.second + 1) % 4)->point();
         FT sqr = CGAL::squared_distance(tp, tp2);
-        return sqr - m_criteria->criteria->squared_circumradius;
+        return sqr - m_criteria->criteria->squared_facet_circumradius;
       }
 
       inline FT compute_squared_circumradius(const Facet &facet)
