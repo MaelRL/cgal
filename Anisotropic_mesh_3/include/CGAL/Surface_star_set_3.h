@@ -35,7 +35,7 @@
 #include <CGAL/Metric_field.h>
 #include <CGAL/Criteria.h>
 #include <CGAL/Facet_refine_queue.h>
-#include <CGAL/Output_facets.h>
+#include <CGAL/IO/Output_facets.h>
 #include <CGAL/Polyhedron_painter.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>

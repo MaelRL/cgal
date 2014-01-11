@@ -21,8 +21,8 @@
 #include <CGAL/Criteria.h>
 #include <CGAL/Metric_field.h>
 #include <CGAL/Stretched_Delaunay_3.h>
-#include <CGAL/Output_facets.h>
-#include <CGAL/Output_cells.h>
+#include <CGAL/IO/Output_facets.h>
+#include <CGAL/IO/Output_cells.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
 #include <CGAL/helpers/statistics_helper.h>
