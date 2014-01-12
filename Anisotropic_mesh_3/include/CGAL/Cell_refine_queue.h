@@ -118,19 +118,20 @@ public:
 #undef DEFINE_PUSH
 
 public:
-  bool need_picking_valid(int queue_type)
+  bool need_picking_valid(int queue_type) const
   {
     return (queue_type >= start_pick_valid);
   }
 
-  bool empty() {
+  bool empty() const
+  {
     for (int i = 0; i < nb_queues; i++)
       if (!queues[i]->empty())
         return false;
     return true;
   }
 
-  unsigned int size()
+  unsigned int size() const
   {
     unsigned int nb = 0;
     for (int i = 0; i < nb_queues; i++)
@@ -138,7 +139,7 @@ public:
     return nb;
   }
 
-  Refine_cell top(int &queue_type)
+  Refine_cell top(int &queue_type) const
   {
     for (int i = 0; i < nb_queues; i++)
       if (!queues[i]->empty())
@@ -149,7 +150,7 @@ public:
     return Refine_cell();
   }
 
-  bool top(Refine_cell &cell, int &queue_type)
+  bool top(Refine_cell &cell, int &queue_type) const
   {
     for (int i = 0; i < nb_queues; i++)
       if (!queues[i]->empty())
@@ -180,15 +181,15 @@ public:
   }
 
 public:
-  void print()
+  void print() const
   {
-    std::cout << "Queue : ( ";
+    std::cout << "CQueue : ( ";
     for(int i = 0; i < nb_queues; i++)
       std::cout << queues[i]->size() <<" ";
     std::cout << ") " << std::endl;
   }
 
-  std::size_t count()
+  std::size_t count() const
   {
     std::size_t count = 0;
     for(int i=0; i< nb_queues; ++i)

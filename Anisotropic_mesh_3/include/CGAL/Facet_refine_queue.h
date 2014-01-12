@@ -114,12 +114,12 @@ namespace CGAL {
 #undef DEFINE_PUSH
 
     public:
-      bool need_picking_valid(int queue_type) 
+      bool need_picking_valid(int queue_type) const
       {
         return (queue_type >= start_pick_valid);
       }
 
-      bool empty() 
+      bool empty() const
       {
         for (int i = 0; i < nb_queues; i++)
           if (!queues[i]->empty())
@@ -127,7 +127,7 @@ namespace CGAL {
         return true;
       }
 
-      unsigned int size()
+      unsigned int size() const
       {
         unsigned int nb = 0;
         for (int i = 0; i < nb_queues; i++)
@@ -135,7 +135,7 @@ namespace CGAL {
         return nb;
       }
 
-      Refine_facet top(int &queue_type) 
+      Refine_facet top(int &queue_type) const
       {
         for (int i = 0; i < nb_queues; i++)
           if (!queues[i]->empty()) 
@@ -146,7 +146,7 @@ namespace CGAL {
           return Refine_facet();
       }
 
-      bool top(Refine_facet &facet, int &queue_type)
+      bool top(Refine_facet &facet, int &queue_type) const
       {
         for (int i = 0; i < nb_queues; i++)
           if(!queues[i]->empty())
@@ -158,7 +158,7 @@ namespace CGAL {
         return false;
       }
 
-      bool pop() 
+      bool pop()
       {
         for (int i = 0; i < nb_queues; i++)
           if (!queues[i]->empty()) 
@@ -177,10 +177,10 @@ namespace CGAL {
       }
 
     public:
-      void print()
+      void print() const
       {
-        std::cout << "Queue : ( ";
-        for(int i = 1; i < nb_queues; i++)
+        std::cout << "FQueue : ( ";
+        for(int i = 0; i < nb_queues; i++)
           std::cout << queues[i]->size() <<" ";
         std::cout << ") " << std::endl;
       }
