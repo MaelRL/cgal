@@ -333,8 +333,8 @@ public:
 
         if(this->dimension() < 3)
           m_bbox = m_pConstrain->get_bbox();  //should be found by every request to aabb_tree
-        else if(this->is_topological_disk())
-          m_bbox = this->surface_bbox();
+        //else if(this->is_topological_disk())
+        //  m_bbox = this->surface_bbox();
         else
           m_bbox = this->volume_bbox() + this->surface_bbox();
 
@@ -890,11 +890,13 @@ public:
           return true;
         else if(!is_inside_bbox(m_metric.inverse_transform(tp)))
           return false;
-        else if(is_topological_disk())
-          return is_in_a_surface_delaunay_ball(tp, in_which_cell);
+        //else if(is_topological_disk()) todo
+          //return is_in_a_surface_delaunay_ball(tp, in_which_cell);
         else
+        {
           return (is_in_a_volume_delaunay_ball(tp, in_which_cell) ||
                   is_in_a_surface_delaunay_ball(tp, in_which_cell) );
+        }
       }
 
       inline bool is_in_a_surface_delaunay_ball(const TPoint_3& tp,
@@ -1911,34 +1913,26 @@ public:
 
       bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet)
       {
-        std::cout << "encroachement todo" << std::endl;
-        /*
-        TPoint_3 tc = m_metric.transform(compute_exact_dual_intersection(facet));
+        TPoint_3 fc = compute_circumcenter(facet);
         TPoint_3 tq = facet.first->vertex((facet.second + 1) % 4)->point();
-        Traits::Compute_squared_distance_3 o = m_traits->compute_squared_distance_3_object();
-        return o(tc, tp) < o(tc, tq);
-        */
-        return false;
+        typename Traits::Compute_squared_distance_3 o = m_traits->compute_squared_distance_3_object();
+        return o(fc, tp) < o(fc, tq);
       }
 
       bool is_encroached(const Point_3 &p, Facet &facet)
       {
-        std::cout << "encroachement todo" << std::endl;
-        /*
         TPoint_3 tp = m_metric.transform(p);
 
         Facet_set_iterator fi = begin_restricted_facets();
         Facet_set_iterator fend = end_restricted_facets();
-        for (; fi != fend; fi++)
+        for(; fi != fend; fi++)
         {
-          if (is_facet_encroached(tp, *fi))
+          if(is_facet_encroached(tp, *fi))
           {
             facet = *fi;
             return true;
           }
         }
-        return false;
-        */
         return false;
       }
 
