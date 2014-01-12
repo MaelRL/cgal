@@ -27,7 +27,7 @@
 
 using namespace CGAL::Anisotropic_mesh_3;
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel	K;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef CGAL::Timer Timer;
 
 std::string output_filename(const double& a, const double& b, const double &c)

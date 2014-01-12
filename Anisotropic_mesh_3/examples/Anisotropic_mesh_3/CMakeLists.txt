@@ -65,6 +65,7 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("compare_ellipsoids_iso_aniso.cpp")
   create_single_source_cgal_program("cell_mesher_example.cpp")
   create_single_source_cgal_program("cell_mesher_poly_example.cpp")
+  create_single_source_cgal_program("mesher_lvl_example.cpp")
 
   else(LAPACK_FOUND)
 

@@ -65,28 +65,29 @@ namespace CGAL{
 
       typedef int Index;
 
-      typedef Constrain_surface_3<K>          Constrain_surface;
-      typedef Metric_base<K, KExact>          Metric;
-      typedef typename K::FT                  FT;
-      typedef typename K::Point_3             Point_3;
-      typedef typename K::Point_3             TPoint_3; //Transformed_point_3
-      typedef typename K::Sphere_3            Sphere;
-      typedef typename K::Vector_3            Vector_3;
-      typedef typename K::Line_3              Line_3;
-      typedef typename K::Ray_3               Ray_3;
-      typedef typename K::Plane_3             Plane_3;
-      typedef typename Base::Segment            Segment;
-      typedef typename Base::Triangle           Triangle;
-      typedef typename Base::Tetrahedron        Tetrahedron;
-      typedef typename Base::Vertex             Vertex;
-      typedef typename Base::Cell               Cell;
-      typedef typename Base::Edge               Edge;
-      typedef typename Base::Facet              Facet;
-      typedef typename DS::Vertex_handle      Vertex_handle;
-      typedef typename DS::Cell_handle        Cell_handle;
-      typedef ::CGAL::Anisotropic_mesh_3::Stretched_criteria<K, KExact> Stretched_criteria;
-      typedef Criteria_base<K>          Criteria;
-      typedef CGAL::Bbox<K>             Bbox;
+      typedef Constrain_surface_3<K>                    Constrain_surface;
+      typedef Metric_base<K, KExact>                    Metric;
+      typedef typename K::FT                            FT;
+      typedef typename K::Point_3                       Point_3;
+      typedef typename K::Point_3                       TPoint_3; //Transformed_point_3
+      typedef typename K::Sphere_3                      Sphere;
+      typedef typename K::Vector_3                      Vector_3;
+      typedef typename K::Line_3                        Line_3;
+      typedef typename K::Ray_3                         Ray_3;
+      typedef typename K::Plane_3                       Plane_3;
+      typedef typename Base::Segment                    Segment;
+      typedef typename Base::Triangle                   Triangle;
+      typedef typename Base::Tetrahedron                Tetrahedron;
+      typedef typename Base::Vertex                     Vertex;
+      typedef typename Base::Cell                       Cell;
+      typedef typename Base::Edge                       Edge;
+      typedef typename Base::Facet                      Facet;
+      typedef typename DS::Vertex_handle                Vertex_handle;
+      typedef typename DS::Cell_handle                  Cell_handle;
+      typedef ::CGAL::Anisotropic_mesh_3::Stretched_criteria<K, KExact>
+                                                        Stretched_criteria;
+      typedef Criteria_base<K>                          Criteria;
+      typedef CGAL::Bbox<K>                             Bbox;
 
       typedef std::vector<Vertex_handle>                Vertex_handle_vector;
       typedef std::vector<Facet>                        Facet_vector;
@@ -99,11 +100,11 @@ namespace CGAL{
       typedef typename Vertex_handle_vector::iterator   Vertex_handle_handle;
 
     private:
-      typedef typename KExact::Point_3                      Exact_Point_3;
-      typedef typename KExact::Point_3                      Exact_TPoint_3;
-      typedef typename KExact::Vector_3                     Exact_Vector_3;
-      typedef CGAL::Cartesian_converter<K, KExact> To_exact;
-      typedef CGAL::Cartesian_converter<KExact, K> Back_from_exact;
+      typedef typename KExact::Point_3                  Exact_Point_3;
+      typedef typename KExact::Point_3                  Exact_TPoint_3;
+      typedef typename KExact::Vector_3                 Exact_Vector_3;
+      typedef CGAL::Cartesian_converter<K, KExact>      To_exact;
+      typedef CGAL::Cartesian_converter<KExact, K>      Back_from_exact;
       To_exact to_exact;
       Back_from_exact back_from_exact;
 
@@ -1406,7 +1407,7 @@ public:
 
       bool compute_exact_dual_intersection(const Facet &facet,
                                            Point_3& p,
-                                           const bool use_cache = false,
+                                           const bool use_cache = true,
                                            const bool verbose = true,
                                            const bool super_verbose = false) const
       {

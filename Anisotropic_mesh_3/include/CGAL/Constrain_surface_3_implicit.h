@@ -33,10 +33,10 @@
 
 #include <CGAL/gl_draw/drawing_helper.h>
 
+#include <CGAL/helpers/metric_helper.h>
 #include <CGAL/helpers/c3t3_polyhedron_builder.h>
 #include <CGAL/IO/Polyhedron_iostream.h>
 
-#include <CGAL/helpers/metric_helper.h>
 
 #include <boost/bind.hpp>
 

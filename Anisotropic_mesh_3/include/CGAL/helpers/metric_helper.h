@@ -23,12 +23,12 @@ typename Kernel::Vector_3 get_eigenvector(const Eigen::EigenSolver<Eigen::Matrix
 }
 
 template<typename Kernel>
-Eigen::Matrix3d build_UDUt (const typename Kernel::Vector_3& v_0,
-                            const typename Kernel::Vector_3& v_1,
-                            const typename Kernel::Vector_3& v_2,
-                            const typename Kernel::FT& e_0,
-                            const typename Kernel::FT& e_1,
-                            const typename Kernel::FT& e_2)
+Eigen::Matrix3d build_UDUt(const typename Kernel::Vector_3& v_0,
+                           const typename Kernel::Vector_3& v_1,
+                           const typename Kernel::Vector_3& v_2,
+                           const typename Kernel::FT& e_0,
+                           const typename Kernel::FT& e_1,
+                           const typename Kernel::FT& e_2)
 {
   Eigen::Matrix3d eigen_m;
   eigen_m(0,0) = v_0.x();  eigen_m(0,1) = v_1.x();  eigen_m(0,2) = v_2.x();
@@ -80,7 +80,7 @@ void get_eigen_vecs_and_vals(const Eigen::Matrix3d& matrix,
     e_2 = std::abs(e_2);
   }
 
-#ifdef ANISO_DEBUG_NEG_EIGENVALUES
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
   if(e_0 < 0 || e_1 < 0 || e_2 < 0)
   {
     std::cout << "WARNING, NEGATIVE EIGENVALUES RETURNED BY EIGEN_VECS" << std::endl;

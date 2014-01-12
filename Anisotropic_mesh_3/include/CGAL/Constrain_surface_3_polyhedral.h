@@ -235,7 +235,7 @@ class Constrain_surface_3_polyhedral :
         return typename CGAL::Bbox_3(minx, miny, minz, maxx, maxy, maxz);
       }
 
-      virtual Oriented_side side_of_constraint(const Point_3 &p) const 
+      virtual Oriented_side side_of_constraint(const Point_3 &p) const
       {
         if ((bool)domain->is_in_domain_object()(p))
           return CGAL::ON_POSITIVE_SIDE;
@@ -1065,8 +1065,10 @@ class Constrain_surface_3_polyhedral :
           get_metrics_from_file(metric_input, epsilon, en_factor);
         else
           compute_local_metric(epsilon, en_factor, smooth_metric);
+        //note todo: not a txt file =/> it is a curvature field. So it's a waste
+        //to compute the curv metric field if the mfield is euclidean for example.
 
-        std::ifstream is_file_present("smoothing.txt");
+        std::ifstream is_file_present("smoothing.txt"); //dummy file to switch on/off
         if(is_file_present)
           heat_kernel_smoothing(epsilon);
       }

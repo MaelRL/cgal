@@ -1,5 +1,5 @@
-#ifndef CGAL_ANISOTROPIC_MESH_3_POLYHEDRON_PAINTER
-#define CGAL_ANISOTROPIC_MESH_3_POLYHEDRON_PAINTER
+#ifndef CGAL_ANISOTROPIC_MESH_3_POLYHEDRON_PAINTER_H
+#define CGAL_ANISOTROPIC_MESH_3_POLYHEDRON_PAINTER_H
 
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_tree.h>
@@ -23,6 +23,7 @@ namespace CGAL
 {
 namespace Anisotropic_mesh_3
 {
+
 template<typename K,
          typename Constrain_surface,
          typename Metric_field,
@@ -610,4 +611,4 @@ public:
 }
 }
 
-#endif
+#endif // CGAL_ANISOTROPIC_MESH_3_POLYHEDRON_PAINTER_H

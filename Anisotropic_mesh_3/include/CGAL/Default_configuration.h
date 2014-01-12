@@ -46,7 +46,7 @@
 
 // for volume mesher, if checking encroachment, only
 // check the encroachment of the neigbhoring facets.
-// this can accelarate the speed.
+// this can accelerate the process.
 //#define ONLY_CONSIDER_NEIGHBORING_ENCROACHMENT
 
 // show debug info.

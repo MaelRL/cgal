@@ -24,8 +24,8 @@
 //      F_M = R diag{e1, e2, e3} R^{-1}
 //      M = F_M * F_M^t
 
-#ifndef CGAL_ANISOTROPIC_MESH_3_METRIC
-#define CGAL_ANISOTROPIC_MESH_3_METRIC
+#ifndef CGAL_ANISOTROPIC_MESH_3_METRIC_H
+#define CGAL_ANISOTROPIC_MESH_3_METRIC_H
 
 #include <boost/algorithm/minmax_element.hpp>
 #include <CGAL/bbox.h>
@@ -100,7 +100,7 @@ public:
   }
 
   template <typename Kernel>
-  Triangle_3<Kernel> inverse_transform(const Triangle_3<Kernel>& t) const 
+  Triangle_3<Kernel> inverse_transform(const Triangle_3<Kernel>& t) const
   {
     typename Kernel::Point_3 p = t.vertex(0);
     typename Kernel::Point_3 q = t.vertex(1);
@@ -117,7 +117,7 @@ public:
     ep = Eigen::Vector3d(r.x(),r.y(),r.z());
     ep = eigen_inverse_transformation * ep;
     r = Point_3(ep[0], ep[1], p[2]);
-    
+
     return Triangle_3<Kernel>(p,q,r);
   }
 
@@ -161,7 +161,7 @@ public:
     std::pair<double*,double*> ymm = boost::minmax_element(y,y+8);
     std::pair<double*,double*> zmm = boost::minmax_element(z,z+8);
     return Bbox<Kernel>(*(xmm.first), *(ymm.first), *(zmm.first),
-                   *(xmm.second), *(ymm.second), *(zmm.second));
+                        *(xmm.second), *(ymm.second), *(zmm.second));
   }
 
 
@@ -174,7 +174,7 @@ public:
 #endif
     */
 
-  FT compute_distortion(const Metric_base &m) 
+  FT compute_distortion(const Metric_base &m)
   {
     double eigen_dis1 = (m.eigen_transformation * eigen_inverse_transformation).operatorNorm();
     double eigen_dis2 = (eigen_transformation * m.eigen_inverse_transformation).operatorNorm();
@@ -304,9 +304,9 @@ public:
     double yy = axis_y*axis_y;
     double zz = axis_z*axis_z;
     std::cout << "produits scalaires : "
-      << xz << " " << xy << " " << yz << std::endl;
+              << xz << " " << xy << " " << yz << std::endl;
     std::cout << "sq_norms           : "
-      << xx << " " << yy << " " << zz << std::endl;
+              << xx << " " << yy << " " << zz << std::endl;
     std::cout << "valeurs propres    : " << vpn << " " << vpy << " " << vpz << std::endl;
     std::cout << std::endl;
     if(xz > 0.01 || xy > 0.01 || yz > 0.01)
@@ -322,7 +322,8 @@ public:
 
   ~Metric_base() { }
 };
-}
-}
 
-#endif
+} // Anisotropic_mesh_3
+} // CGAL
+
+#endif // CGAL_ANISOTROPIC_MESH_3_METRIC_H

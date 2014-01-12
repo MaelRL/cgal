@@ -82,12 +82,9 @@ namespace CGAL
       virtual Point_container get_surface_points(unsigned int nb, double facet_distance_coeff = 0.01) const = 0;
       virtual std::string name() const  = 0;
       virtual FT compute_sq_approximation(const Point_3& p) const = 0;
-
       virtual double global_max_curvature() const = 0;
       virtual double global_min_curvature() const = 0;
-
       virtual void gl_draw_intermediate_mesh_3(const Plane_3& plane) const = 0;
-
       virtual void build_colored_polyhedron(Colored_polyhedron& poly) const = 0;
 
     protected:

@@ -12,6 +12,8 @@ namespace CGAL
     class Delaunay_traits_3 : public K
     {
     public:
+      typedef K                           Kernel;
+      typedef KExact                      Exact_kernel;
       typedef typename K::FT              FT;
       typedef typename K::Point_3         Point_3;
       typedef typename K::Segment_3       Segment_3;
@@ -20,7 +22,6 @@ namespace CGAL
       typedef typename K::Line_3          Line_3;
       typedef typename K::Ray_3           Ray_3;
       typedef typename K::Object_3        Object_3;
-      typedef KExact Exact_kernel;
 
     public:
       class Construct_circumcenter_3 
