@@ -40,48 +40,43 @@ std::string output_filename(const double& a, const double& b, const double &c)
 
 int main(int argc, char* argv[])
 {
-  std::ofstream fx("ellipsoid_timings.txt");
-
-  Timer timer;
   CGAL::default_random = CGAL::Random(0);
+  int n = 1;
 
-  K::FT a = (argc > 1) ? atof(argv[1]) : 0.15;
-  K::FT b = (argc > 2) ? atof(argv[2]) : 0.25;
-  K::FT c = (argc > 3) ? atof(argv[3]) : 0.35;
-  K::FT d = (argc > 4) ? atof(argv[4]) : 0.1;
-  K::FT e = (argc > 5) ? atof(argv[5]) : 0.2;
-  K::FT f = (argc > 6) ? atof(argv[6]) : 0.3;
+//geometry
+  K::FT a = (argc > n) ? atof(argv[n++]) : 0.15;
+  K::FT b = (argc > n) ? atof(argv[n++]) : 0.25;
+  K::FT c = (argc > n) ? atof(argv[n++]) : 0.35;
+  K::FT d = (argc > n) ? atof(argv[n++]) : 0.1;
+  K::FT e = (argc > n) ? atof(argv[n++]) : 0.2;
+  K::FT f = (argc > n) ? atof(argv[n++]) : 0.3;
   K::Point_3 s_center(0.25, 0.1, 0.1);
 
-  K::FT epsilon = (argc > 7) ? atof(argv[7]) : 1.0;
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
-  K::FT r0 = (argc > 8) ? atof(argv[8]) : 1.0/*default*/;
-  K::FT gamma0 = (argc > 9) ? atof(argv[9]) : 1.5;
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 1.0;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
 
-  int nb = (argc > 10) ? atoi(argv[10]) : 10;
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
 
-  K::FT beta = (argc > 11) ? atof(argv[11]) : 2.5;
-  K::FT delta = (argc > 12) ? atof(argv[12]) : 0.3;
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  fx << "Ellipsoid :" << std::endl;
-  fx << "\ta = " << a << std::endl;
-  fx << "\tb = " << b << std::endl;
-  fx << "\tc = " << c << std::endl;
-  fx << "\teps = " << epsilon << std::endl;
-  fx << "\tr0 = " << r0 << std::endl;
-  fx << "\tgamma0 = " << gamma0 << std::endl;
-  fx << "\tbeta = " << beta << std::endl;
-  fx << "\tdelta = " << delta << std::endl;
-  
-  Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
-                                                    0.2,    //sliverity_
-                                                    r0,     //circumradius_ 0.1
-                                                    gamma0, //distortion_ 1.3
-                                                    beta,   //beta_ 2.5
-                                                    delta); //delta_ 0.3
-
-  fx << std::endl << "nbV" << "\t" << "time" << std::endl;
-  timer.start();
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
 
   Constrain_surface_3_double_ellipsoid<K>* pdomain =
           new Constrain_surface_3_double_ellipsoid<K>(a, b, c, d, e, f, s_center);
@@ -89,7 +84,7 @@ int main(int argc, char* argv[])
   Implicit_curvature_metric_field<K>* metric_field =
     new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
 
-  int xcondition = (argc > 13) ? atoi(argv[13]) : -1;//default : no condition on x
+  int xcondition = (argc > n) ? atoi(argv[n++]) : -1; //default : no condition on x
   K::Plane_3 plane1(1., 0., 0., -4);
   K::Plane_3 plane2(1., 0., 0., 4);
 
@@ -99,12 +94,9 @@ int main(int argc, char* argv[])
   //Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, 1, condition);
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
-  timer.stop();
   starset.output("base_double_ellipse.off", false);
 
-  fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();
-
   starset.output("double_ellipse.off");
 
   delete pdomain;

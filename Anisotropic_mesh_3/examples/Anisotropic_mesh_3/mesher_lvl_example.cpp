@@ -1,6 +1,3 @@
-//#define ANISO_USE_INSIDE_EXACT
-//#define ANISO_DEBUG
-
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
 #include <CGAL/Euclidean_metric_field.h>
@@ -31,39 +28,43 @@ int main(int argc, char** argv)
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 
+  int n = 1;
+
 //geometry
-  FT a = 10.;
-  FT b = 1.;
-  FT c = 1.;
+  FT a = (argc > n) ? atof(argv[n++]) : 10.;
+  FT b = (argc > n) ? atof(argv[n++]) : 1.;
+  FT c = (argc > n) ? atof(argv[n++]) : 1.;
 
 //metric field
-  FT epsilon = 0.;
+  FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
 //facet criteria
-  FT approx = 0.05;
-  FT gamma0 = 2.;
-  FT f_rho0 = 3.0;
-  FT f_r0 = 1.0;
+  FT approx = (argc > n) ? atof(argv[n++]) : 1.0;
+  FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  FT f_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
 
 //cell criteria
-  FT sliverity = 0.2;
-  FT c_rho0 = 3.0;
-  FT c_r0 = 1.0;
+  FT sliverity = (argc > n) ? atof(argv[n++]) : 0.2;
+  FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  FT c_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
   bool c_consistency = true;
 
 //misc
-  int nb = 20;
-  FT beta = 2.5;
-  FT delta = 0.3;
-  int max_times_to_try = 60;
+  FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0, sliverity,
-                                                    c_rho0, c_r0, c_consistency, beta, delta,
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
                                                     max_times_to_try);
 
   timer.start();
 
-  Constrain_surface_3_ellipse<K>* pdomain = new Constrain_surface_3_ellipse<K>(a, b, c);
+  Constrain_surface_3_ellipse<K>* pdomain =
+      new Constrain_surface_3_ellipse<K>(a, b, c);
   Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
   Star_vector stars;
 
@@ -71,13 +72,13 @@ int main(int argc, char** argv)
   double elapsed_time = mesher.refine_mesh();
   std::cout << elapsed_time << std::endl;
 
-  std::ofstream out("mshlvl.mesh");
+  std::ofstream out("bambimboum.mesh");
   output_medit(stars, out);
-  std::ofstream out_facet("mshlvl_surf.mesh");
+  std::ofstream out_facet("bambimboum_surf.mesh");
   output_surface_medit(stars, out_facet);
-  std::ofstream out_off("mshlvl.off");
+  std::ofstream out_off("bambimboum.off");
   output_off(stars, out_off);
-  std::ofstream out_surface_off("mshlvl_surf.off");
+  std::ofstream out_surface_off("bambimboum_surf.off");
   output_surface_off(stars, out_surface_off);
 
   delete criteria;

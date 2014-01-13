@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
   std::cout << "Let's mesh : " << file << std::endl;
 
   char* poles_filename;
-  int i = 2;
+  int n = 2;
   bool poles_given = false;
   if(argc > 3)
   {
@@ -42,25 +42,37 @@ int main(int argc, char *argv[])
     {
       poles_filename = argv[3];
       std::cout << "poles filename : " << poles_filename << std::endl;
-      i = i + 2;
+      n = n + 2;
       poles_given = true;
     }
     else std::cerr << "argc is " << argc << std::endl;
   }
 
-  double r0 = (argc > i) ? atof(argv[i++]) : 1.;
-  double gamma0 = (argc > i) ? atof(argv[i++]) : 1.8;
-  double approx = (argc > i) ? atof(argv[i++]) : 0.;
-  double epsilon = (argc > i) ? atof(argv[i++]) : (0.1);
-  
-  Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_ //3.0
-                                                    0., //sliverity_ (not used)
-                                                    r0, //circumradius_
-                                                    gamma0, //distortion_
-                                                    2.5, //beta_
-                                                    0.3, //delta_
-                                                    60, //nb tries in pick_valid
-                                                    approx);
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
+
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 0.1;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
+
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
+
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
 
   Constrain_surface_3_polyhedral<K>* pdomain
     = new Constrain_surface_3_polyhedral<K>(file.data(), epsilon);

@@ -31,54 +31,40 @@ std::string output_filename(const double& a,
 
 int main(int argc, char* argv[])
 {
-  std::ofstream fx("cyclide_info.txt");
-
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
+  int n = 1;
 
-  if(argc == 2)
-  {
-    std::cout << "cyclide_example parameters :" << std::endl;
-    std::cout << " r0=1 gamma0=1.5 rho0=3 approx=0";
-    std::cout << " nb=20 beta=2.5 delta=0.3 gamma1=2 y=5.5 xcondition=-1 " << std::endl;
-    return 0;
-  }
+//geometry
+  K::FT a = (argc > n) ? atof(argv[n++]) : 7.;
+  K::FT b = (argc > n) ? atof(argv[n++]) : std::sqrt(48.);
+  K::FT mu = (argc > n) ? atof(argv[n++]) : 3.;
 
-  K::FT a = (argc > 1) ? atof(argv[1]) : 7.;
-  K::FT b = (argc > 2) ? atof(argv[2]) : std::sqrt(48);
-  K::FT mu = (argc > 3) ? atof(argv[3]) : 3.;
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
-  K::FT epsilon = (argc > 4) ? atof(argv[4]) : 0.1;
-  K::FT r0 = (argc > 5) ? atof(argv[5]) : 0.;
-  K::FT gamma0 = (argc > 6) ? atof(argv[6]) : 0.;
-  K::FT rho0 = (argc > 7) ? atof(argv[7]) : 0.;
-  K::FT approx = (argc > 8) ? atoi(argv[8]) : 0.1;
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 1.0;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
 
-  int nb = (argc > 9) ? atof(argv[9]) : 20.;
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
 
-  K::FT beta = (argc > 10) ? atof(argv[10]) : 2.5;
-  K::FT delta = (argc > 11) ? atof(argv[11]) : 0.;
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
-                                                    0.2,    //sliverity_
-                                                    r0,     //circumradius_ 0.1
-                                                    gamma0, //distortion_ 1.3
-                                                    beta,   //beta_ 2.5
-                                                    delta,  //delta_ 0.3
-                                                    60,     //max_times_to_try_in_picking_region_
-                                                    approx); //approximation
-
-  fx << "Cyclide :" << std::endl;
-  fx << "\ta = " << a << std::endl;
-  fx << "\tb = " << b << std::endl;
-  fx << "\tmu = " << mu << std::endl;
-  fx << "\teps = " << epsilon << std::endl;
-  fx << "\tr0 = " << r0 << std::endl;
-  fx << "\tgamma0 = " << gamma0 << std::endl;
-  fx << "\trho0 = " << rho0 << std::endl;
-  fx << "\tapprox = " << approx << std::endl;
-  fx << "\tbeta = " << beta << std::endl;
-  fx << "\tdelta = " << delta << std::endl;
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
   
   Constrain_surface_3_cyclide<K>* pdomain = new Constrain_surface_3_cyclide<K>(a, b, mu);
 
@@ -87,21 +73,18 @@ int main(int argc, char* argv[])
 
   std::string file = output_filename(a, b, mu);
 
-  fx << std::endl << "nbV" << "\t" << "time" << std::endl;
   timer.start();
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
   timer.stop();
-  fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   
-  starset.output(file.c_str());//off
+  starset.output(file.c_str()); // .off
 
   timer.start();
   starset.refine_all();
   timer.stop();
-  fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
 
-  starset.output_surface_star_set("cyclide_example.mesh");//mesh
-  starset.output(file.c_str());//off
+  starset.output_surface_star_set("cyclide_example.mesh");
+  starset.output(file.c_str()); // .off
 
   delete pdomain;
   return 0;

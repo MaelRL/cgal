@@ -32,30 +32,37 @@ int main(int argc, char* argv[])
 {
   CGAL::default_random = CGAL::Random(0);
 
-  K::FT epsilon = (argc > 2) ? atof(argv[2]) : 0.;
+  int n = 2;
 
-  K::FT r0 = (argc > 3) ? atof(argv[3]) : 0.01;
-  K::FT gamma0 = (argc > 4) ? atof(argv[4]) : 2.;
-  K::FT rho0 = (argc > 5) ? atof(argv[5]) : 3.0;
-  K::FT approx = (argc > 6) ? atof(argv[6]) : 10.;
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
-  int nb = (argc > 7) ? atoi(argv[7]) : 20;
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.;
 
-  K::FT beta = (argc > 8) ? atof(argv[8]) : 2.5;
-  K::FT delta = (argc > 9) ? atof(argv[9]) : 0.3;
-  
-  Criteria_base<K>* criteria = new Criteria_base<K>(rho0, //radius_edge_ratio_
-                                                    0.2,    //sliverity_
-                                                    r0,     //circumradius_ 0.1
-                                                    gamma0, //distortion_ 1.3
-                                                    beta,   //beta_ 2.5
-                                                    delta, //delta_ 0.3
-                                                    60,
-                                                    approx);//approx
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.2;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+  bool c_consistency = true;
+
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
+
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
 
 
   Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);
-  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, 0.001);
+  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, epsilon);
 
   Cell_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
   starset.dump();

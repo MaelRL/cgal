@@ -20,17 +20,33 @@ typedef Anisotropic_surface_mesher_3<K> Mesher;
 int main(int argc, char* argv[])
 {
   CGAL::default_random = CGAL::Random(0);
+  int n = 1;
 
-  K::FT r0 = (argc > 1) ? atof(argv[1]) : 1.0/*default*/;
-  K::FT gamma0 = (argc > 2) ? atof(argv[2]) : 1.3;
-  K::FT epsilon = (argc > 3) ? atof(argv[3]) : 0.125;
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
-                                                    0.2, //sliverity_
-                                                    r0, //circumradius_ 0.1
-                                                    gamma0, //distortion_ 1.3
-                                                    2.5, //beta_
-                                                    0.3);//delta_
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 0.1;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
+
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
+
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
 
   Constrain_surface_3_sphere<K>* pdomain = new Constrain_surface_3_sphere<K>();
 
@@ -51,7 +67,7 @@ int main(int argc, char* argv[])
   }
   */
 
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
+  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
   Mesher mesher(starset);
   mesher.refine_all();
   //mesher.output(std::string("sphere_arctan.off"));

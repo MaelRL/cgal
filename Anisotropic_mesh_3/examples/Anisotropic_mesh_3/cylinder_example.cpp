@@ -41,44 +41,38 @@ std::string output_filename(const double& r, const double& h)
 
 int main(int argc, char* argv[])
 {
-  std::ofstream fx("cylinder_timings.txt");
-
-  Timer timer;
   CGAL::default_random = CGAL::Random(0);
+  int n = 1;
 
-  K::FT r = (argc > 1) ? atof(argv[1]) : 1.;
-  K::FT h = (argc > 2) ? atof(argv[2]) : 10.;
+//geometry
+  K::FT r = (argc > n) ? atof(argv[n++]) : 1.;
+  K::FT h = (argc > n) ? atof(argv[n++]) : 10.;
 
-  K::FT epsilon = (argc > 3) ? atof(argv[3]) : 0.1;
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
-  K::FT r0 = (argc > 4) ? atof(argv[4]) : 0./*default*/;
-  K::FT gamma0 = (argc > 5) ? atof(argv[5]) : 0.;
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 1.0;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
 
-  int nb = (argc > 6) ? atoi(argv[6]) : 10;
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
 
-  K::FT beta = (argc > 7) ? atof(argv[7]) : 2.5;
-  K::FT delta = (argc > 8) ? atof(argv[8]) : 0.3;
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  fx << "Cylinder :" << std::endl;
-  fx << "\tr = " << r << std::endl;
-  fx << "\th = " << h << std::endl;
-  fx << "\teps = " << epsilon << std::endl;
-  fx << "\tr0 = " << r0 << std::endl;
-  fx << "\tgamma0 = " << gamma0 << std::endl;
-  fx << "\tbeta = " << beta << std::endl;
-  fx << "\tdelta = " << delta << std::endl;
-  
-  Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
-                                                    0.2,    //sliverity_
-                                                    r0,     //circumradius_ 0.1
-                                                    gamma0, //distortion_ 1.3
-                                                    beta,   //beta_ 2.5
-                                                    delta, //delta_ 0.3
-                                                    60, //max_times_to_try_in_picking_region
-                                                    0.05); //approximation
-
-  fx << std::endl << "nbV" << "\t" << "time" << std::endl;
-  timer.start();
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
 
   Constrain_surface_3_cylinder<K>* pdomain
      = new Constrain_surface_3_cylinder<K>(r, h);
@@ -88,7 +82,7 @@ int main(int argc, char* argv[])
   Cylinder_metric_field<K>* metric_field =
     new Cylinder_metric_field<K>(r, h, epsilon);
 
-  int xcondition = (argc > 9) ? atoi(argv[9]) : -1;//default : no condition on x
+  int xcondition = (argc > n) ? atoi(argv[n++]) : -1;//default : no condition on x
   K::Plane_3 plane1(0., 0., 1., -0.01*h);
   K::Plane_3 plane2(0., 0., 1., -0.99*h);
 
@@ -98,12 +92,9 @@ int main(int argc, char* argv[])
   //Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, 1, condition);
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
-  timer.stop();
   starset.output("base_closed_cylinder.off", false);
 
-  fx << starset.number_of_stars() << "\t" <<  timer.time() << std::endl;
   starset.refine_all();
-
   starset.output("closed_cylinder.off");
 
   delete pdomain;

@@ -26,12 +26,30 @@ int main(int argc, char* argv[])
   fout << "beta\t" << "delta\t" << "nbv\t" << "time(sec)" << std::endl;
   std::cout << "beta\t" << "delta\t" << "nbv\t" << "time(sec)" << std::endl;
 
-  K::FT R = 10.;
-  K::FT r =  1.;
-  K::FT epsilon = 0.1;
-  K::FT r0 = 0.1;
-  K::FT gamma0 = 1.5;
-  int nb_initial_pts = 10;
+  int n = 1;
+
+//geometry
+  K::FT R = (argc > n) ? atof(argv[n++]) : 10.;
+  K::FT r = (argc > n) ? atof(argv[n++]) : 1.;
+
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 0.1;
+
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 1.0;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
+
+//misc
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 10;
 
   K::FT betas[] = {2., 3., 4., 5.};
   K::FT deltas[] = {0.1, 0.3, 0.5};
@@ -52,15 +70,14 @@ int main(int argc, char* argv[])
     for(int j = 0; j < 3; ++j)
     {
       std::cout << betas[i] << "\t" << deltas[j];
-      Criteria_base<K>* criteria = new Criteria_base<K>(3.0, //radius_edge_ratio_
-                                                        0.2,    //sliverity_
-                                                        r0,     //circumradius_ 0.1
-                                                        gamma0, //distortion_ 1.3
-                                                        betas[i],   //beta_ 2.5
-                                                        deltas[j]); //delta_ 0.3
+      Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                        sliverity, c_rho0, c_r0,
+                                                        c_consistency, betas[i], deltas[j],
+                                                        max_times_to_try);
+
       timer.reset();
       timer.start();
-      Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb_initial_pts, 1, condition);
+      Surface_star_set_3<K, RCondition> starset(criteria, metric_field, pdomain, nb, 1, condition);
       //Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb_initial_pts);
       starset.refine_all();
       timer.stop();

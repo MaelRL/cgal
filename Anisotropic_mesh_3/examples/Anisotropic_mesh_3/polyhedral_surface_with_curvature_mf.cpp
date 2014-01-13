@@ -16,8 +16,6 @@
 //#define CGAL_PROFILE
 
 #include <CGAL/Default_configuration.h>
-#define CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-#define ANISO_DEBUG_REFINEMENT
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Robust_circumcenter_traits_3.h>
@@ -51,20 +49,34 @@ int main(int argc, char *argv[])
   std::string file(argv[1]);
   std::cout << "Let's mesh : " << file << std::endl;
 
-  double r0 = (argc > 2) ? atof(argv[2]) : 1.;
-  double gamma0 = (argc > 3) ? atof(argv[3]) : 1.8;
-  double approx = (argc > 4) ? atof(argv[4]) : 0.;
-  double epsilon = (argc > 5) ? atof(argv[5]) : (0.1);
-  double en_factor = (argc > 5) ? atof(argv[5]) : (1.0);
-  
-  Criteria_base<K>* criteria = new Criteria_base<K>(0., //radius_edge_ratio_ //3.0
-                                                    0., //sliverity_ (not used)
-                                                    r0, //circumradius_
-                                                    gamma0, //distortion_
-                                                    2.5, //beta_
-                                                    0.3, //delta_
-                                                    60, //nb tries in pick_valid
-                                                    approx);
+  int n = 2;
+
+//metric field
+  K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
+
+//facet criteria
+  K::FT approx = (argc > n) ? atof(argv[n++]) : 0.1;
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+
+//cell criteria
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  bool c_consistency = false;
+
+//misc
+  K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
+  const double en_factor = (argc > n) ? atof(argv[n++]) : 1.;
+
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
+                                                    sliverity, c_rho0, c_r0,
+                                                    c_consistency, beta, delta,
+                                                    max_times_to_try);
 
   Constrain_surface_3_polyhedral<K>* pdomain
     = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon, en_factor);
@@ -74,7 +86,7 @@ int main(int argc, char *argv[])
   
   //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain);
+  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
   //std::cout << "Max curvature : " << pdomain->global_max_curvature() << std::endl;
   //std::cout << "Min curvature : " << pdomain->global_min_curvature() << std::endl;
