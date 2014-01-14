@@ -70,9 +70,10 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
   // @TODO, WARNING: memory leak to be corrected later: criteria and
   // metric_field must be destroyed by somebody. The issue is that they
   // cannot be destroyed before the life end of the meshing thread.
-  return new Criteria(param.radius_edge_ratio, param.sliverity, param.circumradius,
-                            param.distortion, param.beta, param.delta,
-                            param.max_times_to_try_in_picking_region, param.approximation);
+  return new Criteria(param.approximation, param.distortion, param.radius_edge_ratio,
+                      param.circumradius, param.sliverity, 0. /*cell_rho*/, 0. /*cell_r0*/,
+                      false /*cell_consistency*/, param.beta, param.delta,
+                      param.max_times_to_try_in_picking_region);
 }
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface* p_surface,
