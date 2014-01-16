@@ -563,7 +563,7 @@ public:
         // bad approx : 3
         if(this->m_criteria->approximation > 0.)
         {
-          FT over_approx = std::sqrt(this->sq_distance_to_surface(*fi, star)) - this->m_criteria->approximation;
+          FT over_approx = this->sq_distance_to_surface(*fi, star) - this->m_criteria->squared_approximation;
           if(over_approx > 0.)
           {
             m_refine_queue.push_bad_approximation(star, *fi, over_approx);
