@@ -112,7 +112,7 @@ public:
   virtual void report(typename std::ofstream &fx) const = 0;
 
   Metric_field(FT epsilon_ = 1.0,
-               const double& en_factor_ = 1.)
+               const double& en_factor_ = 0.999) // to avoid the degen case of two equal evs
     : epsilon(epsilon_),
       en_factor(en_factor_)
   { }

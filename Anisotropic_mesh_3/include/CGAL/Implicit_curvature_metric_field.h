@@ -45,7 +45,7 @@ namespace CGAL
 
       Implicit_curvature_metric_field(const Constrain_surface &surface_,
                                       const FT epsilon_ = 1.0,
-                                      const double& en_factor_ = 1.) 
+                                      const double& en_factor_ = 0.999)
         : Metric_field<K>(epsilon_, en_factor_), surface(surface_) { }
     };
 

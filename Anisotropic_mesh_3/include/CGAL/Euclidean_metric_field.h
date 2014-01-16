@@ -57,7 +57,7 @@ public:
                          const double& b = 1., 
                          const double& c = 1.,
                          FT epsilon_ = 1e-6,
-                         const double& en_factor = 1.)
+                         const double& en_factor = 0.999)
   : Metric_field<K>(epsilon_, en_factor), m_a(a), m_b(b), m_c(c) { }
 };
 }

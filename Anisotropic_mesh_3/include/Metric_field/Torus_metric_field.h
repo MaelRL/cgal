@@ -89,7 +89,7 @@ public:
 
   Torus_metric_field(const FT& R_ = 0.7, 
                      const FT& r_ = 0.3, 
-                     const FT& epsilon_ = 1.0,
+                     const FT& epsilon_ = 0.999,
                      const double& en_factor_ = 1.) 
    : Metric_field<K>(epsilon_, en_factor_), R(R_), r(r_) { }
 };

@@ -95,7 +95,7 @@ public:
 
   Hyperbolic_shock_metric_field(const FT delta_,
                                 const FT epsilon_ = 0.125,
-                                const double& en_factor_ = 1.)
+                                const double& en_factor_ = 0.999)
     : Metric_field<K>(epsilon_, en_factor_), delta(delta_) { }
 };
 

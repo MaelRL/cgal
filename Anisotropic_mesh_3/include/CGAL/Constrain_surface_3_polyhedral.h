@@ -644,7 +644,7 @@ class Constrain_surface_3_polyhedral :
 
       void get_metrics_from_file(std::ifstream& input,
                                  const FT& epsilon,
-                                 const FT& en_factor = 1.0)
+                                 const FT& en_factor = 0.999)
       {
         std::cout << "reading metrics from file" << std::endl;
         size_t nv;
@@ -1049,7 +1049,7 @@ class Constrain_surface_3_polyhedral :
       }
 
       void initialize(const FT& epsilon,
-                      const FT& en_factor = 1.0,
+                      const FT& en_factor = 0.999,
                       const bool smooth_metric = false)
       {
         set_aabb_tree();
@@ -1080,7 +1080,7 @@ class Constrain_surface_3_polyhedral :
 
       Constrain_surface_3_polyhedral(const char *filename,
                                      const FT& epsilon,
-                                     const FT& en_factor = 1.0,
+                                     const FT& en_factor = 0.999,
                                      const bool smooth_metric = false)
         : m_vertices(),
           m_metrics(),
@@ -1098,7 +1098,7 @@ class Constrain_surface_3_polyhedral :
 
       Constrain_surface_3_polyhedral(const Polyhedron& p, 
                                      const FT& epsilon,
-                                     const FT& en_factor = 1.0,
+                                     const FT& en_factor = 0.999,
                                      const bool smooth_metric = false)
         : m_vertices(),
           m_metrics(),

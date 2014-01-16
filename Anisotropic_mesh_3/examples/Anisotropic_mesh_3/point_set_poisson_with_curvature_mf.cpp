@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
   K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
-  const double en_factor = (argc > n) ? atof(argv[n++]) : 1.;
+  const double en_factor = (argc > n) ? atof(argv[n++]) : 0.999;
 
   Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
                                                     sliverity, c_rho0, c_r0,
