@@ -531,13 +531,14 @@ public:
             continue;
         }
 
+        //note : if a facet is encroached, the queue will be filled from conflict_from_superior
         // encroachment : 0
-        if(this->is_encroached(star, *fi)) // is that correct or the thing below? todo
-         //star->is_facet_encroached(cell->vertex(offset)->point(), *fi)
-        {
-          m_refine_queue.push_encroachment(star, *fi, star->compute_volume(*fi));
-          continue;
-        }
+        //if(this->is_encroached(star, *fi))
+        //{
+        //  m_refine_queue.push_encroachment(star, *fi, star->compute_volume(*fi));
+        //  continue;
+        //}
+
         //note : distortion is now used only to speed-up pick_valid
         // // over distortion : 1
         //if(m_criteria->distortion > 0.)
