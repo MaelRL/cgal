@@ -3143,21 +3143,6 @@ public:
 
 
 public: //debug stuff
-    double facet_distortion(Facet& f) const
-    {
-      FT max_distortion = 0.;
-      for (int i = 0; i < 3; i++)
-      {
-        int index_1 = (f.second + i + 1) % 4;
-        int index_2 = (f.second + (i + 1) % 3 + 1) % 4;
-        FT distortion = m_stars[f.first->vertex(index_1)->info()]->metric().compute_distortion(
-           m_stars[f.first->vertex(index_2)->info()]->metric());
-        max_distortion = (std::max)(distortion, max_distortion);
-      }
-
-      return max_distortion;
-    }
-
     double average_facet_distortion(bool verbose = true) const
     {
       double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
@@ -3182,7 +3167,7 @@ public: //debug stuff
           if(!is_insert_successful.second)
             continue;
 
-          max_distortion = (std::max)(facet_distortion(f), max_distortion);
+          max_distortion = (std::max)(compute_distortion(f), max_distortion);
 
           if(is_consistent(f))
           {
@@ -3228,7 +3213,7 @@ public: //debug stuff
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;
-        max_distortion = (std::max)(max_distortion, facet_distortion(f));
+        max_distortion = (std::max)(max_distortion, compute_distortion(f));
       }
       return max_distortion;
       */
