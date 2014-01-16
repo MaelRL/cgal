@@ -36,11 +36,10 @@ void dump(const std::vector<Star*>& stars)
   }
 }
 
-//put the consistency options thingy here todo
 template<typename Star>
 void output_off(const std::vector<Star*>& stars,
                 std::ofstream& fx,
-                const bool consistent_only = false /*todo*/)
+                const bool consistent_only = true)
 {
   std::cout << "Saving as .off..." << std::endl;
   std::map<typename Star::Index, int> match_indices;//because we won't use all of them
@@ -48,6 +47,7 @@ void output_off(const std::vector<Star*>& stars,
   std::vector<typename Star::Point_3> points;
   Output_facets output_facets;
   Output_cells output_cells;
+  unsigned int nb_inconsistent_stars = 0;
 
   typename std::vector<Star*>::const_iterator it = stars.begin();
   typename std::vector<Star*>::const_iterator itend = stars.end();
@@ -63,7 +63,9 @@ void output_off(const std::vector<Star*>& stars,
     for (; ci != ciend; ++ci)
     {
       typename Star::Cell_handle c = *ci;
-      if(!star->is_infinite(c) && is_consistent(stars, c))
+      if(star->is_infinite(c))
+        continue;
+      if(!consistent_only || is_consistent(stars, c))
       {
         output_cells.insert(c->vertex(0)->info(), c->vertex(1)->info(),
                             c->vertex(2)->info(), c->vertex(3)->info());
@@ -72,8 +74,16 @@ void output_off(const std::vector<Star*>& stars,
         output_facets.insert(c->vertex(0)->info(), c->vertex(1)->info(), c->vertex(3)->info());
         output_facets.insert(c->vertex(3)->info(), c->vertex(1)->info(), c->vertex(2)->info());
       }
+      else
+      {
+        nb_inconsistent_stars++;
+        break;
+      }
     }
   }
+
+  if(nb_inconsistent_stars > 0)
+    std::cout << "Warning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 
   fx << "OFF" << std::endl;
   fx << points.size() << " " << output_facets.size() << " " << output_cells.size() << std::endl;
@@ -110,6 +120,7 @@ void output_surface_off(const std::vector<Star*>& stars,
   int off_index = 0; // the corresponding index in .off
   std::vector<typename Star::Point_3> points;
   Output_facets output_facets;
+  unsigned int nb_inconsistent_stars = 0;
 
   typename std::vector<Star*>::const_iterator si = stars.begin();
   typename std::vector<Star*>::const_iterator siend = stars.end();
@@ -127,12 +138,20 @@ void output_surface_off(const std::vector<Star*>& stars,
       typename Star::Point_3 cc;
       star->compute_dual_intersection(*fi, cc);
 
-      if(!consistent_only || is_consistent(stars, *fi)) //todo check & count?
+      if(!consistent_only || is_consistent(stars, *fi))
         output_facets.insert(fi->first->vertex((fi->second + 1) % 4)->info(),
                              fi->first->vertex((fi->second + 2) % 4)->info(),
                              fi->first->vertex((fi->second + 3) % 4)->info());
+      else
+      {
+        nb_inconsistent_stars++;
+        break;
+      }
     }
   }
+
+  if(nb_inconsistent_stars > 0)
+    std::cout << "Warning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 
   fx << "OFF" << std::endl;
   fx << points.size() << " " << output_facets.size() << " " << 0 << std::endl;
