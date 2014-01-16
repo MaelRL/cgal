@@ -39,11 +39,12 @@ public:
   double& c() { return m_c; }
 
 public:
-  virtual Metric compute_metric(const Point_3 &p) const {
+  virtual Metric compute_metric(const Point_3 &p) const
+  {
     return this->build_metric(Vector_3(1, 0, 0),
-                  Vector_3(0, 1, 0),
-                  Vector_3(0, 0, 1),
-                  m_a, m_b, m_c);
+                              Vector_3(0, 1, 0),
+                              Vector_3(0, 0, 1),
+                              m_a, m_b, m_c);
   }
 
   // this function is used to report the setting of the metric

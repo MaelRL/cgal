@@ -1602,7 +1602,7 @@ public:
         for (; pi != pend && nbdone < nb; pi++)
         {
           if(nbdone % 100 == 0)
-            this->clean_stars();
+            clean_stars();
 
           std::size_t this_id = m_stars.size();
           int id = -1;
@@ -1649,7 +1649,7 @@ public:
             ++done;
           }
         }
-        this->clean_stars();
+        clean_stars();
 #ifdef ANISO_VERBOSE
         std::cout << ") done ("<< done << " points)." << std::endl;
 #endif
@@ -3313,8 +3313,8 @@ public:
                    const int star_id = -1/*only this one*/) const 
       {
         GLboolean was = (::glIsEnabled(GL_LIGHTING));
-        if(!was)
-          ::glEnable(GL_LIGHTING);
+        if(was)
+          ::glDisable(GL_LIGHTING);
 
         bool draw_all = (star_id < 0);
         std::size_t start = draw_all ? 0 : star_id;
@@ -3338,11 +3338,11 @@ public:
             const Point_3& pb = transform_from_star_point(f.first->vertex((f.second+2)%4)->point(), star);
             const Point_3& pc = transform_from_star_point(f.first->vertex((f.second+3)%4)->point(), star);
             if(is_above_plane<K>(plane, pa, pb, pc))
-              gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 205., 175., 149);
+              gl_draw_triangle<K>(pa, pb, pc, EDGES_AND_FACES, 24, 127, 227);
           }
         }
-        if(!was)
-          ::glDisable(GL_LIGHTING);
+        if(was)
+          ::glEnable(GL_LIGHTING);
 
 
         if(refinement_debug_coloring)

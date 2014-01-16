@@ -48,7 +48,6 @@ struct No_condition
   }
 };
 
-//kexact to add maybe todo
 template<typename K, typename RefinementCondition = No_condition<typename K::Point_3> >
 class Anisotropic_mesher_3
 {

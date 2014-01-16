@@ -62,7 +62,26 @@ public:
   const std::size_t max_times_to_try_in_picking_region;
 
 public:
-  void report(typename std::ofstream &fx) const
+  void report() const
+  {
+    std::cout << "general criteria : " << std::endl;
+    std::cout << "approximation error :               " << approximation << std::endl;
+    std::cout << "maximum distortion (gamma_0):       " << distortion << std::endl;
+    std::cout << "checking threshold (beta):          " << beta << std::endl;
+    std::cout << "picking region radius (delta):      " << delta << std::endl;
+    std::cout << "max. time to try in picking region: " << max_times_to_try_in_picking_region << std::endl;
+
+    std::cout << "facet criteria : " << std::endl;
+    std::cout << "radius-edge-ratio (rho_0):          " << facet_radius_edge_ratio << std::endl;
+    std::cout << "maximum circumradius (r_0):         " << facet_circumradius << std::endl;
+
+    std::cout << "cell criteria : " << std::endl;
+    std::cout << "sliverity ratio (sigma_0):          " << sliverity << std::endl;
+    std::cout << "radius-edge-ratio (rho_0):          " << cell_radius_edge_ratio << std::endl;
+    std::cout << "maximum circumradius (r_0):         " << cell_circumradius << std::endl;
+  }
+
+  void report(std::ofstream& fx) const
   {
     fx << "general criteria : " << std::endl;
     fx << "approximation error :               " << approximation << std::endl;

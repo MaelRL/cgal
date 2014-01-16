@@ -639,10 +639,10 @@ public:
               return true;
 #ifdef ANISO_USE_EXACT
             if(!compute_exact_dual_intersection(f, surface_delaunay_ball_center))
-              std::cerr << "Warning : is_restricted exact can't find an intersection point.\n";
+              std::cout << "Warning : is_restricted exact can't find an intersection point.\n";
 #else
             if(!compute_dual_intersection(f, surface_delaunay_ball_center))
-              std::cerr << "Warning : is_restricted can't find an intersection point.\n";
+              std::cout << "Warning : is_restricted can't find an intersection point.\n";
 #endif
             return true;
           }
@@ -1388,9 +1388,9 @@ public:
             {
               if(fc != cp)
               {
-                std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                std::cerr << "fc : " << fc << std::endl;
-                std::cerr << "cp : " << cp << std::endl;
+                std::cout << "fc != cp with cp on the facet..." << std::endl;
+                std::cout << "fc : " << fc << std::endl;
+                std::cout << "cp : " << cp << std::endl;
               }
               if(o1 == o2) //n points towards ps3
                 n = -n;
@@ -1491,9 +1491,9 @@ public:
               {
                 if(fc != cp)
                 {
-                  std::cerr << "fc != cp with cp on the facet...[exact "<<f1<< " "<<f2 <<"]" << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
+                  std::cout << "fc != cp with cp on the facet...[exact "<<f1<< " "<<f2 <<"]" << std::endl;
+                  std::cout << "fc : " << fc << std::endl;
+                  std::cout << "cp : " << cp << std::endl;
                 }
                 if(o1 == o2) //n points towards ps3
                   n = -n;
@@ -1523,30 +1523,30 @@ public:
             set_facet_cache(facet, p);
           else if(verbose)
           {
-            std::cerr.precision(15);
-            std::cerr << "Oops! no intersection [exact]" << std::endl;
-            std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
-            std::cerr << "Star:  " << m_center->info() << std::endl;
-            std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((offset + 1) % 4)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((offset + 1) % 4)->point())) << std::endl;
-            std::cerr << c1->vertex((offset + 2) % 4)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((offset + 2) % 4)->point())) << std::endl;
-            std::cerr << c1->vertex((offset + 3) % 4)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex((offset + 3) % 4)->point())) << std::endl;
-            std::cerr << c1->vertex(offset)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c1->vertex(offset)->point()));
-            std::cerr << " (.second)" << std::endl;
+            std::cout.precision(15);
+            std::cout << "Oops! no intersection [exact]" << std::endl;
+            std::cout << "Case:  " << f1 << " " << f2 << std::endl;
+            std::cout << "Star:  " << m_center->info() << std::endl;
+            std::cout << "Facet 1: " << std::endl;
+            std::cout << c1->vertex((offset + 1) % 4)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c1->vertex((offset + 1) % 4)->point())) << std::endl;
+            std::cout << c1->vertex((offset + 2) % 4)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c1->vertex((offset + 2) % 4)->point())) << std::endl;
+            std::cout << c1->vertex((offset + 3) % 4)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c1->vertex((offset + 3) % 4)->point())) << std::endl;
+            std::cout << c1->vertex(offset)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c1->vertex(offset)->point()));
+            std::cout << " (.second)" << std::endl;
 
-            std::cerr << "Cell 2: " << std::endl;
-            std::cerr << c2->vertex(0)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(0)->point())) << std::endl;
-            std::cerr << c2->vertex(1)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(1)->point())) << std::endl;
-            std::cerr << c2->vertex(2)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(2)->point())) << std::endl;
-            std::cerr << c2->vertex(3)->info() << " ";
-            std::cerr << to_exact(m_metric.inverse_transform(c2->vertex(3)->point())) << std::endl;
+            std::cout << "Cell 2: " << std::endl;
+            std::cout << c2->vertex(0)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c2->vertex(0)->point())) << std::endl;
+            std::cout << c2->vertex(1)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c2->vertex(1)->point())) << std::endl;
+            std::cout << c2->vertex(2)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c2->vertex(2)->point())) << std::endl;
+            std::cout << c2->vertex(3)->info() << " ";
+            std::cout << to_exact(m_metric.inverse_transform(c2->vertex(3)->point())) << std::endl;
           }
           if(super_verbose)
             std::cout << "Normal ("<< n <<")" << std::endl;
@@ -1699,9 +1699,9 @@ public:
               {
                 if(fc != cp)
                 {
-                  std::cerr << "fc != cp with cp on the facet..." << std::endl;
-                  std::cerr << "fc : " << fc << std::endl;
-                  std::cerr << "cp : " << cp << std::endl;
+                  std::cout << "fc != cp with cp on the facet..." << std::endl;
+                  std::cout << "fc : " << fc << std::endl;
+                  std::cout << "cp : " << cp << std::endl;
                 }
                 if(o1 == o2) //n points towards ps3
                   n = -n;
@@ -1725,41 +1725,41 @@ public:
             set_facet_cache(facet, p);
           else if(verbose)
           {
-            std::cerr.precision(15);
-            std::cerr << "Oops! no intersection!" << std::endl;
-            std::cerr << "Case:  " << f1 << " " << f2 << std::endl;
-            std::cerr << "Star:  " << m_center->info() << std::endl;
-            std::cerr << "Facet 1: " << std::endl;
-            std::cerr << c1->vertex((offset + 1) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((offset + 1) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex((offset + 2) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((offset + 2) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex((offset + 3) % 4)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex((offset + 3) % 4)->point()) << std::endl;
-            std::cerr << c1->vertex(offset)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c1->vertex(offset)->point()) << " (.second)" << std::endl;
-            std::cerr << "Cell 2: " << std::endl;
-            std::cerr << c2->vertex(0)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
-            std::cerr << c2->vertex(1)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(1)->point()) << std::endl;
-            std::cerr << c2->vertex(2)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(2)->point()) << std::endl;
-            std::cerr << c2->vertex(3)->info() << " ";
-            std::cerr << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
-            std::cerr << "cp1/cp2" << std::endl;
+            std::cout.precision(15);
+            std::cout << "Oops! no intersection!" << std::endl;
+            std::cout << "Case:  " << f1 << " " << f2 << std::endl;
+            std::cout << "Star:  " << m_center->info() << std::endl;
+            std::cout << "Facet 1: " << std::endl;
+            std::cout << c1->vertex((offset + 1) % 4)->info() << " ";
+            std::cout << m_metric.inverse_transform(c1->vertex((offset + 1) % 4)->point()) << std::endl;
+            std::cout << c1->vertex((offset + 2) % 4)->info() << " ";
+            std::cout << m_metric.inverse_transform(c1->vertex((offset + 2) % 4)->point()) << std::endl;
+            std::cout << c1->vertex((offset + 3) % 4)->info() << " ";
+            std::cout << m_metric.inverse_transform(c1->vertex((offset + 3) % 4)->point()) << std::endl;
+            std::cout << c1->vertex(offset)->info() << " ";
+            std::cout << m_metric.inverse_transform(c1->vertex(offset)->point()) << " (.second)" << std::endl;
+            std::cout << "Cell 2: " << std::endl;
+            std::cout << c2->vertex(0)->info() << " ";
+            std::cout << m_metric.inverse_transform(c2->vertex(0)->point()) << std::endl;
+            std::cout << c2->vertex(1)->info() << " ";
+            std::cout << m_metric.inverse_transform(c2->vertex(1)->point()) << std::endl;
+            std::cout << c2->vertex(2)->info() << " ";
+            std::cout << m_metric.inverse_transform(c2->vertex(2)->point()) << std::endl;
+            std::cout << c2->vertex(3)->info() << " ";
+            std::cout << m_metric.inverse_transform(c2->vertex(3)->point()) << std::endl;
+            std::cout << "cp1/cp2" << std::endl;
             if(f1 && f2)
             {
               Point_3 cp1 = m_metric.inverse_transform(c1->circumcenter(*(m_traits)));
               Point_3 cp2 = m_metric.inverse_transform(c2->circumcenter(*(m_traits)));
-              std::cerr << cp1 << " " << cp2 << std::endl;
-              std::cerr << "is inside : " << is_inside(c1) << " " << is_inside(c2) << std::endl;
-              std::cerr << "check : " << m_pConstrain->side_of_constraint(cp1) << " " << m_pConstrain->side_of_constraint(cp2) << std::endl;
+              std::cout << cp1 << " " << cp2 << std::endl;
+              std::cout << "is inside : " << is_inside(c1) << " " << is_inside(c2) << std::endl;
+              std::cout << "check : " << m_pConstrain->side_of_constraint(cp1) << " " << m_pConstrain->side_of_constraint(cp2) << std::endl;
             }
             else
             {
-              std::cerr << m_metric.inverse_transform(c1->circumcenter(*(m_traits))) << std::endl;
-              std::cerr << m_metric.inverse_transform(offset_point) << std::endl;
+              std::cout << m_metric.inverse_transform(c1->circumcenter(*(m_traits))) << std::endl;
+              std::cout << m_metric.inverse_transform(offset_point) << std::endl;
             }
           }
           if(super_verbose)
@@ -1804,7 +1804,7 @@ public:
             TPoint_3 tp = m_metric.transform(p);
             if(std::sqrt(CGAL::squared_distance(tccf, tp)) > circumradius)
             {
-              std::cerr << "intersection point outside of picking ball in compute_steiner_dual_intersection" << std::endl;
+              std::cout << "intersection point outside of picking ball in compute_steiner_dual_intersection" << std::endl;
 #ifdef ANISO_DEBUG_STEINER_DUAL
               std::cout << "that should not happen !" << std::endl;
               std::cout << "candidates : " << std::endl;
