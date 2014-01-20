@@ -58,12 +58,12 @@ void output_off(const std::vector<Star*>& stars,
     points.push_back(star->center_point());
     match_indices[star->index_in_star_set()] = off_index++;
 
-    typename Star::Cell_handle_handle ci = star->begin_star_cells();
-    typename Star::Cell_handle_handle ciend = star->end_star_cells();
+    typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
+    typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
     for (; ci != ciend; ++ci)
     {
       typename Star::Cell_handle c = *ci;
-      if(star->is_infinite(c))
+      if(!star->is_inside(*ci))
         continue;
       if(!consistent_only || is_consistent(stars, c))
       {
