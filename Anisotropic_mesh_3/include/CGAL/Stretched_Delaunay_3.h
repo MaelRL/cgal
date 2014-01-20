@@ -1914,10 +1914,16 @@ public:
 
       bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet)
       {
-        TPoint_3 fc = compute_circumcenter(facet);
+        Point_3 c;
+#ifdef ANISO_USE_EXACT
+        compute_exact_dual_intersection(facet, c);
+#else
+        compute_dual_intersection(facet, c);
+#endif
+        TPoint_3 tc = m_metric.transform(c);
         TPoint_3 tq = facet.first->vertex((facet.second + 1) % 4)->point();
         typename Traits::Compute_squared_distance_3 o = m_traits->compute_squared_distance_3_object();
-        return o(fc, tp) < o(fc, tq);
+        return o(tc, tp) < o(tc, tq);
       }
 
       bool is_encroached(const Point_3 &p, Facet &facet)

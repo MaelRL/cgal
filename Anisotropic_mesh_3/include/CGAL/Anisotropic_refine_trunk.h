@@ -213,7 +213,7 @@ public:
 
       if(star->is_facet_encroached(transform_to_star_point(si->center_point(), star), facet))
       {
-#ifdef BLABLA //todo
+#ifdef ANISO_DEBUG_ENCROACHMENT
         std::cout << "Facet ";
         std::cout << facet.first->vertex((facet.second + 1)%4)->info() << " ";
         std::cout << facet.first->vertex((facet.second + 2)%4)->info() << " ";
