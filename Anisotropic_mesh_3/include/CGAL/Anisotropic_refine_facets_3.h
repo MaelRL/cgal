@@ -170,21 +170,17 @@ public:
 
   bool test_point_conflict_from_superior_(const Point_3& p)
   {
-    //brute force encroachment check for now. Something better todo
-    Star_iterator sit = this->m_stars.begin();
-    Star_iterator sitend = this->m_stars.end();
-    for(;sit!=sitend; ++sit)
+    Index_set modified_stars;
+    this->simulate_insert_to_stars(p, modified_stars);
+    typename Index_set::const_iterator si = modified_stars.begin();
+    typename Index_set::const_iterator siend = modified_stars.end();
+    for (; si != siend; si++)
     {
-      Star_handle star = this->get_star(sit);
+      Star_handle star = this->get_star(si);
       Facet f;
       if(star->is_encroached(p, f))
       {
-        std::cout << "conflict" << std::endl;
-        std::cout << p << " encroaches " << f.first->vertex((f.second+1)%4)->info();
-        std::cout << " " << f.first->vertex((f.second+2)%4)->info() << " ";
-        std::cout << f.first->vertex((f.second+3)%4)->info() << std::endl;
         m_refine_queue.push_encroachment(star, f, star->compute_volume(f));
-        m_refine_queue.print();
         return true;
       }
     }
