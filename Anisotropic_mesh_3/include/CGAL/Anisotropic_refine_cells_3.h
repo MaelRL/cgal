@@ -700,8 +700,7 @@ private:
 
     while(true)
     {
-      TPoint_3 tp = random(circumcenter,
-        ((FT)tried_times / this->m_criteria->max_times_to_try_in_picking_region) * circumradius);
+      TPoint_3 tp = random(circumcenter, circumradius);
       p = this->transform_from_star_point(tp, star);
 
       if(is_valid_point(p, sq_radiusbound, star, new_star))

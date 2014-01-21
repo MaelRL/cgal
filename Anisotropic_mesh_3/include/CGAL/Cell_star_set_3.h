@@ -650,8 +650,7 @@ public:
     {
       pick_count++;
 
-      TPoint_3 tp = random(circumcenter,
-        ((FT)tried_times / m_criteria->max_times_to_try_in_picking_region) * circumradius);
+      TPoint_3 tp = random(circumcenter, circumradius);
       Point_3 p = transform_from_star_point(tp, star);
 
       if(is_valid_point(p, sq_radiusbound, star, new_star))
