@@ -138,7 +138,7 @@ public:
 
   bool test_point_conflict_from_superior_(const Point_3& p)
   {
-    return false; //not used atm, but it should be [return (dist(tp, tc) < dist(tc, tv0))]
+    return false; //not used atm, but it would be [return (dist(tp, tc) < dist(tc, tv0))]
   }
 
   bool insert_(const Point_3& p)
@@ -242,25 +242,19 @@ public:
     for (; cit != citend; cit++)
       std::cout << " " << *cit;
     std::cout << std::endl;
-    /*
+
     m_refine_queue.print();
-    */
     int count1 = m_refine_queue.count();
 
-    /*
     m_refine_queue.print_queue(2);
 
     std::cout << "fill check" << std::endl;
-    */
+    fill_refinement_queue(m_stars, -1, true);
 
-    //fill_refinement_queue(m_stars, -1, true);
-
-    /*
     std::cout << "post check queue : " << std::endl;
     m_refine_queue.print();
-    */
+
     int count2 = m_refine_queue.count();
-    /*
     m_refine_queue.print_queue(2);
 
     std::cout << "double check" << std::endl;
@@ -268,10 +262,11 @@ public:
     std::cout << "post double check queue : " << std::endl;
     m_refine_queue.print();
     int count3 = m_refine_queue.count();
-    */
+
     if(count1 != count2)
       m_refine_queue.clear();
     // --------------------------------------------------------------------------------
+    */
 
     return true;
   }
@@ -471,44 +466,12 @@ private:
         }
       } // for cells
     } // for stars
+
+    std::cout << this->m_stars.size() << " ";
     m_refine_queue.print();
   }
 
 //Point computation
-  Point_3 compute_random_steiner_point(const Star_handle star,
-                                       const Facet& facet,
-                                       const TPoint_3& tccf,
-                                       const FT& circumradius) const
-  {
-    typename Star::Traits::Compute_random_point_3 random =
-             star->traits()->compute_random_point_3_object();
-
-    bool found_acceptable_steiner_point = false;
-    int failures_count = 0;
-    Point_3 steiner_point;
-    TPoint_3 random_point_within_sphere_1;
-    TPoint_3 random_point_within_sphere_2;
-
-    while(!found_acceptable_steiner_point)
-    {
-      if(++failures_count > 100)
-        std::cout << "failures_count is getting big : " << failures_count << std::endl;
-
-      random_point_within_sphere_1 = random(tccf, circumradius);
-      random_point_within_sphere_2 = random(tccf, circumradius);
-
-      found_acceptable_steiner_point =
-            star->compute_steiner_dual_intersection(steiner_point,
-                                                    random_point_within_sphere_1,
-                                                    random_point_within_sphere_2,
-                                                    tccf,
-                                                    facet,
-                                                    circumradius,
-                                                    failures_count);
-    }
-    return steiner_point;
-  }
-
   template<typename Element, typename OneMap>
   void add_to_map(const Element& e, OneMap& m) const
   {
@@ -730,7 +693,6 @@ private:
     std::cout << cell->vertex(3)->info() << " " << cell->vertex(3)->point() << std::endl;
     std::cout << "insert or snap : " << p << std::endl;
 
-    std::cout << m_stars[0]->bbox() << std::endl;
     Cell_handle useless;
     std::cout << "check conflicts : " << std::endl;
     std::cout << m_stars[cell->vertex(0)->info()]->is_conflicted(p, useless) << " "; //no transf coz iso met

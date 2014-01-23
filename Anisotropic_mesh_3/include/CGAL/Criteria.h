@@ -110,7 +110,7 @@ public:
                 const FT f_radius_edge_ratio_ = 3.0,
                 const FT f_circumradius_ = 1.0,
                 const FT sliverity_ = 0.2,
-                const FT c_radius_edge_ratio_ = 3.0, //todo proper values
+                const FT c_radius_edge_ratio_ = 3.0,
                 const FT c_circumradius_ = 1.0,
                 const bool c_consistency_ = false,
                 const FT beta_ = 2.5,

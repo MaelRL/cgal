@@ -524,9 +524,6 @@ public:
 
       virtual void compute_poles(std::set<Point_3>& poles) const
       {
-        //m_poles.clear();
-        //compute_triangulation_poles(m_c3t3, std::inserter(m_poles, m_poles.end()), get_bbox());
-        //return m_poles;
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 
@@ -584,7 +581,6 @@ public:
 
       Constrain_surface_3_implicit(const FT error = 1e-5)
         : Base(),
-          //m_poles(),
           error_bound(error),
           m_cache_max_curvature(false),
           m_cache_min_curvature(false) {}

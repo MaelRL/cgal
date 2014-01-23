@@ -248,7 +248,8 @@ void output_surface_medit(const std::vector<Star*>& stars,
 
 template<typename Star>
 void output_medit(const std::vector<Star*>& stars,
-                  std::ofstream& fx)
+                  std::ofstream& fx,
+                  const bool consistent_only = true)
 {
   std::cout << "Saving medit..." << std::endl;
   unsigned int nb_inconsistent_stars = 0;
@@ -272,7 +273,7 @@ void output_medit(const std::vector<Star*>& stars,
     {
       if(!star->is_inside(*ci))
         continue;
-      if(is_consistent(stars, *ci))
+      if(!consistent_only || is_consistent(stars, *ci))
         output_cells.insert((*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(),
                             (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
       else
