@@ -102,6 +102,7 @@ namespace CGAL{
 
     protected:
       mutable C3t3 m_c3t3;
+      FT error_bound;
 
       mutable double m_max_curvature;
       mutable double m_min_curvature;
@@ -195,7 +196,8 @@ public:
 
         Vector_3 r_l(rp, lp);
         FT sqdist = r_l.squared_length();
-        FT tol = 1e-16;
+        FT r = this->get_bounding_radius();
+        FT tol = r*r*error_bound*error_bound;
         while (sqdist > tol)
         {
           Oriented_side mv = side_of_constraint(mp);
@@ -474,7 +476,7 @@ public:
           Function fct = (Function)(&Self::implicit_function);
           FT r = this->get_bounding_radius();
           Function_wrapper fw(this, fct);
-          Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
+          Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r), error_bound);
 
           Aniso_sizing_field<Self> size(this);
           Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
@@ -505,7 +507,7 @@ public:
         Function fct = (Function)(&Self::implicit_function);
         FT r = this->get_bounding_radius();
         Function_wrapper fw(this, fct);
-        Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r));
+        Mesh_domain domain(fw, typename K::Sphere_3(CGAL::ORIGIN, r*r), error_bound);
         Mesh_criteria criteria(CGAL::parameters::facet_angle = 25.,
                                CGAL::parameters::facet_size = r * 0.05,
                                CGAL::parameters::facet_distance = approx,
@@ -580,9 +582,10 @@ public:
 
       virtual Constrain_surface_3_implicit* clone() const = 0; // Uses the copy constructor
 
-      Constrain_surface_3_implicit()
+      Constrain_surface_3_implicit(const FT error = 1e-5)
         : Base(),
           //m_poles(),
+          error_bound(error),
           m_cache_max_curvature(false),
           m_cache_min_curvature(false) {}
 
