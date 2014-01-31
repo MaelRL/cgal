@@ -3152,7 +3152,6 @@ public: //debug stuff
       std::set<Facet_ijk> done;
       for(std::size_t i = 0; i <number_of_stars(); i++)
       {
-        FT max_distortion = 0.;
         Star_handle star = m_stars[i];
         if(!star->is_surface_star())
           continue;
@@ -3167,25 +3166,25 @@ public: //debug stuff
           if(!is_insert_successful.second)
             continue;
 
-          max_distortion = (std::max)(compute_distortion(f), max_distortion);
+          FT facet_distortion = compute_distortion(f);
 
           if(is_consistent(f))
           {
             nb_coh++;
-            avg_coh_dis += max_distortion;
-            if(max_distortion > max_coh_dis)
-              max_coh_dis = max_distortion;
-            if(max_distortion < min_coh_dis)
-              min_coh_dis = max_distortion;
+            avg_coh_dis += facet_distortion;
+            if(facet_distortion > max_coh_dis)
+              max_coh_dis = facet_distortion;
+            if(facet_distortion < min_coh_dis)
+              min_coh_dis = facet_distortion;
           }
           else
           {
             nb_incoh++;
-            avg_incoh_dis += max_distortion;
-            if(max_distortion > max_incoh_dis)
-              max_incoh_dis = max_distortion;
-            if(max_distortion < min_incoh_dis)
-              min_incoh_dis = max_distortion;
+            avg_incoh_dis += facet_distortion;
+            if(facet_distortion > max_incoh_dis)
+              max_incoh_dis = facet_distortion;
+            if(facet_distortion < min_incoh_dis)
+              min_incoh_dis = facet_distortion;
           }
         }
       }
@@ -3206,18 +3205,6 @@ public: //debug stuff
     double star_distortion(Star_handle star) const
     {
       FT max_distortion = 0.;
-
-      /*
-      typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
-      typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
-      for(; fit != fitend; fit++)
-      {
-        Facet f = *fit;
-        max_distortion = (std::max)(max_distortion, compute_distortion(f));
-      }
-      return max_distortion;
-      */
-
       typename std::vector<Vertex_handle>::iterator vit = star->begin_neighboring_vertices();
       typename std::vector<Vertex_handle>::iterator vend = star->end_neighboring_vertices();
       for(; vit!=vend; ++vit)

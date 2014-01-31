@@ -1,10 +1,11 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_REFINE_TRUNK_H
 #define CGAL_ANISOTROPIC_MESH_3_REFINE_TRUNK_H
 
-#include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Constrain_surface_3.h>
-#include <CGAL/Metric_field.h>
 #include <CGAL/Criteria.h>
+#include <CGAL/Metric_field.h>
+#include <CGAL/Stretched_Delaunay_3.h>
+#include <CGAL/Star_consistency.h>
 
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
@@ -256,11 +257,11 @@ public:
 
   std::size_t count_restricted_facets() const
   {
-    typename std::set<Facet_ijk> facets;
+    std::set<Facet_ijk> facets;
     for(unsigned int i = 0; i < m_stars.size(); i++)
     {
-      typename Star::Facet_set_iterator fit = m_stars[i]->begin_restricted_facets();
-      typename Star::Facet_set_iterator fitend = m_stars[i]->end_restricted_facets();
+      Facet_set_iterator fit = m_stars[i]->begin_restricted_facets();
+      Facet_set_iterator fitend = m_stars[i]->end_restricted_facets();
       for(; fit != fitend; fit++)
         facets.insert(Facet_ijk(*fit));
     }
@@ -299,6 +300,25 @@ public:
     return distortion;
   }
 
+  FT star_distortion(Star_handle star) const
+  {
+    FT max_distortion = 0.;
+    Star_iterator vit = star->begin_neighboring_vertices();
+    Star_iterator vend = star->end_neighboring_vertices();
+    for(; vit!=vend; ++vit)
+    {
+      if(is_infinite_vertex((*vit)->info()))
+        continue;
+      if(!(m_stars[(*vit)->info()]->is_surface_star())) //todo this is bad
+        continue;
+
+      FT distortion = m_stars[(*vit)->info()]->metric().compute_distortion(star->metric());
+      max_distortion = (std::max)(distortion, max_distortion);
+    }
+
+    return max_distortion;
+  }
+
   void debug_show_distortions() const
   {
     for(std::size_t i = 0; i < m_stars.size(); ++i)
@@ -307,8 +327,8 @@ public:
       if(!s->is_surface_star())
         continue;
       std::cout << "  " << i << " : ";
-      typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
-      typename Star::Facet_set_iterator fend = s->end_restricted_facets();
+      Facet_set_iterator fit = s->begin_restricted_facets();
+      Facet_set_iterator fend = s->end_restricted_facets();
       for(; fit != fend; ++fit)
       {
         std::cout << "(";
@@ -345,13 +365,12 @@ public:
     std::set<Facet_ijk> done;
     for(std::size_t i = 0; i <number_of_stars(); i++)
     {
-      FT max_distortion = 0.;
       Star_handle star = m_stars[i];
       if(!star->is_surface_star())
         continue;
 
-      typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
-      typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+      Facet_set_iterator fit = star->begin_restricted_facets();
+      Facet_set_iterator fitend = star->end_restricted_facets();
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;
@@ -360,25 +379,25 @@ public:
         if(!is_insert_successful.second)
           continue;
 
-        max_distortion = (std::max)(compute_distortion(f), max_distortion);
+        FT facet_distortion = compute_distortion(f);
 
-        if(is_consistent(f))
+        if(is_consistent(m_stars, f))
         {
           nb_coh++;
-          avg_coh_dis += max_distortion;
-          if(max_distortion > max_coh_dis)
-            max_coh_dis = max_distortion;
-          if(max_distortion < min_coh_dis)
-            min_coh_dis = max_distortion;
+          avg_coh_dis += facet_distortion;
+          if(facet_distortion > max_coh_dis)
+            max_coh_dis = facet_distortion;
+          if(facet_distortion < min_coh_dis)
+            min_coh_dis = facet_distortion;
         }
         else
         {
           nb_incoh++;
-          avg_incoh_dis += max_distortion;
-          if(max_distortion > max_incoh_dis)
-            max_incoh_dis = max_distortion;
-          if(max_distortion < min_incoh_dis)
-            min_incoh_dis = max_distortion;
+          avg_incoh_dis += facet_distortion;
+          if(facet_distortion > max_incoh_dis)
+            max_incoh_dis = facet_distortion;
+          if(facet_distortion < min_incoh_dis)
+            min_incoh_dis = facet_distortion;
         }
       }
     }
@@ -396,35 +415,66 @@ public:
     return avg_coh_dis/(double) nb_coh;
   }
 
-  double star_distortion(Star_handle star) const
+  double average_cell_distortion(bool verbose = true) const
   {
-    FT max_distortion = 0.;
+    double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
+    double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
+    int nb_coh = 0, nb_incoh = 0;
 
-    /*
-  typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
-  typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
-  for(; fit != fitend; fit++)
-  {
-    Facet f = *fit;
-    max_distortion = (std::max)(max_distortion, compute_distortion(f));
-  }
-  return max_distortion;
-  */
-
-    typename std::vector<Vertex_handle>::iterator vit = star->begin_neighboring_vertices();
-    typename std::vector<Vertex_handle>::iterator vend = star->end_neighboring_vertices();
-    for(; vit!=vend; ++vit)
+    std::set<Cell_ijkl> done;
+    for(std::size_t i = 0; i <number_of_stars(); i++)
     {
-      if(is_infinite_vertex((*vit)->info()))
-        continue;
-      if(!(m_stars[(*vit)->info()]->is_surface_star())) //todo this is bad
+      Star_handle star = m_stars[i];
+      if(!star->is_surface_star())
         continue;
 
-      FT distortion = m_stars[(*vit)->info()]->metric().compute_distortion(star->metric());
-      max_distortion = (std::max)(distortion, max_distortion);
+      Cell_handle_handle ci = star->begin_finite_star_cells();
+      Cell_handle_handle ciend = star->end_finite_star_cells();
+      for(; ci != ciend; ci++)
+      {
+        Cell_handle c = *ci;
+        if(!star->is_inside(c))
+          continue;
+
+        std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
+        is_insert_successful = done.insert(Cell_ijkl(c));
+        if(!is_insert_successful.second)
+          continue;
+
+        FT cell_distortion = compute_distortion(c);
+
+        if(is_consistent(m_stars, c))
+        {
+          nb_coh++;
+          avg_coh_dis += cell_distortion;
+          if(cell_distortion > max_coh_dis)
+            max_coh_dis = cell_distortion;
+          if(cell_distortion < min_coh_dis)
+            min_coh_dis = cell_distortion;
+        }
+        else
+        {
+          nb_incoh++;
+          avg_incoh_dis += cell_distortion;
+          if(cell_distortion > max_incoh_dis)
+            max_incoh_dis = cell_distortion;
+          if(cell_distortion < min_incoh_dis)
+            min_incoh_dis = cell_distortion;
+        }
+      }
     }
 
-    return max_distortion;
+    if(verbose)
+    {
+      std::cout << "SUM UP OF THE DISTORTION (CELL):" << std::endl;
+      std::cout << nb_coh << " coherent cells with avg: " << avg_coh_dis/(double) nb_coh << std::endl;
+      std::cout << "min: " << min_coh_dis << " max: " << max_coh_dis << std::endl;
+      std::cout << nb_incoh << " incoherent cells with avg " << avg_incoh_dis/(double) nb_incoh << std::endl;
+      std::cout << "min: " << min_incoh_dis << " max: " << max_incoh_dis << std::endl;
+      std::cout << "---------------------------------------------" << std::endl;
+    }
+
+    return avg_coh_dis/(double) nb_coh;
   }
 
   double average_star_distortion(bool verbose = true) const
@@ -441,7 +491,7 @@ public:
 
       FT max_distortion = star_distortion(si);
 
-      if(is_consistent(si))
+      if(is_consistent(m_stars, si))
       {
         nb_coh++;
         avg_coh_dis += max_distortion;
