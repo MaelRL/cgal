@@ -449,6 +449,13 @@ public:
           facet.first->vertex((facet.second + 3) % 4)->point());
       }
 
+      inline FT compute_squared_radius_edge_ratio(const Cell_handle ch)
+      {
+        return m_criteria->compute_squared_radius_edge_ratio(
+              ch->vertex(0)->point(), ch->vertex(1)->point(),
+              ch->vertex(2)->point(), ch->vertex(3)->point());
+      }
+
       inline FT compute_circumradius_overflow(const Cell_handle &cell)
       {
         return m_criteria->circumradius_overflow(
@@ -489,6 +496,13 @@ public:
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
+      inline FT compute_squared_circumradius(const Cell_handle ch)
+      {
+        return m_criteria->compute_squared_circumradius(
+              ch->vertex(0)->point(), ch->vertex(1)->point(),
+              ch->vertex(2)->point(), ch->vertex(3)->point());
+      }
+
       inline FT compute_squared_circumradius(const TPoint_3& p1,
                                              const TPoint_3& p2,
                                              const TPoint_3& p3,
@@ -514,9 +528,18 @@ public:
           cell->vertex(2)->point(), cell->vertex(3)->point());
       }
 
-      inline FT compute_element_quality(const Point_3& p1,
-                                        const Point_3& p2,
-                                        const Point_3& p3) const
+      inline FT compute_element_quality(const TPoint_3& p1,
+                                        const TPoint_3& p2,
+                                        const TPoint_3& p3,
+                                        const TPoint_3& p4) const
+      {
+        return m_criteria->element_quality(p1, p2, p3, p4);
+      }
+
+
+      inline FT compute_element_quality(const TPoint_3& p1,
+                                        const TPoint_3& p2,
+                                        const TPoint_3& p3) const
       {
         return m_criteria->element_quality(p1, p2, p3);
       }
