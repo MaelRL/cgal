@@ -293,6 +293,9 @@ private:
           std::cout << "it ain't lying" << std::endl;
           std::cout << "cell consistency : ";
           std::cout << is_consistent(this->m_stars, true /*verbose*/, CELLS_ONLY) << std::endl;
+          std::cout << "consistency of EVERYTHING: ";
+          std::cout << is_consistent(this->m_stars, true /*verbose*/) << std::endl;
+          all_cell_histograms(this->m_stars, this->m_criteria, true);
           return false;
         }
         else
