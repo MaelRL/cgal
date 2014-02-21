@@ -73,6 +73,7 @@ private:
   Refine_queue m_refine_queue;
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
+  int m_pick_valid_skipped;
   bool m_pick_valid_causes_stop;
   int m_pick_valid_max_failures;
   mutable int vertex_with_picking_count;
@@ -122,7 +123,10 @@ public:
     else
     {
       if(need_picking_valid && this->compute_distortion(c) > this->m_criteria->distortion)
+      {
+        m_pick_valid_skipped++;
         need_picking_valid = false;
+      }
 
       bool success = compute_steiner_point(bad_cell.star, c, need_picking_valid, steiner_point);
       if(!pick_valid_output(need_picking_valid, success))
@@ -296,6 +300,10 @@ private:
           std::cout << "consistency of EVERYTHING: ";
           std::cout << is_consistent(this->m_stars, true /*verbose*/) << std::endl;
           all_cell_histograms(this->m_stars, this->m_criteria, true);
+          std::cout << "pick_valid stats: " << std::endl;
+          std::cout << "skipped: " << m_pick_valid_skipped << " ";
+          std::cout << "succeeded: " << m_pick_valid_succeeded << " ";
+          std::cout << "failed: " << m_pick_valid_failed << std::endl;
           return false;
         }
         else
@@ -741,6 +749,7 @@ public:
     m_refine_queue(),
     m_pick_valid_succeeded(0),
     m_pick_valid_failed(0),
+    m_pick_valid_skipped(0),
     m_pick_valid_causes_stop(false),
     m_pick_valid_max_failures(0),
     vertex_with_picking_count(0),
