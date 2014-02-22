@@ -40,28 +40,43 @@
 namespace CGAL{
   namespace Anisotropic_mesh_3{
 
+    struct Star_index
+    {
+      int info_;
+
+      operator const int () const { return info_;}
+      operator int& () { return info_;}
+      Star_index& operator=(const int i)
+      {
+        info_ = i;
+        return *this;
+      }
+
+      Star_index(){ info_ = -1; }
+    };
 
     template<typename K, typename KExact = K>
     class Stretched_Delaunay_3 : public CGAL::Delaunay_triangulation_3<
-      Delaunay_traits_3<K, KExact>,
-      CGAL::Triangulation_data_structure_3<
-      CGAL::Triangulation_vertex_base_with_info_3<int/*std::size_t*/, Delaunay_traits_3<K, KExact> >,
-      CGAL::Triangulation_cell_base_with_domain_info_3<Delaunay_traits_3<K, KExact>, Constrain_surface_3<K> > > >
+        Delaunay_traits_3<K, KExact>,
+        CGAL::Triangulation_data_structure_3<
+          CGAL::Triangulation_vertex_base_with_info_3<
+            Star_index,
+            Delaunay_traits_3<K, KExact> >,
+          CGAL::Triangulation_cell_base_with_domain_info_3<
+            Delaunay_traits_3<K, KExact>,
+            Constrain_surface_3<K> > > >
     {
     public:
-      typedef Delaunay_traits_3<K, KExact> Traits;
-      typedef CGAL::Delaunay_triangulation_3<
-        Traits,
-        CGAL::Triangulation_data_structure_3<
-        CGAL::Triangulation_vertex_base_with_info_3<int/*std::size_t*/, Traits>,
-        CGAL::Triangulation_cell_base_with_domain_info_3<Traits, Constrain_surface_3<K> >
-        >
-      > Base;
-      typedef Stretched_Delaunay_3<K, KExact> Self;
+      typedef Stretched_Delaunay_3<K, KExact>                       Self;
+      typedef Delaunay_traits_3<K, KExact>                          Traits;
       typedef CGAL::Triangulation_data_structure_3<
-        CGAL::Triangulation_vertex_base_with_info_3<int/*std::size_t*/, Traits>,
-        CGAL::Triangulation_cell_base_with_domain_info_3<Traits, Constrain_surface_3<K> >
-      > DS;
+                CGAL::Triangulation_vertex_base_with_info_3<
+                  Star_index,
+                  Traits >,
+                CGAL::Triangulation_cell_base_with_domain_info_3<
+                  Traits, Constrain_surface_3<K> >
+              >                                                     DS;
+      typedef CGAL::Delaunay_triangulation_3<Traits, DS>            Base;
 
       typedef int Index;
 
