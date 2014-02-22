@@ -35,7 +35,7 @@
 #include <CGAL/Metric_field.h>
 #include <CGAL/Criteria.h>
 #include <CGAL/Facet_refine_queue.h>
-#include <CGAL/IO/Output_facets.h>
+#include <CGAL/IO/Star_set_output.h>
 #include <CGAL/Polyhedron_painter.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
@@ -2270,9 +2270,8 @@ public:
         fx.close();
       }
 
-
       void output(const char* filename = "points.surface.off",
-                  const bool consistent_only = true) 
+                  const bool consistent_only = true)
       {
         std::cout << "Saving " << filename << "...";
         std::string file(filename);
@@ -2280,72 +2279,13 @@ public:
           std::cout << "Warning : file name does not end with .off" << std::endl;
 
         std::ofstream fx(filename);
-        output(fx,consistent_only);
+        output_off(m_stars, fx, consistent_only);
       }
 
-      void output(std::ofstream& fx, const bool consistent_only = true)
+      void output(std::ofstream& out,
+                  const bool consistent_only = true)
       {
-        std::cout << "Saving " << "...";
-        std::map<Index, int> match_indices;//because we won't use all of them
-        int off_index = 0; // the corresponding index in .off 
-        std::vector<Point_3> points;
-        Output_facets output_facets;
-
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        for (; si != siend; ++si) 
-        {
-          Star_handle star = *si;
-
-          points.push_back(star->center_point());
-          match_indices[star->index_in_star_set()] = off_index++;
-
-          typename Star::Facet_set_iterator fi = star->begin_restricted_facets();
-          typename Star::Facet_set_iterator fiend = star->end_restricted_facets();
-          for (; fi != fiend; ++fi) 
-          {
-            Point_3 cc;
-            star->compute_dual_intersection(*fi, cc);
-
-            bool consistent = true;
-            if(consistent_only)
-            {
-              for (int i = 1; i <= 3; i++) 
-              {
-                Vertex_handle v = fi->first->vertex((fi->second + i) % 4);
-                if (v == star->center())
-                  continue;
-                if (!m_stars[v->info()]->is_surface_star())
-                  continue;
-                if (!m_stars[v->info()]->has_facet(*fi)) 
-                {
-                  consistent = false;
-                  break;
-                }
-              }
-            }
-            if (consistent)
-              output_facets.insert(fi->first->vertex((fi->second + 1) % 4)->info(),
-                                   fi->first->vertex((fi->second + 2) % 4)->info(),
-                                   fi->first->vertex((fi->second + 3) % 4)->info());
-          }
-        }
-
-        fx << "OFF" << std::endl;
-        fx << points.size() << " " << output_facets.size() << " " << 0 << std::endl;
-        for(unsigned int i = 0; i < points.size(); i++)
-          fx << points[i] << std::endl;
-
-        Output_facets::Facet_handle ofi = output_facets.begin();
-        Output_facets::Facet_handle ofiend = output_facets.end();
-        for (; ofi != ofiend; ofi++)
-        {
-          fx << "3  " << match_indices[ofi->vertices[0] ] 
-             << " "   << match_indices[ofi->vertices[1] ] 
-             << " "   << match_indices[ofi->vertices[2] ] << std::endl;
-        }
-        fx.close();
-        std::cout << "done.\n";
+        output_off(m_stars, out, consistent_only);
       }
 
       // warning : this function empties the priority queue
@@ -2415,35 +2355,6 @@ public:
       //  }
       //  fx.close();
       //}
-
-      void output_star_set()
-      {
-        typename std::ofstream fx("starset.mesh");
-        fx << "MeshVersionFormatted 1\n\n";
-        fx << "Dimension\n3" << std::endl;
-
-        fx << "Vertices" << std::endl;
-        fx << (m_stars.size()) << std::endl;
-        for (int i = 0; i < (int)m_stars.size(); i++)
-          fx << m_stars[i]->center_point() << " " << i << std::endl;
-  
-        fx << "Tetrahedra" << std::endl;
-        fx << number_of_tets_in_star_set() << std::endl;
-        for (int i = 0; i < (int)m_stars.size(); i++)
-        {
-          Star_handle si = m_stars[i];
-          typename Star::Cell_handle_handle cit = si->begin_finite_star_cells();
-          typename Star::Cell_handle_handle cend = si->end_finite_star_cells();
-          for(; cit != cend; cit++)
-          {
-            Cell_handle c = *cit;
-            //if(si->is_inside(c))
-              fx << c->vertex(0)->info() << " " << c->vertex(1)->info() << " "
-                 << c->vertex(2)->info() << " " << c->vertex(3)->info() << " " 
-                 << i /*color*/ << std::endl;
-          }
-        }
-      }
 
       void output_surface_star_set(const char* filename) const
       {

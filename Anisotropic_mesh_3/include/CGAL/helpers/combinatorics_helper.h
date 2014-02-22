@@ -41,6 +41,7 @@ public :
   std::size_t size() const { return ssize; }
   void sort() { std::sort(m_simplex.begin(), m_simplex.end()); }
   boost::array<int, ssize>& vertices() { return m_simplex; }
+  const boost::array<int, ssize>& vertices() const { return m_simplex; }
 
   int vertex(const std::size_t index) const
   {
@@ -145,7 +146,9 @@ public:
   Facet_ijk(){}
   Facet_ijk(int a, int b, int c)
   {
-    vertices()[0] = a; vertices()[1] = b; vertices()[2] = c;
+    vertices()[0] = a;
+    vertices()[1] = b;
+    vertices()[2] = c;
     sort();
   }
 
@@ -163,11 +166,12 @@ class Cell_ijkl : public Ordered_simplex_base<4>
 {
 public:
   Cell_ijkl(){}
-
   Cell_ijkl(int a, int b, int c, int d)
   {
-    vertices()[0] = a; vertices()[1] = b;
-    vertices()[2] = c; vertices()[3] = d;
+    vertices()[0] = a;
+    vertices()[1] = b;
+    vertices()[2] = c;
+    vertices()[3] = d;
     sort();
   }
 

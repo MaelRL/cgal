@@ -21,9 +21,8 @@
 #include <CGAL/Criteria.h>
 #include <CGAL/Metric_field.h>
 #include <CGAL/Stretched_Delaunay_3.h>
-#include <CGAL/IO/Output_facets.h>
-#include <CGAL/IO/Output_cells.h>
 
+#include <CGAL/IO/Star_set_output.h>
 #include <CGAL/helpers/combinatorics_helper.h>
 #include <CGAL/helpers/statistics_helper.h>
 #include <CGAL/helpers/metric_helper.h>
@@ -1173,7 +1172,7 @@ public:
       if(nbv % 1000 == 0)
       {
         std::ofstream fx("cell_mesher_partial.mesh");
-        output_medit(fx);
+        output_medit(m_stars, fx);
       }
 
       if(!refine())
@@ -1246,75 +1245,6 @@ public:
     }
   }
 
-  void save_off(const bool nb = false)
-  {
-    std::ostringstream nbs;
-    nbs << "aniso_3D_";
-    if(nb)
-      nbs << number_of_stars();
-    nbs << ".off" << std::ends;
-    std::ofstream fx(nbs.str().c_str());
-
-    std::cout << "Saving as .off...";
-    std::map<Index, int> match_indices;//because we won't use all of them
-    int off_index = 0; // the corresponding index in .off
-    std::vector<Point_3> points;
-    Output_facets output_facets;
-    Output_cells output_cells;
-
-    Star_iterator it = m_stars.begin();
-    Star_iterator itend = m_stars.end();
-    for (; it != itend; ++it)
-    {
-      Star_handle star = *it;
-
-      points.push_back(star->center_point());
-      match_indices[star->index_in_star_set()] = off_index++;
-
-      Cell_handle_handle ci = star->begin_star_cells();
-      Cell_handle_handle ciend = star->end_star_cells();
-      for (; ci != ciend; ++ci)
-      {
-        Cell_handle c = *ci;
-        if(!star->is_infinite(c) && is_consistent(c))
-        {
-          output_cells.insert(c->vertex(0)->info(), c->vertex(1)->info(),
-                              c->vertex(2)->info(), c->vertex(3)->info());
-          output_facets.insert(c->vertex(0)->info(), c->vertex(1)->info(), c->vertex(2)->info());
-          output_facets.insert(c->vertex(0)->info(), c->vertex(2)->info(), c->vertex(3)->info());
-          output_facets.insert(c->vertex(0)->info(), c->vertex(1)->info(), c->vertex(3)->info());
-          output_facets.insert(c->vertex(3)->info(), c->vertex(1)->info(), c->vertex(2)->info());
-        }
-      }
-    }
-
-    fx << "OFF" << std::endl;
-    fx << points.size() << " " << output_facets.size() << " " << output_cells.size() << std::endl;
-    for(unsigned int i = 0; i < points.size(); i++)
-      fx << points[i] << std::endl;
-
-    Output_facets::Facet_handle ofi = output_facets.begin();
-    Output_facets::Facet_handle ofiend = output_facets.end();
-    for (; ofi != ofiend; ofi++)
-    {
-      fx << "3  " << match_indices[ofi->vertices[0] ]
-         << " "   << match_indices[ofi->vertices[1] ]
-         << " "   << match_indices[ofi->vertices[2] ] << std::endl;
-    }
-
-    Output_cells::Cell_handle oci = output_cells.begin();
-    Output_cells::Cell_handle ociend = output_cells.end();
-    for (; oci != ociend; oci++)
-    {
-      fx << "4  " << match_indices[oci->vertices[0] ]
-         << " "   << match_indices[oci->vertices[1] ]
-         << " "   << match_indices[oci->vertices[2] ]
-         << " "   << match_indices[oci->vertices[3] ] << std::endl;
-    }
-
-    std::cout << "done.\n";
-  }
-
   void report()
   {
     typename std::ofstream fx("report.txt");
@@ -1371,97 +1301,6 @@ public:
     }
 
     std::cout << number_of_stars() << " stars" << std::endl;
-  }
-
-/*
-  void output()
-  {
-    typename std::ofstream fx("mesh.volume.cgal");
-    fx << 3 << std::endl;
-    fx << m_points.size() << std::endl;
-    for(int i = 0; i < (int)m_points.size(); i++)
-      fx << m_points[i] << std::endl;
-
-    Output_cells output_cells;
-    Star_iterator it = m_stars.begin();
-    Star_iterator itend = m_stars.end();
-    for(; it != itend; it++)
-    {
-      Star_handle star = *it;
-      Cell_handle_handle ci = star->begin_finite_star_cells();
-      Cell_handle_handle ciend = star->end_finite_star_cells();
-      for(; ci != ciend; ci++)
-      {
-        if(!star->is_inside(*ci))
-          continue;
-        bool consistent = true;
-        for(int i = 0; i < 4; i++)
-          if(!m_stars[(*ci)->vertex(i)->info()]->has_cell(*ci))
-          {
-            consistent = false;
-            break;
-          }
-          if(consistent)
-            output_cells.insert(
-            (*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(),
-            (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
-      }
-    }
-    Output_cells::Cell_handle oci = output_cells.begin();
-    Output_cells::Cell_handle ociend = output_cells.end();
-    fx << output_cells.size() << std::endl;
-    for(; oci != ociend; oci++)
-    {
-      fx << oci->vertices[0] + 1 << " " << oci->vertices[1] + 1 << " "
-        << oci->vertices[2] + 1 << " " << oci->vertices[3] + 1 << std::endl;
-    }
-  }
-*/
-
-  void output_medit(std::ofstream& fx)
-  {
-    std::cout << "Saving medit" << std::endl;
-    unsigned int nb_inconsistent_stars = 0;
-    fx << "MeshVersionFormatted 1\n";
-    fx << "Dimension 3\n";
-
-    fx << "Vertices\n";
-    fx << number_of_stars() << std::endl;
-    for(std::size_t i = 0; i < number_of_stars(); i++)
-      fx << get_star(i)->center_point() << " " << (i+1) << std::endl; // warning : indices start at 1 in Medit
-
-    Output_cells output_cells;
-    Star_iterator it = m_stars.begin();
-    Star_iterator itend = m_stars.end();
-    for(; it != itend; it++)
-    {
-      Star_handle star = *it;
-      Cell_handle_handle ci = star->begin_finite_star_cells();
-      Cell_handle_handle ciend = star->end_finite_star_cells();
-      for(; ci != ciend; ci++)
-      {
-        if(!star->is_inside(*ci))
-          continue;
-        if(is_consistent(*ci))
-          output_cells.insert((*ci)->vertex(0)->info(), (*ci)->vertex(1)->info(),
-                              (*ci)->vertex(2)->info(), (*ci)->vertex(3)->info());
-        else
-          nb_inconsistent_stars++;
-      }
-    }
-    fx << "Tetrahedra\n";
-    fx << output_cells.size() << std::endl;
-    Output_cells::Cell_handle oci = output_cells.begin();
-    Output_cells::Cell_handle ociend = output_cells.end();
-    for(; oci != ociend; oci++)
-    {
-      fx << (oci->vertices[0] + 1) << " " << (oci->vertices[1] + 1) << " "
-         << (oci->vertices[2] + 1) << " " << (oci->vertices[3] + 1) << " "
-         << "1" << std::endl;
-    }
-    if(nb_inconsistent_stars > 0)
-      std::cout << "Warning : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
-    std::cout << "done" << std::endl;
   }
 
 public:
