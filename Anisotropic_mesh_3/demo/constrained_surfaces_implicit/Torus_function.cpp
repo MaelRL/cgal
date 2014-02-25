@@ -4,6 +4,8 @@
 #include <Domain/Constrain_surface_3_torus.h>
 #include "Implicit_surface_type.h"
 
+using CGAL::Anisotropic_mesh_3::Constrain_surface_3_torus;
+
 class Torus_function :
   public QObject,
   public Constrained_surface_implicit_interface
