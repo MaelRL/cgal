@@ -953,15 +953,6 @@ private:
         return false;
       }
 
-      Point_3 compute_insert_or_snap_point(const typename Constrain_surface::EdgeIterator &edge) 
-      {
-        Point_3 p = edge->first;
-        Point_3 q = edge->second;
-        Point_3 c((p.x() + q.x()) / 2.0, (p.y() + q.y()) / 2.0, (p.z() + q.z()) / 2.0);
-        m_pConstrain->edge_split(edge, c);
-        return c;
-      }
-
       Point_3 compute_insert_or_snap_point(const Star_handle star, const Facet &facet) const
       {
         Point_3 p;
@@ -969,17 +960,6 @@ private:
         star->compute_exact_dual_intersection(facet, p);
 #else
         star->compute_dual_intersection(facet, p);
-#endif
-        // test encroachment
-#ifdef CHECK_EDGE_ENCROACHMENT
-        Star_iterator si = m_stars.begin();
-        Star_iterator siend = m_stars.end();
-        typename Constrain_surface::EdgeIterator encroached_edge;
-        for (; si != siend; si++)
-        {
-          if ((*si)->is_encroached(p, encroached_edge))
-            return compute_insert_or_snap_point(encroached_edge);
-        }
 #endif
         return p;
       }

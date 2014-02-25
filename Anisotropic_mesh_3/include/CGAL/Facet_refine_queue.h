@@ -91,7 +91,6 @@ namespace CGAL {
     private:
       Refine_facet_queue *queues[6];
     public:
-      std::list<std::pair<Point_3, Point_3> > edge_encroachments;
       Refine_facet_queue encroachments;
       Refine_facet_queue over_distortions;
       Refine_facet_queue over_circumradii;
@@ -187,7 +186,6 @@ namespace CGAL {
 
     public:
       Facet_refine_queue() :
-        edge_encroachments(),
         encroachments(Refine_facet_comparer()),
         over_distortions(Refine_facet_comparer()),
         over_circumradii(Refine_facet_comparer()),

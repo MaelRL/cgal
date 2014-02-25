@@ -61,18 +61,12 @@ namespace CGAL
       typedef typename K::Line_3                   Line_3;
       typedef typename K::Plane_3                  Plane_3;
 
-      typedef std::pair<Point_3, Point_3>          Edge;
-      typedef std::vector<Edge>                    EdgeList;
-      typedef typename EdgeList::iterator          EdgeIterator;
       typedef typename CGAL::Oriented_side         Oriented_side;
       typedef int                                  Surface_patch_index;
       typedef int                                  Index;
 
       typedef Point_container                      Pointset;
       typedef Colored_polyhedron                   Colored_poly;
-
-    public:
-      EdgeList edges;
 
     public:
       virtual FT get_bounding_radius() const = 0;
@@ -214,25 +208,6 @@ namespace CGAL
         return points;
       }
 
-      EdgeIterator edge_begin() { return edges.begin(); }
-      EdgeIterator edge_end() { return edges.end(); }
-      void edge_split(EdgeIterator edge, const Point_3 & c) { }
-
-      void edge_split(const Point_3 &p1, const Point_3 &p2, const Point_3 & c)
-      {
-        EdgeIterator e = edge_begin();
-        EdgeIterator eend = edge_end();
-        for (; e != eend; e++)
-        {
-          if ((fabs(e->first.x() - p1.x()) + fabs(e->first.y() - p1.y()) + fabs(e->first.z() - p1.z()) < 1e-4) &&
-            (fabs(e->second.x() - p2.x()) + fabs(e->second.y() - p2.y()) + fabs(e->second.z() - p2.z()) < 1e-4))
-          {
-            edge_split(e, c);
-            break;
-          }
-        }
-      }
-
       template<typename C3T3>
       void output_points(const C3T3& c3t3,
                          std::ofstream& fx/*.pts file*/) const
@@ -251,9 +226,7 @@ namespace CGAL
         fx.close();
       }
 
-      Constrain_surface_3() :
-      edges()
-      { }
+      Constrain_surface_3(){ }
 
       virtual ~Constrain_surface_3()
       { }

@@ -1273,30 +1273,6 @@ public:
         return m_traits->construct_circumcenter_3_object()(p0, p1, p2, p3);
       }
 
-      bool is_encroached(const Point_3 &testp, typename Constrain_surface::EdgeIterator &e)
-      {
-        typename Traits::Side_of_bounded_sphere_3 o = m_traits->side_of_bounded_sphere_3_object();
-        typename Constrain_surface::EdgeIterator ei = m_pConstrain->edge_begin();
-        typename Constrain_surface::EdgeIterator eiend = m_pConstrain->edge_end();
-        for (; ei != eiend; ei++)
-        {
-          Point_3 p1 = ei->first;
-          Point_3 p2 = ei->second;
-          if (CGAL::abs(p1.x() - testp.x()) + CGAL::abs(p1.y() - testp.y())
-            + CGAL::abs(p1.z() - testp.z()) < 1e-3)
-            continue;
-          if (CGAL::abs(p2.x() - testp.x()) + CGAL::abs(p2.y() - testp.y())
-            + CGAL::abs(p2.z() - testp.z()) < 1e-3)
-            continue;
-          if (o(p1, p2, testp) != CGAL::ON_UNBOUNDED_SIDE)
-          {
-            e = ei;
-            return true;
-          }
-        }
-        return false;
-      }
-
       bool constrain_ray_intersection(const Point_3 &p1,
                                       const Point_3 &p2,
                                       Point_3 &res) const

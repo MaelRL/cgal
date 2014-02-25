@@ -728,15 +728,6 @@ public:
     delete new_star;
   }
 
-  Point_3 compute_insert_or_snap_point(const typename Constrain_surface::EdgeIterator &edge)
-  {
-    //todo is this correct?
-    Point_3 p = edge->first;
-    Point_3 q = edge->second;
-    Point_3 c((p.x() + q.x()) / 2.0, (p.y() + q.y()) / 2.0, (p.z() + q.z()) / 2.0);
-    m_pConstrain->edge_split(edge, c);
-    return c;
-  }
 
   Point_3 compute_insert_or_snap_point(const Star_handle star, const Facet &facet)
   {

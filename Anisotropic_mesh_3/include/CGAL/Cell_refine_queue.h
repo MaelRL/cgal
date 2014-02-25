@@ -96,7 +96,6 @@ public:
 private:
   Refine_cell_queue *queues[6];
 public:
-  std::list<std::pair<Point_3, Point_3> > edge_encroachments;
   Refine_cell_queue encroachments;
   Refine_cell_queue over_distortions;
   Refine_cell_queue over_circumradii;
@@ -242,7 +241,6 @@ public:
 
 public:
   Cell_refine_queue() :
-    edge_encroachments(),
     encroachments(Refine_cell_comparer()),
     over_distortions(Refine_cell_comparer()),
     over_circumradii(Refine_cell_comparer()),
