@@ -18,7 +18,10 @@
 
 #include <CGAL/Constrain_surface_3_implicit.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_tanglecube : public Constrain_surface_3_implicit<K>
@@ -48,7 +51,8 @@ public:
   FT evaluate(const FT x, const FT y, const FT z) const 
   {
     FT xs = x / stretch;
-    return xs * xs * xs * xs - 5 * xs * xs + y * y * y * y - 5 * y * y + z * z * z * z - 5 * z * z + 11.8;
+    return xs * xs * xs * xs - 5 * xs * xs + y * y * y * y
+           - 5 * y * y + z * z * z * z - 5 * z * z + 11.8;
   }
 
   Point_container initial_points(const int nb = 8) const 
@@ -78,5 +82,8 @@ public:
     : stretch(t.stretch) {}
   ~Constrain_surface_3_tanglecube() {}
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

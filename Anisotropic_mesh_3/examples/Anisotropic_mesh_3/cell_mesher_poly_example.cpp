@@ -65,10 +65,9 @@ int main(int argc, char* argv[])
   Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, epsilon);
 
   Cell_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
-  starset.dump();
   starset.refine_all();
   std::ofstream fx("cell_mesher_poly.mesh");
-  starset.output_medit(fx);
+  starset.output(fx);
 
   delete pdomain;
   return 0;

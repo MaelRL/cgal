@@ -21,8 +21,6 @@
 
 #include <CGAL/Constrain_surface_3_implicit.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
-
 #include <CGAL/trace.h>
 #include <CGAL/Implicit_surface_3.h>
 #include <CGAL/Poisson_reconstruction_function.h>
@@ -33,6 +31,11 @@ using namespace CGAL::Anisotropic_mesh_3;
 #include <vector>
 #include <fstream>
 #include <limits>  
+
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_pointset : public Constrain_surface_3_implicit<K>
@@ -144,5 +147,8 @@ public:
   ~Constrain_surface_3_pointset() { }
 
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

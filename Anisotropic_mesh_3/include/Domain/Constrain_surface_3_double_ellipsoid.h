@@ -3,7 +3,10 @@
 
 #include <CGAL/Constrain_surface_3_implicit.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_double_ellipsoid : public Constrain_surface_3_implicit<K>
@@ -13,11 +16,13 @@ public:
   typedef typename Base::FT                FT;
   typedef typename Base::Point_3           Point_3;
   typedef typename Base::Point_container   Point_container;
+
 public:
   FT a, b, c; //first ellipsoid
   FT d, e, f; //second ellipsoid
   Point_3 s_center; //second ellipsoid center
   FT bounding_radius;
+
 public:
   void set_a(const FT& aa) { a = aa; }
   void set_b(const FT& bb) { b = bb; }
@@ -108,5 +113,8 @@ public:
 
   ~Constrain_surface_3_double_ellipsoid() { }
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

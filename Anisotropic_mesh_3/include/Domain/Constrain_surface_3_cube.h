@@ -16,18 +16,16 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CUBE_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CUBE_H
 
-#include "../CGAL/Constrain_surface_3.h"
+#include <CGAL/Constrain_surface_3.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
-
-#define PI 3.1415926535897932384626433832795
-#define DOT(a,b)  ((a).x() * (b).x() + (a).y() * (b).y() + (a).z() * (b).z())
 #define LINEAR_BLEND(p0,p1,t)  Point_3((p0).x() * (1 - t) + (p1).x() * t, \
                                        (p0).y() * (1 - t) + (p1).y() * t, \
                                        (p0).z() * (1 - t) + (p1).z() * t)
-#define SQUARE_DISTANCE(a,b)  (((a).x()-(b).x()) * ((a).x()-(b).x()) +  \
-                               ((a).y()-(b).y()) * ((a).y()-(b).y()) +  \
-                               ((a).z()-(b).z()) * ((a).z()-(b).z()))
+
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
 class Constrain_surface_3_cube : public Constrain_surface_3<K, Point_container>
@@ -42,13 +40,12 @@ public:
 
 public:
   FT radius;
-  EdgeList edges;
 
 protected:
   Object_3 intersection_of_ray(const Ray_3 &ray) const
   {
     return intersection(ray.source(), ray.source() +
-      ray.to_vector() * ((radius * 3.5) / sqrt(DOT(ray.to_vector(), ray.to_vector()))));
+      ray.to_vector() * ((radius * 3.5) / std::sqrt(ray.to_vector() * ray.to_vector())));
   }
 
   Object_3 intersection_of_segment(const Segment_3 &seg) const
@@ -56,7 +53,8 @@ protected:
     return intersection(seg.source(), seg.target());
   }
 
-  Object_3 intersection(const Point_3 &p0, const Point_3 &p1) const
+public:
+  Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3& ref) const
   {
     FT min_t = 2.0;
     if (p1.x() - p0.x() != 0.0)
@@ -135,7 +133,7 @@ protected:
       return make_object(pl);
     if (vr == CGAL::ON_ORIENTED_BOUNDARY)
       return make_object(pr);
-    FT dist = SQUARE_DISTANCE(pl, pr);
+    FT dist = CGAL::squared_distance(pl, pr);
     while (true) {
         Point_3 pm = LINEAR_BLEND(pl, pr, 0.5);
         Oriented_side vm = side_of_constraint(pm);
@@ -157,7 +155,6 @@ protected:
     }*/
   }
 
-public:
   Object_3 intersection(const Object_3 &obj) const
   {
     Segment_3 seg;
@@ -170,23 +167,32 @@ public:
       return Object_3();
   }
 
-  FT get_bounding_radius() const
+  FT get_bounding_radius() const { return radius * 2.0; }
+  std::string name() const { return std::string("Cube"); }
+
+  virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    return radius * 2.0;
+    FT rr = 1.1*radius;
+    return CGAL::Bbox_3(-rr, -rr, -rr, rr, rr, rr);
   }
 
   Oriented_side side_of_constraint(const Point_3 &p) const
   {
     if ((p.x() > radius) || (p.x() < -radius) ||
-      (p.y() > radius) || (p.y() < -radius) ||
-      (p.z() > radius) || (p.z() < -radius))
+        (p.y() > radius) || (p.y() < -radius) ||
+        (p.z() > radius) || (p.z() < -radius))
       return CGAL::ON_NEGATIVE_SIDE;
     else if ((p.x() > -radius) && (p.x() < radius) &&
-      (p.y() > -radius) && (p.y() < radius) &&
-      (p.z() > -radius) && (p.z() < radius))
+             (p.y() > -radius) && (p.y() < radius) &&
+             (p.z() > -radius) && (p.z() < radius))
       return CGAL::ON_POSITIVE_SIDE;
     else
       return CGAL::ON_ORIENTED_BOUNDARY;
+  }
+
+  void compute_poles(std::set<Point_3>& poles) const
+  {
+    poles.insert(Point_3(0.,0.,0.));
   }
 
   Point_container initial_points() const
@@ -225,6 +231,11 @@ public:
     return points;
   }
 
+  Point_container get_surface_points(unsigned int, double) const
+  {
+    return initial_points();
+  }
+
   Point_3 project(const Point_3 &p) const
   {
     Point_3 q = p;
@@ -253,54 +264,23 @@ public:
   return q;
   }
 
-  EdgeIterator edge_begin()
+  FT compute_sq_approximation(const Point_3 &p) const
   {
-    return edges.begin();
+    Point_3 pp = project(p);
+    return CGAL::sqrt(CGAL::squared_distance(p,pp));
   }
 
-  EdgeIterator edge_end()
-  {
-    return edges.end();
-  }
+  double global_max_curvature() const { return 0.;}
+  double global_min_curvature() const { return 0.;}
 
-  void edge_split(EdgeIterator edge, const Point_3 & c)
-  {
-    Edge e1 = Edge(edge->first, c);
-    Edge e2 = Edge(c, edge->second);
-    edges.erase(edge);
-    edges.push_back(e1);
-    edges.push_back(e2);
-  }
-
-  Constrain_surface_3_cube(const FT &radius_) : radius(radius_), edges()
-  {
-    Point_3 p000(-radius, -radius, -radius);
-    Point_3 p100(+radius, -radius, -radius);
-    Point_3 p010(-radius, +radius, -radius);
-    Point_3 p110(+radius, +radius, -radius);
-    Point_3 p001(-radius, -radius, +radius);
-    Point_3 p101(+radius, -radius, +radius);
-    Point_3 p011(-radius, +radius, +radius);
-    Point_3 p111(+radius, +radius, +radius);
-    edges.push_back(Edge(p000, p001));
-    edges.push_back(Edge(p001, p011));
-    edges.push_back(Edge(p011, p010));
-    edges.push_back(Edge(p010, p000));
-    edges.push_back(Edge(p100, p101));
-    edges.push_back(Edge(p101, p111));
-    edges.push_back(Edge(p111, p110));
-    edges.push_back(Edge(p110, p100));
-    edges.push_back(Edge(p000, p100));
-    edges.push_back(Edge(p001, p101));
-    edges.push_back(Edge(p010, p110));
-    edges.push_back(Edge(p011, p111));
-  }
+  Constrain_surface_3_cube(const FT &radius_) : radius(radius_) { }
   ~Constrain_surface_3_cube() { }
 };
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
 class Constrain_surface_3_flat_cube : public Constrain_surface_3<K, Point_container>
-{
+{ //this needs changes, the flat coeff has to be a member instead of hard coded and
+  //there should be a coeff for every direction
 public:
   typedef typename K::Point_3           Point_3;
   typedef typename K::Object_3          Object_3;
@@ -311,13 +291,12 @@ public:
 
 public:
   FT radius;
-  EdgeList edges;
 
 protected:
   Object_3 intersection_of_ray(const Ray_3 &ray) const
   {
     return intersection(ray.source(), ray.source() +
-      ray.to_vector() * ((radius * 3.5) / sqrt(DOT(ray.to_vector(), ray.to_vector()))));
+      ray.to_vector() * ((radius * 3.5) / std::sqrt(ray.to_vector() * ray.to_vector())));
   }
 
   Object_3 intersection_of_segment(const Segment_3 &seg) const
@@ -404,7 +383,7 @@ protected:
       return make_object(pl);
     if (vr == CGAL::ON_ORIENTED_BOUNDARY)
       return make_object(pr);
-    FT dist = SQUARE_DISTANCE(pl, pr);
+    FT dist = CGAL::squared_distance(pl, pr);
     while (true) {
       Point_3 pm = LINEAR_BLEND(pl, pr, 0.5);
       Oriented_side vm = side_of_constraint(pm);
@@ -439,9 +418,13 @@ public:
       return Object_3();
   }
 
-  FT get_bounding_radius() const
+  FT get_bounding_radius() const { return radius * 2.0; } //wrong if coeff <0.5
+  std::string name() const { return std::string("Flat cube"); }
+
+  virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    return radius * 2.0;
+    FT rr = 1.1*radius;
+    return CGAL::Bbox_3(-rr, -rr, -rr, rr, rr, rr);
   }
 
   Oriented_side side_of_constraint(const Point_3 &p) const
@@ -494,6 +477,11 @@ public:
     return points;
   }
 
+  Point_container get_surface_points(unsigned int, double)
+  {
+    return initial_points();
+  }
+
   Point_3 project(const Point_3 &p) const
   {
     Point_3 q = p;
@@ -511,7 +499,8 @@ public:
     if ((sd = radius - q.x()) < snap_dist) { snap_dist = sd; snap_type = 3; }
     if ((sd = radius - q.y()) < snap_dist) { snap_dist = sd; snap_type = 4; }
     if ((sd = radius / 5.0 - q.z()) < snap_dist) { snap_dist = sd; snap_type = 5; }
-    switch (snap_type) {
+    switch (snap_type)
+    {
     case 0:	q = Point_3(-radius, q.y(), q.z()); break;
     case 1:	q = Point_3(q.x(), -radius, q.z()); break;
     case 2:	q = Point_3(q.x(), q.y(), -radius / 5.0); break;
@@ -522,53 +511,9 @@ public:
     return q;
   }
 
-  EdgeIterator edge_begin()
-  {
-    return edges.begin();
-  }
-
-    EdgeIterator edge_end()
-    {
-    return edges.end();
-  }
-
-  void edge_split(EdgeIterator edge, const Point_3 & c)
-  {
-    Edge e1 = Edge(edge->first, c);
-    Edge e2 = Edge(c, edge->second);
-    edges.erase(edge);
-    edges.push_back(e1);
-    edges.push_back(e2);
-  }
-
-  Constrain_surface_3_flat_cube(const FT &radius_) : radius(radius_), edges()
-  {
-    Point_3 p000(-radius, -radius, -radius / 5.0);
-    Point_3 p100(+radius, -radius, -radius / 5.0);
-    Point_3 p010(-radius, +radius, -radius / 5.0);
-    Point_3 p110(+radius, +radius, -radius / 5.0);
-    Point_3 p001(-radius, -radius, +radius / 5.0);
-    Point_3 p101(+radius, -radius, +radius / 5.0);
-    Point_3 p011(-radius, +radius, +radius / 5.0);
-    Point_3 p111(+radius, +radius, +radius / 5.0);
-    edges.push_back(Edge(p000, p001));
-    edges.push_back(Edge(p001, p011));
-    edges.push_back(Edge(p011, p010));
-    edges.push_back(Edge(p010, p000));
-    edges.push_back(Edge(p100, p101));
-    edges.push_back(Edge(p101, p111));
-    edges.push_back(Edge(p111, p110));
-    edges.push_back(Edge(p110, p100));
-    edges.push_back(Edge(p000, p100));
-    edges.push_back(Edge(p001, p101));
-    edges.push_back(Edge(p010, p110));
-    edges.push_back(Edge(p011, p111));
-  }
+  Constrain_surface_3_flat_cube(const FT &radius_) : radius(radius_) { }
   ~Constrain_surface_3_flat_cube() { }
 };
-
-
-
 
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
@@ -585,7 +530,6 @@ public:
 public:
   FT xmin, ymin, zmin;
   FT xmax, ymax, zmax;
-  EdgeList edges;
 
 protected:
   Object_3 intersection_of_ray(const Ray_3 &ray) const
@@ -616,9 +560,19 @@ public:
       return Object_3();
   }
 
-  FT get_bounding_radius() const
+  FT get_bounding_radius() const { return xmax + ymax + zmax; }
+  virtual std::string name() const { return std::string("Free cube"); }
+
+  virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    return xmax + ymax + zmax;
+    FT x = 0.5*(xmax-xmin);
+    FT y = 0.5*(ymax-ymin);
+    FT z = 0.5*(zmax-zmin);
+    FT r = 1.1*(std::max)((std::max)(x,y),z);
+    x += xmin;
+    y += ymin;
+    z += zmin;
+    return CGAL::Bbox_3(x-r, y-r, z-r, x+r, y+r, z+r);
   }
 
   Oriented_side side_of_constraint(const Point_3 &p) const
@@ -648,63 +602,28 @@ public:
     return points;
   }
 
+  Point_container get_surface_points(unsigned int, double)
+  {
+    return initial_points();
+  }
+
   Point_3 project(const Point_3 &p) const
   {
     throw "not implemented";
   }
 
-  EdgeIterator edge_begin()
-  {
-    return edges.begin();
-  }
-
-  EdgeIterator edge_end()
-  {
-    return edges.end();
-  }
-
-  void edge_split(EdgeIterator edge, const Point_3 & c)
-  {
-    Edge e1 = Edge(edge->first, c);
-    Edge e2 = Edge(c, edge->second);
-    edges.erase(edge);
-    edges.push_back(e1);
-    edges.push_back(e2);
-  }
-
-  Constrain_surface_3_free_cube(
-    const FT &xmin_, const FT &ymin_, const FT &zmin_,
-    const FT &xmax_, const FT &ymax_, const FT &zmax_) :
+  Constrain_surface_3_free_cube(const FT &xmin_, const FT &ymin_, const FT &zmin_,
+                                const FT &xmax_, const FT &ymax_, const FT &zmax_)
+    :
     xmin(xmin_), ymin(ymin_), zmin(zmin_),
-    xmax(xmax_), ymax(ymax_), zmax(zmax_), edges()
-  {
-    Point_3 p000(xmin, ymin, zmin);
-    Point_3 p100(xmax, ymin, zmin);
-    Point_3 p010(xmin, ymax, zmin);
-    Point_3 p110(xmax, ymax, zmin);
-    Point_3 p001(xmin, ymin, zmax);
-    Point_3 p101(xmax, ymin, zmax);
-    Point_3 p011(xmin, ymax, zmax);
-    Point_3 p111(xmax, ymax, zmax);
-    edges.push_back(Edge(p000, p001));
-    edges.push_back(Edge(p001, p011));
-    edges.push_back(Edge(p011, p010));
-    edges.push_back(Edge(p010, p000));
-    edges.push_back(Edge(p100, p101));
-    edges.push_back(Edge(p101, p111));
-    edges.push_back(Edge(p111, p110));
-    edges.push_back(Edge(p110, p100));
-    edges.push_back(Edge(p000, p100));
-    edges.push_back(Edge(p001, p101));
-    edges.push_back(Edge(p010, p110));
-    edges.push_back(Edge(p011, p111));
-  }
+    xmax(xmax_), ymax(ymax_), zmax(zmax_)
+  { }
   ~Constrain_surface_3_free_cube() { }
 };
 
-#undef PI
-#undef DOT
+} // Anisotropic_mesh_3
+} // CGAL
+
 #undef LINEAR_BLEND
-#undef SQUARE_DISTANCE
 
 #endif

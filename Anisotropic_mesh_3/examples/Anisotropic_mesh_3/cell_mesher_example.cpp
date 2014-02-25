@@ -79,12 +79,13 @@ int main(int argc, char* argv[])
   Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 
   Cell_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
-  starset.dump();
+  starset.refine_all();
   timer.stop();
 
-  starset.refine_all();
+  std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
+
   std::ofstream fmedit("cell_mesher_elli.mesh");
-  starset.output_medit(fmedit);
+  starset.output(fmedit);
 
   delete pdomain;
   return 0;

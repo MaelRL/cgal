@@ -16,12 +16,13 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_SHELL_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_SHELL_H
 
-#include "../CGAL/Constrain_surface_3.h"
+#include <CGAL/Constrain_surface_3.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
-#define PI 3.1415926535897932384626433832795
-#define DOT(a,b)  ((a).x() * (b).x() + (a).y() * (b).y() + (a).z() * (b).z())
 #define LINEAR_BLEND(p0,p1,t)  Point_3((p0).x() * (1 - t) + (p1).x() * t, \
                                        (p0).y() * (1 - t) + (p1).y() * t, \
                                        (p0).z() * (1 - t) + (p1).z() * t)
@@ -40,13 +41,12 @@ public:
 public:
   FT radius_0;
   FT radius_1;
-  EdgeList edges;
 
 protected:
   Object_3 intersection_of_ray(const Ray_3 &ray) const
   {
     return intersection(ray.source(), ray.source() +
-      ray.to_vector() * ((radius_1 * 3.0) / sqrt(DOT(ray.to_vector(), ray.to_vector()))));
+      ray.to_vector() * ((radius_1 * 3.0) / std::sqrt(ray.to_vector() * ray.to_vector())));
   }
 
   Object_3 intersection_of_segment(const Segment_3 &seg) const
@@ -160,9 +160,9 @@ public:
   Point_container initial_points() const {
     Point_container points;
     const int split = 12;
-    FT delta = 2.0 * PI / (FT)split;
-    for (FT theta = -PI / 2.0 + delta / 2.0; theta < PI / 2.0; theta += delta)
-      for (FT phi = 0; phi < 2.0 * PI - delta / 2.0; phi += delta)
+    FT delta = 2.0 * M_PI / (FT)split;
+    for (FT theta = -M_PI / 2.0 + delta / 2.0; theta < M_PI / 2.0; theta += delta)
+      for (FT phi = 0; phi < 2.0 * M_PI - delta / 2.0; phi += delta)
       {
         points.push_back(Point_3(
            cos(phi + theta / 2.0) * cos(theta) * radius_0,
@@ -181,17 +181,14 @@ public:
     return Point_3(p.x() * rate, p.y() * rate, p.z() * rate);
   }*/
 
-  EdgeIterator edge_begin() { return edges.begin(); }
-  EdgeIterator edge_end() { return edges.end(); }
-  void edge_split(EdgeIterator edge, const Point_3 & c) { }
-
   Constrain_surface_3_shell(const FT &radius_0_, const FT &radius_1_) :
-    radius_0(radius_0_), radius_1(radius_1_), edges() { }
+    radius_0(radius_0_), radius_1(radius_1_) { }
   ~Constrain_surface_3_shell() { }
 };
 
-#undef PI
-#undef DOT
+} //Anisotropic_mesh_3
+} //CGAL
+
 #undef LINEAR_BLEND
 
 #endif

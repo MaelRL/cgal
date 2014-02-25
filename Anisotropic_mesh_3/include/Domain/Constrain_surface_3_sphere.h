@@ -18,7 +18,10 @@
 
 #include <CGAL/Constrain_surface_3_implicit.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_sphere : public Constrain_surface_3_implicit<K> 
@@ -86,5 +89,8 @@ public:
   Constrain_surface_3_sphere(const Constrain_surface_3_sphere& s) {}
   ~Constrain_surface_3_sphere() { }
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

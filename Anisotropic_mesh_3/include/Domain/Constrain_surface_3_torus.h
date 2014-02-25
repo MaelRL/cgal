@@ -4,7 +4,10 @@
 #include <CGAL/Constrain_surface_3_implicit.h>
 #include <math.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_torus : public Constrain_surface_3_implicit<K> 
@@ -122,5 +125,8 @@ public:
   
   ~Constrain_surface_3_torus() { }
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

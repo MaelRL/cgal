@@ -2,9 +2,11 @@
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_cyclide_H
 
 #include <CGAL/Constrain_surface_3_implicit.h>
-#include <math.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_cyclide : public Constrain_surface_3_implicit<K>
@@ -17,10 +19,9 @@ public:
   typedef typename Base::Point_container             Point_container;
 
 public:
-  FT a, b, mu;
-  FT c;
-public:
+  FT a, b, c, mu;
 
+public:
   void set_a(const FT& aa) { a = aa; }
   void set_b(const FT& bb) { b = bb; }
   void set_mu(const FT& mmu) { mu = mmu; }
@@ -49,10 +50,12 @@ public:
 
   virtual FT evaluate(const FT x, const FT y, const FT z) const
   {
-      return (x*x + y*y + z*z - mu*mu + b*b)*(x*x + y*y + z*z - mu*mu + b*b) - 4*(a*x - c*mu)*(a*x - c*mu) - 4*b*b*y*y;
+      return (x*x + y*y + z*z - mu*mu + b*b)*(x*x + y*y + z*z - mu*mu + b*b)
+            - 4*(a*x - c*mu)*(a*x - c*mu) - 4*b*b*y*y;
   }
 
-  Oriented_side side_of_constraint(const Point_3 &p) const {
+  Oriented_side side_of_constraint(const Point_3 &p) const
+  {
     FT w = evaluate(p.x(), p.y(), p.z());
     if (w < 0)
       return CGAL::ON_POSITIVE_SIDE;
@@ -125,5 +128,8 @@ public:
 
   ~Constrain_surface_3_cyclide() { }
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

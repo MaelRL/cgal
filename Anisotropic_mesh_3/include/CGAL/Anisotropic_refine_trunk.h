@@ -7,6 +7,8 @@
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Star_consistency.h>
 
+#include <CGAL/helpers/histogram_helper.h>
+
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
 

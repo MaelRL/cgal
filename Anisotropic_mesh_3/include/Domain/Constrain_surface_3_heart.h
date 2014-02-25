@@ -16,9 +16,12 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_HEART_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_HEART_H
 
-#include "../CGAL/Constrain_surface_3_implicit.h"
+#include <CGAL/Constrain_surface_3_implicit.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
 class Constrain_surface_3_heart : public Constrain_surface_3_implicit<K, Point_container>
@@ -26,6 +29,8 @@ class Constrain_surface_3_heart : public Constrain_surface_3_implicit<K, Point_c
 public:
   typedef Constrain_surface_3_implicit<K, Point_container> Base;
   typedef typename Base::FT                                FT;
+  typedef typename Base::Point_3                           Point_3;
+
 public:
   FT get_bounding_radius() const { return 3.0; }
 
@@ -50,5 +55,8 @@ public:
   Constrain_surface_3_heart() { }
   ~Constrain_surface_3_heart() { }
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

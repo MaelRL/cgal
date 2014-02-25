@@ -3,6 +3,8 @@
 #include <Domain/Constrain_surface_3_double_ellipsoid.h>
 #include "Implicit_surface_type.h"
 
+using CGAL::Anisotropic_mesh_3::Constrain_surface_3_double_ellipsoid;
+
 class Double_ellipsoid_function :
   public QObject,
   public Constrained_surface_implicit_interface

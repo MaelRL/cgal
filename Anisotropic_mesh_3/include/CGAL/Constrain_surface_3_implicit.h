@@ -83,9 +83,9 @@ namespace CGAL{
       typedef typename Base::Point_3                        Point_3;
       typedef typename Base::Plane_3                        Plane_3;
       typedef typename Base::Oriented_side                  Oriented_side;
-
       typedef typename Base::Colored_poly                   Colored_polyhedron;
-      typedef typename Base::Pointset                       Point_container;
+
+      typedef Pt_container                                  Point_container;
 
       // for Mesh_3
       typedef FT (Self::*Function)(const Point_3& p) const;
@@ -591,7 +591,8 @@ public:
 
     template<typename K>
     class Constrain_surface_3_implicit_with_bounding_sphere :
-      public Constrain_surface_3_implicit<K> {
+      public Constrain_surface_3_implicit<K>
+    {
 
     public:
       typedef Constrain_surface_3_implicit<K>                  Base;
@@ -600,7 +601,7 @@ public:
       typedef typename Base::Point_3                           Point_3;
       typedef typename Base::Oriented_side                     Oriented_side;
 
-      typedef typename std::vector<typename K::Point_3> Point_container;
+      typedef typename std::vector<typename K::Point_3>        Point_container;
 
     public:
       virtual FT get_bounding_radius() const = 0;

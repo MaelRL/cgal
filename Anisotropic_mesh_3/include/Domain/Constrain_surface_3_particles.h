@@ -16,11 +16,12 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_PARTICLES_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_PARTICLES_H
 
-#include "../CGAL/Constrain_surface_3_implicit.h"
+#include <CGAL/Constrain_surface_3_implicit.h>
 
-#define PI 3.1415926535897932384626433832795
-
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
 class Constrain_surface_3_particles : public Constrain_surface_3_implicit<K, Point_container>
@@ -33,10 +34,12 @@ public:
   {
     FT x, y, z, q;
   };
+
 public:
   std::vector<Particle> particles;
   FT level;
   FT bounding_radius;
+
 public:
   void add_particle(FT x, FT y, FT z, FT q)
   {
@@ -79,6 +82,7 @@ public:
   ~Constrain_surface_3_particles() { }
 };
 
-#undef  PI
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

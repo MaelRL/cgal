@@ -16,9 +16,12 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_PRETZEL_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_PRETZEL_H
 
-using namespace CGAL::Anisotropic_mesh_3;
-
 #include <CGAL/Constrain_surface_3_implicit.h>
+
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Constrain_surface_3_pretzel : public Constrain_surface_3_implicit<K>
@@ -56,7 +59,7 @@ public:
     if( rc < 1.)
       rc = 1./c;
     return rc + rd;
-  ;}
+  }
 
   FT evaluate(const FT x, const FT y, const FT z) const
   {
@@ -86,5 +89,8 @@ public:
     : c(p.c), d(p.d) {}
   ~Constrain_surface_3_pretzel() {}
 };
+
+} //Anisotropic_mesh_3
+} //CGAL
 
 #endif

@@ -69,9 +69,6 @@ int main(int argc, char* argv[])
 
   Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
 
-  std::cout << "Max curvature: " << pdomain->global_max_curvature() << std::endl;
-  std::cout << "Min curvature: " << pdomain->global_min_curvature() << std::endl;
-
   Mesher mesher(starset);
   mesher.refine_all();
 

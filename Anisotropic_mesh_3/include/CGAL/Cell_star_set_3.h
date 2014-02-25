@@ -1166,7 +1166,6 @@ public:
         std::cout << " " << nbv << " vertices, ";
         std::cout << duration(start_time) << " sec.,\t";
         m_refine_queue.print();
-        dump();
       }
 
       if(nbv % 1000 == 0)
@@ -1224,25 +1223,10 @@ public:
     clean_stars();
   }
 
-  void dump()
+  void output(std::ofstream& out,
+              const bool consistent_only = true)
   {
-    std::ofstream fx("dump.txt");
-
-    std::size_t ns = number_of_stars();
-    fx << number_of_stars() << std::endl;
-    for(std::size_t i=0; i<ns; ++i)
-      fx << get_star(i)->center_point() << std::endl;
-
-    for(std::size_t i=0; i<ns; ++i)
-    {
-      Star_handle star_i = get_star(i);
-      typename Star::Vertex_handle_handle nsi = star_i->begin_neighboring_vertices();
-      typename Star::Vertex_handle_handle nsiend = star_i->end_neighboring_vertices();
-      fx << nsiend - nsi;
-      for(; nsi != nsiend; nsi++)
-        fx << " " << (*nsi)->info();
-      fx << std::endl;
-    }
+    output_medit(m_stars, out, consistent_only);
   }
 
   void report()

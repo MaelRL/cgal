@@ -1,8 +1,9 @@
-
 #include <QObject>
 #include <constrained_surfaces_implicit/Constrained_surface_implicit_interface.h>
 #include <Domain/Constrain_surface_3_chair.h>
 #include <Implicit_surface_type.h>
+
+using CGAL::Anisotropic_mesh_3::Constrain_surface_3_chair;
 
 class Chair_function :
   public QObject,
