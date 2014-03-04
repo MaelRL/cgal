@@ -272,9 +272,6 @@ void cell_histogram(const typename std::vector<Star*>& stars,
   {
     Star* si = stars[i];
 
-    if(!si->is_surface_star())
-      continue;
-
     typename Star::Cell_handle_handle cit = si->begin_finite_star_cells();
     typename Star::Cell_handle_handle cend = si->end_finite_star_cells();
     for(; cit != cend; ++cit)
@@ -388,6 +385,7 @@ void cell_histogram(const typename std::vector<Star*>& stars,
     std::cout << std::endl << "min, max: " << min << " " << max << std::endl;
     std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
     std::cout << "above : " << histogram[divisions] << std::endl;
+    std::cout << done.size() << " cells" << std::endl;
   }
 
   if(hist_type == CELL_DISTORTION)
