@@ -5,8 +5,9 @@
 
 #include <CGAL/helpers/combinatorics_helper.h>
 
-#include <vector>
+#include <utility>
 #include <set>
+#include <vector>
 
 namespace CGAL
 {
@@ -359,6 +360,7 @@ void output_surface_medit(const std::vector<Star*>& stars,
         fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " 1" << std::endl;
     }
   }
+  fx << "End" << std::endl;
 }
 
 template<typename Star>
@@ -425,11 +427,14 @@ void output_medit(const std::vector<Star*>& stars,
     typename Star::Point_3 p2 = stars[n2]->center_point();
     typename Star::Point_3 p3 = stars[n3]->center_point();
     typename Star::Traits::Compute_volume_3 o;
-    if(!positive_vol || o(p0, p1, p2, p3) > 0)
-      fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " " << colors[c] << std::endl;
+    if(!positive_vol || o(p0, p1, p2, p3) > 0 || 1) //color[c] creates the artifacts. fix it. todo
+      fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1"/* << colors[c]*/ << std::endl;
     else
-      fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " " << colors[c] << std::endl;
+      fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " 1" /*<< colors[c]*/ << std::endl;
   }
+
+  fx << "End" << std::endl;
+
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning Medit: there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 }
