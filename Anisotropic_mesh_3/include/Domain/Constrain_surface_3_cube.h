@@ -36,6 +36,7 @@ public:
   typedef typename K::Segment_3         Segment_3;
   typedef typename K::Ray_3             Ray_3;
   typedef typename K::FT                FT;
+  typedef typename K::Vector_3          Vector_3;
   typedef typename CGAL::Oriented_side  Oriented_side;
 
 public:
@@ -56,6 +57,7 @@ protected:
 public:
   Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3& ref) const
   {
+    /*
     FT min_t = 2.0;
     if (p1.x() - p0.x() != 0.0)
     {
@@ -124,35 +126,38 @@ public:
       return Object_3();
     else
       return make_object(LINEAR_BLEND(p0, p1, min_t));
-
-    /*
-    Point_3 pl = p0, pr = p1;
-    Oriented_side vl = side_of_constraint(pl);
-    Oriented_side vr = side_of_constraint(pr);
-    if (vl == CGAL::ON_ORIENTED_BOUNDARY)
-      return make_object(pl);
-    if (vr == CGAL::ON_ORIENTED_BOUNDARY)
-      return make_object(pr);
-    FT dist = CGAL::squared_distance(pl, pr);
-    while (true) {
-        Point_3 pm = LINEAR_BLEND(pl, pr, 0.5);
-        Oriented_side vm = side_of_constraint(pm);
-        if (vm == CGAL::ON_ORIENTED_BOUNDARY)
-          return make_object(project(pm));
-        if (vm == vl)
-        {
-          pl = pm;
-          vl = vm;
-        }
-        else
-        {
-          pr = pm;
-          vr = vm;
-        }
-        dist /= 4.0;
-        if (dist < 1e-10)
-          return make_object(project(pm));
     }*/
+
+    Point_3 lp = p0, rp = p1, mp = CGAL::midpoint(p0, p1);
+    Oriented_side lv = side_of_constraint(lp);
+    Oriented_side rv = side_of_constraint(rp);
+    if (lv == CGAL::ON_ORIENTED_BOUNDARY)
+      return make_object(lp);
+    if (rv == CGAL::ON_ORIENTED_BOUNDARY)
+      return make_object(rp);
+    if (lv == rv)
+      return Object_3();
+
+    Vector_3 r_l(rp, lp);
+    FT sqdist = r_l.squared_length();
+    FT error_bound = 1e-5;
+    FT tol = radius*radius*error_bound*error_bound;
+    while (sqdist > tol)
+    {
+      Oriented_side mv = side_of_constraint(mp);
+      if(rv == mv)
+      {
+        rp = mp;
+        mp = CGAL::midpoint(lp, rp);
+      }
+      else
+      {
+        lp = mp;
+        mp = CGAL::midpoint(lp, rp);
+      }
+      sqdist *= 0.25;
+    }
+    return make_object(mp);
   }
 
   Object_3 intersection(const Object_3 &obj) const
@@ -418,7 +423,7 @@ public:
       return Object_3();
   }
 
-  FT get_bounding_radius() const { return radius * 2.0; } //wrong if coeff <0.5
+  FT get_bounding_radius() const { return radius * 2.0; } //wrong if stretch coeff <0.5
   std::string name() const { return std::string("Flat cube"); }
 
   virtual typename CGAL::Bbox_3 get_bbox() const
@@ -565,14 +570,10 @@ public:
 
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    FT x = 0.5*(xmax-xmin);
-    FT y = 0.5*(ymax-ymin);
-    FT z = 0.5*(zmax-zmin);
-    FT r = 1.1*(std::max)((std::max)(x,y),z);
-    x += xmin;
-    y += ymin;
-    z += zmin;
-    return CGAL::Bbox_3(x-r, y-r, z-r, x+r, y+r, z+r);
+    FT rx = 0.1*(xmax-xmin);
+    FT ry = 0.1*(ymax-ymin);
+    FT rz = 0.1*(zmax-zmin);
+    return CGAL::Bbox_3(xmin-rx, ymin-ry, zmin-rz, xmax+rx, ymax+ry, zmax+rz);
   }
 
   Oriented_side side_of_constraint(const Point_3 &p) const
