@@ -122,7 +122,9 @@ public:
     }
     else
     {
-      if(need_picking_valid && this->compute_distortion(c) > this->m_criteria->distortion)
+      if(!this->m_criteria->max_times_to_try_in_picking_region ||
+         (need_picking_valid &&
+          this->compute_distortion(c) > this->m_criteria->distortion))
       {
         m_pick_valid_skipped++;
         need_picking_valid = false;

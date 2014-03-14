@@ -154,9 +154,9 @@ public:
       std::cout << "trying to refine a degenerate (in the metric) facet" << std::endl;
 #endif
 
-    if(need_picking_valid
-//     && m_distortion_bound_avoid_pick_valid > 0.
-       && this->compute_distortion(f) > this->m_criteria->distortion)
+    if(!this->m_criteria->max_times_to_try_in_picking_region ||
+       (need_picking_valid &&
+        this->compute_distortion(f) > this->m_criteria->distortion))
     {
       need_picking_valid = false;
 //    avoid_pick_valid_count++;
