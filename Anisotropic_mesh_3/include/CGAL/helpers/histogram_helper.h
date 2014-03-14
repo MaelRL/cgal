@@ -92,7 +92,7 @@ void facet_histogram(const typename std::vector<Star*>& stars,
   std::size_t N = stars.size();
   for(std::size_t i=0; i<N; ++i)
   {
-    Star si = stars[i];
+    Star* si = stars[i];
 
     if(!si->is_surface_star())
       continue;
@@ -112,9 +112,12 @@ void facet_histogram(const typename std::vector<Star*>& stars,
 
       if(hist_type == APPROXIMATION)
       {
-        typename Star::Point_3 cc;
+        typename Star::Point_3 cc, bf;
         si->compute_dual_intersection(f, cc);
-        FT sqd = m_pConstrain->compute_sq_approximation(barycenter(f));
+        bf = CGAL::barycenter(stars[f.first->vertex((f.second+1)%4)->info()]->center_point(), 1./3.,
+                              stars[f.first->vertex((f.second+2)%4)->info()]->center_point(), 1./3.,
+                              stars[f.first->vertex((f.second+3)%4)->info()]->center_point(), 1./3.);
+        FT sqd = m_pConstrain->compute_sq_approximation(bf);
         val = CGAL::sqrt(sqd);
       }
       else if(hist_type == FACET_DISTORTION)
@@ -207,10 +210,11 @@ void facet_histogram(const typename std::vector<Star*>& stars,
       else
         std::cout << std::endl;
     }
-    std::cout << std::endl << "min, max: " << min << " " << max << std::endl;
-    std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
     std::cout << "\tabove : " << histogram[divisions] << std::endl;
   }
+  std::cout << std::endl << "min, max: " << min << " " << max << std::endl;
+  std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
+  std::cout << done.size() << " facets" << std::endl;
 
   if(hist_type == APPROXIMATION)
     output_histogram(histogram, 0., max_val, "histogram_approximation.cvs");
@@ -382,11 +386,11 @@ void cell_histogram(const typename std::vector<Star*>& stars,
       else
         std::cout << std::endl;
     }
-    std::cout << std::endl << "min, max: " << min << " " << max << std::endl;
-    std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
     std::cout << "above : " << histogram[divisions] << std::endl;
-    std::cout << done.size() << " cells" << std::endl;
   }
+  std::cout << std::endl << "min, max: " << min << " " << max << std::endl;
+  std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
+  std::cout << done.size() << " cells" << std::endl;
 
   if(hist_type == CELL_DISTORTION)
     output_histogram(histogram, 1., max_val + 1., "histogram_cell_distortion.cvs");
