@@ -279,6 +279,17 @@ public:
 
 // end of CRTP functions
 
+  void report()
+  {
+    std::cout << "cell consistency : ";
+    std::cout << is_consistent(this->m_stars, true /*verbose*/, CELLS_ONLY) << std::endl;
+    all_cell_histograms(this->m_stars, this->m_criteria);
+    std::cout << "CELL pick_valid stats: " << std::endl;
+    std::cout << "skipped: " << m_pick_valid_skipped << " || ";
+    std::cout << "succeeded: " << m_pick_valid_succeeded << " || ";
+    std::cout << "failed: " << m_pick_valid_failed << std::endl;
+  }
+
 private:
 //Cell refinement queue functions
   bool next_refine_cell(Refine_cell &refine_cell,
@@ -297,15 +308,6 @@ private:
         if(!m_refine_queue.top(refine_cell, queue_type))
         {
           std::cout << "it ain't lying" << std::endl;
-          std::cout << "cell consistency : ";
-          std::cout << is_consistent(this->m_stars, true /*verbose*/, CELLS_ONLY) << std::endl;
-          std::cout << "consistency of EVERYTHING: ";
-          std::cout << is_consistent(this->m_stars, true /*verbose*/) << std::endl;
-          all_cell_histograms(this->m_stars, this->m_criteria, true);
-          std::cout << "pick_valid stats: " << std::endl;
-          std::cout << "skipped: " << m_pick_valid_skipped << " ";
-          std::cout << "succeeded: " << m_pick_valid_succeeded << " ";
-          std::cout << "failed: " << m_pick_valid_failed << std::endl;
           return false;
         }
         else

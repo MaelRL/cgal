@@ -70,7 +70,8 @@ int main(int argc, char** argv)
 
   Anisotropic_mesher_3<K> mesher(stars, pdomain, criteria, metric_field);
   double elapsed_time = mesher.refine_mesh();
-  std::cout << elapsed_time << std::endl;
+  std::cout << "elapsed time: " << elapsed_time << std::endl;
+  mesher.report();
 
   std::ofstream out("bambimboum.mesh");
   output_medit(stars, out);

@@ -75,6 +75,8 @@ private:
   //debug & info
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
+  int m_pick_valid_skipped;
+  int m_pick_valid_rejected;
   bool m_pick_valid_causes_stop;
   int m_pick_valid_max_failures;
   mutable int vertex_with_picking_count;
@@ -159,7 +161,7 @@ public:
         this->compute_distortion(f) > this->m_criteria->distortion))
     {
       need_picking_valid = false;
-//    avoid_pick_valid_count++;
+      m_pick_valid_skipped++;
     }
 
     bool success = compute_steiner_point(bad_facet.star, f, need_picking_valid, steiner_point);
@@ -338,6 +340,17 @@ public:
 
 //End of CRTP functions
 
+  void report()
+  {
+    std::cout << "facet consistency : ";
+    std::cout << is_consistent(this->m_stars, true /*verbose*/, FACETS_ONLY) << std::endl;
+    std::cout << "FACET pick_valid stats: " << std::endl;
+    std::cout << "skipped: " << m_pick_valid_skipped << " || ";
+    std::cout << "succeeded: " << m_pick_valid_succeeded << " || ";
+    std::cout << "rejected: " << m_pick_valid_rejected << " || ";
+    std::cout << "failed: " << m_pick_valid_failed << std::endl;
+  }
+
 private:
 //Initialization
   void initialize_medial_axis(Point_set& poles)
@@ -443,10 +456,6 @@ private:
         if (!m_refine_queue.top(refine_facet, queue_type))
         {
           std::cout << "it ain't lying" << std::endl;
-          std::cout << this->m_stars.size() << " stars" << std::endl;
-          std::cout << "facet consistency : ";
-          std::cout << is_consistent(this->m_stars, true /*verbose*/, FACETS_ONLY) << std::endl;
-
           return false;
         }
         else
@@ -1014,6 +1023,8 @@ public:
       m_refine_queue(),
       m_pick_valid_succeeded(0),
       m_pick_valid_failed(0),
+      m_pick_valid_skipped(0),
+      m_pick_valid_rejected(0),
       m_pick_valid_causes_stop(false),
       m_pick_valid_max_failures(0),
       vertex_with_picking_count(0),

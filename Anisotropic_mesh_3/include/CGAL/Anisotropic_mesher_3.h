@@ -187,6 +187,14 @@ public:
     return m_cell_mesher.is_algorithm_done();
   }
 
+  void report()
+  {
+    m_cell_mesher.report();
+    m_facet_mesher.report();
+    std::cout << "consistency of EVERYTHING: ";
+    std::cout << is_consistent(m_stars, true /*verbose*/) << std::endl;
+  }
+
 public:
   Anisotropic_mesher_3(Star_vector& stars,
                        const Constrain_surface* pconstrain_,
