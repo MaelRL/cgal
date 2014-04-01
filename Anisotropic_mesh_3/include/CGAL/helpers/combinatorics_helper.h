@@ -74,6 +74,17 @@ public :
     return false;
   }
 
+  int operator[](const std::size_t index) const
+  {
+    if(index >= ssize || index < 0)
+    {
+      std::cerr << "Ordered_simplex does not have vertex number " << index << "!\n";
+      return -1;
+    }
+    else
+      return m_simplex[index];
+  }
+
   bool operator==(const Self& os) const
   {
     if(ssize != os.size())

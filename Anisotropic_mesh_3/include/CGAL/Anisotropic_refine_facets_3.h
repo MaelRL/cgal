@@ -4,12 +4,15 @@
 #include <set>
 #include <vector>
 
+#include <CGAL/Timer.h>
+
 #include <CGAL/Facet_refine_queue.h>
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_level.h>
 #include <CGAL/Anisotropic_refine_trunk.h>
 #include <CGAL/Star_consistency.h>
 
+#include <CGAL/helpers/histogram_helper.h>
 #include <CGAL/helpers/combinatorics_helper.h>
 
 namespace CGAL
@@ -120,7 +123,7 @@ public:
 
     //Top of the prio queue is not popped yet since the ref point could encroach.
     //It'll be popped at insertion if there is no encroachment.
-    if (!next_refine_cell(bad_facet, f, need_picking_valid, queue_type, false))
+    if (!next_refine_facet(bad_facet, f, need_picking_valid, queue_type, false /*no pop*/))
       return false;
 
 #ifdef ANISO_DEBUG_REFINEMENT_PP
@@ -189,14 +192,16 @@ public:
     return false;
   }
 
-  bool insert_(const Point_3& steiner_point)
+  template<typename Visitor>
+  bool insert_(const Point_3& steiner_point,
+               const Visitor& visitor)
   {
     int queue_type = 0;
     Refine_facet bad_facet;
     bool need_picking_valid;
     Facet f; // to be refined
 
-    if (!next_refine_cell(bad_facet, f, need_picking_valid, queue_type, true/*popping top*/))
+    if (!next_refine_facet(bad_facet, f, need_picking_valid, queue_type, true /*pop*/))
     {
       std::cout << "yeah buddy" << std::endl;
       return false; //should never happen
@@ -216,7 +221,7 @@ public:
     Index_set modified_stars;// stars that would be modified by p's insertion
     int pid = Trunk::insert(steiner_point, modified_stars, true/*conditional*/);
 
-    std::cout << "facet insertion" << std::endl;
+    std::cout << "facet insertion " << steiner_point << std::endl;
 
     if(pid != static_cast<Index>(this->m_stars.size()-1))
       std::cout << "warning in insert_" << std::endl;
@@ -402,7 +407,7 @@ private:
 #endif
   }
 
-  void initialize_stars(const int nb = 100)
+  void initialize_stars(const int nb = 50)
   {
 #ifdef ANISO_VERBOSE
     std::cout << "Initialize "<< nb << " stars..." << std::endl;
@@ -444,11 +449,11 @@ private:
   }
 
   //Facet refinement function
-  bool next_refine_cell(Refine_facet &refine_facet,
-                        Facet &facet,
-                        bool &need_picking_valid,
-                        int &queue_type,
-                        bool is_top_popped)
+  bool next_refine_facet(Refine_facet& refine_facet,
+                         Facet& facet,
+                         bool& need_picking_valid,
+                         int& queue_type,
+                         bool is_top_popped)
   {
     while(true)
     {

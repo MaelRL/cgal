@@ -198,6 +198,7 @@ public:
 #endif
   }
 
+  //checks if a facet is encroached by any existing star (debug)
   bool is_encroached(Star_handle star, const Facet &facet)
   {
     Index p1 = facet.first->vertex((facet.second + 1)%4)->info();

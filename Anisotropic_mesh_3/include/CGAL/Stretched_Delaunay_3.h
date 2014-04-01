@@ -66,8 +66,9 @@ namespace CGAL{
             Delaunay_traits_3<K, KExact>,
             Constrain_surface_3<K> > > >
     {
-    public:
       typedef Stretched_Delaunay_3<K, KExact>                       Self;
+public:
+      typedef K                                                     Kernel;
       typedef Delaunay_traits_3<K, KExact>                          Traits;
       typedef CGAL::Triangulation_data_structure_3<
                 CGAL::Triangulation_vertex_base_with_info_3<
@@ -1139,6 +1140,34 @@ public:
           }
         }
         return false;
+      }
+
+      void list_vertices()
+      {
+        std::cout << "list vertices of " << m_center->info() << std::endl;
+        typename Base::Finite_vertices_iterator vit = this->finite_vertices_begin();
+        typename Base::Finite_vertices_iterator vend = this->finite_vertices_end();
+        for(;vit!=vend;++vit)
+        {
+          std::cout << "Vertex ";
+          std::cout << vit->info() << " || ";
+          std::cout << vit->point() << std::endl;
+        }
+      }
+
+      void list_cells()
+      {
+        std::cout << "list cells of " << m_center->info() << std::endl;
+        typename Base::Finite_cells_iterator cit = this->finite_cells_begin();
+        typename Base::Finite_cells_iterator cend = this->finite_cells_end();
+        for(;cit!=cend;++cit)
+        {
+          std::cout << "Cell ";
+          std::cout << cit->vertex(0)->info() << " ";
+          std::cout << cit->vertex(1)->info() << " ";
+          std::cout << cit->vertex(2)->info() << " ";
+          std::cout << cit->vertex(3)->info() << std::endl;
+        }
       }
 
       std::size_t clean() //remove useless vertices
