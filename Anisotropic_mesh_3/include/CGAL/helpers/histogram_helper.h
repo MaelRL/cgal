@@ -28,6 +28,70 @@ enum Cell_histogram_type{CELL_DISTORTION,
                          CELL_RATIO,
                          CELL_ANGLE};
 
+template <typename Star>
+typename Star::FT
+minimum_dihedral_angle(
+    Star* star,
+    const typename Star::Point_3& p0,
+    const typename Star::Point_3& p1,
+    const typename Star::Point_3& p2,
+    const typename Star::Point_3& p3)
+{
+  typedef typename Star::Kernel   K;
+  typedef typename K::FT          FT;
+  typedef typename Star::TPoint_3 TPoint;
+  K k = K();
+
+  const TPoint& tp0 = star->metric().transform(p0);
+  const TPoint& tp1 = star->metric().transform(p1);
+  const TPoint& tp2 = star->metric().transform(p2);
+  const TPoint& tp3 = star->metric().transform(p3);
+
+  typename K::Compute_determinant_3 determinant =
+    k.compute_determinant_3_object();
+  typename K::Construct_cross_product_vector_3 cp =
+    k.construct_cross_product_vector_3_object();
+
+  typename K::Compute_scalar_product_3 sp =
+    k.compute_scalar_product_3_object();
+
+  typename K::Vector_3 v01 = tp1-tp0;
+  typename K::Vector_3 v02 = tp2-tp0;
+  typename K::Vector_3 v03 = tp3-tp0;
+  typename K::Vector_3 v12 = tp2-tp1;
+  typename K::Vector_3 v13 = tp3-tp1;
+  typename K::Vector_3 v23 = tp3-tp2;
+
+  typename K::Vector_3 v_01_02 = cp(v01,v02);
+  FT a_012 = v_01_02*v_01_02;
+
+  typename K::Vector_3 v_01_03 = cp(v01,v03);
+  FT a_013 = v_01_03*v_01_03;
+
+  typename K::Vector_3 v_12_13 = cp(v12,v13);
+  FT a_123 = v_12_13*v_12_13;
+
+  typename K::Vector_3 v_02_03 = cp(v02,v03);
+  FT a_023 = v_02_03*v_02_03;
+
+  FT min_quotient = sp(v01,v01) / (a_012 * a_013);
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v02,v02) / (a_012 * a_023));
+  min_quotient = (CGAL::min)(min_quotient,
+                             (v03*v03) / (a_013 * a_023));
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v12,v12) / (a_012 * a_123));
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v13,v13) / (a_013 * a_123));
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v23,v23) / (a_023 * a_123));
+  min_quotient =  sqrt(min_quotient);
+
+  return CGAL::abs(std::asin(determinant(v01, v02, v03) * min_quotient)
+                   * FT(180) / FT(CGAL_PI));
+}
+
+
 template<typename FT>
 void output_histogram(const std::vector<int>& histogram,
                       FT min, FT max,
@@ -142,7 +206,6 @@ void facet_histogram(const typename std::vector<Star*>& stars,
         Star* star_a = stars[f.first->vertex((f.second+1)%4)->info()];
         Star* star_b = stars[f.first->vertex((f.second+2)%4)->info()];
         Star* star_c = stars[f.first->vertex((f.second+3)%4)->info()];
-
 
         const typename Star::TPoint_3& tpa_a = star_a->metric().transform(pa);
         const typename Star::TPoint_3& tpb_a = star_a->metric().transform(pb);
@@ -268,7 +331,7 @@ void cell_histogram(const typename std::vector<Star*>& stars,
   else if(hist_type == CELL_ANGLE)
   {
     std::cout << "Cell Angle Histo" << std::endl;
-    max_val = 0.; //todo
+    max_val = 180.;
   }
 
   std::size_t N = stars.size();
@@ -301,7 +364,6 @@ void cell_histogram(const typename std::vector<Star*>& stars,
       }
       else if(hist_type == CELL_QUALITY)
       {
-
         const typename Star::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
         const typename Star::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
         const typename Star::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
@@ -348,6 +410,25 @@ void cell_histogram(const typename std::vector<Star*>& stars,
         FT sqer = si->compute_squared_radius_edge_ratio(c);
         val = CGAL::sqrt(sqer);
       }
+      else if(hist_type == CELL_ANGLE)
+      {
+        const typename Star::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
+        const typename Star::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
+        const typename Star::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
+        const typename Star::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
+
+        Star* star_a = stars[c->vertex(0)->info()];
+        Star* star_b = stars[c->vertex(1)->info()];
+        Star* star_c = stars[c->vertex(2)->info()];
+        Star* star_d = stars[c->vertex(3)->info()];
+
+        FT min_angle_a = minimum_dihedral_angle(star_a, pa, pb, pc, pd);
+        FT min_angle_b = minimum_dihedral_angle(star_b, pa, pb, pc, pd);
+        FT min_angle_c = minimum_dihedral_angle(star_c, pa, pb, pc, pd);
+        FT min_angle_d = minimum_dihedral_angle(star_d, pa, pb, pc, pd);
+
+        val = (std::min)((std::min)((std::min)(min_angle_a, min_angle_b), min_angle_c), min_angle_d);
+      }
 
       if(val < min)
         min = val;
@@ -388,7 +469,7 @@ void cell_histogram(const typename std::vector<Star*>& stars,
     }
     std::cout << "above : " << histogram[divisions] << std::endl;
   }
-  std::cout << std::endl << "min, max: " << min << " " << max << std::endl;
+  std::cout << "min, max: " << min << " " << max << std::endl;
   std::cout << "average : " << sum / count << " (" << count << ")" << std::endl;
   std::cout << done.size() << " cells" << std::endl;
 
@@ -403,6 +484,121 @@ void cell_histogram(const typename std::vector<Star*>& stars,
   else //if(hist_type == CELL_ANGLE)
     output_histogram(histogram, 0., max_val, "histogram _cell_angle.cvs");
 
+}
+
+template <typename Star>
+typename Star::FT
+dihedral_angle(Star* star,
+               const typename Star::Point_3& a,
+               const typename Star::Point_3& b,
+               const typename Star::Point_3& c,
+               const typename Star::Point_3& d)
+{
+  typedef typename Star::Kernel       K;
+  typedef typename Star::TPoint_3     TPoint;
+  typedef typename K::Vector_3        Vector_3;
+  typedef typename K::FT              FT;
+  K k = K();
+
+  const TPoint& ta = star->metric().transform(a);
+  const TPoint& tb = star->metric().transform(b);
+  const TPoint& tc = star->metric().transform(c);
+  const TPoint& td = star->metric().transform(d);
+
+  typename K::Construct_vector_3 vector = k.construct_vector_3_object();
+  typename K::Construct_cross_product_vector_3 cross_product =
+    k.construct_cross_product_vector_3_object();
+  typename K::Compute_squared_distance_3 sq_distance =
+    k.compute_squared_distance_3_object();
+  typename K::Compute_scalar_product_3 scalar_product =
+    k.compute_scalar_product_3_object();
+
+  const Vector_3 ab = vector(ta, tb);
+  const Vector_3 ac = vector(ta, tc);
+  const Vector_3 ad = vector(ta, td);
+
+  const Vector_3 abad = cross_product(ab, ad);
+  const double x = CGAL::to_double(scalar_product(cross_product(ab, ac), abad));
+  const double l_ab = CGAL::sqrt(CGAL::to_double(sq_distance(a, b)));
+  const double y = l_ab * CGAL::to_double(scalar_product(ac, abad));
+
+  return FT(std::atan2(y, x) * 180 / CGAL_PI );
+}
+
+template<typename Star>
+void dihedral_angle_histogram(const typename std::vector<Star*>& stars,
+                              const bool verbose = false)
+{
+  std::set<Cell_ijkl> done;
+  std::vector<int> histogram(181, 0);
+  typename Star::FT val, min_value = 1e30, max_value = -1e30;
+
+  std::size_t N = stars.size();
+  for(std::size_t i=0; i<N; ++i)
+  {
+    Star* si = stars[i];
+
+    typename Star::Cell_handle_handle cit = si->begin_finite_star_cells();
+    typename Star::Cell_handle_handle cend = si->end_finite_star_cells();
+    for(; cit != cend; ++cit)
+    {
+      typename Star::Cell_handle c = *cit;
+      if(!si->is_inside(c))
+        continue;
+
+      std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
+      is_insert_successful = done.insert(Cell_ijkl(c));
+      if(!is_insert_successful.second)
+        continue;
+
+      const typename Star::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
+      const typename Star::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
+      const typename Star::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
+      const typename Star::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
+
+      for(int i=0; i<4; ++i)
+      {
+        Star* star = stars[c->vertex(i)->info()];
+        val = dihedral_angle(star, pa, pb, pc, pd);
+        histogram[std::abs(std::floor(val))]++;
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+
+        val = dihedral_angle(star, pa, pc, pb, pd);
+        histogram[std::abs(std::floor(val))]++;
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+
+        val = dihedral_angle(star, pa, pd, pb, pc);
+        histogram[std::abs(std::floor(val))]++;
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+
+        val = dihedral_angle(star, pb, pc, pa, pd);
+        histogram[std::abs(std::floor(val))]++;
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+
+        val = dihedral_angle(star, pb, pd, pa, pc);
+        histogram[std::abs(std::floor(val))]++;
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+
+        val = dihedral_angle(star, pc, pd, pa, pb);
+        histogram[std::abs(std::floor(val))]++;
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+      }
+    }
+  }
+
+  if(verbose)
+  {
+    std::cout << "full dihedral angle histogram" << std::endl;
+    std::cout << "min, max: " << min_value << " " << max_value << std::endl;
+    std::cout << done.size() << " cells" << std::endl;
+  }
+  output_histogram(histogram, 0., 180., "histogram_dihedral_angle.cvs");
 }
 
 template<typename Star, typename Constrain_surface, typename Criteria>
@@ -428,7 +624,8 @@ void all_cell_histograms(const typename std::vector<Star*>& stars,
   cell_histogram(stars, m_criteria, CELL_QUALITY, verbose);
   cell_histogram(stars, m_criteria, CELL_SIZE, verbose);
   cell_histogram(stars, m_criteria, CELL_RATIO, verbose);
-  //cell_histogram(stars, m_criteria, CELL_ANGLE, verbose);
+  cell_histogram(stars, m_criteria, CELL_ANGLE, verbose);
+  dihedral_angle_histogram(stars, verbose);
 }
 
 } //namespace Aniso
