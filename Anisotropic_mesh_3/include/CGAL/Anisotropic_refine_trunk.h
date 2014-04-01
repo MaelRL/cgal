@@ -88,7 +88,7 @@ public:
   }
 
 public:
-  Star_set& stars() const { return m_stars; }
+  Star_vector& stars() const { return m_stars; }
   const Constrain_surface* constrain_surface() const { return m_pConstrain; }
   const Criteria* criteria() const { return m_criteria; }
   const Metric_field* metric_field() const { return m_metric_field; }

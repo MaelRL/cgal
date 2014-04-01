@@ -147,7 +147,9 @@ public:
     return false; //not used atm, but it would be [return (dist(tp, tc) < dist(tc, tv0))]
   }
 
-  bool insert_(const Point_3& p)
+  template<typename Visitor>
+  bool insert_(const Point_3& p,
+               const Visitor& visitor)
   {
     int queue_type = 0;
     Refine_cell bad_cell;
@@ -229,8 +231,7 @@ public:
 
     if(!modified_stars.empty())
     {
-      fill_refinement_queue(modified_stars, pid);
-      this->fill_previous_ref_queue(modified_stars, pid); //fill for surf
+      this->fill_refinement_queues(modified_stars, pid, visitor);
     }
     if(this->m_stars.size()%100 == 0)
     {

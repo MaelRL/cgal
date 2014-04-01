@@ -1,27 +1,33 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_MESHER_LEVEL_H
 #define CGAL_ANISOTROPIC_MESH_3_MESHER_LEVEL_H
 
+#include <CGAL/IO/Star_set_output.h>
+
 namespace CGAL
 {
 namespace Anisotropic_mesh_3
 {
 
-struct Null_mesher_level
+struct Null_anisotropic_mesher_level
 {
-  bool refine() { return true; }
+  template<typename V>
+  bool refine(V) { return true; }
+
   bool is_algorithm_done() { return true; }
-  bool one_step() { return false; }
+
+  template<typename V>
+  bool one_step(V) { return false; }
 
   template <typename P>
   bool test_point_conflict_from_superior(P) { return false; }
 
   template <typename I>
-  void fill_ref_queue_from_superior(std::set<I>, I) { }
+  void fill_ref_queues_from_superior(typename std::set<I>, I) { }
 };
 
 template < typename Star, /* Stretched DT */
            typename Derived, /* class that implements methods. */
-           typename Previous /* = Null_mesher_level */>
+           typename Previous /* = Null_anisotropic_mesher_level */>
 class Anisotropic_mesher_level
 {
 public:
@@ -61,31 +67,45 @@ public:
     return previous_level.test_point_conflict_from_superior(p);
   }
 
-  void fill_ref_queue_from_superior(const std::set<typename Star::Index>& modified_stars,
+  void fill_ref_queues_from_superior(const std::set<typename Star::Index>& modified_stars,
                                     typename Star::Index pid)
   {
     derived().fill_refinement_queue(modified_stars, pid);
+    previous_level.fill_ref_queues_from_superior(modified_stars, pid);
   }
 
-  void fill_previous_ref_queue(const std::set<typename Star::Index>& modified_stars,
-                               typename Star::Index pid)
+  void fill_previous_ref_queues(const std::set<typename Star::Index>& modified_stars,
+                                typename Star::Index pid)
   {
-    previous_level.fill_ref_queue_from_superior(modified_stars, pid);
+    previous_level.fill_ref_queues_from_superior(modified_stars, pid);
   }
 
-  bool insert(const Point& p)
+  template<typename Visitor>
+  void fill_refinement_queues(const std::set<typename Star::Index>& modified_stars,
+                              typename Star::Index pid,
+                              const Visitor& visitor)
   {
-    return derived().insert_(p);
+    fill_previous_ref_queues(modified_stars, pid);
+    derived().fill_refinement_queue(modified_stars, pid);
+    visitor.fill_refinement_queue(modified_stars, pid);
   }
 
-  bool process_one_element()
+  template<typename Visitor>
+  bool insert(const Point& p,
+              const Visitor& visitor)
+  {
+    return derived().insert_(p, visitor);
+  }
+
+  template<typename Visitor>
+  bool process_one_element(const Visitor& visitor)
   {
     Point p;
     if(!get_refinement_point_for_next_element(p))
       return false; // no next element
 
-    if(!is_point_in_conflict(p))
-      return insert(p); // true for correct insertion, false if problems
+    if(!is_point_in_conflict(p)) //tmp
+      return insert(p, visitor); // true for correct insertion, false if problems
 
     return true; // conflict and no point was inserted but the algorithm continues
   }
@@ -95,25 +115,27 @@ public:
     return ( previous_level.is_algorithm_done() && derived().is_algorithm_done_() );
   }
 
-  bool refine() //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
+  template<typename Visitor>
+  bool refine(const Visitor& visitor) //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
   {
     while(!is_algorithm_done() /*&& derived().continue_ smthg like that*/ )
     {
       if(!previous_level.is_algorithm_done())
-        if(!previous_level.refine())
+        if(!previous_level.refine(visitor.previous()))
           return false;
-      if(!process_one_element())
+      if(!process_one_element(visitor))
         return is_algorithm_done();
     }
     return true;
   }
 
-  bool one_step()
+  template<typename Visitor>
+  bool one_step(const Visitor& visitor)
   {
     if(!previous_level.is_algorithm_done())
-      return previous_level.one_step();
+      return previous_level.one_step(visitor.previous());
     else
-      return process_one_element();
+      return process_one_element(visitor);
   }
 
   Anisotropic_mesher_level(Previous& previous) : previous_level(previous), m_is_active(false) { }

@@ -66,8 +66,8 @@ public:
   typedef typename Kd_tree::Box_query                              Kd_Box_query;
   typedef typename Kd_tree::key_type                               Kd_point_info;
 
-  typedef CGAL::Anisotropic_mesh_3::Facet_refine_queue<K>  Refine_queue;
-  typedef CGAL::Anisotropic_mesh_3::Refine_facet<K>        Refine_facet;
+  typedef CGAL::Anisotropic_mesh_3::Facet_refine_queue<K>          Refine_queue;
+  typedef CGAL::Anisotropic_mesh_3::Refine_facet<K>                Refine_facet;
 
 private:
   Refine_queue m_refine_queue;
@@ -327,7 +327,10 @@ public:
     // --------------------------------------------------------------------------------------------------
 
     if(!modified_stars.empty())
-      fill_refinement_queue(modified_stars, pid);
+    {
+      this->fill_refinement_queues(modified_stars, pid, visitor);
+    }
+
     if(this->m_stars.size()%100 == 0)
     {
       this->clean_stars();

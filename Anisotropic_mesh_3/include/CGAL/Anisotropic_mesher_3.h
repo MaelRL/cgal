@@ -8,6 +8,7 @@
 
 #include <CGAL/Anisotropic_refine_facets_3.h>
 #include <CGAL/Anisotropic_refine_cells_3.h>
+#include <CGAL/Anisotropic_mesher_visitor.h>
 
 #include <CGAL/IO/Star_set_output.h>
 
@@ -55,10 +56,8 @@ public:
   //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef K                                                 KExact;
 
-// Self
   typedef Anisotropic_mesher_3<K, RefinementCondition>      Self;
 
-// Stars
   typedef Stretched_Delaunay_3<K, KExact>                   Star;
   typedef Star*                                             Star_handle;
   typedef typename Star::Base                               DT; // DT_3 with vertex_base_with_info
@@ -73,7 +72,7 @@ public:
   typedef typename Metric_field::Metric                     Metric;
   typedef Criteria_base<K>                                  Criteria;
 
-// Filters
+//Filters
   typedef CGAL::AABB_tree_bbox<K, Star>                     AABB_tree;
   typedef CGAL::AABB_bbox_primitive<Star>                   AABB_primitive;
 
@@ -82,15 +81,17 @@ public:
   typedef typename Kd_tree::Box_query                       Kd_Box_query;
   typedef typename Kd_tree::key_type                        Kd_point_info;
 
-  // Facets mesher level
-  typedef CGAL::Anisotropic_mesh_3::Anisotropic_refine_facets_3<
-      K,
-      Null_mesher_level>                                    Facets_level;
+//Mesher levels
+  typedef Null_anisotropic_mesher_level                     Null_mesher_level;
+  typedef Anisotropic_refine_facets_3<K, Null_mesher_level> Facets_level;
+  typedef Anisotropic_refine_cells_3<K, Facets_level>       Cells_level;
 
-  // Cells mesher level
-  typedef CGAL::Anisotropic_mesh_3::Anisotropic_refine_cells_3<
-      K,
-      Facets_level>                                         Cells_level;
+//Visitors
+  typedef Null_anisotropic_mesher_visitor                   Null_mesher_visitor;
+  typedef Anisotropic_mesher_visitor<Cells_level, Null_mesher_visitor>
+                                                            Facets_visitor;
+  typedef Null_anisotropic_mesher_visitor_level<Facets_visitor>
+                                                            Cells_visitor;
 
 private:
   // Star set
@@ -106,6 +107,11 @@ private:
   Facets_level m_facet_mesher;
   Cells_level m_cell_mesher;
 
+  // Visitors
+  Null_mesher_visitor m_null_visitor;
+  Facets_visitor m_facet_visitor;
+  Cells_visitor m_cell_visitor;
+
   RefinementCondition m_refinement_condition; //todo
 
 public:
@@ -118,11 +124,13 @@ public:
 #if 1//ndef ANISO_VERBOSE
     // Scan surface and refine it
     m_facet_mesher.initialize();
-    m_facet_mesher.refine();
+    m_facet_mesher.refine(m_facet_visitor);
+
+    m_facet_visitor.is_active() = true;
 
     // Then scan volume and refine it
     m_cell_mesher.initialize();
-    m_cell_mesher.refine();
+    m_cell_mesher.refine(m_cell_visitor);
 #else
     std::cout << "Start surface scan...";
     m_facet_mesher.initialize();
@@ -173,12 +181,12 @@ public:
       m_facet_mesher.initialize();
 
     if(!m_facet_mesher.is_algorithm_done())
-      m_facet_mesher.one_step();
+      m_facet_mesher.one_step(m_facet_visitor);
     else
     {
       if(!m_cell_mesher.is_active())
         m_cell_mesher.initialize();
-      m_cell_mesher.one_step();
+      m_cell_mesher.one_step(m_cell_visitor);
     }
   }
 
@@ -209,7 +217,10 @@ public:
       m_facet_mesher(m_null_mesher, m_stars, pconstrain_, criteria_, metric_field_,
                       m_ch_triangulation, m_aabb_tree, m_kd_tree),
       m_cell_mesher(m_facet_mesher, m_stars, pconstrain_, criteria_, metric_field_,
-                     m_ch_triangulation, m_aabb_tree, m_kd_tree)
+                     m_ch_triangulation, m_aabb_tree, m_kd_tree),
+      m_null_visitor(),
+      m_facet_visitor(m_cell_mesher, m_null_visitor),
+      m_cell_visitor(m_facet_visitor)
   { }
 
   ~Anisotropic_mesher_3() {}
