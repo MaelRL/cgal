@@ -5,8 +5,9 @@
 
 #include <CGAL/helpers/combinatorics_helper.h>
 
-#include <utility>
+#include <map>
 #include <set>
+#include <utility>
 #include <vector>
 
 namespace CGAL
@@ -437,6 +438,74 @@ void output_medit(const std::vector<Star*>& stars,
 
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning Medit: there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
+}
+
+
+template<typename Star>
+void output_surface_voronoi(const std::vector<Star*>& stars,
+                            std::ofstream& fx)
+{
+  typedef typename Star::Point_3      Point;
+
+  std::map<Facet_ijk, int> facets;
+  std::map<std::pair<int,int>, std::vector<int> > edges;
+  std::vector<Point> points;
+
+  std::size_t count = 1; // 1 for first vertex of medit
+  typename std::vector<Star*>::const_iterator sit = stars.begin();
+  typename std::vector<Star*>::const_iterator sitend = stars.end();
+  for(; sit != sitend; sit++)
+  {
+    Star* si = *sit;
+    typename Star::Facet_set_iterator fit = si->begin_restricted_facets();
+    typename Star::Facet_set_iterator fend = si->end_restricted_facets();
+    for(; fit != fend; ++fit)
+    {
+      Point p;
+      si->compute_dual_intersection(*fit, p);
+      points.push_back(p);
+      facets[Facet_ijk(*fit)] = count++;
+    }
+  }
+
+  typename std::map<Facet_ijk, int>::iterator it = facets.begin();
+  typename std::map<Facet_ijk, int>::iterator itend = facets.end();
+  for(;it!=itend;++it)
+  {
+    Facet_ijk f = it->first;
+    for(int i=0; i<3; ++i)
+    {
+      int j = (i+1)%3;
+      int p1 = f[i];
+      int p2 = f[j];
+      if(p2 < p1)
+      {
+        p1 = f[j];
+        p2 = f[i];
+      }
+      edges[std::make_pair(p1, p2)].push_back(facets[f]);
+    }
+  }
+
+  fx << "MeshVersionFormatted 1" << std::endl;
+  fx << "Dimension 3" << std::endl;
+  fx << "Vertices" << std::endl;
+  fx << points.size() << std::endl;
+  for(std::size_t i=0; i<points.size(); ++i)
+    fx << points[i].x() << " " << points[i].y() << " " << points[i].z() << " 0" << std::endl;
+
+  fx << "Edges" << std::endl;
+  fx << edges.size() << std::endl;
+  typename std::map<std::pair<int,int>, std::vector<int> >::iterator eit = edges.begin();
+  typename std::map<std::pair<int,int>, std::vector<int> >::iterator eend = edges.end();
+  for(;eit!=eend;++eit)
+  {
+    std::vector<int> edge = eit->second;
+    assert(edge.size() == 2);
+    fx << edge.front() << " " << edge.back() << " 0" << std::endl;
+  }
+
+  fx << "End" << std::endl;
 }
 
 }  // Anisotropic_mesh_3
