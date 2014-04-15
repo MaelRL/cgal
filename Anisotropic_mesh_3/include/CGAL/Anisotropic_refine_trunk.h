@@ -7,8 +7,6 @@
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Star_consistency.h>
 
-#include <CGAL/helpers/histogram_helper.h>
-
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
 
@@ -18,6 +16,321 @@ namespace CGAL
 {
 namespace Anisotropic_mesh_3
 {
+
+//these classes are used to keep in memory the various conflict zones for each modified star.
+//This is done for multiple reasons :
+// * Avoid computing it multiple times (encroachment tests, pick_valid tests, point insertion...)
+// * Keep in memory the facets/cells that will be destroyed to be able to track elements that might
+//   need to be inserted in the pqueues (especially those not in modified stars)
+template<typename K>
+class Conflict_zone
+{
+  typedef Conflict_zone<K>                        Self;
+
+public:
+  typedef Stretched_Delaunay_3<K>                 Star;
+  typedef typename Star::Facet                    Facet;
+  typedef typename Star::Facet_vector             Facet_vector;
+  typedef typename Star::Facet_handle             Facet_handle;
+  typedef typename Star::Cell_handle              Cell_handle;
+  typedef typename Star::Cell_handle_vector       Cell_handle_vector;
+  typedef typename Star::Cell_handle_handle       Cell_handle_handle;
+
+private:
+  //Conflict zones defining vectors. Valid only until the insertion of the point!
+  Facet_vector m_boundary_facets;
+  Cell_handle_vector m_cells;
+  Facet_vector m_internal_facets;
+
+public:
+  Facet_vector& boundary_facets() { return m_boundary_facets; }
+  const Facet_vector& boundary_facets() const { return m_boundary_facets; }
+  Cell_handle_vector& cells() { return m_cells; }
+  const Cell_handle_vector& cells() const { return m_cells; }
+  Facet_vector& internal_facets() { return m_internal_facets; }
+  const Facet_vector& internal_facets() const { return m_internal_facets; }
+
+  bool empty()
+  {
+    return m_boundary_facets.empty() && m_cells.empty() && m_internal_facets.empty();
+  }
+
+  //Constructors
+  Conflict_zone()
+    :
+      m_boundary_facets(),
+      m_cells(),
+      m_internal_facets()
+  { }
+};
+
+
+//TODO: something better than initialization of a point at (1e17, 1e17, 1e17)
+//      CGAL::ORIGIN isn't satisfying since the insertion point could be the same.
+//      Maybe use NaN?
+template<typename K>
+class Stars_conflict_zones
+{
+  typedef Stars_conflict_zones<K>                          Self;
+
+public:
+  typedef Stretched_Delaunay_3<K>                          Star;
+  typedef Star*                                            Star_handle;
+  typedef typename std::vector<Star_handle>                Star_vector;
+  typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>       Czone;
+  typedef typename Star::Index                             Index;
+  typedef typename Star::Point_3                           Point;
+  typedef typename Star::Facet                             Facet;
+  typedef typename Star::Facet_handle                      Facet_handle;
+  typedef typename Star::Cell_handle                       Cell_handle;
+  typedef typename Star::Cell_handle_handle                Cell_handle_handle;
+  typedef typename std::map<Index, Czone>::iterator        iterator;
+  typedef typename std::map<Index, Czone>::const_iterator  const_iterator;
+
+public:
+  enum Conflict_zones_status
+  {
+    CONFLICTS_UNKNOWN = 0,
+    CONFLICTING_POINT_IS_KNOWN,
+    CONFLICTING_STARS_ARE_KNOWN, // conflicting_point is known too
+    CONFLICT_ZONES_ARE_KNOWN // everything is known
+  };
+
+private:
+  const Star_vector& m_stars;
+  std::map<Index, Czone> m_conflict_zones;
+  Point m_conflict_p; // point causing the conflict (only needed to debug / assert)
+  Index m_conflict_p_id; //id of the point
+
+  //we need to keep track of the "soon to be" destroyed facets/cells SEEN FROM UNMODIFIED STARS
+  //not lose consistency in the unmodified stars and add them to the queue if needed
+  std::map<Index, std::vector<Facet> > m_facets_to_check;
+  std::map<Index, std::vector<Cell_handle> > m_cells_to_check;
+
+public:
+  const std::map<Index, Czone>& conflict_zones() const { return m_conflict_zones; }
+  Czone& conflict_zone(Index i) { return m_conflict_zones[i]; }
+  const Czone& conflict_zone(Index i) const { return m_conflict_zones[i]; }
+  Point& conflicting_point() { return m_conflict_p; }
+  const Point& conflicting_point() const { return m_conflict_p; }
+  Index& conflicting_point_id() { return m_conflict_p_id; }
+  const Index& conflicting_point_id() const { return m_conflict_p_id; }
+  const std::map<Index, std::vector<Facet> >& facets_to_check() const { return m_facets_to_check; }
+  const std::map<Index, std::vector<Cell_handle> >& cells_to_check() const { return m_cells_to_check; }
+
+  const_iterator begin() const { return m_conflict_zones.begin(); }
+  const_iterator end() const { return m_conflict_zones.end(); }
+  iterator begin() { return m_conflict_zones.begin(); }
+  iterator end() { return m_conflict_zones.end(); }
+  std::size_t size() const { return m_conflict_zones.size(); }
+
+  bool is_empty() const { return m_conflict_zones.empty(); }
+  void clear()
+  {
+    m_conflict_zones.clear();
+    m_conflict_p = Point(1e17, 1e17, 1e17);
+    m_conflict_p_id = -1;
+    m_facets_to_check.clear();
+    m_cells_to_check.clear();
+  }
+
+  Conflict_zones_status status()
+  {
+    if(m_conflict_p == Point(1e17, 1e17, 1e17))
+      return CONFLICTS_UNKNOWN;
+    if(m_conflict_zones.empty())
+      return CONFLICTING_POINT_IS_KNOWN;
+    if((m_conflict_zones.begin()->second).empty())
+      return CONFLICTING_STARS_ARE_KNOWN;
+    return CONFLICT_ZONES_ARE_KNOWN;
+  }
+
+  bool are_check_maps_empty()
+  {
+    return m_facets_to_check.empty() && m_cells_to_check.empty();
+  }
+
+  void compute_elements_needing_check()
+  {
+//todo -----------------------
+    //WHEN REFINEMENT_CONDITIONS ARE ADDED AGAIN THERE NEEDS TO BE A CHECK HERE
+    //NOT TO CONSIDER USELESS FACETS/CELLS
+
+    //TODO SOMETHING TO NOT COMPUTE THIS MULTIPLE TIMES
+
+    //Shouldn't compute cell elements to check if the cell level isn't active
+    // -> add a boolean member activated at the same time as the facet_visitor / cell_mesher_lvl
+//-----------------------
+
+    //What is being done here:
+    //we need to make sure that no inconsistency appears in stars that are not
+    //in conflict with the point. This might appear when a simplex is in conflict
+    //in one star, but not in the others.
+
+    //si is a star corresponding to the vertex i (i\in s) and s\in si
+    //sj is the star corresponding to the vertex j (i!=j), that is a vertex of s
+
+    //For internal facets and cells, the cases are :
+    // -sj does not have s => nothing to do
+    // -sj has s but sj is not in conflict => add to simplex_to_check
+    // -sj has s and s is in the czone of cj => nothing to do
+    // -sj has s and s is NOT in the czone of cj => add to simplex_to_check
+
+    //For boundary facets, it is more complicated... WIP. TODO
+
+    std::cout << "computing elements needing a check" << std::endl;
+    std::cout << "czones: " << std::endl << *this << std::endl;
+
+    //Count the elements. In the general case, an internal facet(cell) is three(four)
+    //times in conflict, and there is thus nothing to check.
+    std::map<Facet_ijk, int> facets_counter;
+    std::map<Cell_ijkl, int> cells_counter;
+
+    iterator mit = m_conflict_zones.begin();
+    iterator mend = m_conflict_zones.end();
+    for(; mit!=mend; ++mit)
+    {
+      std::cout << mit->first << std::endl;
+      Star_handle si = m_stars[mit->first];
+      Czone& czi = mit->second;
+      if(czi.empty())
+        continue;
+
+      //internal facets
+      typename Czone::Facet_handle fit = czi.internal_facets().begin();
+      typename Czone::Facet_handle fend = czi.internal_facets().end();
+      for(; fit!=fend; ++fit)
+      {
+        if(!si->is_restricted(*fit))
+          add_to_map(Facet_ijk(*fit), facets_counter);
+      }
+
+      //cells
+      typename Czone::Cell_handle_handle cit = czi.cells().begin();
+      typename Czone::Cell_handle_handle cend = czi.cells().end();
+      for(; cit!=cend; ++cit)
+      {
+        if(si->is_inside(*cit))
+          add_to_map(Cell_ijkl(*cit), cells_counter);
+      }
+    }
+
+    mit = m_conflict_zones.begin();
+    for(; mit!=mend; ++mit)
+    {
+      Index sid = mit->first;
+      Star_handle si = m_stars[sid];
+      Czone& czi = mit->second;
+
+      //compute facets that need a check
+      //all internal restricted facets
+      typename Czone::Facet_handle fit = czi.internal_facets().begin();
+      typename Czone::Facet_handle fend = czi.internal_facets().end();
+      for(; fit!=fend; ++fit)
+      {
+        if(!si->is_restricted(*fit))
+          continue;
+        if(facets_counter[Facet_ijk(*fit)] == 3)
+          continue;
+
+        //TODO
+      }
+
+      //boundary facets could stop being restricted and create inconsistencies...
+      fit = czi.boundary_facets().begin();
+      fend = czi.boundary_facets().end();
+      for(; fit!=fend; ++fit)
+      {
+        //TODO
+      }
+
+      //compute cells that need a check
+      typename Czone::Cell_handle_handle cit = czi.cells().begin();
+      typename Czone::Cell_handle_handle cend = czi.cells().end();
+      for(; cit!=cend; ++cit)
+      {
+        Cell_handle c = *cit;
+        if(!si->is_inside(c)) //checks infinity too
+          continue;
+        if(cells_counter[Cell_ijkl(c)] == 4) //cell is in conflict in all stars
+          continue;
+
+        std::vector<Index> indices; //the other stars making up the cell
+        for(int i=0; i<4; ++i)
+        {
+          Index id = c->vertex(i)->info();
+          if(id != sid)
+            indices.push_back(id);
+        }
+
+        //Ignore cells that are not incident to the star's center point (they do
+        //not exist in the queues). They will be cleaned eventually
+        if(indices.size() == 4)
+          continue;
+
+        for(std::size_t j=0; j<indices.size(); ++j)
+        {
+          Star_handle sj = m_stars[indices[j]];
+
+          Cell_handle c_in_sj; //the cell c seen from sj
+          if(!sj->has_cell(Cell_ijkl(c), c_in_sj))
+            continue;
+
+          iterator czcit = m_conflict_zones.find(indices[j]);
+          if(czcit == m_conflict_zones.end())
+          {
+            m_cells_to_check[indices[j]].push_back(c_in_sj);
+            continue;
+          }
+
+          Czone czj = czcit->second;
+          Cell_handle_handle chit = std::find(czj.cells().begin(),
+                                              czj.cells().end(),
+                                              c_in_sj);
+          if(chit == czj.cells().end())
+            m_cells_to_check[indices[j]].push_back(c_in_sj);
+        }
+      }
+    }
+
+    if(!m_cells_to_check.empty())
+      std::cout << "Cells_to_check is not empty. Size (n° of stars): ': " << m_cells_to_check.size() << std::endl;
+  }
+
+//Constructors
+  Stars_conflict_zones(const Star_vector& m_stars_)
+    :
+      m_stars(m_stars_),
+      m_conflict_zones(),
+      m_conflict_p(Point(1e17, 1e17, 1e17)),
+      m_conflict_p_id(-1),
+      m_facets_to_check(),
+      m_cells_to_check()
+  { }
+};
+
+template<typename K>
+inline std::ostream& operator<<(std::ostream& os, const Stars_conflict_zones<K>& src)
+{
+  os << "printing current czones:" << std::endl;
+  os << "point : " << src.conflicting_point() << std::endl;
+  os << "id: " << src.conflicting_point_id() << std::endl;
+  os << "size: " << src.size() << std::endl;
+  os << "zones: " << std::endl;
+  typename Stars_conflict_zones<K>::const_iterator it = src.begin();
+  typename Stars_conflict_zones<K>::const_iterator iend = src.end();
+  for(; it!=iend; ++it)
+  {
+    const typename Stars_conflict_zones<K>::Czone& czi = it->second;
+    os << " " << it->first << " ";
+    os << czi.boundary_facets().size() << " ";
+    os << czi.cells().size() << " ";
+    os << czi.internal_facets().size() << " ";
+    os << std::endl;
+  }
+
+  return os;
+}
 
 template<typename K>
 class Anisotropic_refine_trunk
@@ -61,6 +374,9 @@ public:
   typedef typename Kd_tree::Box_query                              Kd_Box_query;
   typedef typename Kd_tree::key_type                               Kd_point_info;
 
+  typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>               Conflict_zone;
+  typedef CGAL::Anisotropic_mesh_3::Stars_conflict_zones<K>        Stars_conflict_zones;
+
 private:
   typedef typename KExact::Point_3                                 Exact_Point_3;
   typedef typename KExact::Point_3                                 Exact_TPoint_3;
@@ -80,6 +396,8 @@ protected:
   DT& m_ch_triangulation;
   AABB_tree& m_aabb_tree;
   Kd_tree& m_kd_tree;
+
+  Stars_conflict_zones& m_stars_czones;
 
 public:
   double duration(const time_t& start) const
@@ -120,6 +438,7 @@ public:
   Star_handle get_star(typename Index_set::const_iterator it) const   { return m_stars[*it]; }
   Star_handle get_star(typename Star_set::const_iterator it) const    { return *it; }
   Star_handle get_star(typename Star_vector::const_iterator it) const { return *it; }
+  Star_handle get_star(typename Stars_conflict_zones::const_iterator it) const { return m_stars[it->first]; }
 
   template <typename StarIterator>
   Star_set get_stars(StarIterator begin, StarIterator end) const
@@ -198,7 +517,7 @@ public:
 #endif
   }
 
-  //checks if a facet is encroached by any existing star (debug)
+  //checks if a facet is encroached by any existing star (debug only)
   bool is_encroached(Star_handle star, const Facet &facet)
   {
     Index p1 = facet.first->vertex((facet.second + 1)%4)->info();
@@ -217,7 +536,7 @@ public:
 
       if(star->is_facet_encroached(transform_to_star_point(si->center_point(), star), facet))
       {
-#ifdef ANISO_DEBUG_ENCROACHMENT
+#if 1//def ANISO_DEBUG_ENCROACHMENT
         std::cout << "Facet ";
         std::cout << facet.first->vertex((facet.second + 1)%4)->info() << " ";
         std::cout << facet.first->vertex((facet.second + 2)%4)->info() << " ";
@@ -306,6 +625,18 @@ public:
   FT star_distortion(Star_handle star) const
   {
     FT max_distortion = 0.;
+
+    /*
+    Facet_set_iterator fit = star->begin_restricted_facets();
+    Facet_set_iterator fitend = star->end_restricted_facets();
+    for(; fit != fitend; fit++)
+    {
+      Facet f = *fit;
+      max_distortion = (std::max)(max_distortion, compute_distortion(f));
+    }
+    return max_distortion;
+  */
+
     Star_iterator vit = star->begin_neighboring_vertices();
     Star_iterator vend = star->end_neighboring_vertices();
     for(; vit!=vend; ++vit)
@@ -656,21 +987,20 @@ public:
 
   void clean_stars()
   {
-    std::cout << "clean call" << std::endl;
+    std::cout << "clean call, size: " << m_stars.size() << std::endl;
     for(std::size_t i = 0; i < m_stars.size(); i++)
       m_stars[i]->clean();
   }
 
-//Point insertion functions
-  Index simulate_insert_to_stars(const Point_3& p,
-                                 Index_set& modified_stars) const
+//Conflict zones
+  Index simulate_insert_to_stars(const Point_3& p) const
   {
     Index this_id = static_cast<Index>(m_stars.size());
 
     // find conflicted stars
     Star_set stars;
     finite_stars_in_conflict(p, std::inserter(stars, stars.end())); //aabb tree
-    infinite_stars_in_conflict(p, std::inserter(stars, stars.end()));//convex hull
+    infinite_stars_in_conflict(p, std::inserter(stars, stars.end())); //convex hull
 
     typename Star_set::iterator it = stars.begin();
     typename Star_set::iterator itend = stars.end();
@@ -684,14 +1014,78 @@ public:
       else if(id < (int)this_id) // already in star set
         return id;
       else // to be inserted, standard configuration
-        modified_stars.insert(si->index_in_star_set());
+      {
+        //add them to the map of stars in conflict (conflict zones are not computed yet)
+        m_stars_czones.conflict_zone(si->index_in_star_set());
+      }
     }
+
     return this_id;
   }
 
+  //those functions maybe could (should) be in the Czones class. But then it means
+  //that all the filters (aabb, kd, etc.) need also a ref in the czone class(es) TODO (?)
+  Index compute_conflict_zones(const Point_3& p) const
+  {
+    if(m_stars_czones.status() == Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN
+       && p == m_stars_czones.conflicting_point()) // just to be safe
+    {
+      std::cout << "Zones are already konwn, can skip computations!" << std::endl;
+      return m_stars_czones.conflicting_point_id();
+    }
+
+    if(m_stars_czones.status() == Stars_conflict_zones::CONFLICTS_UNKNOWN)
+      m_stars_czones.conflicting_point() = p;
+
+    if(p != m_stars_czones.conflicting_point())
+    {
+      std::cout << "Points should have been equal there; ";
+      std::cout << "the conflict zones are not cleaned correctly..." << std::endl;
+    }
+
+    if(m_stars_czones.status() == Stars_conflict_zones::CONFLICTING_POINT_IS_KNOWN)
+      m_stars_czones.conflicting_point_id() = simulate_insert_to_stars(p);
+
+    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+      Star_handle si = get_star(i);
+      Conflict_zone& ci = czit->second;
+
+      si->find_conflicts(p, std::back_inserter(ci.boundary_facets()),
+                            std::back_inserter(ci.cells()),
+                            std::back_inserter(ci.internal_facets()));
+
+      //Debug etc.
+    }
+
+    return m_stars_czones.conflicting_point_id();
+  }
+
+  void clear_conflict_zones() const
+  {
+    m_stars_czones.clear();
+  }
+
+//Point insertion functions
+  template<typename Key, typename Val>
+  struct set_map_comp
+  {
+    bool operator()(Key k, const std::pair<Key, Val>& p) const
+    {
+      return k < p.first;
+    }
+
+    bool operator()(const std::pair<Key, Val>& p, Key k) const
+    {
+      return p.first < k;
+    }
+  };
+
   void create_star(const Point_3 &p,
                    int pid,
-                   const Index_set& modified_stars,//by p's insertion
                    Star_handle& star,
                    const bool surface_star = true,
                    const bool metric_reset = true) const
@@ -699,13 +1093,14 @@ public:
 #ifdef USE_ANISO_TIMERS
     std::clock_t start_time = clock();
 #endif
+     //TODO
     if(1) //metric_reset
-    { //todododododdodododdotodododododdodododdotodododododdodododdotodododododdodododdo
+    {
       if(1) //surface_star
       {
         Metric m_p;
 
-        /*
+        /* TODO
         if(m_use_c3t3_colors || m_compute_metric_from_triangle)
         {
           Vector_3 normal;
@@ -738,13 +1133,17 @@ public:
         star->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
     }
 
-    typename Index_set::const_iterator si = modified_stars.begin();
-    typename Index_set::const_iterator siend = modified_stars.end();
-    for (; si != siend; si++)
+    if(m_stars_czones.is_empty())
+      std::cout << "Warning: empty conflict map at the creation of the new star" << std::endl;
+
+    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
+    for(; czit!=czend; ++czit)
     {
-      Star_handle star_i = get_star(si);
+      Index i = czit->first;
+      Star_handle star_i = get_star(i);
       star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false);
-        //no condition because they should be there for consistency
+        //"false": no condition because they should be there for consistency
     }
 
     typename Star::Bbox bbox = star->bbox(); // volume bbox + surface bbox when star is not a topo_disk
@@ -754,11 +1153,13 @@ public:
     std::set<Kd_point_info> indices;
     m_kd_tree.search(std::inserter(indices, indices.end()), query);
 
-    if(indices.size() != modified_stars.size())// because 'indices' contains 'modified_stars'
+    if(indices.size() != m_stars_czones.size())// because 'indices' contains 'modified_stars'
     {
       Index_set diff;
       std::set_difference(indices.begin(), indices.end(),
-                          modified_stars.begin(), modified_stars.end(), std::inserter(diff, diff.end()));
+                          m_stars_czones.begin(), m_stars_czones.end(),
+                          std::inserter(diff, diff.end()),
+                          set_map_comp<Index, Conflict_zone>());
       typename Index_set::iterator it = diff.begin();
       while(it != diff.end())
       {
@@ -769,40 +1170,94 @@ public:
   }
 
   Star_handle create_star(const Point_3 &p,
-                          int pid,
-                          const Index_set& modified_stars)
+                          int pid)
   {
     Star_handle star = new Star(m_criteria, m_pConstrain, true /*surface star*/);
-    create_star(p, pid, modified_stars, star, true /*surface star*/);
+    create_star(p, pid, star, true /*surface star*/);
     return star;
   }
 
   Star_handle create_inside_star(const Point_3 &p,
-                                 int pid,
-                                 const Index_set& modified_stars) const //by p's insertion
+                                 int pid) const
   {
-    Star_handle star = new Star(m_criteria, m_pConstrain, false/*surface*/);
-    create_star(p, pid, modified_stars, star, false/*surface*/);
+    Star_handle star = new Star(m_criteria, m_pConstrain, false/*not surface star*/);
+    create_star(p, pid, star, false/*not surface star*/);
     return star;
   }
 
-  // inserts p in target_stars ('conditional' to be in conflict or not)
-  // modified_stars get filled with the stars in which p is actually inserted
-  // triangulation of CH is updated accordingly
+  //this version of "perform_insertions()" uses the conflict zones previous computed
   Index perform_insertions(const Point_3& p,
                            const Index& this_id,
-                           const Star_set& target_stars,
-                           Index_set& modified_stars,
-                           const bool conditional,
                            const bool infinite_stars = false)
   {
+    std::cout << "perf insertions with conflict zones " << p << std::endl;
+    std::cout << m_stars_czones << std::endl;
+
     Vertex_handle v_in_ch = Vertex_handle();
-    typename Star_set::const_iterator it = target_stars.begin();
-    typename Star_set::const_iterator itend = target_stars.end();
+
+    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+      Star_handle si = get_star(i);
+      Vertex_handle vi;
+
+      Conflict_zone& si_czone = m_stars_czones.conflict_zone(i);
+      Facet f = *(si_czone.boundary_facets().begin());
+      vi = si->insert_to_star_hole(p, this_id, si_czone.cells(), f);
+
+      if(vi == Vertex_handle()) //no conflict (should not happen)
+      {
+        std::cout << "No conflict in the insertion of a point in a conflict star" << std::endl;
+        continue;
+      }
+      else if(vi->info() < this_id) // already in star set (should not happen)
+      {
+        std::cout << "Warning! Insertion of p"<< this_id
+                  << " (" << p << ") in S" << si->index_in_star_set()
+                  << " failed. vi->info() :"<< vi->info() << std::endl;
+        if(v_in_ch != Vertex_handle())
+          m_ch_triangulation.remove(v_in_ch);
+        remove_from_stars(this_id, m_stars_czones.begin(), ++czit);
+          //should probably be (++czit)-- but it doesn't really matter since something went wrong if we're in there
+
+        si->print_vertices(true);
+        si->print_faces();
+        std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
+        return vi->info();
+      }
+      else // inserted, standard configuration
+      {
+        // update the triangulation of the convex hull
+        if(infinite_stars)//(si->is_infinite() && v_in_ch != Vertex_handle())
+        {
+          v_in_ch = m_ch_triangulation.insert(p);
+          v_in_ch->info() = this_id;
+        }
+      }
+    }
+    return this_id;
+  }
+
+  //this version is called when conditional is false (insert in target_stars regardless of conflicts)
+  template<typename Stars>
+  Index perform_insertions(const Point_3& p,
+                           const Index& this_id,
+                           const Stars& target_stars,
+                           const bool infinite_stars = false)
+  {
+    std::cout << "perform insertions with cond false. nstars: " << target_stars.size() << std::endl;
+
+    Vertex_handle v_in_ch = Vertex_handle();
+    typename Stars::const_iterator it = target_stars.begin();
+    typename Stars::const_iterator itend = target_stars.end();
     for(; it != itend; it++)
     {
       Star_handle si = *it;
-      Vertex_handle vi = si->insert_to_star(p, this_id, conditional);
+      Index i = si->index_in_star_set();
+      Vertex_handle vi = si->insert_to_star(p, this_id, false);
+        // equivalent to directly calling si->base::insert(tp)
 
       if(vi == Vertex_handle())  //no conflict
         continue;
@@ -822,7 +1277,10 @@ public:
       }
       else // inserted, standard configuration
       {
-        modified_stars.insert(si->index_in_star_set());
+        //Conflict zones are not computed for the target_stars, so we need to create
+        //entries in the conflict zones map (for fill_ref_queue)
+        m_stars_czones.conflict_zone(i);
+
         // update triangulation of convex hull
         if(infinite_stars)//(si->is_infinite() && v_in_ch != Vertex_handle())
         {
@@ -835,76 +1293,74 @@ public:
   }
 
   Index insert_to_stars(const Point_3& p,
-                        Index_set& modified_stars,
                         const bool conditional)
   {
     Index this_id = static_cast<Index>(m_stars.size());
 
-    // find conflicted stars & insert p to these stars
     Index id;
-    Star_set target_stars;
     if(conditional)
-      finite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end())); // aabb tree/exhaustive
+    {
+      id = perform_insertions(p, this_id, false/*no convex hull upgrades*/); //stars in conflict
+
+      //TODO CHECK THAT BELOW IS RELEVANT... IT SHOULD ALSO BE OKAY FOR IT TO BE THERE
+      //RATHER THAN FOR BOTH VALUES OF "conditional" SINCE IF WE TAKE ALL STARS,
+      //WE HAVE THE INFINITE STARS ALREADY INCLUDED...
+      Star_set target_stars;
+      infinite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end())); //convex hull
+      id = perform_insertions(p, this_id, target_stars, true/*update convex hull*/);
+    }
     else
-      all_stars(std::inserter(target_stars, target_stars.end()));
-
-    //std::cout << target_stars.size() << " stars found by the conflict find" << std::endl;
-    id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, false);
-
-    target_stars.clear();
-    infinite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end()));//convex hull
-    id = perform_insertions(p, this_id, target_stars, modified_stars, conditional, true);
+      id = perform_insertions(p, this_id, m_stars, true/*update convex hull*/); // insert in all stars
 
     return id;
   }
 
-  Index insert(const Point_3& p, const bool conditional)
-  {
-    Index_set modified_stars;
-    return insert(p, modified_stars, conditional);
-  }
-
   Index insert(const Point_3 &p,
-               Index_set& modified_stars,
-               const bool conditional)
+               const bool conditional,
+               const bool surface_point = false)
   {
-    Index id = insert_to_stars(p, modified_stars, conditional);
+    std::cout << "insert call. p: " << p << " ";
+    std::cout << "surface_point: " << surface_point << " ||  conditional: " << conditional << std::endl;
+
+    if(conditional && m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
+      std::cout << "Conflict zones unknown at insertion time...(insert)" << std::endl;
+
+    Index id = insert_to_stars(p, conditional);
     if(id < 0 || id < (int)m_stars.size())
       return id;
 
-    Star_handle star = create_star(p, id, modified_stars); // implies surface star
+    std::cout << "Final czones before create star " << p << std::endl;
+    std::cout << m_stars_czones << std::endl;
+
+    Star_handle star;
+    if(surface_point)
+      star = create_star(p, id); //implies surface star
+    else
+      star = create_inside_star(p, id);
 
     if(star->index_in_star_set() != m_stars.size())
       std::cout << "WARNING in insert..." << std::endl;
 
+    if(conditional)
+    {
+      //need to have the id of the new star in the list of ids to check in fill_ref_queue
+      m_stars_czones.conflict_zone(m_stars.size());
+    }
+    else
+    {
+      //if(!conditional), the queue is filled from all stars anyway so the czones
+      //have no more utility and should be cleared ASAP.
+      m_stars_czones.clear();
+    }
+
     m_stars.push_back(star);
-    modified_stars.insert(star->index_in_star_set());
     m_kd_tree.insert(star->index_in_star_set());
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
     m_aabb_tree.insert(AABB_primitive(star));
 #endif
+
     return id;
   }
-
-  Index insert_in_domain(const Point_3& p,
-                         Index_set& modified_stars,
-                         const bool conditional)
-  {
-    Index id = insert_to_stars(p, modified_stars, conditional);
-
-    if(id < 0 || id < (int)m_stars.size())
-      return id;
-
-    Star_handle star = create_inside_star(p, id, modified_stars);
-    m_stars.push_back(star);
-    modified_stars.insert(star->index_in_star_set());
-    m_kd_tree.insert(star->index_in_star_set());
-#ifndef NO_USE_AABB_TREE_OF_BBOXES
-    m_aabb_tree.insert(AABB_primitive(star));
-#endif
-    return id;
-  }
-
 
 //Constructors
   Anisotropic_refine_trunk(Star_vector& m_stars_,
@@ -913,7 +1369,8 @@ public:
                            const Metric_field* m_metric_field_,
                            DT& m_ch_triangulation_,
                            AABB_tree& m_aabb_tree_,
-                           Kd_tree& m_kd_tree_)
+                           Kd_tree& m_kd_tree_,
+                           Stars_conflict_zones& m_stars_czones_)
   :
     m_stars(m_stars_),
     m_pConstrain(m_pConstrain_),
@@ -921,7 +1378,8 @@ public:
     m_metric_field(m_metric_field_),
     m_ch_triangulation(m_ch_triangulation_),
     m_aabb_tree(m_aabb_tree_),
-    m_kd_tree(m_kd_tree_)
+    m_kd_tree(m_kd_tree_),
+    m_stars_czones(m_stars_czones_)
   { }
 
 };  // Anisotropic_refine_trunk

@@ -8,6 +8,14 @@ namespace CGAL
 namespace Anisotropic_mesh_3
 {
 
+enum Refinement_point_status
+{
+  EMPTY_QUEUE = 0,
+  POINT_IN_CONFLICT,
+  PICK_VALID_FAILED,
+  SUITABLE_POINT
+};
+
 struct Null_anisotropic_mesher_level
 {
   template<typename V>
@@ -19,10 +27,10 @@ struct Null_anisotropic_mesher_level
   bool one_step(V) { return false; }
 
   template <typename P>
-  bool test_point_conflict_from_superior(P) { return false; }
+  bool test_point_conflict_from_superior(P, bool) { return false; }
 
   template <typename I>
-  void fill_ref_queues_from_superior(typename std::set<I>, I) { }
+  void fill_ref_queues_from_superior(I) { }
 };
 
 template < typename Star, /* Stretched DT */
@@ -52,62 +60,79 @@ public:
     derived().initialize_();
   }
 
-  bool get_refinement_point_for_next_element(Point& p)
+  Refinement_point_status get_refinement_point_for_next_element(Point& p)
   {
     return derived().get_refinement_point_for_next_element_(p);
   }
 
-  bool test_point_conflict_from_superior(const Point& p)
+  bool test_point_conflict_from_superior(const Point& p,
+                                         const bool is_queue_updated = true)
   {
-    return derived().test_point_conflict_from_superior_(p);
+    return (is_point_in_conflict(p, is_queue_updated) ||
+            derived().test_point_conflict_from_superior_(p, is_queue_updated));
   }
 
-  bool is_point_in_conflict(const Point& p)
+  //this function potentially fills partially the conflict_zones:
+  //it gives which stars are in conflict (without giving the actual conflict zones)
+  bool is_point_in_conflict(const Point& p,
+                            const bool is_queue_updated = true) const
   {
-    return previous_level.test_point_conflict_from_superior(p);
+    return previous_level.test_point_conflict_from_superior(p, is_queue_updated);
   }
 
-  void fill_ref_queues_from_superior(const std::set<typename Star::Index>& modified_stars,
-                                    typename Star::Index pid)
+  void fill_ref_queues_from_superior(typename Star::Index pid)
   {
-    derived().fill_refinement_queue(modified_stars, pid);
-    previous_level.fill_ref_queues_from_superior(modified_stars, pid);
+    fill_previous_ref_queues(pid);
+    derived().fill_refinement_queue(pid);
   }
 
-  void fill_previous_ref_queues(const std::set<typename Star::Index>& modified_stars,
-                                typename Star::Index pid)
+  void fill_previous_ref_queues(typename Star::Index pid)
   {
-    previous_level.fill_ref_queues_from_superior(modified_stars, pid);
-  }
-
-  template<typename Visitor>
-  void fill_refinement_queues(const std::set<typename Star::Index>& modified_stars,
-                              typename Star::Index pid,
-                              const Visitor& visitor)
-  {
-    fill_previous_ref_queues(modified_stars, pid);
-    derived().fill_refinement_queue(modified_stars, pid);
-    visitor.fill_refinement_queue(modified_stars, pid);
+    previous_level.fill_ref_queues_from_superior(pid);
   }
 
   template<typename Visitor>
-  bool insert(const Point& p,
-              const Visitor& visitor)
+  bool after_insertion(typename Star::Index pid,
+                       const Visitor& visitor)
   {
-    return derived().insert_(p, visitor);
+    std::cout << "after insertion pid: " << pid << std::endl;
+
+    fill_previous_ref_queues(pid);
+    derived().fill_refinement_queue(pid);
+    visitor.fill_refinement_queue(pid);
+
+    derived().clear_conflict_zones();
+#ifdef ANISO_DEBUG_QUEUE
+    std::cout << "Enter fill ref queues debug. Filling with all stars" << std::endl;
+    derived().fill_refinement_queue();
+    derived().m_refine_queue.print();
+    std::cout << "End fill ref queues debug" << std::endl;
+#endif
+
+    if(pid%100 == 0)
+      derived().clean_stars();
+
+    return true;
+  }
+
+  bool insert(const Point& p)
+  {
+    return derived().insert_(p);
   }
 
   template<typename Visitor>
   bool process_one_element(const Visitor& visitor)
   {
     Point p;
-    if(!get_refinement_point_for_next_element(p))
-      return false; // no next element
+    Refinement_point_status status = get_refinement_point_for_next_element(p);
 
-    if(!is_point_in_conflict(p)) //tmp
-      return insert(p, visitor); // true for correct insertion, false if problems
+    if(status == EMPTY_QUEUE)
+      return false;
+    if(status == POINT_IN_CONFLICT)
+      return true; // no point was inserted but the algorithm continues (at the lower level)
 
-    return true; // conflict and no point was inserted but the algorithm continues
+    return (insert(p) && // true for correct insertion, false if problems
+            after_insertion(derived().number_of_stars()-1, visitor)); //id of the last inserted star is size()-1
   }
 
   bool is_algorithm_done()
@@ -118,7 +143,7 @@ public:
   template<typename Visitor>
   bool refine(const Visitor& visitor) //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
   {
-    while(!is_algorithm_done() /*&& derived().continue_ smthg like that*/ )
+    while(!is_algorithm_done() /*&& derived().continue_ smthg like that to interrupt in the demo TODO*/)
     {
       if(!previous_level.is_algorithm_done())
         if(!previous_level.refine(visitor.previous()))
@@ -138,7 +163,11 @@ public:
       return process_one_element(visitor);
   }
 
-  Anisotropic_mesher_level(Previous& previous) : previous_level(previous), m_is_active(false) { }
+  Anisotropic_mesher_level(Previous& previous)
+    :
+      previous_level(previous),
+      m_is_active(false)
+  { }
 }; // Anisotropic_mesher_level
 
 } // Anisotropic_mesh_3

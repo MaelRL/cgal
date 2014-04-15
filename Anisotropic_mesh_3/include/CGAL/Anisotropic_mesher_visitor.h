@@ -12,8 +12,7 @@ struct Null_anisotropic_mesher_visitor
 
   const Self& previous() const { return *this; }
 
-  template<typename Stars>
-  void fill_refinement_queue(const Stars&, int) const { }
+  void fill_refinement_queue(int) const { }
 
   Null_anisotropic_mesher_visitor() { }
 };
@@ -27,8 +26,7 @@ class Null_anisotropic_mesher_visitor_level
 public:
   const Previous& previous() const { return previous_level; }
 
-  template<typename Stars>
-  void fill_refinement_queue(const Stars&, int) const { }
+  void fill_refinement_queue(int) const { }
 
   Null_anisotropic_mesher_visitor_level(Previous& previous_level_)
     : previous_level(previous_level_)
@@ -48,12 +46,10 @@ public:
   const bool is_active() const { return m_is_active; }
   bool& is_active() { return m_is_active; }
 
-  template<typename Stars>
-  void fill_refinement_queue(const Stars& modified_stars,
-                             int relative_point = -1) const
+  void fill_refinement_queue(int relative_point) const //should be Index (same above) todo
   {
     if(m_is_active)
-      mesher_level.fill_refinement_queue(modified_stars, relative_point);
+      mesher_level.fill_refinement_queue(relative_point);
   }
 
   Anisotropic_mesher_visitor(Mesher_level& mesher_level_,

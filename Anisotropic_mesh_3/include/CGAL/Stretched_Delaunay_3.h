@@ -234,7 +234,7 @@ public:
 
       inline void update_star_caches() const
       {
-        if (!is_cache_dirty)
+        if(!is_cache_dirty)
           return;
 
         CGAL_PROFILER("[update_star_caches]");
@@ -771,6 +771,7 @@ public:
         }
         return false;
       }
+
       bool has_cell(int *vertices, Cell_handle &cell)
       {
         int dids[4];
@@ -788,16 +789,54 @@ public:
         return false;
       }
 
-      bool has_facet(int *vertices, Facet &facet) const
+      bool has_cell(const Cell_ijkl& c, Cell_handle& cell) const
+      {
+        boost::array<int, 4> dids;
+        Cell_handle_handle ci = begin_star_cells();
+        Cell_handle_handle cend = end_star_cells();
+        for (; ci != cend; ci++)
+        {
+          for (int i=0; i<4; i++)
+            dids[i] = (*ci)->vertex(i)->info();
+          std::sort(dids.begin(), dids.end());
+          if(std::equal(dids.begin(), dids.end(), c.vertices().begin()))
+          {
+            cell = *ci;
+            return true;
+          }
+        }
+        return false;
+      }
+
+      bool has_facet(const Facet_ijk& f, Facet& facet) const
+      {
+        boost::array<int, 3> dids;
+        Facet_set_iterator fi = begin_restricted_facets();
+        Facet_set_iterator fiend = end_restricted_facets();
+        for (; fi != fiend; fi++)
+        {
+          for (int i=0; i<3; i++)
+            dids[i] = fi->first->vertex((fi->second+i+1) % 4)->info();
+          std::sort(dids.begin(), dids.end());
+          if(std::equal(dids.begin(), dids.end(), f.vertices().begin()))
+          {
+            facet = *fi;
+            return true;
+          }
+        }
+        return false;
+      }
+
+      bool has_facet(int *cids, Facet &facet) const
       {
         int dids[3];
         Facet_set_iterator fi = begin_restricted_facets();
         Facet_set_iterator fiend = end_restricted_facets();
         for (; fi != fiend; fi++)
         {
-          for (int i = 1; i <= 3; i++)
-            dids[i - 1] = fi->first->vertex((fi->second + i) % 4)->info();
-          if (is_same_ids<3>(vertices, dids))
+          for (int i=0; i<3; i++)
+            dids[i] = fi->first->vertex((fi->second+i+1) % 4)->info();
+          if (is_same_ids<3>(cids, dids))
           {
             facet = *fi;
             return true;
@@ -1043,6 +1082,7 @@ public:
         invalidate_cache();
         return retval;
       }
+
       // warning : point should be transformed before this insert function is called
       Vertex_handle insert(const TPoint_3 &tp)
       {
@@ -1050,6 +1090,7 @@ public:
         invalidate_cache();
         return retval;
       }
+
       // warning : point should be transformed before this insert function is called
       Vertex_handle insert_to_star_(const TPoint_3 &tp,
                                     const bool conditional)
@@ -1066,7 +1107,7 @@ public:
       }
 
   public:
-      Vertex_handle insert_to_star(const Point_3 &p,
+      Vertex_handle insert_to_star(const Point_3& p,
                                    const int id,
                                    const bool conditional)
       {
@@ -1076,6 +1117,26 @@ public:
         return v;
       }
 
+      Vertex_handle insert_to_star_hole(const Point_3& point,
+                                        const Index id,
+                                        std::vector<Cell_handle>& cells,
+                                        Facet facet)
+      {
+        Vertex_handle v = Base::insert_in_hole(m_metric.transform(point),
+                                               cells.begin(),
+                                               cells.end(),
+                                               facet.first,
+                                               facet.second);
+        invalidate_cache();
+        if(v != center() && v != Vertex_handle())
+          v->info() = id;
+        else
+          std::cout << "problem in insert_to_star_hole..." << std::endl;
+        return v;
+      }
+
+      //could return "cell" and avoid a call of "is_conflicted()" in find_conflict() by giving the
+      //correct cell hint directly TODO
       int simulate_insert_to_star(const Point_3& p, const int id)
       {
         CGAL_HISTOGRAM_PROFILER("V", this->number_of_vertices());
@@ -1115,8 +1176,12 @@ public:
         return -1; // no conflict
       }
 
-      template<typename BoundaryFacetsOutputIterator>
-      bool find_conflicts(const Point_3& p, BoundaryFacetsOutputIterator oit)
+      template<typename BFacetsOutputIterator,
+               typename CellsOutputIterator,
+               typename IFacetsOutputIterator>
+      bool find_conflicts(const Point_3& p, BFacetsOutputIterator bfoit /*boundary*/,
+                                            CellsOutputIterator coit /*cells*/,
+                                            IFacetsOutputIterator ifoit /*internal*/)
       {
         int dim = Base::dimension();
         if(dim <= 1)
@@ -1127,19 +1192,26 @@ public:
           Facet_set_iterator fend = end_restricted_facets();
           for(; fit != fend; fit++)
             if(is_restricted(*fit))
-              *oit++ = *fit;
+              *bfoit++ = *fit;
+          return true;
         }
         else
         {
           TPoint_3 tp = m_metric.transform(p);
           Cell_handle ch; //warning : dimension should be 3 to use find_conflicts!
-          if(is_in_a_volume_delaunay_ball(tp, ch))
+          if(is_in_a_volume_delaunay_ball(tp, ch)) // already done by simulate_insert, thus could be avoided TODO
           {
-            Base::find_conflicts(tp, ch, oit, Emptyset_iterator());
+            Base::find_conflicts(tp, ch, bfoit, coit, ifoit);
             return true;
           }
         }
         return false;
+      }
+
+      template<typename BoundaryFacetsOutputIterator>
+      bool find_conflicts(const Point_3& p, BoundaryFacetsOutputIterator oit)
+      {
+        return find_conflicts(p, oit, Emptyset_iterator(), Emptyset_iterator());
       }
 
       void list_vertices()
@@ -1152,6 +1224,24 @@ public:
           std::cout << "Vertex ";
           std::cout << vit->info() << " || ";
           std::cout << vit->point() << std::endl;
+        }
+      }
+
+      void list_restricted_facets()
+      {
+        std::cout << "list restricted facets of " << m_center->info() << std::endl;
+        Facet_set_iterator fi = begin_restricted_facets();
+        Facet_set_iterator fend = end_restricted_facets();
+        for(; fi != fend; fi++)
+        {
+          std::cout << fi->first->vertex((fi->second+1)%4)->info() << " || ";
+          std::cout << fi->first->vertex((fi->second+1)%4)->point() << std::endl;
+          std::cout << fi->first->vertex((fi->second+2)%4)->info() << " || ";
+          std::cout << fi->first->vertex((fi->second+2)%4)->point() << std::endl;
+          std::cout << fi->first->vertex((fi->second+3)%4)->info() << " || ";
+          std::cout << fi->first->vertex((fi->second+3)%4)->point() << std::endl;
+          std::cout << "second: " << fi->first->vertex(fi->second)->info() << " ";
+          std::cout << fi->first->vertex(fi->second)->point() << std::endl;
         }
       }
 
@@ -1168,6 +1258,7 @@ public:
           std::cout << cit->vertex(2)->info() << " ";
           std::cout << cit->vertex(3)->info() << std::endl;
         }
+        std::cout << "end" << std::endl;
       }
 
       std::size_t clean() //remove useless vertices
@@ -1257,6 +1348,17 @@ public:
           ps[k++] = cell->vertex(i)->point();
       }
 
+      TPoint_3 compute_circumcenter(const TPoint_3& p0,
+                                    const TPoint_3& p1,
+                                    const TPoint_3& p2) const
+      {
+#ifdef ANISO_USE_CC_EXACT
+        return back_from_exact(m_traits->construct_circumcenter_3_object()(
+                    to_exact(p0), to_exact(p1), to_exact(p2)));
+#else
+        return m_traits->construct_circumcenter_3_object()(p0, p1, p2);
+#endif
+      }
 
       TPoint_3 compute_circumcenter(const Facet &facet) const
       {
@@ -1882,7 +1984,7 @@ public:
               std::cout << "checking dist 2 : " << std::sqrt(CGAL::squared_distance(tccf, tcandidate_2)) << std::endl;
               std::cout << "tccf : " << tccf << " side of constraint for ccf : " << evalc << std::endl;
               std::cout << "circum : " << circumradius << std::endl;
-  #endif
+#endif
               std::cout << "had to use p = ccf in compute_steiner_dual (not good)." << std::endl;
               p = ccf;
               return true;

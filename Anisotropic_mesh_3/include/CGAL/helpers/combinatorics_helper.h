@@ -1,15 +1,17 @@
 #ifndef COMBINATORICS_HELPER_H
 #define COMBINATORICS_HELPER_H
 
+#include <boost/array.hpp>
+
 // helper for combinatorics
 
 template<int count>
 inline bool is_same_ids(int *cids, int *dids) 
 {
   int t;
-  for (int i = count - 1; i >= 0; i--) 
+  for (int i = count - 1; i >= 0; i--)
   {
-    for (int j = 1; j <= i; j++) 
+    for (int j = 1; j <= i; j++) //bubble sort + check on top bubble
     {
       if (cids[j] < cids[j - 1]) 
       {
@@ -29,6 +31,16 @@ inline bool is_same_ids(int *cids, int *dids)
   }
   return true;
 }
+
+template<typename Element, typename OneMap>
+void add_to_map(const Element& e, OneMap& m)
+{
+  std::pair<typename OneMap::iterator, bool> is_insert_successful;
+  is_insert_successful = m.insert(std::make_pair(e,1));
+  if(!is_insert_successful.second)
+    (is_insert_successful.first)->second += 1; // m[e] += 1
+}
+
 
 template<std::size_t ssize>
 class Ordered_simplex_base

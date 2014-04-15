@@ -81,6 +81,9 @@ public:
   typedef typename Kd_tree::Box_query                       Kd_Box_query;
   typedef typename Kd_tree::key_type                        Kd_point_info;
 
+  typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>        Conflict_zone;
+  typedef CGAL::Anisotropic_mesh_3::Stars_conflict_zones<K> Stars_conflict_zones;
+
 //Mesher levels
   typedef Null_anisotropic_mesher_level                     Null_mesher_level;
   typedef Anisotropic_refine_facets_3<K, Null_mesher_level> Facets_level;
@@ -101,6 +104,8 @@ private:
   AABB_tree m_aabb_tree; //bboxes of stars
   DT m_ch_triangulation;
   Kd_tree m_kd_tree;     //stars* centers for box queries
+
+  mutable Stars_conflict_zones m_star_czones; //conflict zones for the stars in conflict
 
   // Meshers
   Null_mesher_level m_null_mesher;
@@ -131,6 +136,7 @@ public:
     // Then scan volume and refine it
     m_cell_mesher.initialize();
     m_cell_mesher.refine(m_cell_visitor);
+
 #else
     std::cout << "Start surface scan...";
     m_facet_mesher.initialize();
@@ -143,12 +149,14 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     while (!m_facet_mesher.is_algorithm_done())
-      m_facet_mesher.one_step();
+      m_facet_mesher.one_step(m_facet_visitor);
 
     std::cout << "Total refining surface time: " << timer.time() << "s" << std::endl;
 
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
+
+    m_facet_visitor.is_active() = true;
 
     std::cout << "Start volume scan...";
     m_cell_mesher.initialize();
@@ -158,7 +166,7 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     while (!m_cell_mesher.is_algorithm_done())
-      m_cell_mesher.one_step();
+      m_cell_mesher.one_step(m_cell_visitor);
 
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
     std::cout << "Total refining time: " << timer.time()+elapsed_time << "s" << std::endl;
@@ -213,17 +221,16 @@ public:
       m_aabb_tree(100/*insertion buffer size*/),
       m_ch_triangulation(),
       m_kd_tree(m_stars),
+      m_star_czones(stars),
       m_null_mesher(),
       m_facet_mesher(m_null_mesher, m_stars, pconstrain_, criteria_, metric_field_,
-                      m_ch_triangulation, m_aabb_tree, m_kd_tree),
+                      m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones),
       m_cell_mesher(m_facet_mesher, m_stars, pconstrain_, criteria_, metric_field_,
-                     m_ch_triangulation, m_aabb_tree, m_kd_tree),
+                     m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones),
       m_null_visitor(),
       m_facet_visitor(m_cell_mesher, m_null_visitor),
       m_cell_visitor(m_facet_visitor)
   { }
-
-  ~Anisotropic_mesher_3() {}
 
 private:
   Anisotropic_mesher_3(const Self& src);
