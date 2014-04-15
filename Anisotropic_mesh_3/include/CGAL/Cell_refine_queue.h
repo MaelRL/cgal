@@ -1,87 +1,130 @@
-// Copyright (c) 2011  INRIA Sophia-Antipolis (France), ETH Zurich (Switzerland).
-// All rights reserved.
-//
-// This file is part of CGAL (www.cgal.org); you may redistribute it under
-// the terms of the Q Public License version 1.0.
-// See the file LICENSE.QPL distributed with CGAL.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Author(s) : Kan-Le Shi
-
 #ifndef CGAL_ANISOTROPIC_MESH_3_CELL_REFINE_QUEUE_H
 #define CGAL_ANISOTROPIC_MESH_3_CELL_REFINE_QUEUE_H
 
-#include <list>
-#include <queue>
-#include <vector>
-#include <iostream>
-#include <algorithm>
 #include <CGAL/Stretched_Delaunay_3.h>
 
-namespace CGAL {
-namespace Anisotropic_mesh_3 {
+#include <CGAL/helpers/combinatorics_helper.h>
 
-template<typename K>
+#include <set>
+
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
+
+template<typename K, typename KExact = K>
+class Refine_cell_comparer;
+
+template<typename K, typename KExact = K>
+class Refine_cell_iterator_comparer;
+
+template<typename K, typename KExact = K>
 class Refine_cell
 {
+  typedef Refine_cell<K, KExact>                            Self;
+
 public:
-  typedef typename K::FT                 FT;
-  typedef Stretched_Delaunay_3<K>        Star;
-  typedef Star                          *Star_handle;
-  typedef typename Star::Cell_handle     Cell_handle;
+  typedef typename K::FT                                    FT;
+  typedef Stretched_Delaunay_3<K>                           Star;
+  typedef Star*                                             Star_handle;
+  typedef typename Star::Cell_handle                        Cell_handle;
+
+  typedef Refine_cell_comparer<K, KExact>                   Rcell_comparer;
+  typedef Refine_cell_iterator_comparer<K, KExact>          Rcell_it_comparer;
+  typedef typename std::set<Self, Rcell_comparer>           Rcell_set;
+  typedef typename Rcell_set::iterator                      Rcell_set_iterator;
+  typedef typename std::multiset<Rcell_set_iterator,
+                                 Rcell_it_comparer>         Queue;
+  typedef typename Queue::iterator                          Queue_iterator;
 
 public:
   Star_handle star;
-  int vertices[4]; // the global ids, the first one is the tag
+  Cell_ijkl cell;
+
   FT  value;
+  int queue_type; // type of queue
+  mutable Queue_iterator queue_it; //position in queues[queue_type]
+  bool prev_rejection;
+
 public:
-  Refine_cell() : star(NULL), value(0) { }
-  Refine_cell(Star_handle star_, Cell_handle cell_, FT value_, int tag_) :
-    star(star_), value(value_)
-  {
-    for (int i = 0; i < 4; i++)
-      vertices[i] = cell_->vertex((tag_ + i) % 4)->info();
-  }
-  ~Refine_cell() { }
-  bool operator==(Refine_cell<K> right)
-  {
-    return star == right.star &&
-           vertices[0] == right.vertices[0] &&
-           vertices[1] == right.vertices[1] &&
-           vertices[2] == right.vertices[2] &&
-           vertices[3] == right.vertices[3] &&
-           value == right.value;
-  }
+  Refine_cell() : star(NULL), value(0), queue_type(-1), prev_rejection(false) { }
+  Refine_cell(Star_handle star_, Cell_handle cell_, FT value_, int queue_type_)
+    :
+    star(star_),
+    cell(cell_),
+    value(value_),
+    queue_type(queue_type_),
+    prev_rejection(false)
+  { }
 };
 
-template<typename K>
+template<typename K, typename KExact>
+inline std::ostream& operator<<(std::ostream& os, const Refine_cell<K, KExact>& src)
+{
+  os << src.star->index_in_star_set() << " || ";
+  os << src.cell[0] << " " << src.cell[1] << " " << src.cell[2] << " " << src.cell[3];
+  os << " || val: " << src.value << " ";
+  os << " || rej: " << src.prev_rejection << std::endl;
+  return os;
+}
+
+template<typename K, typename KExact/* = K*/>
 class Refine_cell_comparer
 {
 public:
   Refine_cell_comparer() { }
-  bool operator() (Refine_cell<K> &left, Refine_cell<K> &right) const
+  bool operator() (const Refine_cell<K, KExact>& left,
+                   const Refine_cell<K, KExact>& right) const
   {
-    return left.value < right.value;
+    /* uncomment to only require unicity of the elements (allow the same cell to be inserted
+       from multiple stars)
+
+     if(std::equal(left.cell.vertices().begin(), left.cell.vertices().end(), right.cell.vertices().begin()))
+       return left.star->index_in_star_set() < right.star->index_in_star_set();
+    */
+
+    return std::lexicographical_compare(left.cell.vertices().begin(),
+                                        left.cell.vertices().end(),
+                                        right.cell.vertices().begin(),
+                                        right.cell.vertices().end());
   }
 };
 
-template<typename K>
+template<typename K, typename KExact/* = K*/>
+class Refine_cell_iterator_comparer
+{
+  typedef Refine_cell<K, KExact>                            Rcell;
+  typedef Refine_cell_comparer<K, KExact>                   Rcell_comparer;
+  typedef typename std::set<Rcell, Rcell_comparer>          Rcell_set;
+  typedef typename Rcell_set::iterator                      Rcell_set_iterator;
+
+public:
+  Refine_cell_iterator_comparer() { }
+  bool operator() (const Rcell_set_iterator left,
+                   const Rcell_set_iterator right) const
+  {
+    return left->value > right->value;
+  }
+};
+
+template<typename K, typename KExact = K>
 class Cell_refine_queue
 {
 public:
-  typedef CGAL::Anisotropic_mesh_3::Refine_cell<K>                  Refine_cell;
-  typedef CGAL::Anisotropic_mesh_3::Refine_cell_comparer<K>         Refine_cell_comparer;
-  typedef typename std::priority_queue<Refine_cell,
-    std::vector<Refine_cell>, Refine_cell_comparer>                 Refine_cell_queue;
-  typedef typename Refine_cell::Star_handle                         Star_handle;
-  typedef typename Refine_cell::Cell_handle                         Cell_handle;
-  typedef typename K::FT                                            FT;
-  typedef typename K::Point_3                                       Point_3;
+  typedef typename K::FT                                        FT;
+  typedef typename K::Point_3                                   Point_3;
+
+  typedef Refine_cell<K, KExact>                                Rcell;
+  typedef Refine_cell_comparer<K, KExact>                       Rcell_comparer;
+  typedef Refine_cell_iterator_comparer<K, KExact>              Rcell_it_comparer;
+  typedef typename std::set<Rcell, Rcell_comparer>              Rcell_set;
+  typedef typename Rcell_set::iterator                          Rcell_set_iterator;
+  typedef typename std::multiset<Rcell_set_iterator,
+                                 Rcell_it_comparer>             Queue;
+  typedef typename Queue::iterator                              Queue_iterator;
+
+  typedef typename Rcell::Star_handle                           Star_handle;
+  typedef typename Rcell::Cell_handle                           Cell_handle;
 
 public:
   static const int nb_queues = 6;
@@ -93,28 +136,119 @@ public:
   static const int sliver_queue = 4;
   static const int inconsistent_queue = 5;
 
+  //rcells: set of the cells needing refinement. Avoids having the same cell (i,j,k)
+  //         in different queues (either due to diff values, star or queue_type).
+
+  //queues: multisets of iterators to the rcells set, sorted by value. Multiset chosen
+  //        over prio_queue to access/remove any element.
+
 private:
-  Refine_cell_queue *queues[6];
+  Rcell_set rcells;
+  Queue *queues[nb_queues];
+
+  Queue encroachments;
+  Queue over_distortions;
+  Queue over_circumradii;
+  Queue bad_shapes;
+  Queue slivers;
+  Queue inconsistents;
+
+private:
+  void update_rcell(Rcell_set_iterator& rcell_it,
+                    Star_handle star,
+                    FT value,
+                    int queue_type,
+                    bool prev_rejection)
+  {
+/*
+    std::cout << "update rcell " << *rcell_it << std::endl;
+    std::cout << "with new values" << std::endl;
+    std::cout << star->index_in_star_set() << " " << value << " " << queue_type << std::endl;
+*/
+    //insert is amortized constant if the insertion is done after (c++03).
+    Rcell_set_iterator rcell_hint;
+    if(rcell_it == rcells.begin())
+      rcell_hint = rcells.end(); //can't use hint in that case, end() is safe
+    else
+      rcell_hint = (--rcell_it)++;
+
+    //In the general case, we don't know where the insertion will be. In the rejection case
+    //the insertion is done at the end.
+    Queue_iterator queue_hint;
+    if(!prev_rejection || queues[queue_type]->size() <= 1)
+      queue_hint = queues[queue_type]->end(); //can't use hint in that case, end() is safe
+    else
+      queue_hint = --(queues[queue_type]->end());
+
+    Rcell new_rcell = *rcell_it;
+    new_rcell.star = star;
+    new_rcell.value = value;
+    new_rcell.queue_type = queue_type;
+    new_rcell.prev_rejection = prev_rejection;
+
+    //clean both queues of that element
+    queues[rcell_it->queue_type]->erase(rcell_it->queue_it);
+    rcells.erase(rcell_it);
+
+    //re-insert with the new values
+    rcell_it = rcells.insert(rcell_hint, new_rcell);
+    Queue_iterator qit = queues[queue_type]->insert(queue_hint, rcell_it);
+
+    rcell_it->queue_it = qit;
+  }
+
+  void update_rcell_value(Rcell_set_iterator& rcell_it,
+                          FT value)
+  {
+    return update_rcell(rcell_it, rcell_it->star, value,
+                         rcell_it->queue_type, rcell_it->prev_rejection);
+  }
+
 public:
-  Refine_cell_queue encroachments;
-  Refine_cell_queue over_distortions;
-  Refine_cell_queue over_circumradii;
-  Refine_cell_queue bad_shapes;
-  Refine_cell_queue slivers;
-  Refine_cell_queue inconsistents;
+  //reject the top of the queue n° queue_type to the end of the same queue
+  void reject_rcell(int queue_type)
+  {
+    Rcell_set_iterator rcell_it = *(queues[queue_type]->begin());
+    FT min_value = queue_min_value(queue_type);
+    FT epsilon = 1e-10;
+    return update_rcell(rcell_it, rcell_it->star, min_value - epsilon,
+                        rcell_it->queue_type, true /*rejection*/);
+  }
 
-#define DEFINE_PUSH(func_name, id) \
-  void func_name(Star_handle star, Cell_handle cell, FT value, int tag) { \
-    queues[id]->push(Refine_cell(star, cell, value, tag)); }
+  void push(Star_handle star,
+            const Cell_handle cell,
+            FT value,
+            int queue_type,
+            bool force_push = false) //update even if it means a lower priority
+  {
+    Rcell new_rcell(star, cell, value, queue_type);
 
-  DEFINE_PUSH(push_encroachment, 0)
-  DEFINE_PUSH(push_over_distortion, 1)
-  DEFINE_PUSH(push_over_circumradius, 2)
-  DEFINE_PUSH(push_bad_shape, 3)
-  DEFINE_PUSH(push_sliver, 4)
-  DEFINE_PUSH(push_inconsistent, 5)
+    //std::cout << "rcell created ready to push: "  << new_rcell << std::endl;
 
-#undef DEFINE_PUSH
+    std::pair<Rcell_set_iterator, bool> is_insert_successful;
+    is_insert_successful = rcells.insert(new_rcell);
+
+    if(!is_insert_successful.second) // the cell already exists in one of the queues
+    {
+      //std::cout << "cell already in" << std::endl;
+      Rcell_set_iterator old_rcell_it = is_insert_successful.first;
+      if(old_rcell_it->queue_type > queue_type || // the new cell has a higher prio queue_type
+         old_rcell_it->value < value || // new value has higher prio within the same queue
+         force_push)
+      {
+        /*
+        std::cout << "refine_cell needs update: " << std::endl;
+        std::cout << old_rcell_it->queue_type << " " << queue_type << std::endl;
+        std::cout << old_rcell_it->value << " " << value << std::endl;
+        */
+        update_rcell(old_rcell_it, star, value, queue_type, old_rcell_it->prev_rejection);
+      }
+    }
+    else
+    {
+      is_insert_successful.first->queue_it = queues[queue_type]->insert(is_insert_successful.first);
+    }
+  }
 
 public:
   bool need_picking_valid(int queue_type) const
@@ -135,27 +269,20 @@ public:
     unsigned int nb = 0;
     for (int i = 0; i < nb_queues; i++)
       nb += queues[i]->size();
-    return nb;
+    return nb;  //should be equal to rcells.size();
   }
 
-  Refine_cell top(int &queue_type) const
+  bool top(Rcell_set_iterator& cell) const
   {
     for (int i = 0; i < nb_queues; i++)
       if (!queues[i]->empty())
       {
-        queue_type = i;
-        return queues[i]->top();
-      }
-    return Refine_cell();
-  }
-
-  bool top(Refine_cell &cell, int &queue_type) const
-  {
-    for (int i = 0; i < nb_queues; i++)
-      if (!queues[i]->empty())
-      {
-        queue_type = i;
-        cell = queues[i]->top();
+        cell = *(queues[i]->begin());
+/*
+        std::cout << "found cell top at: " << i << std::endl;
+        std::cout << "star: " << cell->star->index_in_star_set() << std::endl;
+        std::cout << cell->cell[0] << " " << cell->cell[1] << " " << cell->cell[2] << " " << cell->cell[3] << std::endl;
+*/
         return true;
       }
     return false;
@@ -166,7 +293,8 @@ public:
     for (int i = 0; i < nb_queues; i++)
       if (!queues[i]->empty())
       {
-        queues[i]->pop();
+        rcells.erase(*(queues[i]->begin()));
+        queues[i]->erase(queues[i]->begin());
         return true;
       }
     return false;
@@ -175,17 +303,47 @@ public:
   void clear()
   {
     for(int i = 0; i < nb_queues; i++)
-      while(!queues[i]->empty())
-        queues[i]->pop();
+      queues[i]->clear();
+  }
+
+  FT queue_min_value(int queue_type)
+  {
+    return (*(--queues[queue_type]->end()))->value;
   }
 
 public:
+  void print_rcells()
+  {
+    std::cout << "rcells: " << std::endl;
+    Rcell_set_iterator it = rcells.begin();
+    Rcell_set_iterator itend = rcells.end();
+    for(;it!=itend; ++it)
+      std::cout << *it;
+  }
+
+  void print_queue(int queue_type)
+  {
+    std::cout << "cqueue : " << queue_type << std::endl;
+    Queue* si = queues[queue_type];
+    Queue_iterator vit = si->begin();
+    Queue_iterator viend = si->end();
+    for(; vit!=viend; ++vit)
+      std::cout << **vit;
+  }
+
+  void print_queues()
+  {
+    for(int i=0; i<nb_queues; ++i)
+      print_queue(i);
+  }
+
   void print() const
   {
     std::cout << "CQueue : ( ";
     for(int i = 0; i < nb_queues; i++)
       std::cout << queues[i]->size() <<" ";
-    std::cout << ") " << std::endl;
+    std::cout << ") ";
+    std::cout << rcells.size() << std::endl;
   }
 
   std::size_t count() const
@@ -196,57 +354,40 @@ public:
     return count;
   }
 
-  //temp hack to access the priority queues underlying container
-  template <class T, class S, class C>
-  S& Container(std::priority_queue<T, S, C>& q)
+  bool is_cell_in(Star_handle star, Cell_handle cell, FT value, int queue_type)
   {
-    struct HackedQueue : private std::priority_queue<T, S, C>
-    {
-      static S& Container(std::priority_queue<T, S, C>& q)
-      {
-        return q.*&HackedQueue::c;
-      }
-    };
-    return HackedQueue::Container(q);
-  }
+    bool is_cell_in, is_rest_identical;
 
-  bool is_cell_in(Star_handle star, Cell_handle cell, FT value, int tag,
-                  int queue_id)
-  {
-    Refine_cell rc(star, cell, value, tag);
-    Refine_cell_queue* qi = queues[queue_id];
-    std::vector<Refine_cell>& vi = Container(*qi);
-    typename std::vector<Refine_cell>::iterator vit = vi.begin();
-    typename std::vector<Refine_cell>::iterator viend = vi.end();
-    for(; vit!=viend; ++vit)
-      if(*vit == rc)
-        return true;
-    return false;
-  }
-
-  void print_queue(int queue_id)
-  {
-    Refine_cell_queue* qi = queues[queue_id];
-    std::vector<Refine_cell>& vi = Container(*qi);
-    typename std::vector<Refine_cell>::iterator vit = vi.begin();
-    typename std::vector<Refine_cell>::iterator viend = vi.end();
-    for(; vit!=viend; ++vit)
+    Rcell_set_iterator it = rcells.find(Rcell(star, cell, value, queue_type));
+    if((is_cell_in = (it != rcells.end()))) // = and not == on purpose
     {
-      Refine_cell rci = *vit;
-      std::cout << rci.star->index_in_star_set() << " || ";
-      std::cout << rci.vertices[0] << " " << rci.vertices[1] << " " << rci.vertices[2] << " " << rci.vertices[3];
-      std::cout << " || " << rci.value << std::endl;
+      is_rest_identical = (star->index_in_star_set() == it->star->index_in_star_set() &&
+                              value == it->value && queue_type == it->queue_type);
     }
+/*
+    if(is_cell_in && !is_rest_identical)
+    {
+      std::cout << "cell is in, but from a different star: " << std::endl;
+      std::cout << "cell check: ";
+      std::cout << cell->vertex(0)->info() << " " << cell->vertex(1)->info() << " ";
+      std::cout << cell->vertex(2)->info() << " " << cell->vertex(3)->info() << std::endl;
+      std::cout << it->cell[0] << " " << it->cell[1] << " " << it->cell[2] << " " << it->cell[3] << std::endl;
+      std::cout << "stars: " << star->index_in_star_set() << " " << it->star->index_in_star_set() << std::endl;
+      std::cout << "values: " << value << " " << it->value << std::endl;
+      std::cout << "queue type: " << queue_type << " " << it->queue_type << std::endl;
+    }
+*/
+    return is_cell_in;
   }
 
 public:
   Cell_refine_queue() :
-    encroachments(Refine_cell_comparer()),
-    over_distortions(Refine_cell_comparer()),
-    over_circumradii(Refine_cell_comparer()),
-    bad_shapes(Refine_cell_comparer()),
-    slivers(Refine_cell_comparer()),
-    inconsistents(Refine_cell_comparer())
+    encroachments(Rcell_it_comparer()),
+    over_distortions(Rcell_it_comparer()),
+    over_circumradii(Rcell_it_comparer()),
+    bad_shapes(Rcell_it_comparer()),
+    slivers(Rcell_it_comparer()),
+    inconsistents(Rcell_it_comparer())
   {
     queues[encroachment_queue] = &encroachments;
     queues[over_distortion_queue] = &over_distortions;
@@ -255,11 +396,9 @@ public:
     queues[sliver_queue] = &slivers;
     queues[inconsistent_queue] = &inconsistents;
   }
+}; // Cell_refine_queue
 
-  ~Cell_refine_queue() { }
-};
-
-}
-}
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif // CGAL_ANISOTROPIC_MESH_3_CELL_REFINE_QUEUE_H

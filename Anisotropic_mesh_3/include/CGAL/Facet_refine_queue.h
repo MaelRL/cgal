@@ -1,210 +1,404 @@
-// Copyright (c) 2011  INRIA Sophia-Antipolis (France), ETH Zurich (Switzerland).
-// All rights reserved.
-//
-// This file is part of CGAL (www.cgal.org); you may redistribute it under
-// the terms of the Q Public License version 1.0.
-// See the file LICENSE.QPL distributed with CGAL.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Author(s) : Kan-Le Shi
+#ifndef CGAL_ANISOTROPIC_MESH_3_FACET_REFINE_QUEUE_H
+#define CGAL_ANISOTROPIC_MESH_3_FACET_REFINE_QUEUE_H
 
-#ifndef CGAL_ANISOTROPIC_MESH_3_REFINE_QUEUE_SURFACE_H
-#define CGAL_ANISOTROPIC_MESH_3_REFINE_QUEUE_SURFACE_H
-
-#include <iostream>
-#include <fstream>
-#include <utility>
-
-#include <list>
-#include <queue>
-#include <vector>
-#include <iostream>
-#include <algorithm>
 #include <CGAL/Stretched_Delaunay_3.h>
 
-namespace CGAL {
-  namespace Anisotropic_mesh_3 {
+#include <CGAL/helpers/combinatorics_helper.h>
 
-    template<typename K, typename KExact = K>
-    class Refine_facet 
+#include <set>
+
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
+
+template<typename K, typename KExact = K>
+class Refine_facet_comparer;
+
+template<typename K, typename KExact = K>
+class Refine_facet_iterator_comparer;
+
+template<typename K, typename KExact = K>
+class Refine_facet
+{
+  typedef Refine_facet<K, KExact>                           Self;
+
+public:
+  typedef typename K::FT                                    FT;
+  typedef Stretched_Delaunay_3<K, KExact>                   Star;
+  typedef Star*                                             Star_handle;
+  typedef typename Star::Facet                              Facet;
+
+  typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
+  typedef Refine_facet_iterator_comparer<K, KExact>         Rfacet_it_comparer;
+  typedef typename std::set<Self, Rfacet_comparer>          Rfacet_set;
+  typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
+  typedef typename std::multiset<Rfacet_set_iterator,
+                                 Rfacet_it_comparer>        Queue;
+  typedef typename Queue::iterator                          Queue_iterator;
+
+public:
+  Star_handle star;
+  Facet_ijk facet;
+
+  FT value;
+  int queue_type; // type of queue
+  mutable Queue_iterator queue_it; // position in queues[queue_type]
+  bool prev_rejection;
+
+public:
+  Refine_facet() : star(NULL), value(0), queue_type(-1), prev_rejection(false) { }
+  Refine_facet(Star_handle star_, const Facet& facet_, FT value_, int queue_type_)
+    :
+    star(star_),
+    facet(facet_),
+    value(value_),
+    queue_type(queue_type_),
+    prev_rejection(false)
+  { }
+};
+
+template<typename K, typename KExact>
+inline std::ostream& operator<<(std::ostream& os, const Refine_facet<K, KExact>& src)
+{
+  os << src.star->index_in_star_set() << " || ";
+  os << src.facet[0] << " " << src.facet[1] << " " << src.facet[2];
+  os << " || val: " << src.value << " ";
+  os << " || rej: " << src.prev_rejection << std::endl;
+  return os;
+}
+
+template<typename K, typename KExact/* = K */>
+class Refine_facet_comparer
+{
+public:
+  Refine_facet_comparer() { }
+  bool operator() (const Refine_facet<K> &left, const Refine_facet<K> &right) const
+  {
+    /* uncomment to only require unicity of the elements (allow the same facet to be inserted
+       from multiple stars)
+
+     if(std::equal(left.facet.vertices.begin(), left.facet.vertices.end(), right.facet.vertices().begin())
+       return left.star->index_in_star_set() < right.star->index_in_star_set();
+    */
+
+    return std::lexicographical_compare(left.facet.vertices().begin(),
+                                        left.facet.vertices().end(),
+                                        right.facet.vertices().begin(),
+                                        right.facet.vertices().end());
+  }
+};
+
+template<typename K, typename KExact/* = K*/>
+class Refine_facet_iterator_comparer
+{
+  typedef Refine_facet<K, KExact>                           Rfacet;
+  typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
+  typedef typename std::set<Rfacet, Rfacet_comparer>        Rfacet_set;
+  typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
+
+public:
+  Refine_facet_iterator_comparer() { }
+  bool operator() (const Rfacet_set_iterator left,
+                   const Rfacet_set_iterator right) const
+  {
+    return left->value > right->value;
+  }
+};
+
+template<typename K, typename KExact = K>
+class Facet_refine_queue
+{
+public:
+  typedef typename K::FT                                    FT;
+  typedef typename K::Point_3                               Point_3;
+
+  typedef Refine_facet<K, KExact>                           Rfacet;
+  typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
+  typedef Refine_facet_iterator_comparer<K, KExact>         Rfacet_it_comparer;
+  typedef typename std::set<Rfacet, Rfacet_comparer>        Rfacet_set;
+  typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
+  typedef typename std::multiset<Rfacet_set_iterator,
+                                 Rfacet_it_comparer>        Queue;
+  typedef typename Queue::iterator                          Queue_iterator;
+
+  typedef typename Rfacet::Star_handle                      Star_handle;
+  typedef typename Rfacet::Facet                            Facet;
+
+public:
+  static const int nb_queues = 6;
+  static const int encroachment_queue = 0;
+  static const int over_distortion_queue = 1;
+  static const int over_circumradius_queue = 2;
+  static const int over_approximation_queue = 3;
+  static const int start_pick_valid = 4;
+  static const int bad_shape_queue = 4;
+  static const int inconsistent_queue = 5;
+
+  //rfacets: set of the facets needing refinement. Avoids having the same facet (i,j,k)
+  //         in different queues (either due to diff values, star or queue_type).
+
+  //queues: multisets of iterators to the rfacets set, sorted by value. Multiset chosen
+  //        over prio_queue to access/remove any element.
+
+private:
+  Rfacet_set rfacets;
+  Queue *queues[nb_queues];
+
+  Queue encroachments;
+  Queue over_distortions;
+  Queue over_circumradii;
+  Queue over_approximation;
+  Queue bad_shapes;
+  Queue inconsistents;
+
+private:
+  void update_rfacet(Rfacet_set_iterator& rfacet_it,
+                     Star_handle star,
+                     FT value,
+                     int queue_type,
+                     bool prev_rejection)
+  {
+/*
+    std::cout << "update rfacet " << *rfacet_it << std::endl;
+    std::cout << "with new values" << std::endl;
+    std::cout << star->index_in_star_set() << " " << value << " " << queue_type << std::endl;
+*/
+
+    //insert is amortized constant if the insertion is done after (c++03).
+    Rfacet_set_iterator rfacet_hint;
+    if(rfacet_it == rfacets.begin())
+      rfacet_hint = rfacets.end(); //can't use hint in that case, end() is safe
+    else
+      rfacet_hint = (--rfacet_it)++;
+
+    //In the general case, we don't know where the insertion will be. In the rejection case
+    //the insertion is done at the end.
+    Queue_iterator queue_hint;
+    if(!prev_rejection || queues[queue_type]->size() <= 1)
+      queue_hint = queues[queue_type]->end(); //can't use hint in that case, end() is safe
+    else
+      queue_hint = --(queues[queue_type]->end());
+
+    Rfacet new_rfacet = *rfacet_it;
+    new_rfacet.star = star;
+    new_rfacet.value = value;
+    new_rfacet.queue_type = queue_type;
+    new_rfacet.prev_rejection = prev_rejection;
+
+    //clean both queues of that element
+    queues[rfacet_it->queue_type]->erase(rfacet_it->queue_it);
+    rfacets.erase(rfacet_it);
+
+    //re-insert with the new values
+    rfacet_it = rfacets.insert(rfacet_hint, new_rfacet);
+    Queue_iterator qit = queues[queue_type]->insert(queue_hint, rfacet_it);
+
+    rfacet_it->queue_it = qit;
+  }
+
+  void update_rfacet_value(Rfacet_set_iterator& rfacet_it,
+                           FT value)
+  {
+    return update_rfacet(rfacet_it, rfacet_it->star, value,
+                         rfacet_it->queue_type, rfacet_it->prev_rejection);
+  }
+
+public:
+  //reject the top of the queue n° queue_type to the end of the same queue
+  void reject_rfacet(int queue_type)
+  {
+    Rfacet_set_iterator rfacet_it = *(queues[queue_type]->begin());
+    FT min_value = queue_min_value(queue_type);
+    FT epsilon = 1e-10;
+    return update_rfacet(rfacet_it, rfacet_it->star, min_value - epsilon,
+                         rfacet_it->queue_type, true /*rejection*/);
+  }
+
+  void push(Star_handle star,
+            const Facet& facet,
+            FT value,
+            int queue_type,
+            bool force_push = false) //update even if it means a lower priority
+  {
+    Rfacet new_rfacet(star, facet, value, queue_type);
+
+    //std::cout << "rfacet created ready to push : " << new_rfacet << std::endl;
+
+    std::pair<Rfacet_set_iterator, bool> is_insert_successful;
+    is_insert_successful = rfacets.insert(new_rfacet);
+
+    if(!is_insert_successful.second) // the facet already exists in one of the queues
     {
-    public:
-      typedef Stretched_Delaunay_3<K, KExact> Star;
-      typedef Star* Star_handle;
-      typedef typename Star::Facet Facet;
-      typedef typename K::FT FT;
-    public:
-      Star_handle star;
-      int vertices[3]; // the global ids
-      FT value;
-    public:
-      Refine_facet() : star(NULL), value(0) { }
-      Refine_facet(Star_handle star_, const Facet &facet_, FT value_) :
-        star(star_), 
-        value(value_) 
-      { 
-        vertices[0] = facet_.first->vertex((facet_.second + 1) % 4)->info();
-        vertices[1] = facet_.first->vertex((facet_.second + 2) % 4)->info();
-        vertices[2] = facet_.first->vertex((facet_.second + 3) % 4)->info();
+      Rfacet_set_iterator old_rfacet_it = is_insert_successful.first;
+      if(old_rfacet_it->queue_type > queue_type || // the new facet has a higher prio queue_type
+         old_rfacet_it->value < value || // new value has higher prio within the same queue
+         force_push)
+      {
+        /*
+        std::cout << "refine_facet needs update: " << std::endl;
+        std::cout << old_rfacet_it->queue_type << " " << queue_type << std::endl;
+        std::cout << old_rfacet_it->value << " " << value << std::endl;
+        */
+        update_rfacet(old_rfacet_it, star, value, queue_type, old_rfacet_it->prev_rejection);
       }
-      ~Refine_facet() { }
-    };
-
-    template<typename K, typename KExact = K>
-    class Refine_facet_comparer 
+    }
+    else
     {
-    public:
-      Refine_facet_comparer() { }
-      bool operator() (Refine_facet<K, KExact> &left, Refine_facet<K, KExact> &right) const 
+      //std::cout << "insert succesful" << std::endl;
+      is_insert_successful.first->queue_it = queues[queue_type]->insert(is_insert_successful.first);
+    }
+  }
+
+  bool need_picking_valid(int queue_type) const
+  {
+    return (queue_type >= start_pick_valid);
+  }
+
+  bool empty() const
+  {
+    for (int i = 0; i < nb_queues; i++)
+      if (!queues[i]->empty())
+        return false;
+    return true;
+  }
+
+  unsigned int size() const
+  {
+    unsigned int nb = 0;
+    for (int i = 0; i < nb_queues; i++)
+      nb += queues[i]->size();
+    return nb; //should be equal to rfacets.size();
+  }
+
+  bool top(Rfacet_set_iterator& facet) const
+  {
+    for (int i = 0; i < nb_queues; i++)
+      if(!queues[i]->empty())
       {
-        return left.value < right.value;
-      }
-    };
-
-    template<typename K, typename KExact = K>
-    class Facet_refine_queue 
-    {
-    public:
-      typedef CGAL::Anisotropic_mesh_3::Refine_facet<K, KExact>	Refine_facet;
-      typedef CGAL::Anisotropic_mesh_3::Refine_facet_comparer<K, KExact> Refine_facet_comparer;
-      typedef std::priority_queue<Refine_facet, 
-        std::vector<Refine_facet>, Refine_facet_comparer> Refine_facet_queue;
-      typedef typename Refine_facet::Star_handle Star_handle;
-      typedef typename Refine_facet::Facet Facet;
-      typedef typename K::FT FT;
-      typedef typename K::Point_3 Point_3;
-
-    public:
-      static const int nb_queues = 6;
-      static const int encroachment_queue = 0;
-      static const int over_distortion_queue = 1;
-      static const int over_circumradius_queue = 2;
-      static const int over_approximation_queue = 3;
-      static const int start_pick_valid = 4; //before shape criterion, as in the TOG paper
-      static const int bad_shape_queue = 4;
-      static const int inconsistent_queue = 5;
-    private:
-      Refine_facet_queue *queues[6];
-    public:
-      Refine_facet_queue encroachments;
-      Refine_facet_queue over_distortions;
-      Refine_facet_queue over_circumradii;
-      Refine_facet_queue over_approximation;
-      Refine_facet_queue bad_shapes;
-      Refine_facet_queue slivers;
-      Refine_facet_queue inconsistents;
-
-#define DEFINE_PUSH(func_name, id) \
-  void func_name(Star_handle star, const Facet &facet, FT value) { \
-  queues[id]->push(Refine_facet(star, facet, value)); }
-
-      DEFINE_PUSH(push_encroachment, encroachment_queue)
-      DEFINE_PUSH(push_over_distortion, over_distortion_queue)
-      DEFINE_PUSH(push_over_circumradius, over_circumradius_queue)
-      DEFINE_PUSH(push_bad_approximation, over_approximation_queue)
-      DEFINE_PUSH(push_bad_shape, bad_shape_queue)
-      DEFINE_PUSH(push_inconsistent, inconsistent_queue)
-
-#undef DEFINE_PUSH
-
-    public:
-      bool need_picking_valid(int queue_type) const
-      {
-        return (queue_type >= start_pick_valid);
-      }
-
-      bool empty() const
-      {
-        for (int i = 0; i < nb_queues; i++)
-          if (!queues[i]->empty())
-            return false;
+        facet = *(queues[i]->begin());
+/*
+        std::cout << "found top at: " << i << std::endl;
+        std::cout << "star: " << facet->star->index_in_star_set() << std::endl;
+        std::cout << facet->facet[0] << " " << facet->facet[1] << " " << facet->facet[2] << std::endl;
+*/
         return true;
       }
-
-      unsigned int size() const
-      {
-        unsigned int nb = 0;
-        for (int i = 0; i < nb_queues; i++)
-          nb += queues[i]->size();
-        return nb;
-      }
-
-      Refine_facet top(int &queue_type) const
-      {
-        for (int i = 0; i < nb_queues; i++)
-          if (!queues[i]->empty()) 
-          {
-            queue_type = i;
-            return queues[i]->top();
-          }
-          return Refine_facet();
-      }
-
-      bool top(Refine_facet &facet, int &queue_type) const
-      {
-        for (int i = 0; i < nb_queues; i++)
-          if(!queues[i]->empty())
-          {
-            queue_type = i;
-            facet = queues[i]->top();
-            return true;
-          }
-        return false;
-      }
-
-      bool pop()
-      {
-        for (int i = 0; i < nb_queues; i++)
-          if (!queues[i]->empty()) 
-          {
-            queues[i]->pop();
-            return true;
-          }
-        return false;
-      }
-
-      void clear()
-      {
-        for(int i = 0; i < nb_queues; i++)
-          while(!queues[i]->empty())
-            queues[i]->pop();
-      }
-
-    public:
-      void print() const
-      {
-        std::cout << "FQueue : ( ";
-        for(int i = 0; i < nb_queues; i++)
-          std::cout << queues[i]->size() <<" ";
-        std::cout << ") " << std::endl;
-      }
-
-    public:
-      Facet_refine_queue() :
-        encroachments(Refine_facet_comparer()),
-        over_distortions(Refine_facet_comparer()),
-        over_circumradii(Refine_facet_comparer()),
-        over_approximation(Refine_facet_comparer()),
-        bad_shapes(Refine_facet_comparer()),
-        inconsistents(Refine_facet_comparer())
-      {
-        queues[encroachment_queue] = &encroachments;
-        queues[over_distortion_queue] = &over_distortions;
-        queues[over_circumradius_queue] = &over_circumradii;
-        queues[over_approximation_queue] = &over_approximation;
-        queues[bad_shape_queue] = &bad_shapes;
-        queues[inconsistent_queue] = &inconsistents;
-      }
-      ~Facet_refine_queue() {
-      }
-    };
-
+    return false;
   }
-}
+
+  bool pop()
+  {
+    for (int i = 0; i < nb_queues; i++)
+      if (!queues[i]->empty())
+      {
+        rfacets.erase(*(queues[i]->begin()));
+        queues[i]->erase(queues[i]->begin());
+        return true;
+      }
+    return false;
+  }
+
+  void clear()
+  {
+    for(int i = 0; i < nb_queues; i++)
+      queues[i]->clear();
+  }
+
+  FT queue_min_value(int queue_type)
+  {
+    return (*(--queues[queue_type]->end()))->value;
+  }
+
+public:
+  void print_rfacets()
+  {
+    std::cout << "rfacets: " << std::endl;
+    Rfacet_set_iterator it = rfacets.begin();
+    Rfacet_set_iterator itend = rfacets.end();
+    for(;it!=itend; ++it)
+      std::cout << *it;
+  }
+
+  void print_queue(int queue_type)
+  {
+    std::cout << "fqueue : " << queue_type << std::endl;
+    Queue* si = queues[queue_type];
+    Queue_iterator vit = si->begin();
+    Queue_iterator viend = si->end();
+    for(; vit!=viend; ++vit)
+      std::cout << **vit;
+  }
+
+  void print_queues()
+  {
+    for(int i=0; i<nb_queues; ++i)
+      print_queue(i);
+  }
+
+  void print() const
+  {
+    std::cout << "FQueue : ( ";
+    for(int i = 0; i < nb_queues; i++)
+      std::cout << queues[i]->size() <<" ";
+    std::cout << ") ";
+    std::cout << rfacets.size() << std::endl;
+  }
+
+  std::size_t count() const
+  {
+    std::size_t count = 0;
+    for(int i=0; i< nb_queues; ++i)
+      count += queues[i]->size();
+    return count;
+  }
+
+  bool is_facet_in(Star_handle star, Facet facet, FT value, int queue_type)
+  {
+    bool is_facet_in, is_rest_identical;
+    Rfacet_set_iterator it = rfacets.find(Rfacet(star, facet, value, queue_type));
+
+    if((is_facet_in = (it != rfacets.end()))) // = and not == on purpose
+    {
+      is_rest_identical = (star->index_in_star_set() == it->star->index_in_star_set() &&
+                              value == it->value && queue_type == it->queue_type);
+    }
+/*
+    if(is_facet_in && !is_rest_identical)
+    {
+      std::cout << "facet is in, but from a different star: " << std::endl;
+      std::cout << "facet check: ";
+      std::cout << facet.first->vertex((facet.second+1)%4)->info() << " ";
+      std::cout << facet.first->vertex((facet.second+2)%4)->info() << " ";
+      std::cout << facet.first->vertex((facet.second+3)%4)->info() << std::endl;
+      std::cout << it->facet[0] << " " << it->facet[1] << " " << it->facet[2] << std::endl;
+      std::cout << "stars: " << star->index_in_star_set() << " " << it->star->index_in_star_set() << std::endl;
+      std::cout << "values: " << value << " " << it->value << std::endl;
+      std::cout << "queue type: " << queue_type << " " << it->queue_type << std::endl;
+    }
+*/
+    return is_facet_in;
+  }
+
+public:
+  Facet_refine_queue() :
+    encroachments(Rfacet_it_comparer()),
+    over_distortions(Rfacet_it_comparer()),
+    over_circumradii(Rfacet_it_comparer()),
+    over_approximation(Rfacet_it_comparer()),
+    bad_shapes(Rfacet_it_comparer()),
+    inconsistents(Rfacet_it_comparer())
+  {
+    queues[encroachment_queue] = &encroachments;
+    queues[over_distortion_queue] = &over_distortions;
+    queues[over_circumradius_queue] = &over_circumradii;
+    queues[over_approximation_queue] = &over_approximation;
+    queues[bad_shape_queue] = &bad_shapes;
+    queues[inconsistent_queue] = &inconsistents;
+  }
+}; // Facet_refine_queue
+
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif // CGAL_ANISOTROPIC_MESH_3_REFINE_QUEUE_SURFACE_H
