@@ -362,12 +362,13 @@ public:
     if((is_cell_in = (it != rcells.end()))) // = and not == on purpose
     {
       is_rest_identical = (star->index_in_star_set() == it->star->index_in_star_set() &&
-                              value == it->value && queue_type == it->queue_type);
+                           queue_type == it->queue_type &&
+                           std::abs(value  - it->value) < 1e-10);
     }
 /*
     if(is_cell_in && !is_rest_identical)
     {
-      std::cout << "cell is in, but from a different star: " << std::endl;
+      std::cout << "Elements are in, but the cells differ: " << std::endl;
       std::cout << "cell check: ";
       std::cout << cell->vertex(0)->info() << " " << cell->vertex(1)->info() << " ";
       std::cout << cell->vertex(2)->info() << " " << cell->vertex(3)->info() << std::endl;

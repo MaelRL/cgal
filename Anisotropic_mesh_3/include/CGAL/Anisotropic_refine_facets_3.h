@@ -89,6 +89,7 @@ private:
   int m_pick_valid_max_failures;
   mutable int vertex_with_picking_count;
   mutable int vertex_without_picking_count;
+  mutable int m_leak_counter;
 
 public:
   mutable CGAL::Timer timer_pv;
@@ -211,6 +212,8 @@ public:
     //We already know the conflict zones if it's a suitable point from pick_valid, but we need
     //to compute them for the other cases (won't cost anything if it's already known).
     Trunk::compute_conflict_zones(steiner_point);
+    //same for elements needing checks
+    this->m_stars_czones.compute_elements_needing_check();
 
     return SUITABLE_POINT;
   }
@@ -387,11 +390,9 @@ public:
     std::cout << "succeeded: " << m_pick_valid_succeeded << " || ";
     std::cout << "rejected: " << m_pick_valid_rejected << " || ";
     std::cout << "failed: " << m_pick_valid_failed << std::endl;
-    std::cout << "pv: " << timer_pv.time() << " " << timer_pv.intervals() << std::endl;
-    std::cout << "npv: " << timer_npv.time() << " " << timer_npv.intervals() << std::endl;
-
-    std::ofstream out("bambimboum_vor.mesh");
-    output_surface_voronoi(this->m_stars, out);
+    std::cout << "facet pv: " << timer_pv.time() << " " << timer_pv.intervals() << std::endl;
+    std::cout << "facet npv: " << timer_npv.time() << " " << timer_npv.intervals() << std::endl;
+    std::cout << "facet leaking: " << m_leak_counter << std::endl;
   }
 
 private:
@@ -571,23 +572,35 @@ private:
     // note : if a facet is encroached, the queue will be filled from test_conflict_from_superior()
     //        the code below can be used to brute force check that no facet is encroached
     // encroachment : 0
-    //if(Trunk::is_encroached(star, *fi))
-    //{
-    //  m_refine_queue.push_(star, *fi, star->compute_volume(*fi), 0, force_push);
-    //  continue;
-    //}
+/*
+    if(Trunk::is_encroached(star, *fi))
+    {
+      m_refine_queue.push_(star, *fi, star->compute_volume(*fi), 0, force_push);
+      continue;
+    }
+*/
 
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
-    //if(m_criteria->distortion > 0.)
-    //{
-    //  FT over_distortion = compute_distortion(*fi) - m_criteria->distortion;
-    //  if(over_distortion > 0.)
-    //  {
-    //    m_refine_queue.push(star, *fi, over_distortion, 1, force_push);
-    //    continue;
-    //  }
-    //}
+/*
+    if(this->m_criteria->distortion > 0.)
+    {
+      FT over_distortion = Trunk::compute_distortion(*fi) - this->m_criteria->distortion;
+      if(over_distortion > 0.)
+      {
+        if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, over_distortion, 1))
+        {
+          m_refine_queue.push(star, *fi, over_distortion, 1, force_push);
+          if(check_if_in)
+          {
+            m_leak_counter++;
+            std::cout << "not already in 1" << std::endl;
+          }
+        }
+        return;
+      }
+    }
+*/
 
     // size : 2
     if(this->m_criteria->facet_circumradius > 0.)
@@ -595,7 +608,14 @@ private:
       FT over_circumradius = star->compute_circumradius_overflow(*fi);
       if (over_circumradius > 0)
       {
-        m_refine_queue.push(star, *fi, over_circumradius, 2, force_push);
+        if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, over_circumradius, 2))
+        {
+          m_refine_queue.push(star, *fi, over_circumradius, 2, force_push);
+          if(check_if_in)
+          {
+            m_leak_counter++;
+          }
+        }
         return;
       }
     }
@@ -606,7 +626,14 @@ private:
       FT over_approx = Trunk::sq_distance_to_surface(*fi, star) - this->m_criteria->squared_approximation;
       if(over_approx > 0.)
       {
-        m_refine_queue.push(star, *fi, over_approx, 3, force_push);
+        if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, over_approx, 3))
+        {
+          m_refine_queue.push(star, *fi, over_approx, 3, force_push);
+          if(check_if_in)
+          {
+            m_leak_counter++;
+          }
+        }
         return;
       }
     }
@@ -655,9 +682,6 @@ private:
 
           std::cout << "star vertices:" << std::endl;
           star->print_vertices();
-
-          Star_handle s = NULL;
-          //std::cout << s->index_in_star_set() << std::endl; //free segfault
         }
       }
     }
@@ -665,21 +689,23 @@ private:
 
 public:
   //facets here are necessarily inconsistent, but need to test other criteria too
-  void fill_refinement_queue_from_unmodified_stars()
+  void fill_from_unmodified_stars()
   {
-    //TODO some kind of check that they already have been computed.
-    std::cout << "fill from unmodified @ facet level" << std::endl;
+    std::cout << "fill from unmodified @ facet level. Is empty: ";
+    std::cout << this->m_stars_czones.facets_to_check().empty() << std::endl;
 
-    typename std::map<Index, Facet_vector>::const_iterator mit = this->m_stars_czones.facets_to_check().begin();
-    typename std::map<Index, Facet_vector>::const_iterator mend = this->m_stars_czones.facets_to_check().end();
+    typename std::map<Index, Facet_vector>::iterator mit = this->m_stars_czones.facets_to_check().begin();
+    typename std::map<Index, Facet_vector>::iterator mend = this->m_stars_czones.facets_to_check().end();
     for(; mit!=mend; ++mit)
     {
       Index i = mit->first;
-      Facet_vector facets = mit->second;
       Star_handle si = Trunk::get_star(i);
+      std::cout << "in star: " << i << " expected facet n: " << mit->second.size() << std::endl;
+      si->list_restricted_facets();
+      si->list_cells();
 
-      Facet_handle fit = facets.begin();
-      Facet_handle fend = facets.end();
+      Facet_handle fit = mit->second.begin();
+      Facet_handle fend = mit->second.end();
       for(; fit!=fend; ++fit)
       {
         test_facet(si, fit, true/*force push*/);
@@ -698,7 +724,14 @@ public:
     //fill from unmodified stars, where some facets could become inconsistent (or the
     //star ownership of the facet in the queue should change if the facet was already in another
     //queue).
-    fill_refinement_queue_from_unmodified_stars();
+    fill_from_unmodified_stars();
+
+#if 0
+    std::cout << "Enter fill f_ref_queue debug. Filling with all stars" << std::endl;
+    fill_refinement_queue();
+    m_refine_queue.print();
+    std::cout << "End fill f_ref_queue debug" << std::endl;
+#endif
   }
 
   void fill_refinement_queue()
@@ -1084,6 +1117,14 @@ private:
                       Star_handle& new_star) const
   {
     Index id = Trunk::compute_conflict_zones(p);
+    this->m_stars_czones.compute_elements_needing_check();
+
+    if(!this->m_stars_czones.cells_to_check().empty() ||
+       !this->m_stars_czones.facets_to_check().empty())
+    {
+      std::cout << "proposed FPV point creates inconsistencies in unmodified stars" << std::endl;
+      return false;
+    }
 
     if(id < 0) // no conflict
       return false;
@@ -1265,7 +1306,7 @@ public:
     :
       Mesher_lvl(previous),
       Trunk(stars_, pconstrain_, criteria_, metric_field_,
-           ch_triangulation_, aabb_tree_, kd_tree_,m_stars_czones_),
+           ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
       m_refine_queue(),
       m_pick_valid_succeeded(0),
       m_pick_valid_failed(0),
@@ -1274,6 +1315,7 @@ public:
       m_pick_valid_max_failures(0),
       vertex_with_picking_count(0),
       vertex_without_picking_count(0),
+      m_leak_counter(0),
       timer_pv(),
       timer_npv()
   {}

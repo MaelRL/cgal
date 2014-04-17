@@ -88,6 +88,7 @@ private:
   int m_pick_valid_max_failures;
   mutable int vertex_with_picking_count;
   mutable int vertex_without_picking_count;
+  mutable int m_leak_counter;
 
 public:
   mutable CGAL::Timer timer_pv;
@@ -106,6 +107,7 @@ public:
 
     m_refine_queue.print();
     Mesher_lvl::is_active() = true;
+    this->m_stars_czones.cells_need_checks() = true;
   }
 
   bool is_algorithm_done_()
@@ -164,7 +166,11 @@ public:
       return get_refinement_point_for_next_element_(steiner_point);
     }
 
+    //We already know the conflict zones if it's a suitable point from pick_valid, but we need
+    //to compute them for the other cases (won't cost anything if it's already known).
     Trunk::compute_conflict_zones(steiner_point);
+    //same for elements needing checks
+    this->m_stars_czones.compute_elements_needing_check();
 
     return SUITABLE_POINT;
   }
@@ -300,6 +306,7 @@ public:
     std::cout << "failed: " << m_pick_valid_failed << std::endl;
     std::cout << "cell pv: " << timer_pv.time() << " " << timer_pv.intervals() << std::endl;
     std::cout << "cell npv: " << timer_npv.time() << " " << timer_npv.intervals() << std::endl;
+    std::cout << "cell leaking: " << m_leak_counter << std::endl;
   }
 
 private:
@@ -372,20 +379,25 @@ private:
   {
     //note : distortion is now used only to speed-up pick_valid
     // over distortion 1
+/*
     if(0 && this->m_criteria->distortion > 0.)
     {
       FT over_distortion = Trunk::compute_distortion(c) - this->m_criteria->distortion;
       if(over_distortion > 0.)
       {
-        if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_distortion, 0))
+        if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_distortion, 1))
         {
           m_refine_queue.push(star, c, over_distortion, 1, force_push);
           if(check_if_in)
+          {
+            m_leak_counter++;
             std::cout << "not already in 1" << std::endl;
+          }
         }
         return;
       }
     }
+*/
 
     // too big 2
     if(this->m_criteria->cell_circumradius > 0.)
@@ -394,11 +406,12 @@ private:
       if(over_circumradius > 0)
       {
         //std::cout << "over circum : " <<  over_circumradius << std::endl;
-        if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_circumradius, 1))
+        if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_circumradius, 2))
         {
           m_refine_queue.push(star, c, over_circumradius, 2, force_push);
           if(check_if_in)
           {
+            m_leak_counter++;
             std::cout << "not already in 2" << std::endl;
             std::cout << "star : " << star->index_in_star_set();
             std::cout << " cell : " << c->vertex(0)->info() << " " << c->vertex(1)->info();
@@ -420,7 +433,10 @@ private:
         {
           m_refine_queue.push(star, c, over_radius_edge_ratio, 3, force_push);
           if(check_if_in)
+          {
+            m_leak_counter++;
             std::cout << "not already in 3" << std::endl;
+          }
         }
         return;
       }
@@ -436,7 +452,10 @@ private:
         {
           m_refine_queue.push(star, c, over_sliverity, 4, force_push);
           if(check_if_in)
+          {
+            m_leak_counter++;
             std::cout << "not already in 4" << std::endl;
+          }
         }
         return;
       }
@@ -451,6 +470,7 @@ private:
         m_refine_queue.push(star, c, vol, 5, force_push);
         if(check_if_in)
         {
+          m_leak_counter++;
           std::cout << "not already in 5" << std::endl;
           std::cout << "star : " << star->index_in_star_set();
           std::cout << " || ids: ";
@@ -471,16 +491,15 @@ public:
     std::cout << "fill from unmodified @ cell level. Is empty: ";
     std::cout << this->m_stars_czones.cells_to_check().empty() << std::endl;
 
-    typename std::map<Index, Cell_handle_vector>::const_iterator mit = this->m_stars_czones.cells_to_check().begin();
-    typename std::map<Index, Cell_handle_vector>::const_iterator mend = this->m_stars_czones.cells_to_check().end();
+    typename std::map<Index, Cell_handle_vector>::iterator mit = this->m_stars_czones.cells_to_check().begin();
+    typename std::map<Index, Cell_handle_vector>::iterator mend = this->m_stars_czones.cells_to_check().end();
     for(; mit!=mend; ++mit)
     {
       Index i = mit->first;
-      Cell_handle_vector cell_handles = mit->second;
       Star_handle si = Trunk::get_star(i);
 
-      Cell_handle_handle chit = cell_handles.begin();
-      Cell_handle_handle chend = cell_handles.end();
+      Cell_handle_handle chit = mit->second.begin();
+      Cell_handle_handle chend = mit->second.end();
       for(; chit!=chend; ++chit)
       {
         test_cell(si, *chit, true/*force push*/);
@@ -555,12 +574,13 @@ public:
   {
     fill_refinement_queue(this->m_stars_czones, pid);
     fill_from_unmodified_stars();
-/*
+
+#if 0
     std::cout << "Enter fill c_ref_queue debug. Filling with all stars" << std::endl;
     fill_refinement_queue();
     m_refine_queue.print();
     std::cout << "End fill c_ref_queue debug" << std::endl;
-*/
+#endif
   }
 
   void fill_refinement_queue()
@@ -736,15 +756,12 @@ private:
                       Star_handle& new_star) const
   {
     Index id = Trunk::compute_conflict_zones(p);
-
-    //TODO some kind of check that they already have been computed. Below isn't good enough
-    if(0 && this->m_stars_czones.cells_to_check().empty())
-      this->m_stars_czones.compute_elements_needing_check();
-
     this->m_stars_czones.compute_elements_needing_check();
-    if(!this->m_stars_czones.cells_to_check().empty())
+
+    if(!this->m_stars_czones.cells_to_check().empty() ||
+       !this->m_stars_czones.facets_to_check().empty())
     {
-      std::cout << "proposed pick_valid point creates cell inconsistencies in unmodified stars" << std::endl;
+      std::cout << "proposed CPV point creates inconsistencies in unmodified stars" << std::endl;
       return false;
     }
 
@@ -822,7 +839,7 @@ private:
 
       // Pick_valid trick#3: check conflict (encroachment...) at lower levels
       //before testing the validity of the point.
-      if((0 && Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) &&
+      if((Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) &&
           ++m_pick_valid_skipped_due_to_conflict) ||
          !is_valid_point(p, sq_radiusbound, star, new_star))
       {
@@ -921,6 +938,7 @@ public:
     m_pick_valid_max_failures(0),
     vertex_with_picking_count(0),
     vertex_without_picking_count(0),
+    m_leak_counter(0),
     timer_pv(),
     timer_npv()
   { }

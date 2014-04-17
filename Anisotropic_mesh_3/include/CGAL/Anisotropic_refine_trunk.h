@@ -68,20 +68,23 @@ public:
 //TODO: something better than initialization of a point at (1e17, 1e17, 1e17)
 //      CGAL::ORIGIN isn't satisfying since the insertion point could be the same.
 //      Maybe use NaN?
-template<typename K>
+template<typename K, typename KExact = K>
 class Stars_conflict_zones
 {
-  typedef Stars_conflict_zones<K>                          Self;
+  typedef Stars_conflict_zones<K, KExact>                  Self;
 
 public:
-  typedef Stretched_Delaunay_3<K>                          Star;
+  typedef Stretched_Delaunay_3<K, KExact>                  Star;
   typedef Star*                                            Star_handle;
   typedef typename std::vector<Star_handle>                Star_vector;
   typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>       Czone;
   typedef typename Star::Index                             Index;
   typedef typename Star::Point_3                           Point;
+  typedef typename KExact::Point_3                         Exact_Point;
+  typedef typename Star::Vertex                            Vertex;
   typedef typename Star::Facet                             Facet;
   typedef typename Star::Facet_handle                      Facet_handle;
+  typedef typename Star::Cell                              Cell;
   typedef typename Star::Cell_handle                       Cell_handle;
   typedef typename Star::Cell_handle_handle                Cell_handle_handle;
   typedef typename std::map<Index, Czone>::iterator        iterator;
@@ -102,6 +105,9 @@ private:
   Point m_conflict_p; // point causing the conflict (only needed to debug / assert)
   Index m_conflict_p_id; //id of the point
 
+  bool m_cells_need_check; // no need to compute cells_to_check if we haven't reached cell level
+  bool m_are_checks_computed; //already computed or not
+
   //we need to keep track of the "soon to be" destroyed facets/cells SEEN FROM UNMODIFIED STARS
   //not lose consistency in the unmodified stars and add them to the queue if needed
   std::map<Index, std::vector<Facet> > m_facets_to_check;
@@ -115,8 +121,10 @@ public:
   const Point& conflicting_point() const { return m_conflict_p; }
   Index& conflicting_point_id() { return m_conflict_p_id; }
   const Index& conflicting_point_id() const { return m_conflict_p_id; }
-  const std::map<Index, std::vector<Facet> >& facets_to_check() const { return m_facets_to_check; }
-  const std::map<Index, std::vector<Cell_handle> >& cells_to_check() const { return m_cells_to_check; }
+  std::map<Index, std::vector<Facet> >& facets_to_check() { return m_facets_to_check; }
+  std::map<Index, std::vector<Cell_handle> >& cells_to_check() { return m_cells_to_check; }
+  bool& cells_need_checks() { return m_cells_need_check; }
+  const bool& are_checks_computed() const { return m_are_checks_computed; }
 
   const_iterator begin() const { return m_conflict_zones.begin(); }
   const_iterator end() const { return m_conflict_zones.end(); }
@@ -132,6 +140,7 @@ public:
     m_conflict_p_id = -1;
     m_facets_to_check.clear();
     m_cells_to_check.clear();
+    m_are_checks_computed = false;
   }
 
   Conflict_zones_status status()
@@ -150,16 +159,255 @@ public:
     return m_facets_to_check.empty() && m_cells_to_check.empty();
   }
 
+  bool is_boundary_facet_restricted_after_insertion(Star_handle star,
+                                                    Facet f)
+  {
+    //this function predicts whether a boundary facet will still be restricted
+    //after the insertion of the steiner point.
+
+    Cell_handle c1 = f.first; // is in conflict
+    Cell_handle c2 = c1->neighbor(f.second);
+
+#ifdef ANISO_USE_INSIDE_EXACT
+    bool inside2 = star->is_inside_exact(c2);
+    Exact_Point tncc = star->compute_circumcenter(to_exact(c1->vertex((f.second+1)%4)->point()),
+                                                  to_exact(c1->vertex((f.second+2)%4)->point()),
+                                                  to_exact(c1->vertex((f.second+3)%4)->point()),
+                                                  to_exact(star->metric().transform(m_conflict_p)));
+    Exact_Point ncc = star->metric().inverse_transform(tncc);
+    bool inside_new = (star->constrain()->side_of_constraint(back_from_exact(ncc) == ON_POSITIVE_SIDE);
+#else
+    bool inside2 = star->is_inside(c2);
+    Point tncc = star->compute_circumcenter(c1->vertex((f.second+1)%4)->point(),
+                                            c1->vertex((f.second+2)%4)->point(),
+                                            c1->vertex((f.second+3)%4)->point(),
+                                            star->metric().transform(m_conflict_p));
+    Point ncc = star->metric().inverse_transform(tncc);
+    bool inside_new = (star->constrain()->side_of_constraint(ncc) == ON_POSITIVE_SIDE);
+#endif
+    return (inside2 && !inside_new) || (!inside2 && inside_new);
+  }
+
+  struct Facet_compare
+  {
+    Star_handle star;
+    Facet& f;
+    Facet_ijk fijk;
+    bool mirror;
+
+    Facet_compare(Star_handle star_, Facet& f_, bool mirror_)
+      :
+        star(star_), f(f_), fijk(f_), mirror(mirror_)
+    { }
+
+    bool operator()(Facet& ff)
+    {
+      if(fijk == Facet_ijk(ff))
+      {
+        //if mirror is true (case of a boundary facet), we want f(c,i) to have
+        //a 'c' that will not be invalidated by the point insertion. Since we
+        //know that the boundary are such that f.first is in conflict, we
+        //mirror the facet such that their .second is different
+        if(mirror &&
+           f.first->vertex(f.second)->info() == ff.first->vertex(ff.second)->info())
+        {
+          f = star->mirror_facet(f); // no need to change fijk
+        }
+        return true;
+      }
+      return false;
+    }
+  };
+
+  void check_from_facet(Facet_handle fit,
+                        const std::vector<Index>& indices)
+  {
+    //fit is an internal or a boundary facet
+    for(std::size_t j=0; j<indices.size(); ++j)
+    {
+      Star_handle sj = m_stars[indices[j]];
+
+      Facet f_in_sj; //the facet f seen from sj
+      if(!sj->has_facet(Facet_ijk(*fit), f_in_sj)) //only searches though restricted facets
+        continue;
+
+      // At this point, we don't know for f(c,i) if c is a conflict cell
+
+      iterator czcit = m_conflict_zones.find(indices[j]);
+      if(czcit == m_conflict_zones.end())
+      {
+        m_facets_to_check[indices[j]].push_back(f_in_sj);
+        continue;
+      }
+
+      //TODO: might be easier to sort all the facets once, since the predicate
+      //here sorts a facet (creates a Facet_ijk) every time it compares
+      Czone czj = czcit->second;
+      Facet_handle fhit = std::find_if(czj.internal_facets().begin(),
+                                       czj.internal_facets().end(),
+                                       Facet_compare(sj, f_in_sj, false/*no mirroring*/));
+      //if si's f is found in sj's internals => nothing to do
+      if(fhit != czj.internal_facets().end())
+        continue;
+
+      Facet_handle fhitb = std::find_if(czj.boundary_facets().begin(),
+                                        czj.boundary_facets().end(),
+                                        Facet_compare(sj, f_in_sj, true/*mirroring*/));
+
+      //if si's f is found in sj's boundaries,
+      //    if sj's is still restricted after insertion => add it
+      //    if sj's is not restricted anymore after insertion => nothing to do
+      if(fhitb != czj.boundary_facets().end())
+      {
+         if(is_boundary_facet_restricted_after_insertion(sj, *fhitb))
+         {
+           m_facets_to_check[indices[j]].push_back(f_in_sj);
+         }
+         continue;
+      }
+
+      //if si's f is not found in sj's internals AND is not found in
+      //sj's boundaries => add it
+      m_facets_to_check[indices[j]].push_back(f_in_sj);
+    }
+  }
+
+  void check_from_internal_facets(iterator mit,
+                                  const std::map<Facet_ijk, int>& internal_facets_counter)
+  {
+    Index sid = mit->first;
+    Star_handle si = m_stars[sid];
+    Czone& czi = mit->second;
+
+    Facet_handle fit = czi.internal_facets().begin();
+    Facet_handle fend = czi.internal_facets().end();
+    for(; fit!=fend; ++fit)
+    {
+      if(!si->is_restricted(*fit))
+        continue;
+
+      typename std::map<Facet_ijk, int>::const_iterator fcit = internal_facets_counter.find(Facet_ijk(*fit));
+      if(fcit != internal_facets_counter.end() && fcit->second == 3)
+        continue;
+
+      std::vector<Index> indices; //the other stars making up the facet
+      for(int i=0; i<3; ++i)
+      {
+        Index id = fit->first->vertex((fit->second+i+1)%4)->info();
+        if(id != sid)
+          indices.push_back(id);
+      }
+
+      //Ignore facets that are not incident to the star's center point (they do
+      //not exist in the queues). They will be cleaned eventually
+      if(indices.size() == 3)
+        continue;
+
+      check_from_facet(fit, indices);
+    }
+  }
+
+  void check_from_boundary_facets(iterator mit)
+  {
+    //boundary facets could stop being restricted and create inconsistencies
+    Index sid = mit->first;
+    Star_handle si = m_stars[sid];
+    Czone& czi = mit->second;
+
+    Facet_handle fit = czi.boundary_facets().begin();
+    Facet_handle fend = czi.boundary_facets().end();
+    for(; fit!=fend; ++fit)
+    {
+      if(!si->is_restricted(*fit))
+        continue;
+
+      std::vector<Index> indices; //the other stars making up the boundary facet
+      for(int i=0; i<3; ++i)
+      {
+        Index id = fit->first->vertex((fit->second+i+1)%4)->info();
+        if(id != sid)
+          indices.push_back(id);
+      }
+
+      //Ignore facets that are not incident to the star's center point
+      if(indices.size() == 3)
+        continue;
+
+      if(is_boundary_facet_restricted_after_insertion(si, *fit))
+        continue;
+
+      check_from_facet(fit, indices);
+    }
+  }
+
+  void check_from_cells(iterator mit,
+                        const std::map<Cell_ijkl, int>& cells_counter)
+  {
+    Index sid = mit->first;
+    Star_handle si = m_stars[sid];
+    Czone& czi = mit->second;
+
+    //compute cells that need a check
+    Cell_handle_handle cit = czi.cells().begin();
+    Cell_handle_handle cend = czi.cells().end();
+    for(; cit!=cend; ++cit)
+    {
+      Cell_handle c = *cit;
+
+      if(!si->is_inside(c)) //checks infinity too
+        continue;
+      std::map<Cell_ijkl, int>::const_iterator ccit = cells_counter.find(Cell_ijkl(c));
+      if(ccit != cells_counter.end() && ccit->second == 4) //cell is in conflict in all stars
+        continue;
+
+      std::vector<Index> indices; //the other stars making up the cell
+      for(int i=0; i<4; ++i)
+      {
+        Index id = c->vertex(i)->info();
+        if(id != sid)
+          indices.push_back(id);
+      }
+
+      //Ignore cells that are not incident to the star's center point (they do
+      //not exist in the queues). They will be cleaned eventually
+      if(indices.size() == 4)
+        continue;
+
+      for(std::size_t j=0; j<indices.size(); ++j)
+      {
+        Star_handle sj = m_stars[indices[j]];
+
+        Cell_handle c_in_sj; //the cell c seen from sj
+        // sj does not have c => nothing to do
+        if(!sj->has_cell(Cell_ijkl(c), c_in_sj) || !sj->is_inside(c_in_sj))
+          continue;
+
+        // sj has c but sj is not in conflict => add to cells_to_check
+        iterator czcit = m_conflict_zones.find(indices[j]);
+        if(czcit == m_conflict_zones.end())
+        {
+          m_cells_to_check[indices[j]].push_back(c_in_sj);
+          continue;
+        }
+
+        Czone czj = czcit->second;
+        Cell_handle_handle chit = std::find(czj.cells().begin(),
+                                            czj.cells().end(),
+                                            c_in_sj);
+        // sj has c and c is NOT in the czone of cj => add to cells_to_check
+        if(chit == czj.cells().end())
+          m_cells_to_check[indices[j]].push_back(c_in_sj);
+
+        // sj has c and c is in the czone of cj => nothing to do
+      }
+    }
+  }
+
   void compute_elements_needing_check()
   {
 //todo -----------------------
     //WHEN REFINEMENT_CONDITIONS ARE ADDED AGAIN THERE NEEDS TO BE A CHECK HERE
     //NOT TO CONSIDER USELESS FACETS/CELLS
-
-    //TODO SOMETHING TO NOT COMPUTE THIS MULTIPLE TIMES
-
-    //Shouldn't compute cell elements to check if the cell level isn't active
-    // -> add a boolean member activated at the same time as the facet_visitor / cell_mesher_lvl
 //-----------------------
 
     //What is being done here:
@@ -167,50 +415,50 @@ public:
     //in conflict with the point. This might appear when a simplex is in conflict
     //in one star, but not in the others.
 
-    //si is a star corresponding to the vertex i (i\in s) and s\in si
-    //sj is the star corresponding to the vertex j (i!=j), that is a vertex of s
+    if(m_are_checks_computed)
+      return;
 
-    //For internal facets and cells, the cases are :
-    // -sj does not have s => nothing to do
-    // -sj has s but sj is not in conflict => add to simplex_to_check
-    // -sj has s and s is in the czone of cj => nothing to do
-    // -sj has s and s is NOT in the czone of cj => add to simplex_to_check
-
-    //For boundary facets, it is more complicated... WIP. TODO
-
-    std::cout << "computing elements needing a check" << std::endl;
-    std::cout << "czones: " << std::endl << *this << std::endl;
 
     //Count the elements. In the general case, an internal facet(cell) is three(four)
     //times in conflict, and there is thus nothing to check.
-    std::map<Facet_ijk, int> facets_counter;
+    std::map<Facet_ijk, int> internal_facets_counter;
     std::map<Cell_ijkl, int> cells_counter;
 
     iterator mit = m_conflict_zones.begin();
     iterator mend = m_conflict_zones.end();
     for(; mit!=mend; ++mit)
     {
-      std::cout << mit->first << std::endl;
       Star_handle si = m_stars[mit->first];
       Czone& czi = mit->second;
       if(czi.empty())
         continue;
 
       //internal facets
-      typename Czone::Facet_handle fit = czi.internal_facets().begin();
-      typename Czone::Facet_handle fend = czi.internal_facets().end();
+      Facet_handle fit = czi.internal_facets().begin();
+      Facet_handle fend = czi.internal_facets().end();
       for(; fit!=fend; ++fit)
       {
-        if(!si->is_restricted(*fit))
-          add_to_map(Facet_ijk(*fit), facets_counter);
+        if(!si->is_restricted(*fit) &&
+           (fit->first->vertex((fit->second+1)%4)->info() == mit->first || //incident facets only
+            fit->first->vertex((fit->second+2)%4)->info() == mit->first ||
+            fit->first->vertex((fit->second+3)%4)->info() == mit->first))
+          add_to_map(Facet_ijk(*fit), internal_facets_counter);
       }
 
+      if(!m_cells_need_check)
+        continue;
+
       //cells
-      typename Czone::Cell_handle_handle cit = czi.cells().begin();
-      typename Czone::Cell_handle_handle cend = czi.cells().end();
+      Cell_handle_handle cit = czi.cells().begin();
+      Cell_handle_handle cend = czi.cells().end();
       for(; cit!=cend; ++cit)
       {
-        if(si->is_inside(*cit))
+        Cell_handle c = *cit;
+        if(si->is_inside(c) &&
+           (c->vertex(0)->info() == mit->first || //incident cells only!
+            c->vertex(1)->info() == mit->first ||
+            c->vertex(2)->info() == mit->first ||
+            c->vertex(3)->info() == mit->first))
           add_to_map(Cell_ijkl(*cit), cells_counter);
       }
     }
@@ -218,83 +466,66 @@ public:
     mit = m_conflict_zones.begin();
     for(; mit!=mend; ++mit)
     {
-      Index sid = mit->first;
-      Star_handle si = m_stars[sid];
-      Czone& czi = mit->second;
+      check_from_internal_facets(mit, internal_facets_counter);
+      check_from_boundary_facets(mit);
 
-      //compute facets that need a check
-      //all internal restricted facets
-      typename Czone::Facet_handle fit = czi.internal_facets().begin();
-      typename Czone::Facet_handle fend = czi.internal_facets().end();
-      for(; fit!=fend; ++fit)
+      if(m_cells_need_check)
+        check_from_cells(mit, cells_counter);
+    }
+
+#ifdef ANISO_DEBUG_UNMODIFIED_STARS
+    if(!m_facets_to_check.empty())
+    {
+      std::cout << "facets_to_check is not empty. Size (n° of stars): ': " << m_facets_to_check.size() << std::endl;
+      std::cout << "Detail: " << std::endl;
+
+      typename std::map<Index, std::vector<Facet> >::iterator mvfit = m_facets_to_check.begin();
+      typename std::map<Index, std::vector<Facet> >::iterator mvfend = m_facets_to_check.end();
+      for(; mvfit!= mvfend; ++mvfit)
       {
-        if(!si->is_restricted(*fit))
-          continue;
-        if(facets_counter[Facet_ijk(*fit)] == 3)
-          continue;
+        Index sid = mvfit->first;
+        std::cout << "-- Star " << sid << std::endl;
+        std::vector<Facet> vf = mvfit->second;
 
-        //TODO
-      }
-
-      //boundary facets could stop being restricted and create inconsistencies...
-      fit = czi.boundary_facets().begin();
-      fend = czi.boundary_facets().end();
-      for(; fit!=fend; ++fit)
-      {
-        //TODO
-      }
-
-      //compute cells that need a check
-      typename Czone::Cell_handle_handle cit = czi.cells().begin();
-      typename Czone::Cell_handle_handle cend = czi.cells().end();
-      for(; cit!=cend; ++cit)
-      {
-        Cell_handle c = *cit;
-        if(!si->is_inside(c)) //checks infinity too
-          continue;
-        if(cells_counter[Cell_ijkl(c)] == 4) //cell is in conflict in all stars
-          continue;
-
-        std::vector<Index> indices; //the other stars making up the cell
-        for(int i=0; i<4; ++i)
+        Facet_handle fit = vf.begin();
+        Facet_handle fend = vf.end();
+        for(; fit!=fend; ++fit)
         {
-          Index id = c->vertex(i)->info();
-          if(id != sid)
-            indices.push_back(id);
-        }
-
-        //Ignore cells that are not incident to the star's center point (they do
-        //not exist in the queues). They will be cleaned eventually
-        if(indices.size() == 4)
-          continue;
-
-        for(std::size_t j=0; j<indices.size(); ++j)
-        {
-          Star_handle sj = m_stars[indices[j]];
-
-          Cell_handle c_in_sj; //the cell c seen from sj
-          if(!sj->has_cell(Cell_ijkl(c), c_in_sj))
-            continue;
-
-          iterator czcit = m_conflict_zones.find(indices[j]);
-          if(czcit == m_conflict_zones.end())
-          {
-            m_cells_to_check[indices[j]].push_back(c_in_sj);
-            continue;
-          }
-
-          Czone czj = czcit->second;
-          Cell_handle_handle chit = std::find(czj.cells().begin(),
-                                              czj.cells().end(),
-                                              c_in_sj);
-          if(chit == czj.cells().end())
-            m_cells_to_check[indices[j]].push_back(c_in_sj);
+          std::cout << fit->first->vertex((fit->second+1)%4)->info() << " ";
+          std::cout << fit->first->vertex((fit->second+2)%4)->info() << " ";
+          std::cout << fit->first->vertex((fit->second+3)%4)->info() << " || ";
+          std::cout << fit->first->vertex(fit->second)->info() << std::endl;
         }
       }
     }
 
     if(!m_cells_to_check.empty())
+    {
       std::cout << "Cells_to_check is not empty. Size (n° of stars): ': " << m_cells_to_check.size() << std::endl;
+      std::cout << "Detail: " << std::endl;
+
+      typename std::map<Index, std::vector<Cell_handle> >::iterator mvchit = m_cells_to_check.begin();
+      typename std::map<Index, std::vector<Cell_handle> >::iterator mvchend = m_cells_to_check.end();
+      for(; mvchit!= mvchend; ++mvchit)
+      {
+        Index sid = mvchit->first;
+        std::cout << "-- Star " << sid << std::endl;
+        std::vector<Cell_handle> vch = mvchit->second;
+
+        Cell_handle_handle vchit = vch.begin();
+        Cell_handle_handle vchend = vch.end();
+        for(; vchit!=vchend; ++vchit)
+        {
+          Cell_handle c = *vchit;
+          std::cout << c->vertex(0)->info() << " ";
+          std::cout << c->vertex(1)->info() << " ";
+          std::cout << c->vertex(2)->info() << " ";
+          std::cout << c->vertex(3)->info() << std::endl;
+        }
+      }
+    }
+#endif
+    m_are_checks_computed = true;
   }
 
 //Constructors
@@ -304,29 +535,70 @@ public:
       m_conflict_zones(),
       m_conflict_p(Point(1e17, 1e17, 1e17)),
       m_conflict_p_id(-1),
+      m_cells_need_check(false),
+      m_are_checks_computed(false),
       m_facets_to_check(),
       m_cells_to_check()
   { }
 };
 
 template<typename K>
-inline std::ostream& operator<<(std::ostream& os, const Stars_conflict_zones<K>& src)
+inline std::ostream& operator<<(std::ostream& os, Stars_conflict_zones<K>& src)
 {
   os << "printing current czones:" << std::endl;
   os << "point : " << src.conflicting_point() << std::endl;
   os << "id: " << src.conflicting_point_id() << std::endl;
   os << "size: " << src.size() << std::endl;
   os << "zones: " << std::endl;
-  typename Stars_conflict_zones<K>::const_iterator it = src.begin();
-  typename Stars_conflict_zones<K>::const_iterator iend = src.end();
+  typename Stars_conflict_zones<K>::iterator it = src.begin();
+  typename Stars_conflict_zones<K>::iterator iend = src.end();
   for(; it!=iend; ++it)
   {
-    const typename Stars_conflict_zones<K>::Czone& czi = it->second;
-    os << " " << it->first << " ";
+    typename Stars_conflict_zones<K>::Czone& czi = it->second;
+    os << "S " << it->first << " ";
     os << czi.boundary_facets().size() << " ";
     os << czi.cells().size() << " ";
     os << czi.internal_facets().size() << " ";
     os << std::endl;
+    os << "-*-*-*-*-" << std::endl;
+    os << "-*-*-*-*-" << std::endl;
+    if(0)
+      continue;
+
+    typename Stars_conflict_zones<K>::Facet_handle fit = czi.boundary_facets().begin();
+    typename Stars_conflict_zones<K>::Facet_handle fend = czi.boundary_facets().end();
+    for(; fit!=fend; ++fit)
+    {
+      os << " " << fit->first->vertex((fit->second+1)%4)->info() << " ";
+      os << fit->first->vertex((fit->second+2)%4)->info() << " ";
+      os << fit->first->vertex((fit->second+3)%4)->info() << " || ";
+      os << fit->first->vertex(fit->second)->info() << std::endl;
+    }
+    os << "-----" << std::endl;
+
+    typename Stars_conflict_zones<K>::Cell_handle_handle chit = czi.cells().begin();
+    typename Stars_conflict_zones<K>::Cell_handle_handle chend = czi.cells().end();
+    for(; chit!=chend; ++chit)
+    {
+      typename Stars_conflict_zones<K>::Cell_handle ch = *chit;
+      os << " " << ch->vertex(0)->info() << " ";
+      os << ch->vertex(1)->info() << " ";
+      os << ch->vertex(2)->info() << " ";
+      os << ch->vertex(3)->info() << std::endl;
+    }
+    os << "-----" << std::endl;
+
+    fit = czi.internal_facets().begin();
+    fend = czi.internal_facets().end();
+    for(; fit!=fend; ++fit)
+    {
+      os << " " << fit->first->vertex((fit->second+1)%4)->info() << " ";
+      os << fit->first->vertex((fit->second+2)%4)->info() << " ";
+      os << fit->first->vertex((fit->second+3)%4)->info() << " || ";
+      os << fit->first->vertex(fit->second)->info() << std::endl;
+    }
+    os << "-*-*-*-*-" << std::endl;
+    os << "-*-*-*-*-" << std::endl;
   }
 
   return os;
@@ -1190,9 +1462,6 @@ public:
                            const Index& this_id,
                            const bool infinite_stars = false)
   {
-    std::cout << "perf insertions with conflict zones " << p << std::endl;
-    std::cout << m_stars_czones << std::endl;
-
     Vertex_handle v_in_ch = Vertex_handle();
 
     typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
@@ -1328,9 +1597,6 @@ public:
     Index id = insert_to_stars(p, conditional);
     if(id < 0 || id < (int)m_stars.size())
       return id;
-
-    std::cout << "Final czones before create star " << p << std::endl;
-    std::cout << m_stars_czones << std::endl;
 
     Star_handle star;
     if(surface_point)

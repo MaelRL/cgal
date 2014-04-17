@@ -56,15 +56,16 @@ namespace CGAL{
     };
 
     template<typename K, typename KExact = K>
-    class Stretched_Delaunay_3 : public CGAL::Delaunay_triangulation_3<
-        Delaunay_traits_3<K, KExact>,
-        CGAL::Triangulation_data_structure_3<
-          CGAL::Triangulation_vertex_base_with_info_3<
-            Star_index,
-            Delaunay_traits_3<K, KExact> >,
-          CGAL::Triangulation_cell_base_with_domain_info_3<
-            Delaunay_traits_3<K, KExact>,
-            Constrain_surface_3<K> > > >
+    class Stretched_Delaunay_3
+        : public CGAL::Delaunay_triangulation_3<
+                   Delaunay_traits_3<K, KExact>,
+                   CGAL::Triangulation_data_structure_3<
+                      CGAL::Triangulation_vertex_base_with_info_3<
+                        Star_index,
+                        Delaunay_traits_3<K, KExact> >,
+                      CGAL::Triangulation_cell_base_with_domain_info_3<
+                        Delaunay_traits_3<K, KExact>,
+                        Constrain_surface_3<K> > > >
     {
       typedef Stretched_Delaunay_3<K, KExact>                       Self;
 public:
