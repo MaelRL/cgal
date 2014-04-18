@@ -12,7 +12,8 @@ struct Null_anisotropic_mesher_visitor
 
   const Self& previous() const { return *this; }
 
-  void fill_refinement_queue(int) const { }
+  template<typename I>
+  void fill_refinement_queue(I) const { }
 
   Null_anisotropic_mesher_visitor() { }
 };
@@ -46,7 +47,8 @@ public:
   const bool is_active() const { return m_is_active; }
   bool& is_active() { return m_is_active; }
 
-  void fill_refinement_queue(int relative_point) const //should be Index (same above) todo
+  template<typename Index>
+  void fill_refinement_queue(Index relative_point) const
   {
     if(m_is_active)
       mesher_level.fill_refinement_queue(relative_point);

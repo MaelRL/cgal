@@ -154,7 +154,7 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (succesful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(0 && rp_status == PICK_VALID_FAILED &&
+    if(rp_status == PICK_VALID_FAILED &&
        bad_cell->value != m_refine_queue.queue_min_value(bad_cell->queue_type) && //nothing to push if already last
        !bad_cell->prev_rejection) // if cell has not already been rejected
     {
@@ -256,7 +256,7 @@ public:
       std::cout << this->m_stars[v3->info()]->metric().get_transformation() << std::endl;
       std::cout << this->m_stars[v4->info()]->metric().get_transformation() << std::endl;
 
-      //pop back the star & switch to exact? todo
+      //pop back the star & switch to exact? TODO
       return false;
     }
 

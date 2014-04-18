@@ -568,7 +568,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   ui.en_factor->setValue(1.);
 
   ui.comboBox_metric->setEnabled(false);
-  //disable the metric field when restarting : not yet implemented (todo?)
+  //disable the metric field when restarting
 
   ui.maxTries->setDecimals(0);
   ui.maxTries->setSingleStep(1);

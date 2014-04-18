@@ -197,7 +197,7 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (succesful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(0 && rp_status == PICK_VALID_FAILED &&
+    if(rp_status == PICK_VALID_FAILED &&
        bad_facet->value != m_refine_queue.queue_min_value(bad_facet->queue_type) && //nothing to do if already last
        !bad_facet->prev_rejection) // only allow one rejection
     {
@@ -235,11 +235,13 @@ public:
       Facet f;
       if(star->is_encroached(p, f))
       {
+/*
         std::cout << "conflict" << std::endl;
         std::cout << p << " encroaches " << f.first->vertex((f.second+1)%4)->info();
         std::cout << " " << f.first->vertex((f.second+2)%4)->info() << " ";
         std::cout << f.first->vertex((f.second+3)%4)->info() << " up: ";
         std::cout << is_queue_updated << std::endl;
+*/
         if(is_queue_updated)
           m_refine_queue.push(star, f, star->compute_volume(f), 0);
         return true;
@@ -442,7 +444,7 @@ private:
 #endif
   }
 
-  void initialize_stars(const int nb = 10)
+  void initialize_stars(const int nb = 50)
   {
 #ifdef ANISO_VERBOSE
     std::cout << "Initialize "<< nb << " stars..." << std::endl;
@@ -1106,8 +1108,6 @@ private:
       }
     }
 
-    //NEED TO CHECK THAT CONSISTENCY IS NOT LOST IN THE UNMODIFIED STARS TOO! TODO
-
     return true;
   }
 
@@ -1190,7 +1190,6 @@ private:
     while(true)
     {
       p = compute_random_steiner_point(star, facet, tccf, circumradius);
-      std::cout << "random steiner point: " << p << std::endl;
 
 #ifdef ANISO_DEBUG_REFINEMENT
       star->debug_steiner_point(p, facet, false);

@@ -206,7 +206,7 @@ public:
       {
         //if mirror is true (case of a boundary facet), we want f(c,i) to have
         //a 'c' that will not be invalidated by the point insertion. Since we
-        //know that the boundary are such that f.first is in conflict, we
+        //know that the boundary facets are such that f.first is in conflict, we
         //mirror the facet such that their .second is different
         if(mirror &&
            f.first->vertex(f.second)->info() == ff.first->vertex(ff.second)->info())
@@ -222,13 +222,13 @@ public:
   void check_from_facet(Facet_handle fit,
                         const std::vector<Index>& indices)
   {
-    //fit is an internal or a boundary facet
+    //fit is an internal facet or a boundary facet that won't be restricted after insertion
     for(std::size_t j=0; j<indices.size(); ++j)
     {
       Star_handle sj = m_stars[indices[j]];
 
       Facet f_in_sj; //the facet f seen from sj
-      if(!sj->has_facet(Facet_ijk(*fit), f_in_sj)) //only searches though restricted facets
+      if(!sj->has_facet(Facet_ijk(*fit), f_in_sj)) //only searches through restricted facets
         continue;
 
       // At this point, we don't know for f(c,i) if c is a conflict cell
@@ -1329,8 +1329,6 @@ public:
       si->find_conflicts(p, std::back_inserter(ci.boundary_facets()),
                             std::back_inserter(ci.cells()),
                             std::back_inserter(ci.internal_facets()));
-
-      //Debug etc.
     }
 
     return m_stars_czones.conflicting_point_id();

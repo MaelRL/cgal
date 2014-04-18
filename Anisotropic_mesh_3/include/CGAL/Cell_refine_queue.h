@@ -363,12 +363,12 @@ public:
     {
       is_rest_identical = (star->index_in_star_set() == it->star->index_in_star_set() &&
                            queue_type == it->queue_type &&
-                           std::abs(value  - it->value) < 1e-10);
+                           std::abs(value  - it->value) < 1e-11);
     }
 /*
     if(is_cell_in && !is_rest_identical)
     {
-      std::cout << "Elements are in, but the cells differ: " << std::endl;
+      std::cout << "Unicity says in, but they differ: " << std::endl;
       std::cout << "cell check: ";
       std::cout << cell->vertex(0)->info() << " " << cell->vertex(1)->info() << " ";
       std::cout << cell->vertex(2)->info() << " " << cell->vertex(3)->info() << std::endl;

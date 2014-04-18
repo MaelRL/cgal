@@ -361,7 +361,8 @@ public:
     if((is_facet_in = (it != rfacets.end()))) // = and not == on purpose
     {
       is_rest_identical = (star->index_in_star_set() == it->star->index_in_star_set() &&
-                              value == it->value && queue_type == it->queue_type);
+                           queue_type == it->queue_type &&
+                           std::abs(value - it->value) < 1e-11);
     }
 /*
     if(is_facet_in && !is_rest_identical)
