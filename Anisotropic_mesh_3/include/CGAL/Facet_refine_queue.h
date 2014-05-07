@@ -131,8 +131,8 @@ public:
   static const int over_distortion_queue = 1;
   static const int over_circumradius_queue = 2;
   static const int over_approximation_queue = 3;
-  static const int start_pick_valid = 4;
   static const int bad_shape_queue = 4;
+  static const int start_pick_valid = 5;
   static const int inconsistent_queue = 5;
 
   //rfacets: set of the facets needing refinement. Avoids having the same facet (i,j,k)
