@@ -135,6 +135,7 @@ public:
     m_facet_mesher.refine(m_facet_visitor);
 
     m_facet_visitor.is_active() = true;
+    m_facet_mesher.pick_valid_uses_3D_checks() = true;
 
     // Then scan volume and refine it
     m_cell_mesher.initialize();
@@ -160,6 +161,7 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     m_facet_visitor.is_active() = true;
+    m_facet_mesher.pick_valid_uses_3D_checks() = true;
 
     std::cout << "Start volume scan...";
     m_cell_mesher.initialize();
@@ -196,7 +198,12 @@ public:
     else
     {
       if(!m_cell_mesher.is_active())
+      {
+        m_facet_visitor.is_active() = true;
+        m_facet_mesher.pick_valid_uses_3D_checks() = true;
+
         m_cell_mesher.initialize();
+      }
       m_cell_mesher.one_step(m_cell_visitor);
     }
   }

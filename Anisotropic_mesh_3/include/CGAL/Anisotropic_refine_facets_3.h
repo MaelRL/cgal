@@ -78,10 +78,13 @@ public:
   typedef typename Refine_queue::Rfacet                            Refine_facet;
   typedef typename Refine_queue::Rfacet_set_iterator               Rfacet_set_iterator;
 
-public: //tmp
+private:
   Refine_queue m_refine_queue;
 
-private:
+  //this boolean is exactly m_facet_visitor.is_active(), but carrying the visitor
+  //all the way down to is_valid_point() is even less pretty
+  bool m_pick_valid_uses_3D_checks;
+
   //debug & info
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
@@ -95,6 +98,9 @@ private:
 public:
   mutable CGAL::Timer timer_pv;
   mutable CGAL::Timer timer_npv;
+
+  bool& pick_valid_uses_3D_checks() { return m_pick_valid_uses_3D_checks; }
+  const bool& pick_valid_uses_3D_checks() const { return m_pick_valid_uses_3D_checks; }
 
 public:
 //functions used in the Mesher_lvl class
@@ -1114,18 +1120,17 @@ private:
     return true;
   }
 
-  bool is_valid_point(const Point_3 &p,
-                      const FT& sq_radius_bound, // in M_{star to_be_refined}
-                      Star_handle to_be_refined,
-                      Star_handle& new_star) const
+  bool is_valid_point_2D(const Point_3 &p,
+                         const FT& sq_radius_bound, // in M_{star to_be_refined}
+                         Star_handle to_be_refined,
+                         Star_handle& new_star) const
   {
     Index id = Trunk::compute_conflict_zones(p);
     this->m_stars_czones.compute_elements_needing_check();
 
-    if(!this->m_stars_czones.cells_to_check().empty() ||
-       !this->m_stars_czones.facets_to_check().empty())
+    if(!this->m_stars_czones.are_check_maps_empty())
     {
-      std::cout << "proposed FPV point creates inconsistencies in unmodified stars" << std::endl;
+      //std::cout << "proposed FPV point creates inconsistencies in unmodified stars" << std::endl;
       return false;
     }
 
@@ -1142,6 +1147,17 @@ private:
       new_star->invalidate();
 
     return is;
+  }
+
+  bool is_valid_point(const Point_3 &p,
+                      const FT& sq_radius_bound, // in M_{star to_be_refined}
+                      Star_handle to_be_refined,
+                      Star_handle& new_star) const
+  {
+    if(m_pick_valid_uses_3D_checks)
+      return Trunk::is_valid_point_3D(p, sq_radius_bound, to_be_refined, new_star);
+    else
+      return is_valid_point_2D(p, sq_radius_bound, to_be_refined, new_star);
   }
 
   void pick_valid_output(const Refinement_point_status rp_status)
