@@ -1,6 +1,7 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_MESHER_H
 #define CGAL_ANISOTROPIC_MESH_3_MESHER_H
 
+#include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Constrain_surface_3.h>
 #include <CGAL/Metric_field.h>
@@ -72,6 +73,8 @@ public:
   typedef typename Metric_field::Metric                     Metric;
   typedef Criteria_base<K>                                  Criteria;
 
+  typedef CGAL::Anisotropic_mesh_3::Starset<K>              Starset;
+
 //Filters
   typedef CGAL::AABB_tree_bbox<K, Star>                     AABB_tree;
   typedef CGAL::AABB_bbox_primitive<Star>                   AABB_primitive;
@@ -98,7 +101,7 @@ public:
 
 private:
   // Star set
-  Star_vector& m_stars;
+  Starset& m_starset;
 
   // Filters
   AABB_tree m_aabb_tree; //bboxes of stars
@@ -208,24 +211,24 @@ public:
     m_cell_mesher.report();
     m_facet_mesher.report();
     std::cout << "consistency of EVERYTHING: ";
-    std::cout << is_consistent(m_stars, true /*verbose*/) << std::endl;
+    std::cout << m_starset.is_consistent(true /*verbose*/) << std::endl;
   }
 
 public:
-  Anisotropic_mesher_3(Star_vector& stars,
+  Anisotropic_mesher_3(Starset& starset_,
                        const Constrain_surface* pconstrain_,
                        const Criteria* criteria_,
                        const Metric_field* metric_field_)
     :
-      m_stars(stars),
+      m_starset(starset_),
       m_aabb_tree(100/*insertion buffer size*/),
       m_ch_triangulation(),
-      m_kd_tree(m_stars),
-      m_star_czones(stars),
+      m_kd_tree(m_starset.star_vector()),
+      m_star_czones(m_starset),
       m_null_mesher(),
-      m_facet_mesher(m_null_mesher, m_stars, pconstrain_, criteria_, metric_field_,
+      m_facet_mesher(m_null_mesher, m_starset, pconstrain_, criteria_, metric_field_,
                       m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones),
-      m_cell_mesher(m_facet_mesher, m_stars, pconstrain_, criteria_, metric_field_,
+      m_cell_mesher(m_facet_mesher, m_starset, pconstrain_, criteria_, metric_field_,
                      m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones),
       m_null_visitor(),
       m_facet_visitor(m_cell_mesher, m_null_visitor),

@@ -106,14 +106,14 @@ void output_histogram(const std::vector<int>& histogram,
   }
 }
 
-template<typename Star, typename Constrain_surface, typename Criteria>
-void facet_histogram(const typename std::vector<Star*>& stars,
+template<typename Starset, typename Constrain_surface, typename Criteria>
+void facet_histogram(const Starset& stars,
                      const Constrain_surface* const m_pConstrain,
                      const Criteria* const m_criteria,
                      const Facet_histogram_type hist_type = APPROXIMATION,
                      const bool verbose = false)
 {
-  typedef typename Star::FT FT;
+  typedef typename Starset::FT FT;
 
   int divisions = 100;
   std::vector<int> histogram(divisions + 1, 0);
@@ -156,16 +156,16 @@ void facet_histogram(const typename std::vector<Star*>& stars,
   std::size_t N = stars.size();
   for(std::size_t i=0; i<N; ++i)
   {
-    Star* si = stars[i];
+    typename Starset::Star_handle si = stars[i];
 
     if(!si->is_surface_star())
       continue;
 
-    typename Star::Facet_set_iterator fit = si->begin_restricted_facets();
-    typename Star::Facet_set_iterator fend = si->end_restricted_facets();
+    typename Starset::Facet_set_iterator fit = si->begin_restricted_facets();
+    typename Starset::Facet_set_iterator fend = si->end_restricted_facets();
     for(; fit != fend; ++fit)
     {
-      typename Star::Facet f = *fit;
+      typename Starset::Facet f = *fit;
 
       std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
       is_insert_successful = done.insert(Facet_ijk(f));
@@ -176,7 +176,7 @@ void facet_histogram(const typename std::vector<Star*>& stars,
 
       if(hist_type == APPROXIMATION)
       {
-        typename Star::Point_3 cc, bf;
+        typename Starset::Point_3 cc, bf;
         si->compute_dual_intersection(f, cc);
         bf = CGAL::barycenter(stars[f.first->vertex((f.second+1)%4)->info()]->center_point(), 1./3.,
                               stars[f.first->vertex((f.second+2)%4)->info()]->center_point(), 1./3.,
@@ -187,7 +187,7 @@ void facet_histogram(const typename std::vector<Star*>& stars,
       else if(hist_type == FACET_DISTORTION)
       {
         int index = f.second;
-        typename Star::Cell_handle c = f.first;
+        typename Starset::Cell_handle c = f.first;
         for (int i = 0; i < 3; i++)
         {
           int i1 = (index + i + 1) % 4;
@@ -199,27 +199,27 @@ void facet_histogram(const typename std::vector<Star*>& stars,
       }
       else if(hist_type == FACET_QUALITY)
       {
-        const typename Star::Point_3& pa = si->metric().inverse_transform(f.first->vertex((f.second+1)%4)->point());
-        const typename Star::Point_3& pb = si->metric().inverse_transform(f.first->vertex((f.second+2)%4)->point());
-        const typename Star::Point_3& pc = si->metric().inverse_transform(f.first->vertex((f.second+3)%4)->point());
+        const typename Starset::Point_3& pa = si->metric().inverse_transform(f.first->vertex((f.second+1)%4)->point());
+        const typename Starset::Point_3& pb = si->metric().inverse_transform(f.first->vertex((f.second+2)%4)->point());
+        const typename Starset::Point_3& pc = si->metric().inverse_transform(f.first->vertex((f.second+3)%4)->point());
 
-        Star* star_a = stars[f.first->vertex((f.second+1)%4)->info()];
-        Star* star_b = stars[f.first->vertex((f.second+2)%4)->info()];
-        Star* star_c = stars[f.first->vertex((f.second+3)%4)->info()];
+        typename Starset::Star_handle star_a = stars[f.first->vertex((f.second+1)%4)->info()];
+        typename Starset::Star_handle star_b = stars[f.first->vertex((f.second+2)%4)->info()];
+        typename Starset::Star_handle star_c = stars[f.first->vertex((f.second+3)%4)->info()];
 
-        const typename Star::TPoint_3& tpa_a = star_a->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_a = star_a->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_a = star_a->metric().transform(pc);
+        const typename Starset::TPoint_3& tpa_a = star_a->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_a = star_a->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_a = star_a->metric().transform(pc);
         FT quality_in_a = star_a->compute_element_quality(tpa_a, tpb_a, tpc_a);
 
-        const typename Star::TPoint_3& tpa_b = star_b->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_b = star_b->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_b = star_b->metric().transform(pc);
+        const typename Starset::TPoint_3& tpa_b = star_b->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_b = star_b->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_b = star_b->metric().transform(pc);
         FT quality_in_b = star_b->compute_element_quality(tpa_b, tpb_b, tpc_b);
 
-        const typename Star::TPoint_3& tpa_c = star_c->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_c = star_c->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_c = star_c->metric().transform(pc);
+        const typename Starset::TPoint_3& tpa_c = star_c->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_c = star_c->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_c = star_c->metric().transform(pc);
         FT quality_in_c = star_c->compute_element_quality(tpa_c, tpb_c, tpc_c);
 
         val = (std::min)((std::min)(quality_in_a, quality_in_b),quality_in_c);
@@ -293,13 +293,13 @@ void facet_histogram(const typename std::vector<Star*>& stars,
     output_histogram(histogram, 0., max_val, "histogram_facet_angle.cvs");
 }
 
-template<typename Star, typename Criteria>
-void cell_histogram(const typename std::vector<Star*>& stars,
-                               const Criteria* const m_criteria,
-                               const Cell_histogram_type hist_type = CELL_DISTORTION,
-                               const bool verbose = false)
+template<typename Starset, typename Criteria>
+void cell_histogram(const Starset& stars,
+                    const Criteria* const m_criteria,
+                    const Cell_histogram_type hist_type = CELL_DISTORTION,
+                    const bool verbose = false)
 {
-  typedef typename Star::FT FT;
+  typedef typename Starset::FT FT;
 
   int divisions = 100;
   std::vector<int> histogram(divisions + 1, 0);
@@ -337,13 +337,13 @@ void cell_histogram(const typename std::vector<Star*>& stars,
   std::size_t N = stars.size();
   for(std::size_t i=0; i<N; ++i)
   {
-    Star* si = stars[i];
+    typename Starset::Star_handle si = stars[i];
 
-    typename Star::Cell_handle_handle cit = si->begin_finite_star_cells();
-    typename Star::Cell_handle_handle cend = si->end_finite_star_cells();
+    typename Starset::Cell_handle_handle cit = si->begin_finite_star_cells();
+    typename Starset::Cell_handle_handle cend = si->end_finite_star_cells();
     for(; cit != cend; ++cit)
     {
-      typename Star::Cell_handle c = *cit;
+      typename Starset::Cell_handle c = *cit;
       if(!si->is_inside(c))
         continue;
 
@@ -364,38 +364,38 @@ void cell_histogram(const typename std::vector<Star*>& stars,
       }
       else if(hist_type == CELL_QUALITY)
       {
-        const typename Star::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
-        const typename Star::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
-        const typename Star::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
-        const typename Star::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
+        const typename Starset::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
+        const typename Starset::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
+        const typename Starset::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
+        const typename Starset::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
 
-        Star* star_a = stars[c->vertex(0)->info()];
-        Star* star_b = stars[c->vertex(1)->info()];
-        Star* star_c = stars[c->vertex(2)->info()];
-        Star* star_d = stars[c->vertex(3)->info()];
+        typename Starset::Star_handle star_a = stars[c->vertex(0)->info()];
+        typename Starset::Star_handle star_b = stars[c->vertex(1)->info()];
+        typename Starset::Star_handle star_c = stars[c->vertex(2)->info()];
+        typename Starset::Star_handle star_d = stars[c->vertex(3)->info()];
 
-        const typename Star::TPoint_3& tpa_a = star_a->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_a = star_a->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_a = star_a->metric().transform(pc);
-        const typename Star::TPoint_3& tpd_a = star_a->metric().transform(pd);
+        const typename Starset::TPoint_3& tpa_a = star_a->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_a = star_a->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_a = star_a->metric().transform(pc);
+        const typename Starset::TPoint_3& tpd_a = star_a->metric().transform(pd);
         FT quality_in_a = star_a->compute_element_quality(tpa_a, tpb_a, tpc_a, tpd_a);
 
-        const typename Star::TPoint_3& tpa_b = star_b->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_b = star_b->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_b = star_b->metric().transform(pc);
-        const typename Star::TPoint_3& tpd_b = star_b->metric().transform(pd);
+        const typename Starset::TPoint_3& tpa_b = star_b->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_b = star_b->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_b = star_b->metric().transform(pc);
+        const typename Starset::TPoint_3& tpd_b = star_b->metric().transform(pd);
         FT quality_in_b = star_b->compute_element_quality(tpa_b, tpb_b, tpc_b, tpd_b);
 
-        const typename Star::TPoint_3& tpa_c = star_c->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_c = star_c->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_c = star_c->metric().transform(pc);
-        const typename Star::TPoint_3& tpd_c = star_c->metric().transform(pd);
+        const typename Starset::TPoint_3& tpa_c = star_c->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_c = star_c->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_c = star_c->metric().transform(pc);
+        const typename Starset::TPoint_3& tpd_c = star_c->metric().transform(pd);
         FT quality_in_c = star_c->compute_element_quality(tpa_c, tpb_c, tpc_c, tpd_c);
 
-        const typename Star::TPoint_3& tpa_d = star_d->metric().transform(pa);
-        const typename Star::TPoint_3& tpb_d = star_d->metric().transform(pb);
-        const typename Star::TPoint_3& tpc_d = star_d->metric().transform(pc);
-        const typename Star::TPoint_3& tpd_d = star_d->metric().transform(pd);
+        const typename Starset::TPoint_3& tpa_d = star_d->metric().transform(pa);
+        const typename Starset::TPoint_3& tpb_d = star_d->metric().transform(pb);
+        const typename Starset::TPoint_3& tpc_d = star_d->metric().transform(pc);
+        const typename Starset::TPoint_3& tpd_d = star_d->metric().transform(pd);
         FT quality_in_d = star_c->compute_element_quality(tpa_d, tpb_d, tpc_d, tpd_d);
 
         val = (std::min)((std::min)((std::min)(quality_in_a, quality_in_b),quality_in_c),quality_in_d);
@@ -412,15 +412,15 @@ void cell_histogram(const typename std::vector<Star*>& stars,
       }
       else if(hist_type == CELL_ANGLE)
       {
-        const typename Star::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
-        const typename Star::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
-        const typename Star::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
-        const typename Star::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
+        const typename Starset::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
+        const typename Starset::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
+        const typename Starset::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
+        const typename Starset::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
 
-        Star* star_a = stars[c->vertex(0)->info()];
-        Star* star_b = stars[c->vertex(1)->info()];
-        Star* star_c = stars[c->vertex(2)->info()];
-        Star* star_d = stars[c->vertex(3)->info()];
+        typename Starset::Star_handle star_a = stars[c->vertex(0)->info()];
+        typename Starset::Star_handle star_b = stars[c->vertex(1)->info()];
+        typename Starset::Star_handle star_c = stars[c->vertex(2)->info()];
+        typename Starset::Star_handle star_d = stars[c->vertex(3)->info()];
 
         FT min_angle_a = minimum_dihedral_angle(star_a, pa, pb, pc, pd);
         FT min_angle_b = minimum_dihedral_angle(star_b, pa, pb, pc, pd);
@@ -486,63 +486,24 @@ void cell_histogram(const typename std::vector<Star*>& stars,
 
 }
 
-template <typename Star>
-typename Star::FT
-dihedral_angle(Star* star,
-               const typename Star::Point_3& a,
-               const typename Star::Point_3& b,
-               const typename Star::Point_3& c,
-               const typename Star::Point_3& d)
-{
-  typedef typename Star::Kernel       K;
-  typedef typename Star::TPoint_3     TPoint;
-  typedef typename K::Vector_3        Vector_3;
-  typedef typename K::FT              FT;
-  K k = K();
-
-  const TPoint& ta = star->metric().transform(a);
-  const TPoint& tb = star->metric().transform(b);
-  const TPoint& tc = star->metric().transform(c);
-  const TPoint& td = star->metric().transform(d);
-
-  typename K::Construct_vector_3 vector = k.construct_vector_3_object();
-  typename K::Construct_cross_product_vector_3 cross_product =
-    k.construct_cross_product_vector_3_object();
-  typename K::Compute_squared_distance_3 sq_distance =
-    k.compute_squared_distance_3_object();
-  typename K::Compute_scalar_product_3 scalar_product =
-    k.compute_scalar_product_3_object();
-
-  const Vector_3 ab = vector(ta, tb);
-  const Vector_3 ac = vector(ta, tc);
-  const Vector_3 ad = vector(ta, td);
-
-  const Vector_3 abad = cross_product(ab, ad);
-  const double x = CGAL::to_double(scalar_product(cross_product(ab, ac), abad));
-  const double l_ab = CGAL::sqrt(CGAL::to_double(sq_distance(a, b)));
-  const double y = l_ab * CGAL::to_double(scalar_product(ac, abad));
-
-  return FT(std::atan2(y, x) * 180 / CGAL_PI );
-}
-
-template<typename Star>
-void dihedral_angle_histogram(const typename std::vector<Star*>& stars,
+template<typename Starset>
+void dihedral_angle_histogram(const Starset& stars,
                               const bool verbose = false)
 {
   std::set<Cell_ijkl> done;
   std::vector<int> histogram(181, 0);
-  typename Star::FT val, min_value = 1e30, max_value = -1e30;
+  typename Starset::FT val, min_value = 1e30, max_value = -1e30;
 
   std::size_t N = stars.size();
   for(std::size_t i=0; i<N; ++i)
   {
-    Star* si = stars[i];
+    typename Starset::Star_handle si = stars[i];
 
-    typename Star::Cell_handle_handle cit = si->begin_finite_star_cells();
-    typename Star::Cell_handle_handle cend = si->end_finite_star_cells();
+    typename Starset::Cell_handle_handle cit = si->begin_finite_star_cells();
+    typename Starset::Cell_handle_handle cend = si->end_finite_star_cells();
     for(; cit != cend; ++cit)
     {
-      typename Star::Cell_handle c = *cit;
+      typename Starset::Cell_handle c = *cit;
       if(!si->is_inside(c))
         continue;
 
@@ -551,14 +512,14 @@ void dihedral_angle_histogram(const typename std::vector<Star*>& stars,
       if(!is_insert_successful.second)
         continue;
 
-      const typename Star::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
-      const typename Star::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
-      const typename Star::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
-      const typename Star::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
+      const typename Starset::Point_3& pa = si->metric().inverse_transform(c->vertex(0)->point());
+      const typename Starset::Point_3& pb = si->metric().inverse_transform(c->vertex(1)->point());
+      const typename Starset::Point_3& pc = si->metric().inverse_transform(c->vertex(2)->point());
+      const typename Starset::Point_3& pd = si->metric().inverse_transform(c->vertex(3)->point());
 
       for(int i=0; i<4; ++i)
       {
-        Star* star = stars[c->vertex(i)->info()];
+        typename Starset::Star_handle star = stars[c->vertex(i)->info()];
         val = dihedral_angle(star, pa, pb, pc, pd);
         histogram[std::abs(std::floor(val))]++;
         min_value = (std::min)(min_value, val);
@@ -601,8 +562,8 @@ void dihedral_angle_histogram(const typename std::vector<Star*>& stars,
   output_histogram(histogram, 0., 180., "histogram_dihedral_angle.cvs");
 }
 
-template<typename Star, typename Constrain_surface, typename Criteria>
-void all_facet_histograms(const typename std::vector<Star*>& stars,
+template<typename Starset, typename Constrain_surface, typename Criteria>
+void all_facet_histograms(const Starset& stars,
                           const Constrain_surface* const m_pConstrain,
                           const Criteria* const m_criteria,
                           const bool verbose = false)
@@ -615,10 +576,10 @@ void all_facet_histograms(const typename std::vector<Star*>& stars,
   //facet_histogram(stars, m_pConstrain, m_criteria, FACET_ANGLE, verbose);
 }
 
-template<typename Star, typename Criteria>
-void all_cell_histograms(const typename std::vector<Star*>& stars,
-                          const Criteria* const m_criteria,
-                          const bool verbose = false)
+template<typename Starset, typename Criteria>
+void all_cell_histograms(const Starset& stars,
+                         const Criteria* const m_criteria,
+                         const bool verbose = false)
 {
   cell_histogram(stars, m_criteria, CELL_DISTORTION, verbose);
   cell_histogram(stars, m_criteria, CELL_QUALITY, verbose);

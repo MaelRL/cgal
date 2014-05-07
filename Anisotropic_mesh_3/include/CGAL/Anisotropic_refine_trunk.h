@@ -5,7 +5,7 @@
 #include <CGAL/Criteria.h>
 #include <CGAL/Metric_field.h>
 #include <CGAL/Stretched_Delaunay_3.h>
-#include <CGAL/Star_consistency.h>
+#include <CGAL/Starset.h>
 
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
@@ -75,6 +75,7 @@ class Stars_conflict_zones
 
 public:
   typedef Stretched_Delaunay_3<K, KExact>                  Star;
+  typedef CGAL::Anisotropic_mesh_3::Starset<K, KExact>     Starset;
   typedef Star*                                            Star_handle;
   typedef typename std::vector<Star_handle>                Star_vector;
   typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>       Czone;
@@ -100,7 +101,7 @@ public:
   };
 
 private:
-  const Star_vector& m_stars;
+  const Starset& m_starset;
   std::map<Index, Czone> m_conflict_zones;
   Point m_conflict_p; // point causing the conflict (only needed to debug / assert)
   Index m_conflict_p_id; //id of the point
@@ -225,7 +226,7 @@ public:
     //fit is an internal facet or a boundary facet that won't be restricted after insertion
     for(std::size_t j=0; j<indices.size(); ++j)
     {
-      Star_handle sj = m_stars[indices[j]];
+      Star_handle sj = m_starset[indices[j]];
 
       Facet f_in_sj; //the facet f seen from sj
       if(!sj->has_facet(Facet_ijk(*fit), f_in_sj)) //only searches through restricted facets
@@ -276,7 +277,7 @@ public:
                                   const std::map<Facet_ijk, int>& internal_facets_counter)
   {
     Index sid = mit->first;
-    Star_handle si = m_stars[sid];
+    Star_handle si = m_starset[sid];
     Czone& czi = mit->second;
 
     Facet_handle fit = czi.internal_facets().begin();
@@ -311,7 +312,7 @@ public:
   {
     //boundary facets could stop being restricted and create inconsistencies
     Index sid = mit->first;
-    Star_handle si = m_stars[sid];
+    Star_handle si = m_starset[sid];
     Czone& czi = mit->second;
 
     Facet_handle fit = czi.boundary_facets().begin();
@@ -344,7 +345,7 @@ public:
                         const std::map<Cell_ijkl, int>& cells_counter)
   {
     Index sid = mit->first;
-    Star_handle si = m_stars[sid];
+    Star_handle si = m_starset[sid];
     Czone& czi = mit->second;
 
     //compute cells that need a check
@@ -375,7 +376,7 @@ public:
 
       for(std::size_t j=0; j<indices.size(); ++j)
       {
-        Star_handle sj = m_stars[indices[j]];
+        Star_handle sj = m_starset[indices[j]];
 
         Cell_handle c_in_sj; //the cell c seen from sj
         // sj does not have c => nothing to do
@@ -428,7 +429,7 @@ public:
     iterator mend = m_conflict_zones.end();
     for(; mit!=mend; ++mit)
     {
-      Star_handle si = m_stars[mit->first];
+      Star_handle si = m_starset[mit->first];
       Czone& czi = mit->second;
       if(czi.empty())
         continue;
@@ -529,9 +530,9 @@ public:
   }
 
 //Constructors
-  Stars_conflict_zones(const Star_vector& m_stars_)
+  Stars_conflict_zones(const Starset& m_starset_)
     :
-      m_stars(m_stars_),
+      m_starset(m_starset_),
       m_conflict_zones(),
       m_conflict_p(Point(1e17, 1e17, 1e17)),
       m_conflict_p_id(-1),
@@ -627,13 +628,15 @@ public:
   typedef std::set<Point_3>                                        Point_set;
   typedef typename Star::Vertex_handle                             Vertex_handle;
   typedef typename Star::Cell_handle                               Cell_handle;
+  typedef typename Star::Facet                                     Facet;
   typedef typename Star::Facet_handle                              Facet_handle;
   typedef typename Star::Facet_set_iterator                        Facet_set_iterator;
   typedef typename Star::Cell_handle_handle                        Cell_handle_handle;
-  typedef typename Star::Facet                                     Facet;
   typedef typename Star::Vector_3                                  Vector_3;
   typedef typename Star::Constrain_surface                         Constrain_surface;
   typedef typename Star::Criteria                                  Criteria;
+
+  typedef CGAL::Anisotropic_mesh_3::Starset<K>                     Starset;
 
   typedef typename CGAL::Anisotropic_mesh_3::Metric_field<K>       Metric_field;
   typedef typename Metric_field::Metric                            Metric;
@@ -659,7 +662,7 @@ private:
   Back_from_exact back_from_exact;
 
 protected:
-  Star_vector& m_stars;
+  Starset& m_starset;
 
   const Constrain_surface* m_pConstrain;
   const Criteria* m_criteria;
@@ -672,45 +675,22 @@ protected:
   Stars_conflict_zones& m_stars_czones;
 
 public:
-  double duration(const time_t& start) const
-  {
-    return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
-  }
-
-public:
-  Star_vector& stars() const { return m_stars; }
+  Star_vector& stars() const { return m_starset.star_vector(); }
   const Constrain_surface* constrain_surface() const { return m_pConstrain; }
   const Criteria* criteria() const { return m_criteria; }
   const Metric_field* metric_field() const { return m_metric_field; }
 
-  bool empty() const { return m_stars.empty(); }
+  bool empty() const { return m_starset.empty(); }
   bool is_infinite_vertex(int i) const { return (i == Star::infinite_vertex_index()); }
-  std::size_t number_of_stars() const { return m_stars.size(); }
-
-  unsigned int number_of_surface_stars() const
-  {
-    unsigned int nb = 0;
-    for(unsigned int i = 0; i < m_stars.size(); ++i)
-      if(m_stars[i]->is_surface_star())
-        nb++;
-    return nb;
-  }
-
-  std::size_t total_number_of_vertices() const
-  {
-    std::size_t nbv = 0;
-    for(unsigned int i = 0; i < m_stars.size(); i++)
-      nbv += m_stars[i]->number_of_vertices();
-    return nbv;
-  }
+  std::size_t number_of_stars() const { return m_starset.size(); }
 
   Star_handle get_star(Star_handle s) const { return s; }
-  Star_handle get_star(std::size_t i) const { return m_stars[i]; }
-  Star_handle get_star(int i) const         { return m_stars[i]; }
-  Star_handle get_star(typename Index_set::const_iterator it) const   { return m_stars[*it]; }
+  Star_handle get_star(std::size_t i) const { return m_starset[i]; }
+  Star_handle get_star(int i) const         { return m_starset[i]; }
+  Star_handle get_star(typename Index_set::const_iterator it) const   { return m_starset[*it]; }
   Star_handle get_star(typename Star_set::const_iterator it) const    { return *it; }
   Star_handle get_star(typename Star_vector::const_iterator it) const { return *it; }
-  Star_handle get_star(typename Stars_conflict_zones::const_iterator it) const { return m_stars[it->first]; }
+  Star_handle get_star(typename Stars_conflict_zones::const_iterator it) const { return m_starset[it->first]; }
 
   template <typename StarIterator>
   Star_set get_stars(StarIterator begin, StarIterator end) const
@@ -724,8 +704,13 @@ public:
   template<typename OutputIterator>
   void all_stars(OutputIterator oit) const
   {
-    for(std::size_t i = 0; i < m_stars.size(); i++)
-      *oit++ = m_stars[i];
+    for(std::size_t i = 0; i < number_of_stars(); i++)
+      *oit++ = m_starset[i];
+  }
+
+  double duration(const time_t& start) const
+  {
+    return ((clock() - start + 0.) / ((double)CLOCKS_PER_SEC));
   }
 
 public:
@@ -789,6 +774,34 @@ public:
 #endif
   }
 
+  Point_3 barycenter(const Facet& f) const
+  {
+    Point_3 p1 = get_star(f.first->vertex((f.second + 1) % 4)->info())->center_point();
+    Point_3 p2 = get_star(f.first->vertex((f.second + 2) % 4)->info())->center_point();
+    Point_3 p3 = get_star(f.first->vertex((f.second + 3) % 4)->info())->center_point();
+    FT third = 1./3.;
+    return Point_3(third * (p1.x() + p2.x() + p3.x()),
+                   third * (p1.y() + p2.y() + p3.y()),
+                   third * (p1.z() + p2.z() + p3.z()));
+  }
+
+  FT sq_distance_to_surface(const Facet& f, const Star_handle s) const
+  {
+    //Point_3 steiner;
+    //s->compute_dual_intersection(f, steiner);
+    //Point_3 cc = transform_from_star_point(s->compute_circumcenter(f), s);
+    //return CGAL::squared_distance(steiner, cc);
+
+    return m_pConstrain->compute_sq_approximation(barycenter(f));
+  }
+
+  bool is_surface_facet(const Facet& f) const
+  {
+    return get_star(f.first->vertex((f.second + 1) % 4)->info())->is_surface_star()
+        && get_star(f.first->vertex((f.second + 2) % 4)->info())->is_surface_star()
+        && get_star(f.first->vertex((f.second + 3) % 4)->info())->is_surface_star();
+  }
+
   //checks if a facet is encroached by any existing star (debug only)
   bool is_encroached(Star_handle star, const Facet &facet)
   {
@@ -796,8 +809,8 @@ public:
     Index p2 = facet.first->vertex((facet.second + 2)%4)->info();
     Index p3 = facet.first->vertex((facet.second + 3)%4)->info();
 
-    Star_iterator sit = m_stars.begin();
-    Star_iterator sitend = m_stars.end();
+    Star_iterator sit = m_starset.begin();
+    Star_iterator sitend = m_starset.end();
     for(; sit!=sitend; ++sit)
     {
       Star_handle si = get_star(sit);
@@ -821,315 +834,6 @@ public:
     return false;
   }
 
-  Point_3 barycenter(const Facet& f) const
-  {
-    Point_3 p1 = m_stars[f.first->vertex((f.second + 1) % 4)->info()]->center_point();
-    Point_3 p2 = m_stars[f.first->vertex((f.second + 2) % 4)->info()]->center_point();
-    Point_3 p3 = m_stars[f.first->vertex((f.second + 3) % 4)->info()]->center_point();
-    FT third = 1./3.;
-    return Point_3(third * (p1.x() + p2.x() + p3.x()),
-                   third * (p1.y() + p2.y() + p3.y()),
-                   third * (p1.z() + p2.z() + p3.z()));
-  }
-
-  FT sq_distance_to_surface(const Facet& f, const Star_handle s) const
-  {
-    //Point_3 steiner;
-    //s->compute_dual_intersection(f, steiner);
-    //Point_3 cc = transform_from_star_point(s->compute_circumcenter(f), s);
-    //return CGAL::squared_distance(steiner, cc);
-
-    return m_pConstrain->compute_sq_approximation(barycenter(f));
-  }
-
-  bool is_surface_facet(const Facet& f) const
-  {
-    return m_stars[f.first->vertex((f.second + 1) % 4)->info()]->is_surface_star()
-        && m_stars[f.first->vertex((f.second + 2) % 4)->info()]->is_surface_star()
-        && m_stars[f.first->vertex((f.second + 3) % 4)->info()]->is_surface_star();
-  }
-
-  std::size_t count_restricted_facets() const
-  {
-    std::set<Facet_ijk> facets;
-    for(unsigned int i = 0; i < m_stars.size(); i++)
-    {
-      Facet_set_iterator fit = m_stars[i]->begin_restricted_facets();
-      Facet_set_iterator fitend = m_stars[i]->end_restricted_facets();
-      for(; fit != fitend; fit++)
-        facets.insert(Facet_ijk(*fit));
-    }
-    return facets.size();
-  }
-
-//Basic distortion functions
-  FT compute_distortion(const Facet& f) const
-  {
-    FT distortion = 1.;
-    int index = f.second;
-    Cell_handle c = f.first;
-    for (int i = 0; i < 3; i++)
-    {
-      int i1 = (index + i + 1) % 4;
-      int i2 = (index + (i + 1) % 3 + 1) % 4;
-      distortion = (std::max)(distortion,
-                              m_stars[c->vertex(i1)->info()]->metric().compute_distortion(
-                     m_stars[c->vertex(i2)->info()]->metric()));
-    }
-    return distortion;
-  }
-
-  FT compute_distortion(const Cell_handle& c) const
-  {
-    FT distortion = 1.0;
-    for(int i = 0; i < 4; i++)
-    {
-      for(int j = i + 1; j < 4; j++)
-      {
-        distortion = (std::max)(distortion,
-                                m_stars[c->vertex(i)->info()]->metric().compute_distortion(
-                       m_stars[c->vertex(j)->info()]->metric()));
-      }
-    }
-    return distortion;
-  }
-
-  FT star_distortion(Star_handle star) const
-  {
-    FT max_distortion = 0.;
-
-    /*
-    Facet_set_iterator fit = star->begin_restricted_facets();
-    Facet_set_iterator fitend = star->end_restricted_facets();
-    for(; fit != fitend; fit++)
-    {
-      Facet f = *fit;
-      max_distortion = (std::max)(max_distortion, compute_distortion(f));
-    }
-    return max_distortion;
-  */
-
-    Star_iterator vit = star->begin_neighboring_vertices();
-    Star_iterator vend = star->end_neighboring_vertices();
-    for(; vit!=vend; ++vit)
-    {
-      if(is_infinite_vertex((*vit)->info()))
-        continue;
-      if(!(m_stars[(*vit)->info()]->is_surface_star())) //todo this is bad
-        continue;
-
-      FT distortion = m_stars[(*vit)->info()]->metric().compute_distortion(star->metric());
-      max_distortion = (std::max)(distortion, max_distortion);
-    }
-
-    return max_distortion;
-  }
-
-  void debug_show_distortions() const
-  {
-    for(std::size_t i = 0; i < m_stars.size(); ++i)
-    {
-      Star_handle s = m_stars[i];
-      if(!s->is_surface_star())
-        continue;
-      std::cout << "  " << i << " : ";
-      Facet_set_iterator fit = s->begin_restricted_facets();
-      Facet_set_iterator fend = s->end_restricted_facets();
-      for(; fit != fend; ++fit)
-      {
-        std::cout << "(";
-        Facet f = *fit;
-        if(is_surface_facet(f))
-        {
-          for (int i = 0; i < 3; i++)
-          {
-            int index_1 = (f.second + i + 1) % 4;
-            int index_2 = (f.second + (i + 1) % 3 + 1) % 4;
-            FT distortion =
-              m_stars[f.first->vertex(index_1)->info()]->metric().compute_distortion(
-              m_stars[f.first->vertex(index_2)->info()]->metric());
-
-            FT costheta = std::abs(
-              m_stars[f.first->vertex(index_1)->info()]->metric().get_vmin()
-              * m_stars[f.first->vertex(index_2)->info()]->metric().get_vmin());
-
-            std::cout << (distortion - 1./costheta) << "\t";
-          }
-        }
-        std::cout << ")";
-      }
-      std::cout << std::endl;
-    }
-  }
-
-  double average_facet_distortion(bool verbose = true) const
-  {
-    double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
-    double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
-    int nb_coh = 0, nb_incoh = 0;
-
-    std::set<Facet_ijk> done;
-    for(std::size_t i = 0; i <number_of_stars(); i++)
-    {
-      Star_handle star = m_stars[i];
-      if(!star->is_surface_star())
-        continue;
-
-      Facet_set_iterator fit = star->begin_restricted_facets();
-      Facet_set_iterator fitend = star->end_restricted_facets();
-      for(; fit != fitend; fit++)
-      {
-        Facet f = *fit;
-        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
-        is_insert_successful = done.insert(Facet_ijk(f));
-        if(!is_insert_successful.second)
-          continue;
-
-        FT facet_distortion = compute_distortion(f);
-
-        if(is_consistent(m_stars, f))
-        {
-          nb_coh++;
-          avg_coh_dis += facet_distortion;
-          if(facet_distortion > max_coh_dis)
-            max_coh_dis = facet_distortion;
-          if(facet_distortion < min_coh_dis)
-            min_coh_dis = facet_distortion;
-        }
-        else
-        {
-          nb_incoh++;
-          avg_incoh_dis += facet_distortion;
-          if(facet_distortion > max_incoh_dis)
-            max_incoh_dis = facet_distortion;
-          if(facet_distortion < min_incoh_dis)
-            min_incoh_dis = facet_distortion;
-        }
-      }
-    }
-
-    if(verbose)
-    {
-      std::cout << "SUM UP OF THE DISTORTION (FACET):" << std::endl;
-      std::cout << nb_coh << " coherent facets with avg: " << avg_coh_dis/(double) nb_coh << std::endl;
-      std::cout << "min: " << min_coh_dis << " max: " << max_coh_dis << std::endl;
-      std::cout << nb_incoh << " incoherent facets with avg " << avg_incoh_dis/(double) nb_incoh << std::endl;
-      std::cout << "min: " << min_incoh_dis << " max: " << max_incoh_dis << std::endl;
-      std::cout << "---------------------------------------------" << std::endl;
-    }
-
-    return avg_coh_dis/(double) nb_coh;
-  }
-
-  double average_cell_distortion(bool verbose = true) const
-  {
-    double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
-    double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
-    int nb_coh = 0, nb_incoh = 0;
-
-    std::set<Cell_ijkl> done;
-    for(std::size_t i = 0; i <number_of_stars(); i++)
-    {
-      Star_handle star = m_stars[i];
-      if(!star->is_surface_star())
-        continue;
-
-      Cell_handle_handle ci = star->begin_finite_star_cells();
-      Cell_handle_handle ciend = star->end_finite_star_cells();
-      for(; ci != ciend; ci++)
-      {
-        Cell_handle c = *ci;
-        if(!star->is_inside(c))
-          continue;
-
-        std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
-        is_insert_successful = done.insert(Cell_ijkl(c));
-        if(!is_insert_successful.second)
-          continue;
-
-        FT cell_distortion = compute_distortion(c);
-
-        if(is_consistent(m_stars, c))
-        {
-          nb_coh++;
-          avg_coh_dis += cell_distortion;
-          if(cell_distortion > max_coh_dis)
-            max_coh_dis = cell_distortion;
-          if(cell_distortion < min_coh_dis)
-            min_coh_dis = cell_distortion;
-        }
-        else
-        {
-          nb_incoh++;
-          avg_incoh_dis += cell_distortion;
-          if(cell_distortion > max_incoh_dis)
-            max_incoh_dis = cell_distortion;
-          if(cell_distortion < min_incoh_dis)
-            min_incoh_dis = cell_distortion;
-        }
-      }
-    }
-
-    if(verbose)
-    {
-      std::cout << "SUM UP OF THE DISTORTION (CELL):" << std::endl;
-      std::cout << nb_coh << " coherent cells with avg: " << avg_coh_dis/(double) nb_coh << std::endl;
-      std::cout << "min: " << min_coh_dis << " max: " << max_coh_dis << std::endl;
-      std::cout << nb_incoh << " incoherent cells with avg " << avg_incoh_dis/(double) nb_incoh << std::endl;
-      std::cout << "min: " << min_incoh_dis << " max: " << max_incoh_dis << std::endl;
-      std::cout << "---------------------------------------------" << std::endl;
-    }
-
-    return avg_coh_dis/(double) nb_coh;
-  }
-
-  double average_star_distortion(bool verbose = true) const
-  {
-    double avg_coh_dis = 0., min_coh_dis = 1e30, max_coh_dis = -1e30;
-    double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
-    int nb_coh = 0, nb_incoh = 0;
-
-    for(std::size_t i=0; i<number_of_stars(); ++i)
-    {
-      Star_handle si = get_star(i);
-      if(!(si->is_surface_star()))
-        continue;
-
-      FT max_distortion = star_distortion(si);
-
-      if(is_consistent(m_stars, si))
-      {
-        nb_coh++;
-        avg_coh_dis += max_distortion;
-        if(max_distortion > max_coh_dis)
-          max_coh_dis = max_distortion;
-        if(max_distortion < min_coh_dis)
-          min_coh_dis = max_distortion;
-      }
-      else
-      {
-        nb_incoh++;
-        avg_incoh_dis += max_distortion;
-        if(max_distortion > max_incoh_dis)
-          max_incoh_dis = max_distortion;
-        if(max_distortion < min_incoh_dis)
-          min_incoh_dis = max_distortion;
-      }
-    }
-
-    if(verbose)
-    {
-      std::cout << "SUM UP OF THE DISTORTION (STAR) :" << std::endl;
-      std::cout << nb_coh << " coherent (surface) stars with avg: " << avg_coh_dis/(double) nb_coh << std::endl;
-      std::cout << "min: " << min_coh_dis << " max: " << max_coh_dis << std::endl;
-      std::cout << nb_incoh << " incoherent (surface) stars with avg " << avg_incoh_dis/(double) nb_incoh << std::endl;
-      std::cout << "min: " << min_incoh_dis << " max: " << max_incoh_dis << std::endl;
-      std::cout << "---------------------------------------------" << std::endl;
-    }
-
-    return avg_coh_dis/(double) nb_coh;
-  }
-
 //aabb functions
 public:
   void update_aabb_tree(Star_handle star) const
@@ -1139,7 +843,7 @@ public:
 
   void build_aabb_tree()
   {
-    m_aabb_tree.rebuild(m_stars.begin(), m_stars.end());
+    m_aabb_tree.rebuild(m_starset.begin(), m_starset.end());
   }
 
   void update_bboxes() const
@@ -1148,24 +852,25 @@ public:
     std::cout << "updating bboxes. tree : " << m_aabb_tree.size() << " " << m_aabb_tree.m_insertion_buffer_size() << std::endl;
 #endif
     std::size_t i;
-    std::size_t N = m_stars.size();
+    std::size_t N = number_of_stars();
     for(i = 0; i < N; i++)
     {
-      m_stars[i]->update_bbox();
+      Star_handle si = get_star(i);
+      si->update_bbox();
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
       if(m_aabb_tree.m_insertion_buffer_size() == 1) // tree has just been rebuilt
-        m_stars[i]->bbox_needs_aabb_update() = false;
-      if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+        si->bbox_needs_aabb_update() = false;
+      if(si->bbox_needs_aabb_update() && i<m_aabb_tree.size())
       {
-        m_stars[i]->bbox_needs_aabb_update() = false;
-        update_aabb_tree(m_stars[i]);
+        si->bbox_needs_aabb_update() = false;
+        update_aabb_tree(si);
       }
 #endif
     }
 
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
     for(i = 0; i < N; i++)
-      if(m_stars[i]->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+      if(get_star(i)->bbox_needs_aabb_update() && i<m_aabb_tree.size())
         std::cout << "forgot some stars in the update" << std::endl;
 #endif
   }
@@ -1180,9 +885,9 @@ public:
     m_aabb_tree.all_intersected_primitives(p, oit);
 #else
     //exact set
-    for(unsigned int i = 0; i < m_stars.size(); i++)
+    for(std::size_t i = 0; i < number_of_stars(); i++)
     {
-      Star_handle s = m_stars[i];
+      Star_handle s = get_star(i);
       Cell_handle ch;
       if(s->is_conflicted(transform_to_star_point(p, s), ch))
         *oit++ = s;
@@ -1222,9 +927,9 @@ public:
       if(m_ch_triangulation.is_infinite(f))
         continue;
 
-      *oit++ = m_stars[f.first->vertex((f.second + 1) % 4)->info()];
-      *oit++ = m_stars[f.first->vertex((f.second + 2) % 4)->info()];
-      *oit++ = m_stars[f.first->vertex((f.second + 3) % 4)->info()];
+      *oit++ = get_star(f.first->vertex((f.second + 1) % 4)->info());
+      *oit++ = get_star(f.first->vertex((f.second + 2) % 4)->info());
+      *oit++ = get_star(f.first->vertex((f.second + 3) % 4)->info());
     }
     return true;
   }
@@ -1245,12 +950,12 @@ public:
 
   void pop_back_star()
   {
-    Star_handle last = m_stars.back();
+    Star_handle last = m_starset.back();
     delete last;
 
-    m_stars.pop_back();
-    Index id = static_cast<Index>(m_stars.size());
-    remove_from_stars(id, m_stars.begin(), m_stars.end());
+    m_starset.pop_back();
+    Index id = static_cast<Index>(number_of_stars());
+    remove_from_stars(id, m_starset.begin(), m_starset.end());
     m_kd_tree.remove_last();
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
     m_aabb_tree.remove_last();
@@ -1267,7 +972,7 @@ public:
 //Conflict zones
   Index simulate_insert_to_stars(const Point_3& p) const
   {
-    Index this_id = static_cast<Index>(m_stars.size());
+    Index this_id = static_cast<Index>(number_of_stars());
 
     // find conflicted stars
     Star_set stars;
@@ -1419,7 +1124,7 @@ public:
     typename Star::Bbox bbox = star->bbox(); // volume bbox + surface bbox when star is not a topo_disk
     Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
     Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
-    Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_stars));
+    Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_starset.star_vector()));
     std::set<Kd_point_info> indices;
     m_kd_tree.search(std::inserter(indices, indices.end()), query);
 
@@ -1562,7 +1267,7 @@ public:
   Index insert_to_stars(const Point_3& p,
                         const bool conditional)
   {
-    Index this_id = static_cast<Index>(m_stars.size());
+    Index this_id = static_cast<Index>(number_of_stars());
 
     Index id;
     if(conditional)
@@ -1577,7 +1282,7 @@ public:
       id = perform_insertions(p, this_id, target_stars, true/*update convex hull*/);
     }
     else
-      id = perform_insertions(p, this_id, m_stars, true/*update convex hull*/); // insert in all stars
+      id = perform_insertions(p, this_id, m_starset, true/*update convex hull*/); // insert in all stars
 
     return id;
   }
@@ -1593,7 +1298,7 @@ public:
       std::cout << "Conflict zones unknown at insertion time...(insert)" << std::endl;
 
     Index id = insert_to_stars(p, conditional);
-    if(id < 0 || id < (int)m_stars.size())
+    if(id < 0 || id < (int) number_of_stars())
       return id;
 
     Star_handle star;
@@ -1602,13 +1307,13 @@ public:
     else
       star = create_inside_star(p, id);
 
-    if(star->index_in_star_set() != m_stars.size())
+    if(star->index_in_star_set() != number_of_stars())
       std::cout << "WARNING in insert..." << std::endl;
 
     if(conditional)
     {
       //need to have the id of the new star in the list of ids to check in fill_ref_queue
-      m_stars_czones.conflict_zone(m_stars.size());
+      m_stars_czones.conflict_zone(number_of_stars());
     }
     else
     {
@@ -1617,7 +1322,7 @@ public:
       m_stars_czones.clear();
     }
 
-    m_stars.push_back(star);
+    m_starset.push_back(star);
     m_kd_tree.insert(star->index_in_star_set());
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
     m_aabb_tree.insert(AABB_primitive(star));
@@ -1627,7 +1332,7 @@ public:
   }
 
 //Constructors
-  Anisotropic_refine_trunk(Star_vector& m_stars_,
+  Anisotropic_refine_trunk(Starset& m_starset_,
                            const Constrain_surface* m_pConstrain_,
                            const Criteria* m_criteria_,
                            const Metric_field* m_metric_field_,
@@ -1636,7 +1341,7 @@ public:
                            Kd_tree& m_kd_tree_,
                            Stars_conflict_zones& m_stars_czones_)
   :
-    m_stars(m_stars_),
+    m_starset(m_starset_),
     m_pConstrain(m_pConstrain_),
     m_criteria(m_criteria_),
     m_metric_field(m_metric_field_),

@@ -15,12 +15,12 @@ namespace CGAL
 namespace Anisotropic_mesh_3
 {
 
-template<typename Star>
-typename Star::FT
-compute_distortion_t(const std::vector<Star*>& stars,
-                     const typename Star::Cell_handle& c)
+template<typename Starset>
+typename Starset::FT
+compute_distortion_t(const Starset& stars,
+                     const typename Starset::Cell_handle& c)
 {
-  typename Star::FT distortion = 1.0;
+  typename Starset::FT distortion = 1.0;
   for(int i = 0; i < 4; i++)
   {
     for(int j = i + 1; j < 4; j++)
@@ -31,8 +31,8 @@ compute_distortion_t(const std::vector<Star*>& stars,
   return distortion;
 }
 
-template<typename Star>
-void dump(const std::vector<Star*>& stars)
+template<typename Starset>
+void dump(const Starset& stars)
 {
   std::ofstream fx("dump.txt");
 
@@ -43,9 +43,9 @@ void dump(const std::vector<Star*>& stars)
 
   for(std::size_t i=0; i<ns; ++i)
   {
-    Star* star_i = stars[i];
-    typename Star::Vertex_handle_handle nsi = star_i->begin_neighboring_vertices();
-    typename Star::Vertex_handle_handle nsiend = star_i->end_neighboring_vertices();
+    typename Starset::Star_handle star_i = stars[i];
+    typename Starset::Vertex_handle_handle nsi = star_i->begin_neighboring_vertices();
+    typename Starset::Vertex_handle_handle nsiend = star_i->end_neighboring_vertices();
     fx << nsiend - nsi;
     for(; nsi != nsiend; nsi++)
       fx << " " << (*nsi)->info();
@@ -53,31 +53,31 @@ void dump(const std::vector<Star*>& stars)
   }
 }
 
-template<typename Star>
-void output_star_off(const std::vector<Star*>& stars,
+template<typename Starset>
+void output_star_off(const Starset& stars,
                      std::ofstream& fx,
-                     typename Star::Index i)
+                     typename Starset::Index i)
 {
-  Star* star = stars[i];
-  std::map<typename Star::Index, int> match_indices;
+  typename Starset::Star_handle star = stars[i];
+  std::map<typename Starset::Index, int> match_indices;
   int off_index = 0;
-  std::vector<typename Star::Point_3> points;
+  std::vector<typename Starset::Point_3> points;
   std::set<Facet_ijk> output_facets;
   std::set<Cell_ijkl> output_cells;
 
-  typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-  typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
+  typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
+  typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
   for(; ci != ciend; ci++)
   {
-    typename Star::Cell_handle c = *ci;
+    typename Starset::Cell_handle c = *ci;
     if(!star->is_inside(c))
       continue;
 
-    boost::array<typename Star::Index, 4> ids;
+    boost::array<typename Starset::Index, 4> ids;
     for(int i=0; i<4; i++)
     {
       ids[i] = c->vertex(i)->info();
-      std::pair<typename std::map<typename Star::Index, int>::iterator, bool> inserted;
+      std::pair<typename std::map<typename Starset::Index, int>::iterator, bool> inserted;
       inserted = match_indices.insert(std::make_pair(ids[i], off_index));
       if(inserted.second)
       {
@@ -118,32 +118,32 @@ void output_star_off(const std::vector<Star*>& stars,
   }
 }
 
-template<typename Star>
-void output_off(const std::vector<Star*>& stars,
+template<typename Starset>
+void output_off(const Starset& stars,
                 std::ofstream& fx,
                 const bool consistent_only = true)
 {
   std::cout << "Saving as .off..." << std::endl;
-  std::vector<typename Star::Point_3> points;
+  std::vector<typename Starset::Point_3> points;
   std::set<Facet_ijk> output_facets;
   std::set<Cell_ijkl> output_cells;
   unsigned int nb_inconsistent_stars = 0;
 
-  typename std::vector<Star*>::const_iterator it = stars.begin();
-  typename std::vector<Star*>::const_iterator itend = stars.end();
+  typename Starset::const_iterator it = stars.begin();
+  typename Starset::const_iterator itend = stars.end();
   for (; it != itend; ++it)
   {
-    Star* star = *it;
+    typename Starset::Star_handle star = *it;
     points.push_back(star->center_point());
 
-    typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-    typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
+    typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
+    typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
     for (; ci != ciend; ++ci)
     {
-      typename Star::Cell_handle c = *ci;
+      typename Starset::Cell_handle c = *ci;
       if(!star->is_inside(*ci))
         continue;
-      if(!consistent_only || is_consistent(stars, c))
+      if(!consistent_only || stars.is_consistent(c))
       {
         output_cells.insert(Cell_ijkl(c));
         output_facets.insert(Facet_ijk(c->vertex(0)->info(), c->vertex(1)->info(),
@@ -191,31 +191,31 @@ void output_off(const std::vector<Star*>& stars,
   }
 }
 
-template<typename Star>
-void output_surface_off(const std::vector<Star*>& stars,
+template<typename Starset>
+void output_surface_off(const Starset& stars,
                         std::ofstream& fx,
                         const bool consistent_only = true)
 {
   std::cout << "Saving surface off..." << std::endl;
-  std::vector<typename Star::Point_3> points;
+  std::vector<typename Starset::Point_3> points;
   std::set<Facet_ijk> output_facets;
   unsigned int nb_inconsistent_stars = 0;
 
-  typename std::vector<Star*>::const_iterator si = stars.begin();
-  typename std::vector<Star*>::const_iterator siend = stars.end();
+  typename Starset::const_iterator si = stars.begin();
+  typename Starset::const_iterator siend = stars.end();
   for (; si != siend; ++si)
   {
-    Star* star = *si;
+    typename Starset::Star_handle star = *si;
     points.push_back(star->center_point());
 
-    typename Star::Facet_set_iterator fi = star->begin_restricted_facets();
-    typename Star::Facet_set_iterator fiend = star->end_restricted_facets();
+    typename Starset::Facet_set_iterator fi = star->begin_restricted_facets();
+    typename Starset::Facet_set_iterator fiend = star->end_restricted_facets();
     for (; fi != fiend; ++fi)
     {
-      typename Star::Point_3 cc;
+      typename Starset::Point_3 cc;
       star->compute_dual_intersection(*fi, cc);
 
-      if(!consistent_only || is_consistent(stars, *fi))
+      if(!consistent_only || stars.is_consistent(*fi))
         output_facets.insert(Facet_ijk(*fi));
       else
       {
@@ -244,8 +244,8 @@ void output_surface_off(const std::vector<Star*>& stars,
 }
 
 /*
-  template<typename Star>
-  void output(const std::vector<Star*>& stars)
+  template<typename Starset>
+  void output(const Starset& stars)
   {
     typename std::ofstream fx("mesh.volume.cgal");
     fx << 3 << std::endl;
@@ -254,13 +254,13 @@ void output_surface_off(const std::vector<Star*>& stars,
       fx << m_points[i] << std::endl;
 
     std::set<Cell_ijkl> output_cells;
-    typename Star::Star_iterator it = stars.begin();
-    typename Star::Star_iterator itend = stars.end();
+    typename Starset::iterator it = stars.begin();
+    typename Starset::iterator itend = stars.end();
     for(; it != itend; it++)
     {
-      Star* star = *it;
-      typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-      typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
+      typename Starset::Star_handle star = *it;
+      typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
+      typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
       for(; ci != ciend; ci++)
       {
         if(!star->is_inside(*ci))
@@ -290,13 +290,13 @@ void output_surface_off(const std::vector<Star*>& stars,
   }
 */
 
-template<typename Star>
-void output_surface_medit(const std::vector<Star*>& stars,
+template<typename Starset>
+void output_surface_medit(const Starset& stars,
                           std::ofstream& fx,
                           const bool positive_vol = false,
                           const bool fake_3D = false) // link all facets to a dummy point
 {
-  typename Star::Point_3 anchor_point(0., 0., 0.);
+  typename Starset::Point_3 anchor_point(0., 0., 0.);
 
   std::cout << "Saving surface medit..." << std::endl;
   fx << "MeshVersionFormatted 1\n\n";
@@ -312,9 +312,9 @@ void output_surface_medit(const std::vector<Star*>& stars,
   std::set<Facet_ijk> facets;
   for(int i = 0; i < (int)stars.size(); i++)
   {
-    Star* s = stars[i];
-    typename Star::Facet_set_iterator fit = s->begin_restricted_facets();
-    typename Star::Facet_set_iterator fend = s->end_restricted_facets();
+    typename Starset::Star_handle s = stars[i];
+    typename Starset::Facet_set_iterator fit = s->begin_restricted_facets();
+    typename Starset::Facet_set_iterator fend = s->end_restricted_facets();
     for(; fit != fend; ++fit)
       facets.insert(Facet_ijk(*fit));
   }
@@ -329,10 +329,10 @@ void output_surface_medit(const std::vector<Star*>& stars,
     int n0 = f.vertices()[0];
     int n1 = f.vertices()[1];
     int n2 = f.vertices()[2];
-    typename Star::Point_3 p0 = stars[n0]->center_point();
-    typename Star::Point_3 p1 = stars[n1]->center_point();
-    typename Star::Point_3 p2 = stars[n2]->center_point();
-    typename Star::Traits::Compute_area_3 o;
+    typename Starset::Point_3 p0 = stars[n0]->center_point();
+    typename Starset::Point_3 p1 = stars[n1]->center_point();
+    typename Starset::Point_3 p2 = stars[n2]->center_point();
+    typename Starset::Traits::Compute_area_3 o;
     if(!positive_vol || o(p0, p1, p2) > 0)
       fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " 1" << std::endl;
     else
@@ -351,10 +351,10 @@ void output_surface_medit(const std::vector<Star*>& stars,
       int n1 = f.vertices()[1];
       int n2 = f.vertices()[2];
       int n3 = stars.size(); //anchor_id
-      typename Star::Point_3 p0 = stars[n0]->center_point();
-      typename Star::Point_3 p1 = stars[n1]->center_point();
-      typename Star::Point_3 p2 = stars[n2]->center_point();
-      typename Star::Traits::Compute_volume_3 o;
+      typename Starset::Point_3 p0 = stars[n0]->center_point();
+      typename Starset::Point_3 p1 = stars[n1]->center_point();
+      typename Starset::Point_3 p2 = stars[n2]->center_point();
+      typename Starset::Traits::Compute_volume_3 o;
       if(!positive_vol || o(p0, p1, p2, anchor_point) > 0)
         fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1" << std::endl;
       else
@@ -364,8 +364,8 @@ void output_surface_medit(const std::vector<Star*>& stars,
   fx << "End" << std::endl;
 }
 
-template<typename Star>
-void output_medit(const std::vector<Star*>& stars,
+template<typename Starset>
+void output_medit(const Starset& stars,
                   std::ofstream& fx,
                   const bool consistent_only = true,
                   const bool positive_vol = false)
@@ -385,23 +385,23 @@ void output_medit(const std::vector<Star*>& stars,
     fx << stars[i]->center_point() << " " << (i+1) << std::endl; //indices start at 1 in Medit
 
   std::set<Cell_ijkl> output_cells;
-  typename std::vector<Star*>::const_iterator sit = stars.begin();
-  typename std::vector<Star*>::const_iterator sitend = stars.end();
+  typename Starset::const_iterator sit = stars.begin();
+  typename Starset::const_iterator sitend = stars.end();
   for(; sit != sitend; sit++)
   {
-    Star* star = *sit;
-    typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-    typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
+    typename Starset::Star_handle star = *sit;
+    typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
+    typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
     for(; ci != ciend; ci++)
     {
       if(!star->is_inside(*ci))
         continue;
-      if(!consistent_only || is_consistent(stars, *ci))
+      if(!consistent_only || stars.is_consistent(*ci))
       {
         Cell_ijkl cell(*ci);
         output_cells.insert(cell);
 
-        typename Star::FT distortion = compute_distortion_t(stars, *ci);
+        typename Starset::FT distortion = compute_distortion_t(stars, *ci);
         colors[cell] = (distortion - 1.) * step_n;
       }
       else
@@ -423,11 +423,11 @@ void output_medit(const std::vector<Star*>& stars,
     int n1 = c.vertices()[1];
     int n2 = c.vertices()[2];
     int n3 = c.vertices()[3];
-    typename Star::Point_3 p0 = stars[n0]->center_point();
-    typename Star::Point_3 p1 = stars[n1]->center_point();
-    typename Star::Point_3 p2 = stars[n2]->center_point();
-    typename Star::Point_3 p3 = stars[n3]->center_point();
-    typename Star::Traits::Compute_volume_3 o;
+    typename Starset::Point_3 p0 = stars[n0]->center_point();
+    typename Starset::Point_3 p1 = stars[n1]->center_point();
+    typename Starset::Point_3 p2 = stars[n2]->center_point();
+    typename Starset::Point_3 p3 = stars[n3]->center_point();
+    typename Starset::Traits::Compute_volume_3 o;
     if(!positive_vol || o(p0, p1, p2, p3) > 0 || 1) //color[c] creates the artifacts. fix it. todo
       fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1"/* << colors[c]*/ << std::endl;
     else
@@ -441,24 +441,24 @@ void output_medit(const std::vector<Star*>& stars,
 }
 
 
-template<typename Star>
-void output_surface_voronoi(const std::vector<Star*>& stars,
+template<typename Starset>
+void output_surface_voronoi(const Starset& stars,
                             std::ofstream& fx)
 {
-  typedef typename Star::Point_3      Point;
+  typedef typename Starset::Point_3      Point;
 
   std::map<Facet_ijk, int> facets;
   std::map<std::pair<int,int>, std::vector<int> > edges;
   std::vector<Point> points;
 
   std::size_t count = 1; // 1 for first vertex of medit
-  typename std::vector<Star*>::const_iterator sit = stars.begin();
-  typename std::vector<Star*>::const_iterator sitend = stars.end();
+  typename Starset::const_iterator sit = stars.begin();
+  typename Starset::const_iterator sitend = stars.end();
   for(; sit != sitend; sit++)
   {
-    Star* si = *sit;
-    typename Star::Facet_set_iterator fit = si->begin_restricted_facets();
-    typename Star::Facet_set_iterator fend = si->end_restricted_facets();
+    typename Starset::Star_handle si = *sit;
+    typename Starset::Facet_set_iterator fit = si->begin_restricted_facets();
+    typename Starset::Facet_set_iterator fend = si->end_restricted_facets();
     for(; fit != fend; ++fit)
     {
       Point p;

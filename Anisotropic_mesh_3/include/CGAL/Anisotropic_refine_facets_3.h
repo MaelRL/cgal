@@ -10,7 +10,6 @@
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_level.h>
 #include <CGAL/Anisotropic_refine_trunk.h>
-#include <CGAL/Star_consistency.h>
 
 #include <CGAL/helpers/histogram_helper.h>
 #include <CGAL/helpers/combinatorics_helper.h>
@@ -59,6 +58,8 @@ public:
   typedef typename Star::Constrain_surface                         Constrain_surface;
   typedef typename Star::Criteria                                  Criteria;
 
+  typedef CGAL::Anisotropic_mesh_3::Starset<K>                     Starset;
+
   typedef typename CGAL::Anisotropic_mesh_3::Metric_field<K>       Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
@@ -103,16 +104,16 @@ public:
     this->m_ch_triangulation.infinite_vertex()->info() = -10;
     Trunk::build_aabb_tree();
 
-    std::cout << this->m_stars.size() << " stars and ";
-    std::cout << Trunk::count_restricted_facets() << " restricted facets" << std::endl;
+    std::cout << Trunk::number_of_stars() << " stars and ";
+    std::cout << this->m_starset.count_restricted_facets() << " restricted facets" << std::endl;
     fill_refinement_queue();
 
     Mesher_lvl::is_active() = true;
 
     std::ofstream out("initial.mesh");
-    output_medit(this->m_stars, out);
+    output_medit(this->m_starset, out);
     std::ofstream out_off("initial.off");
-    output_off(this->m_stars, out_off);
+    output_off(this->m_starset, out_off);
   }
 
   bool is_algorithm_done_()
@@ -178,7 +179,7 @@ public:
 
     if(!this->m_criteria->max_times_to_try_in_picking_region || //skip pick_valid if the number of tries is set to 0
        (need_picking_valid &&
-        Trunk::compute_distortion(f) > this->m_criteria->distortion)) //pick_valid trick #1: skip pick_valid if the distortion is too high
+        this->m_starset.compute_distortion(f) > this->m_criteria->distortion)) //pick_valid trick #1: skip pick_valid if the distortion is too high
     {
       m_pick_valid_skipped++;
       need_picking_valid = false;
@@ -276,7 +277,7 @@ public:
     std::cout << "facet insertion " << steiner_point << " stars had size: " << this->m_stars.size() << std::endl;
     Index pid = Trunk::insert(steiner_point, true/*conditional*/, true/*surface point*/);
 
-    if(pid != static_cast<Index>(this->m_stars.size()-1))
+    if(pid != static_cast<Index>(this->m_starset.size()-1))
       std::cout << "warning in insert_" << std::endl;
 
     //Debug: check if f has been destroyed -------------------------------------
@@ -319,26 +320,17 @@ public:
           if(bad_facet.star->is_restricted(ff))
           {
             std::cout.precision(15);
-            std::cout << "Bad facet still there. Bad_facet.star : " << bad_facet.star->index_in_star_set() << ". stars : " << this->m_stars.size() << std::endl;
+            std::cout << "Bad facet still there. Bad_facet.star : " << bad_facet.star->index_in_star_set() << ". stars : " << this->m_starset.size() << std::endl;
             std::cout << "star's metric" << std::endl << bad_facet.star->metric().get_transformation() << std::endl;
             std::cout << "evs : " << bad_facet.star->metric().get_max_eigenvalue() << " ";
             std::cout << bad_facet.star->metric().get_min_eigenvalue() << " ";
             std::cout << bad_facet.star->metric().get_third_eigenvalue() << std::endl;
             std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
-            std::cout << "check : " << this->m_stars[v1->info()]->center_point() << std::endl;
+            std::cout << "check : " << this->m_starset[v1->info()]->center_point() << std::endl;
             std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
-            std::cout << "check : " << this->m_stars[v2->info()]->center_point() << std::endl;
+            std::cout << "check : " << this->m_starset[v2->info()]->center_point() << std::endl;
             std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
-            std::cout << "check : " << this->m_stars[v3->info()]->center_point() << std::endl;
-
-#ifdef ANISO_DEBUG_REFINEMENT_COLORING
-            refinement_debug_coloring = true;
-            debug_coloring_p1 = bad_facet.star->metric().inverse_transform(v1->point());
-            debug_coloring_p2 = bad_facet.star->metric().inverse_transform(v2->point());
-            debug_coloring_p3 = bad_facet.star->metric().inverse_transform(v3->point());
-            debug_coloring_p = steiner_point;
-            debug_coloring_fc = bad_facet.star->metric().inverse_transform(bad_facet.star->compute_circumcenter(ff));
-#endif
+            std::cout << "check : " << this->m_starset[v3->info()]->center_point() << std::endl;
 
             std::cout << "\tdim = " << bad_facet.star->dimension();
             std::cout << ", nbv = " << bad_facet.star->number_of_vertices();
@@ -349,14 +341,14 @@ public:
 
             Cell_handle useless;
             std::cout << "checking conflicts with all three stars : ";
-            std::cout << this->m_stars[ind_v1]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_stars[ind_v1]), useless) << " ";
-            std::cout << this->m_stars[ind_v2]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_stars[ind_v2]), useless) << " ";
-            std::cout << this->m_stars[ind_v3]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_stars[ind_v3]), useless) << std::endl;
+            std::cout << this->m_starset[ind_v1]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v1]), useless) << " ";
+            std::cout << this->m_starset[ind_v2]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v2]), useless) << " ";
+            std::cout << this->m_starset[ind_v3]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v3]), useless) << std::endl;
 
             std::cout << "checking needs_aabb_update in the tree of size " << this->m_aabb_tree.size() << " : ";
-            std::cout << this->m_stars[ind_v1]->bbox_needs_aabb_update() << " ";
-            std::cout << this->m_stars[ind_v2]->bbox_needs_aabb_update() << " ";
-            std::cout << this->m_stars[ind_v3]->bbox_needs_aabb_update() << std::endl;
+            std::cout << this->m_starset[ind_v1]->bbox_needs_aabb_update() << " ";
+            std::cout << this->m_starset[ind_v2]->bbox_needs_aabb_update() << " ";
+            std::cout << this->m_starset[ind_v3]->bbox_needs_aabb_update() << std::endl;
 
             bad_facet.star->debug_steiner_point(steiner_point, ff, true);
 
@@ -373,10 +365,10 @@ public:
     }
     // --------------------------------------------------------------------------------------------------
 
-    if(this->m_stars.size()%100 == 0) // TMP
+    if(this->m_starset.size()%100 == 0) // TMP
     {
       std::ofstream out_med("bambimboum_wip.mesh");
-      output_surface_medit(this->m_stars, out_med);
+      output_surface_medit(this->m_starset, out_med);
     }
     return true;
   }
@@ -385,7 +377,7 @@ public:
   void report()
   {
     std::cout << "facet consistency : ";
-    std::cout << is_consistent(this->m_stars, true /*verbose*/, FACETS_ONLY) << std::endl;
+    std::cout << this->m_starset.is_consistent(true /*verbose*/, FACETS_ONLY) << std::endl;
     //all_facet_histograms(this->m_stars, this->m_pConstrain, this->m_criteria);
     std::cout << "FACET pick_valid stats: " << std::endl;
     std::cout << "skipped: " << m_pick_valid_skipped << " || ";
@@ -475,7 +467,7 @@ private:
       if(nbdone % 100 == 0)
         Trunk::clean_stars();
 
-      std::size_t this_id = this->m_stars.size();
+      std::size_t this_id = this->m_starset.size();
       int id = -1;
 
       //if(m_refinement_condition(*pi)) TODO
@@ -494,7 +486,7 @@ private:
     Trunk::clean_stars();
 
 #ifdef ANISO_VERBOSE
-    std::cout << "done (" << this->m_stars.size() << " stars)." << std::endl;
+    std::cout << "done (" << this->m_starset.size() << " stars)." << std::endl;
 #endif
   }
 
@@ -587,7 +579,7 @@ private:
 /*
     if(this->m_criteria->distortion > 0.)
     {
-      FT over_distortion = Trunk::compute_distortion(*fi) - this->m_criteria->distortion;
+      FT over_distortion = this->m_starset.compute_distortion(*fi) - this->m_criteria->distortion;
       if(over_distortion > 0.)
       {
         if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, over_distortion, 1))
@@ -667,7 +659,7 @@ private:
     }
 
     // consistency : 5
-    if(!is_consistent(this->m_stars, *fi))
+    if(!this->m_starset.is_consistent(*fi))
     {
       FT vol = star->compute_volume(*fi);
       if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, vol, 5))
@@ -739,7 +731,7 @@ public:
   void fill_refinement_queue()
   {
     std::cout << "fill from all facets" << std::endl;
-    fill_refinement_queue(this->m_stars, -1, false);
+    fill_refinement_queue(this->m_starset, -1, false);
   }
 
 private:
@@ -1039,16 +1031,16 @@ private:
       if(is_finite_e1)
       {
         Point_3 cc = Trunk::compute_circumcenter(p, star->center_point(),
-                                          this->m_stars[e1.vertex(0)]->center_point(),
-                                          this->m_stars[e1.vertex(1)]->center_point(),
+                                          this->m_starset[e1.vertex(0)]->center_point(),
+                                          this->m_starset[e1.vertex(1)]->center_point(),
                                           star);
         is_inside_c1 = Trunk::is_inside_domain(cc);
       }
       if(is_finite_e2)
       {
         Point_3 cc = Trunk::compute_circumcenter(p, star->center_point(),
-                                          this->m_stars[e2.vertex(0)]->center_point(),
-                                          this->m_stars[e2.vertex(1)]->center_point(),
+                                          this->m_starset[e2.vertex(0)]->center_point(),
+                                          this->m_starset[e2.vertex(1)]->center_point(),
             star);
         is_inside_c2 = Trunk::is_inside_domain(cc);
       }
@@ -1083,7 +1075,7 @@ private:
     typename std::map<Facet_ijk, int>::iterator itf;
     for(itf = facets.begin(); itf != facets.end(); itf++)
     {
-      std::size_t nmax = this->m_stars.size();
+      std::size_t nmax = this->m_starset.size();
       if( (*itf).second != 3) // the face is not there 3 times
       {
         if((*itf).first.is_infinite()) // should not happen
@@ -1093,11 +1085,11 @@ private:
         TPoint_3 tp = Trunk::transform_to_star_point(p, to_be_refined);
 
         tp0 = ((*itf).first.vertex(0) == nmax) ? tp
-                                               : Trunk::transform_to_star_point(this->m_stars[(*itf).first.vertex(0)]->center_point(),to_be_refined);
+                                               : Trunk::transform_to_star_point(this->m_starset[(*itf).first.vertex(0)]->center_point(),to_be_refined);
         tp1 = ((*itf).first.vertex(1) == nmax) ? tp
-                                               : Trunk::transform_to_star_point(this->m_stars[(*itf).first.vertex(1)]->center_point(),to_be_refined);
+                                               : Trunk::transform_to_star_point(this->m_starset[(*itf).first.vertex(1)]->center_point(),to_be_refined);
         tp2 = ((*itf).first.vertex(2) == nmax) ? tp
-                                               : Trunk::transform_to_star_point(this->m_stars[(*itf).first.vertex(2)]->center_point(),to_be_refined);
+                                               : Trunk::transform_to_star_point(this->m_starset[(*itf).first.vertex(2)]->center_point(),to_be_refined);
 
         double sqr = to_be_refined->compute_squared_circumradius(tp0, tp1, tp2);
         if(sqr < sq_radius_bound)
@@ -1128,7 +1120,7 @@ private:
 
     if(id < 0) // no conflict
       return false;
-    else if(id < (int) this->m_stars.size()) //already in star set
+    else if(id < (int) this->m_starset.size()) //already in star set
       return false;
 
     Trunk::create_star(p, id, new_star);
@@ -1294,7 +1286,7 @@ private:
 
 public:
   Anisotropic_refine_facets_3(Previous_lvl& previous,
-                              Star_vector& stars_,
+                              Starset& starset_,
                               const Constrain_surface* pconstrain_,
                               const Criteria* criteria_,
                               const Metric_field* metric_field_,
@@ -1304,7 +1296,7 @@ public:
                               Stars_conflict_zones& m_stars_czones_)
     :
       Mesher_lvl(previous),
-      Trunk(stars_, pconstrain_, criteria_, metric_field_,
+      Trunk(starset_, pconstrain_, criteria_, metric_field_,
            ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
       m_refine_queue(),
       m_pick_valid_succeeded(0),

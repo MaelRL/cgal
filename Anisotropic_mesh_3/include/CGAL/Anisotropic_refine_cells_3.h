@@ -10,7 +10,6 @@
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_level.h>
 #include <CGAL/Anisotropic_refine_trunk.h>
-#include <CGAL/Star_consistency.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
 
@@ -58,6 +57,8 @@ public:
   typedef typename Star::Constrain_surface                         Constrain_surface;
   typedef typename Star::Criteria                                  Criteria;
 
+  typedef CGAL::Anisotropic_mesh_3::Starset<K>                     Starset;
+
   typedef typename CGAL::Anisotropic_mesh_3::Metric_field<K>       Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
@@ -98,12 +99,13 @@ public:
 //functions used in the Mesher_lvl class
   void initialize_()
   {
+    std::cout << "initialize cell level" << std::endl;
     //remark #1
     //star set shouldn't be empty since we initialized with a few surface stars first,
     //even if we didn't refine for the facet level. Should probably check anyway. TODO
 
     std::cout << "\nInitializing Cells...\n";
-    fill_refinement_queue(this->m_stars, -1);
+    fill_refinement_queue(this->m_starset, -1);
 
     m_refine_queue.print();
     Mesher_lvl::is_active() = true;
@@ -130,12 +132,12 @@ public:
     if(!next_refine_cell(bad_cell, c, need_picking_valid))
       return EMPTY_QUEUE;
 
-    //std::cout << "cell to be refined has distortion: " << Trunk::compute_distortion(c) << std::endl;
+    //std::cout << "cell to be refined has distortion: " << this->m_starset.compute_distortion(c) << std::endl;
     //is_consistent(this->m_stars, c, false/*verbose*/, bad_cell->star->index_in_star_set());
 
     if(!this->m_criteria->max_times_to_try_in_picking_region || //dodge Pick_valid if the number of tries is set to 0
        (need_picking_valid &&
-        Trunk::compute_distortion(c) > this->m_criteria->distortion)) //Pick_valid trick #1
+        this->m_starset.compute_distortion(c) > this->m_criteria->distortion)) //Pick_valid trick #1
     {
       m_pick_valid_skipped++;
       need_picking_valid = false;
@@ -209,9 +211,7 @@ public:
     else
       pid = Trunk::insert(p, true/*conditional*/);
 
-    std::cout << "cell insertion : " << p << std::endl;
-
-    if(pid != static_cast<Index>(this->m_stars.size()-1))
+    if(pid != static_cast<Index>(this->m_starset.size()-1))
       std::cout << "warning in insert_" << std::endl;
 
     //Debug: check if the cell c has been destroyed ----------------------------
@@ -226,35 +226,35 @@ public:
       std::cout << v3->info() << " " << v3->point() << std::endl;
       std::cout << v4->info() << " " << v4->point() << std::endl;
 
-      this->m_stars[pid]->print_vertices();
-      this->m_stars[v1->info()]->print_vertices();
-      this->m_stars[v2->info()]->print_vertices();
-      this->m_stars[v3->info()]->print_vertices();
-      this->m_stars[v4->info()]->print_vertices();
+      this->m_starset[pid]->print_vertices();
+      this->m_starset[v1->info()]->print_vertices();
+      this->m_starset[v2->info()]->print_vertices();
+      this->m_starset[v3->info()]->print_vertices();
+      this->m_starset[v4->info()]->print_vertices();
 
       std::cout << "conflict check" << std::endl;
       Cell_handle useless;
-      std::cout << this->m_stars[v1->info()]->bbox().xmin() << " " << this->m_stars[v1->info()]->bbox().xmax() << " ";
-      std::cout << this->m_stars[v1->info()]->bbox().ymin() << " " << this->m_stars[v1->info()]->bbox().ymax() << " ";
-      std::cout << this->m_stars[v1->info()]->bbox().zmin() << " " << this->m_stars[v1->info()]->bbox().zmax() << " ";
-      std::cout << this->m_stars[v1->info()]->is_conflicted(this->transform_to_star_point(p, this->m_stars[v1->info()]), useless) << std::endl;
-      std::cout << this->m_stars[v2->info()]->bbox().xmin() << " " << this->m_stars[v2->info()]->bbox().xmax() << " ";
-      std::cout << this->m_stars[v2->info()]->bbox().ymin() << " " << this->m_stars[v2->info()]->bbox().ymax() << " ";
-      std::cout << this->m_stars[v2->info()]->bbox().zmin() << " " << this->m_stars[v2->info()]->bbox().zmax() << " ";
-      std::cout << this->m_stars[v2->info()]->is_conflicted(this->transform_to_star_point(p, this->m_stars[v2->info()]), useless) << std::endl;
-      std::cout << this->m_stars[v3->info()]->bbox().xmin() << " " << this->m_stars[v3->info()]->bbox().xmax() << " ";
-      std::cout << this->m_stars[v3->info()]->bbox().ymin() << " " << this->m_stars[v3->info()]->bbox().ymax() << " ";
-      std::cout << this->m_stars[v3->info()]->bbox().zmin() << " " << this->m_stars[v3->info()]->bbox().zmax() << " ";
-      std::cout << this->m_stars[v3->info()]->is_conflicted(this->transform_to_star_point(p, this->m_stars[v3->info()]), useless) << std::endl;
-      std::cout << this->m_stars[v4->info()]->bbox().xmin() << " " << this->m_stars[v4->info()]->bbox().xmax() << " ";
-      std::cout << this->m_stars[v4->info()]->bbox().ymin() << " " << this->m_stars[v4->info()]->bbox().ymax() << " ";
-      std::cout << this->m_stars[v4->info()]->bbox().zmin() << " " << this->m_stars[v4->info()]->bbox().zmax() << " ";
-      std::cout << this->m_stars[v4->info()]->is_conflicted(this->transform_to_star_point(p, this->m_stars[v4->info()]), useless) << std::endl;
+      std::cout << this->m_starset[v1->info()]->bbox().xmin() << " " << this->m_starset[v1->info()]->bbox().xmax() << " ";
+      std::cout << this->m_starset[v1->info()]->bbox().ymin() << " " << this->m_starset[v1->info()]->bbox().ymax() << " ";
+      std::cout << this->m_starset[v1->info()]->bbox().zmin() << " " << this->m_starset[v1->info()]->bbox().zmax() << " ";
+      std::cout << this->m_starset[v1->info()]->is_conflicted(this->transform_to_star_point(p, this->m_starset[v1->info()]), useless) << std::endl;
+      std::cout << this->m_starset[v2->info()]->bbox().xmin() << " " << this->m_starset[v2->info()]->bbox().xmax() << " ";
+      std::cout << this->m_starset[v2->info()]->bbox().ymin() << " " << this->m_starset[v2->info()]->bbox().ymax() << " ";
+      std::cout << this->m_starset[v2->info()]->bbox().zmin() << " " << this->m_starset[v2->info()]->bbox().zmax() << " ";
+      std::cout << this->m_starset[v2->info()]->is_conflicted(this->transform_to_star_point(p, this->m_starset[v2->info()]), useless) << std::endl;
+      std::cout << this->m_starset[v3->info()]->bbox().xmin() << " " << this->m_starset[v3->info()]->bbox().xmax() << " ";
+      std::cout << this->m_starset[v3->info()]->bbox().ymin() << " " << this->m_starset[v3->info()]->bbox().ymax() << " ";
+      std::cout << this->m_starset[v3->info()]->bbox().zmin() << " " << this->m_starset[v3->info()]->bbox().zmax() << " ";
+      std::cout << this->m_starset[v3->info()]->is_conflicted(this->transform_to_star_point(p, this->m_starset[v3->info()]), useless) << std::endl;
+      std::cout << this->m_starset[v4->info()]->bbox().xmin() << " " << this->m_starset[v4->info()]->bbox().xmax() << " ";
+      std::cout << this->m_starset[v4->info()]->bbox().ymin() << " " << this->m_starset[v4->info()]->bbox().ymax() << " ";
+      std::cout << this->m_starset[v4->info()]->bbox().zmin() << " " << this->m_starset[v4->info()]->bbox().zmax() << " ";
+      std::cout << this->m_starset[v4->info()]->is_conflicted(this->transform_to_star_point(p, this->m_starset[v4->info()]), useless) << std::endl;
 
-      std::cout << this->m_stars[v1->info()]->metric().get_transformation() << std::endl;
-      std::cout << this->m_stars[v2->info()]->metric().get_transformation() << std::endl;
-      std::cout << this->m_stars[v3->info()]->metric().get_transformation() << std::endl;
-      std::cout << this->m_stars[v4->info()]->metric().get_transformation() << std::endl;
+      std::cout << this->m_starset[v1->info()]->metric().get_transformation() << std::endl;
+      std::cout << this->m_starset[v2->info()]->metric().get_transformation() << std::endl;
+      std::cout << this->m_starset[v3->info()]->metric().get_transformation() << std::endl;
+      std::cout << this->m_starset[v4->info()]->metric().get_transformation() << std::endl;
 
       //pop back the star & switch to exact? TODO
       return false;
@@ -263,13 +263,13 @@ public:
     /*
     std::cout << "info on the newly created star: " << std::endl;
     std::map<Cell_ijkl, int> new_cells;
-    Star_handle star = this->m_stars[pid];
+    Star_handle star = this->m_starset[pid];
     typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
     typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
     for (; ci != ciend; ++ci)
       if(!is_consistent(this->m_stars, *ci))
       {
-        std::cout << "new incoherent cell with distortion: " << Trunk::compute_distortion(*ci) << std::endl;
+        std::cout << "new incoherent cell with distortion: " << this->m_starset.compute_distortion(*ci) << std::endl;
         new_cells[Cell_ijkl(*ci)] = is_consistent(this->m_stars, *ci);
       }
 
@@ -284,10 +284,10 @@ public:
     }
     */
 
-    if(this->m_stars.size()%100 == 0) //should be somewhere else todo
+    if(this->m_starset.size()%100 == 0) //should be somewhere else todo
     {
       std::ofstream out_med("bambimboum_wip.mesh");
-      output_medit(this->m_stars, out_med, false);
+      output_medit(this->m_starset, out_med, false);
     }
     return true;
   }
@@ -296,8 +296,8 @@ public:
   void report()
   {
     std::cout << "cell consistency : ";
-    std::cout << is_consistent(this->m_stars, true /*verbose*/, CELLS_ONLY) << std::endl;
-    all_cell_histograms(this->m_stars, this->m_criteria);
+    std::cout << this->m_starset.is_consistent(true /*verbose*/, CELLS_ONLY) << std::endl;
+    all_cell_histograms(this->m_starset, this->m_criteria);
     std::cout << "CELL pick_valid stats: " << std::endl;
     std::cout << "skipped: " << m_pick_valid_skipped << " || ";
     std::cout << "skipped (due to conflicts): " << m_pick_valid_skipped_due_to_conflict << " || ";
@@ -346,7 +346,7 @@ private:
       if(!m_refine_queue.top(refine_cell))
       {
         std::cout << "it says it's empty" << std::endl;
-        fill_refinement_queue(this->m_stars, -1);
+        fill_refinement_queue(this->m_starset, -1);
         if(!m_refine_queue.top(refine_cell))
         {
           std::cout << "it ain't lying" << std::endl;
@@ -382,7 +382,7 @@ private:
 /*
     if(0 && this->m_criteria->distortion > 0.)
     {
-      FT over_distortion = Trunk::compute_distortion(c) - this->m_criteria->distortion;
+      FT over_distortion = this->m_starset.compute_distortion(c) - this->m_criteria->distortion;
       if(over_distortion > 0.)
       {
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_distortion, 1))
@@ -462,7 +462,7 @@ private:
     }
 
     // consistency 5
-    if(!is_consistent(this->m_stars, c))
+    if(!this->m_starset.is_consistent(c))
     {
       FT vol = star->compute_volume(c);
       if(!check_if_in || !m_refine_queue.is_cell_in(star, c, vol, 5))
@@ -917,7 +917,7 @@ private:
 
 public:
   Anisotropic_refine_cells_3(Previous_lvl& previous,
-                             Star_vector& stars_,
+                             Starset& starset_,
                              const Constrain_surface* pconstrain_,
                              const Criteria* criteria_,
                              const Metric_field* metric_field_,
@@ -927,7 +927,7 @@ public:
                              Stars_conflict_zones& m_stars_czones_)
   :
     Mesher_lvl(previous),
-    Trunk(stars_, pconstrain_, criteria_, metric_field_,
+    Trunk(starset_, pconstrain_, criteria_, metric_field_,
           ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
     m_refine_queue(),
     m_pick_valid_succeeded(0),
