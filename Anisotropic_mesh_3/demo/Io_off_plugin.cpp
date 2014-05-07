@@ -90,9 +90,14 @@ bool Io_off_plugin::save(const Scene_item* item, QFileInfo fileinfo)
 
   std::ofstream out(fileinfo.filePath().toUtf8());
 
-  return (poly_item && poly_item->save(out)) || 
-         (soup_item && soup_item->save(out)) ||
-         (starset_item && starset_item->save(out));
+  if(poly_item)
+    poly_item->save(out);
+  else if(soup_item)
+    soup_item->save(out);
+  else
+    starset_item->save(out);
+
+  return true;
 }
 
 #include <QtPlugin>

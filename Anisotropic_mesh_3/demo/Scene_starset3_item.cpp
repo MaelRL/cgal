@@ -1,14 +1,9 @@
 #include "Scene_starset3_item.h"
 
-#include <QVector>
-#include <QColor>
-#include <QPixmap>
-#include <QPainter>
-
-#include <map>
-#include <vector>
 #include <CGAL/gl.h>
 #include <CGAL/Mesh_3/dihedral_angle_3.h>
+#include <CGAL/gl_draw/Starset_display.h>
+#include <CGAL/IO/Star_set_output.h>
 
 #include <CGAL_demo/Scene_item_with_display_list.h>
 #include <CGAL_demo/Scene_interface.h>
@@ -17,7 +12,16 @@
 #include <QGLViewer/manipulatedFrame.h>
 #include <QGLViewer/qglviewer.h>
 
-namespace {
+#include <QVector>
+#include <QColor>
+#include <QPixmap>
+#include <QPainter>
+
+#include <map>
+#include <vector>
+
+namespace
+{
   void CGALglcolor(QColor c, int dv = 0)
   {
     if ( 0 != dv )
@@ -54,47 +58,43 @@ double complex_diag(const Scene_item* item)
 
 struct Scene_starset3_item_priv 
 {
-  Scene_starset3_item_priv(const Criteria* criteria,
+  Starset_with_info m_starset;
+  QVector<QColor> colors;
+
+  Scene_starset3_item_priv(const Constrain_surface* const surface,
                            const Metric* metric,
-                           const Constrain_surface* const surface,
-                           const int nb_initial_points,
-                           const int nb_pass)
-    : star_set(criteria, metric, surface, nb_initial_points, nb_pass)
+                           const Criteria* criteria)
+    :
+      m_starset(surface, metric, criteria)
   { }
 
-  Surface_star_set star_set;
-  QVector<QColor> colors;
 };
 
 
 Scene_starset3_item::
-Scene_starset3_item(const Criteria* criteria,
+Scene_starset3_item(const Constrain_surface* const surface,
                     const Metric* metric,
-                    const Constrain_surface* const surface,
-                    const int nb_initial_points,
-                    const int nb_pass)
-  : d(new Scene_starset3_item_priv(criteria, metric, surface, nb_initial_points, nb_pass)),
-  frame(new ManipulatedFrame()),
-  //histogram_(),
-  data_item_(NULL),
-  indices_(),
-  m_draw_surface_star_set(true),
-  m_draw_cell(false),
-  m_draw_dual(false),
-  m_draw_poles(false),
-  m_draw_initial_points(false),
-  m_draw_surface_delaunay_balls(false),
-  m_draw_star_id(-1),
-  m_draw_pickvalid_point_id(-1),
-  m_draw_inconsistent_facets(false),
-  m_draw_metric_field(false),
-  m_draw_metric_eps(metric->epsilon),
-  m_draw_mesh_3(false),
-  m_draw_distortion(false),
-  m_draw_metric_honoring(false),
-  m_draw_colored_poly(false),
-  m_draw_colored_poly_mem(false),
-  m_draw_colored_poly_vertex_id(-1)
+                    const Criteria* criteria)
+  :
+    d(new Scene_starset3_item_priv(surface, metric, criteria)),
+    frame(new ManipulatedFrame()),
+    //histogram_(),
+    data_item_(NULL),
+    indices_(),
+    m_draw_surface_star_set(true),
+    m_draw_cell(false),
+    m_draw_dual(false),
+    m_draw_poles(false),
+    m_draw_initial_points(false),
+    m_draw_surface_delaunay_balls(false),
+    m_draw_star_id(-1),
+    m_draw_pickvalid_point_id(-1),
+    m_draw_inconsistent_facets(false),
+    m_draw_metric_field(false),
+    m_draw_metric_eps(metric->epsilon),
+    m_draw_mesh_3(false),
+    m_draw_distortion(false),
+    m_draw_metric_honoring(false)
 {
   connect(frame, SIGNAL(modified()), this, SLOT(changed()));
   starset_changed();
@@ -106,16 +106,8 @@ Scene_starset3_item::~Scene_starset3_item()
   delete d;
 }
 
-const Surface_star_set& 
-Scene_starset3_item::star_set() const {
-  return d->star_set;
-}
-
-Surface_star_set& 
-Scene_starset3_item::star_set()
-{
-  return d->star_set;
-}
+const Starset_with_info& Scene_starset3_item::star_set() const { return d->m_starset; }
+Starset_with_info& Scene_starset3_item::star_set() { return d->m_starset; }
 
 Kernel::Plane_3 
 Scene_starset3_item::plane() const 
@@ -135,17 +127,17 @@ Scene_starset3_item::bbox() const
   {
     bool initialized = false;
     CGAL::Bbox_3 result;
-    std::size_t N = star_set().m_stars.size();
+    std::size_t N = star_set().size();
     for(unsigned int i = 0; i < N; i++)
     {
-      if(star_set().m_stars[i]->is_surface_star())
+      if(star_set()[i]->is_surface_star())
       {
         if(!initialized){
-          result = star_set().m_stars[i]->center_point().bbox();
+          result = star_set()[i]->center_point().bbox();
           initialized = true;
         }
         else
-          result = result + star_set().m_stars[i]->center_point().bbox();
+          result = result + star_set()[i]->center_point().bbox();
       }
     }
     return Bbox(result.xmin(), result.ymin(), result.zmin(),
@@ -153,11 +145,9 @@ Scene_starset3_item::bbox() const
   }
 }
 
-bool
-Scene_starset3_item::save(std::ofstream& out) const
+void Scene_starset3_item::save(std::ofstream& out) const
 {
-  (const_cast< Scene_starset3_item* >(this))->star_set().output(out, true);
-  return !out.bad();
+  output_medit((const_cast< Scene_starset3_item* >(this))->star_set(), out, true);
 }
 
 QString 
@@ -171,7 +161,7 @@ Scene_starset3_item::toolTip() const
             "Number of surface facets: %4<br />"
             "Number of volume tetrahedra: %5</p>")
   .arg(star_set().number_of_surface_stars())
-  .arg(star_set().number_of_stars())
+  .arg(star_set().size())
   .arg(star_set().total_number_of_vertices())
   .arg(star_set().count_restricted_facets())
   .arg(star_set().number_of_tets_in_star_set())
@@ -199,45 +189,41 @@ Scene_starset3_item::direct_draw() const
     ::glEnable(GL_LIGHTING);
 
   const Kernel::Plane_3& plane = this->plane();
+  CGAL::Anisotropic_mesh_3::Starset_display<Starset> ss_display(d->m_starset);
 
   if(m_draw_surface_star_set)
-    star_set().gl_draw(plane, true/*draw_edges*/, m_draw_star_id);
+    ss_display.gl_draw(plane, true/*draw_edges*/, m_draw_star_id);
   if(m_draw_cell)
-    star_set().gl_draw_cell(plane, m_draw_star_id);
-  if(m_draw_poles)
-    star_set().gl_draw_poles(plane);
-  if(m_draw_initial_points)
-    star_set().gl_draw_initial_points(plane);
+    ss_display.gl_draw_cell(plane, m_draw_star_id);
+//  if(m_draw_poles)
+//    ss_display.gl_draw_poles(plane);
+//  if(m_draw_initial_points)
+//    ss_display.gl_draw_initial_points(plane);
   if(m_draw_dual)
-    star_set().gl_draw_dual(plane, m_draw_star_id);
+    ss_display.gl_draw_dual(plane, m_draw_star_id);
   if(m_draw_surface_delaunay_balls)
-    star_set().gl_draw_surface_delaunay_balls(plane, m_draw_star_id);
-  if(m_draw_inconsistent_facets){
-    star_set().gl_draw_inconsistent_facets(plane, m_draw_star_id);
-    if(star_set().pick_valid_failed())
-      star_set().gl_draw_picked_points(plane, m_draw_pickvalid_point_id);
-  }
-  if(m_draw_metric_field)
+    ss_display.gl_draw_surface_delaunay_balls(plane, m_draw_star_id);
+  if(m_draw_inconsistent_facets)
   {
-    Scene_item::Bbox mf_bbox = this->bbox();
-    double bbox_max = (std::max)(mf_bbox.depth(), mf_bbox.height());
-    bbox_max = (std::max)(bbox_max, mf_bbox.width());
-    double bbox_min = (std::min)(mf_bbox.depth(), mf_bbox.height());
-    bbox_min = (std::min)(bbox_min, mf_bbox.width());
-    star_set().gl_draw_metric(plane, 0.5*(bbox_max + bbox_min), draw_metric_eps(), m_draw_star_id);
+    ss_display.gl_draw_inconsistent_facets(plane, m_draw_star_id);
+//    if(star_set().pick_valid_failed())
+//      ss_display.gl_draw_picked_points(plane, m_draw_pickvalid_point_id);
   }
-  if(m_draw_mesh_3)
-    star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
+//  if(m_draw_metric_field)
+//  {
+//    Scene_item::Bbox mf_bbox = this->bbox();
+//    double bbox_max = (std::max)(mf_bbox.depth(), mf_bbox.height());
+//    bbox_max = (std::max)(bbox_max, mf_bbox.width());
+//    double bbox_min = (std::min)(mf_bbox.depth(), mf_bbox.height());
+//    bbox_min = (std::min)(bbox_min, mf_bbox.width());
+//    ss_display.gl_draw_metric(plane, 0.5*(bbox_max + bbox_min), draw_metric_eps(), m_draw_star_id);
+//  }
+//  if(m_draw_mesh_3)
+//    star_set().constrain_surface()->gl_draw_intermediate_mesh_3(plane);
   if(m_draw_distortion)
-    star_set().gl_draw_distortion(plane,m_draw_star_id);
+    ss_display.gl_draw_distortion(plane,m_draw_star_id);
   if(m_draw_metric_honoring)
-    star_set().gl_draw_metric_honoring(plane, m_draw_star_id);
-  if(m_draw_colored_poly)
-    star_set().poly_painter()->gl_draw_colored_polyhedron(star_set().poly_painter()->colored_poly(),
-                                                         plane,
-                                                         m_draw_colored_poly_vertex_id);
-  if(m_draw_colored_poly_mem)
-    star_set().poly_painter()->gl_draw_colored_polyhedron(star_set().poly_painter()->colored_poly_mem(), plane);
+    ss_display.gl_draw_metric_honoring(plane, m_draw_star_id);
 
   if(!two_side)
     ::glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
@@ -277,6 +263,7 @@ Scene_starset3_item::setSelectedPoint(double x, double y, double z)
   std::cerr << "Scene_starset3_item " << qPrintable(this->name())
             << " received point(" << x << ", " << y << ", " << z << ")\n";
 
+/* TODO FIXME
   typedef Surface_star_set::Kd_traits TreeTraits;
   typedef CGAL::Orthogonal_k_neighbor_search<TreeTraits> Neighbor_search;
 
@@ -295,6 +282,7 @@ Scene_starset3_item::setSelectedPoint(double x, double y, double z)
   if(search.begin() != search.end()) {
     std::cerr << "Picked star #" << search.begin()->first << std::endl;
   }
+*/
 }
 
 void
@@ -304,7 +292,7 @@ Scene_starset3_item::starset_changed()
   // Fill indices map and get max subdomain value
   indices_.clear();
   
-  std::size_t max = d->star_set.size();
+  std::size_t max = d->m_starset.size();
 /*  for(C3t3::Cells_in_complex_iterator cit = this->c3t3().cells_in_complex_begin(),
       end = this->c3t3().cells_in_complex_end() ; cit != end; ++cit)
   {
@@ -324,7 +312,7 @@ Scene_starset3_item::starset_changed()
 void
 Scene_starset3_item::compute_color_map(const QColor& c)
 {
-  std::size_t nb_stars = d->star_set.size();
+  std::size_t nb_stars = d->m_starset.size();
   for(std::size_t i = 0; i < nb_stars; i++)
   {
     double hue = c.hueF() + 1./nb_stars * i;

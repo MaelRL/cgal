@@ -23,15 +23,11 @@ class SCENE_STARSET3_ITEM_EXPORT Scene_starset3_item
 public:
   typedef qglviewer::ManipulatedFrame ManipulatedFrame;
 
-  Scene_starset3_item(const Criteria* criteria,
-                      const Metric* metric,
-                      const Constrain_surface* const surface,
-                      const int nb_initial_points,
-                      const int nb_pass);
+  Scene_starset3_item(const Constrain_surface*, const Metric*, const Criteria*);
   ~Scene_starset3_item();
 
-  const Surface_star_set& star_set() const;
-  Surface_star_set& star_set();
+  const Starset_with_info& star_set() const;
+  Starset_with_info& star_set();
   
   bool manipulatable() const 
   {
@@ -58,7 +54,6 @@ public:
   bool isFinite() const { return true; }
   bool isEmpty() const  { return star_set().empty(); }
   int nbStars() const { return (int)star_set().size(); }
-  int nbColoredVertices() const { return (int)star_set().poly_painter()->colored_poly().size_of_vertices(); }
 
   Bbox bbox() const;
 
@@ -75,7 +70,7 @@ public:
   void direct_draw() const;
   
   //io
-  bool save(std::ofstream& out) const;
+  void save(std::ofstream& out) const;
 
   // data item
   inline const Scene_item* data_item() const;
@@ -113,11 +108,7 @@ public:
   bool& draw_mesh_3()              { return m_draw_mesh_3; }
   bool& draw_surface_star_set()    { return m_draw_surface_star_set; }
   bool& draw_distortion()          { return m_draw_distortion; }
-  bool& draw_metric_honoring()          { return m_draw_metric_honoring; }
-  bool& draw_colored_poly()             { return m_draw_colored_poly; }
-  bool& draw_colored_poly_mem()         { return m_draw_colored_poly_mem; }
-  int& draw_colored_poly_vertex_id()                 { return m_draw_colored_poly_vertex_id; }
-  const int& draw_colored_poly_vertex_id() const     { return m_draw_colored_poly_vertex_id; }
+  bool& draw_metric_honoring()     { return m_draw_metric_honoring; }
 
 protected:
   Scene_starset3_item_priv* d;
@@ -145,9 +136,6 @@ private:
   bool m_draw_mesh_3;
   bool m_draw_distortion;
   bool m_draw_metric_honoring;
-  bool m_draw_colored_poly;
-  bool m_draw_colored_poly_mem;
-  int m_draw_colored_poly_vertex_id;
 };
 
 inline

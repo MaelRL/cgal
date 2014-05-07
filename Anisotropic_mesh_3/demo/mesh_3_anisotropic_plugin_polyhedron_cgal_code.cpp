@@ -2,13 +2,12 @@
 
 #include "StarSet_type.h"
 #include "Scene_starset3_item.h"
-#include "Polyhedron_type.h" //contains Kernel
+#include "Polyhedral_surface_type.h" //contains Kernel
 #include "Anisotropic_meshing_thread.h"
 #include "Anisotropic_mesh_function.h"
 #include "anisotropic_meshing_options.h"
 
 #include <CGAL/Metric_field.h>
-#include <CGAL/Constrain_surface_3_polyhedral.h>
 #include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
@@ -16,34 +15,23 @@
 
 #include <CGAL/Random.h>
 
-Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>* const p_domain,
-                                 Anisotropic_mesh_parameters & param,
-                                 CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const Metric_options& metric,
-                                 const double en_factor)
+Criteria* build_criteria_and_metric(const Polyhedral_surface* const p_domain,
+                                    CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                    const double approximation,
+                                    const double facet_circumradius,
+                                    const double facet_radius_edge_ratio,
+                                    const double cell_circumradius,
+                                    const double cell_radius_edge_ratio,
+                                    const double sliverity,
+                                    const double distortion,
+                                    const double beta,
+                                    const double delta,
+                                    const int nb_initial_points,
+                                    const std::size_t max_times_to_try_in_picking_region,
+                                    const Metric_options& metric,
+                                    const double epsilon,
+                                    const double en_factor)
 {
-  param.approximation = approximation;
-  param.radius_edge_ratio = radius_edge_ratio;
-  param.sliverity = sliverity;
-  param.circumradius = circumradius;
-  param.distortion = distortion;
-  param.beta = beta;
-  param.delta = delta;
-  param.max_times_to_try_in_picking_region = max_times_to_try_in_picking_region;
-  param.dim = dim;
-
-  //typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
-
   if(metric == EUCLIDEAN)
   {
     std::cout << "(Metric : Euclidean)." << std::endl;
@@ -65,59 +53,49 @@ Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surfa
   // @TODO, WARNING: memory leak to be corrected later: criteria and
   // metric_field must be destroyed by somebody. The issue is that they
   // cannot be destroyed before the life end of the meshing thread.
-  return new Criteria(param.approximation, param.distortion, param.radius_edge_ratio,
-                      param.circumradius, param.sliverity, 0. /*cell_rho*/, 0. /*cell_r0*/,
-                      false /*cell_consistency*/, param.beta, param.delta,
-                      param.max_times_to_try_in_picking_region);
+  return new Criteria(approximation, facet_circumradius, facet_radius_edge_ratio,
+                      cell_circumradius, cell_radius_edge_ratio, sliverity,
+                      distortion, beta, delta, nb_initial_points,
+                      max_times_to_try_in_picking_region);
 }
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_poly,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const int nb_initial_points,
-                                 const int nb_pass,
-                                 const Metric_options& metric,
-                                 const bool pick_valid_causes_stop,
-                                 const bool pick_valid_use_probing,
-                                 const int pick_valid_max_failures,
-                                 const double en_factor)
+                                                         const double approximation,
+                                                         const double facet_circumradius,
+                                                         const double facet_radius_edge_ratio,
+                                                         const double cell_circumradius,
+                                                         const double cell_radius_edge_ratio,
+                                                         const double sliverity,
+                                                         const double distortion,
+                                                         const double beta,
+                                                         const double delta,
+                                                         const int nb_initial_points,
+                                                         const std::size_t max_times_to_try_in_picking_region,
+                                                         const Metric_options& metric,
+                                                         const double epsilon,
+                                                         const double en_factor)
 {
   CGAL::default_random = CGAL::Random(0);
 
   if( NULL == p_poly ) { return NULL; }
-  typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>  Constrain_surface_polyhedral;
-  const Constrain_surface_polyhedral* const p_domain = new Constrain_surface_polyhedral(*p_poly,
-                                                                                        epsilon,
-                                                                                        en_factor,
-                                                                                        approximation);
-  
-    //ini
-  Anisotropic_mesh_parameters param;
+  const Polyhedral_surface* const p_domain
+      = new Polyhedral_surface(*p_poly, epsilon, en_factor, approximation);
+
   Criteria* criteria = NULL;
   typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
   Metric_field* mf = NULL;
 
-    //build
-  criteria = build_param_and_metric(p_domain, param, mf, epsilon, approximation, radius_edge_ratio,
-                                    sliverity, circumradius, distortion, beta, delta,
-                                    max_times_to_try_in_picking_region, dim, metric, en_factor);
+  criteria = build_criteria_and_metric(p_domain, mf, approximation, facet_circumradius,
+                                       facet_radius_edge_ratio, cell_circumradius,
+                                       cell_radius_edge_ratio, sliverity,
+                                       distortion, beta, delta, nb_initial_points,
+                                       max_times_to_try_in_picking_region,
+                                       metric, epsilon, en_factor);
 
-  Scene_starset3_item* p_new_item 
-    = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points, nb_pass);
+  Scene_starset3_item* p_new_item = new Scene_starset3_item(p_domain, mf, criteria);
 
-  typedef Anisotropic_mesh_function<Constrain_surface_polyhedral, Metric_field> AMesh_function;
-  AMesh_function* p_mesh_function = new AMesh_function(p_new_item->star_set(), param, criteria,
-                                                       mf, pick_valid_causes_stop,
-                                                       pick_valid_use_probing,
-                                                       pick_valid_max_failures);
+  typedef Anisotropic_mesh_function<Polyhedral_surface, Metric_field> AMesh_function;
+  AMesh_function* p_mesh_function = new AMesh_function(p_new_item->star_set());
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 

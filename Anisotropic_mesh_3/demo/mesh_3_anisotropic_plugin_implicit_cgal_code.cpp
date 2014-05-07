@@ -14,32 +14,23 @@
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
 #include <Domain/Constrain_surface_3_torus.h>
 
-Criteria* build_param_and_metric(const Implicit_surface* p_domain,
-                                 Anisotropic_mesh_parameters & param,
-                                 CGAL::Anisotropic_mesh_3::Metric_field<Kernel>*& mf,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const Metric_options& metric,
-                                 const double en_factor)
+Criteria* build_criteria_and_metric(const Implicit_surface* p_domain,
+                                    CGAL::Anisotropic_mesh_3::Metric_field<Kernel>*& mf,
+                                    const double approximation,
+                                    const double facet_circumradius,
+                                    const double facet_radius_edge_ratio,
+                                    const double cell_circumradius,
+                                    const double cell_radius_edge_ratio,
+                                    const double sliverity,
+                                    const double distortion,
+                                    const double beta,
+                                    const double delta,
+                                    const int nb_initial_points,
+                                    const std::size_t max_times_to_try_in_picking_region,
+                                    const Metric_options& metric,
+                                    const double epsilon,
+                                    const double en_factor)
 {
-  param.approximation = approximation;
-  param.radius_edge_ratio = radius_edge_ratio;
-  param.sliverity = sliverity;
-  param.circumradius = circumradius;
-  param.distortion = distortion;
-  param.beta = beta;
-  param.delta = delta;
-  param.max_times_to_try_in_picking_region = max_times_to_try_in_picking_region;
-  param.dim = dim;
-
   if(metric == EUCLIDEAN)
   {
     std::cout << "(Metric field : Euclidean)." << std::endl;
@@ -70,54 +61,48 @@ Criteria* build_param_and_metric(const Implicit_surface* p_domain,
   // @TODO, WARNING: memory leak to be corrected later: criteria and
   // metric_field must be destroyed by somebody. The issue is that they
   // cannot be destroyed before the life end of the meshing thread.
-  return new Criteria(param.approximation, param.distortion, param.radius_edge_ratio,
-                      param.circumradius, param.sliverity, 0. /*cell_rho*/, 0. /*cell_r0*/,
-                      false /*cell_consistency*/, param.beta, param.delta,
-                      param.max_times_to_try_in_picking_region);
+  return new Criteria(approximation, facet_circumradius, facet_radius_edge_ratio,
+                      cell_circumradius, cell_radius_edge_ratio, sliverity,
+                      distortion, beta, delta, nb_initial_points,
+                      max_times_to_try_in_picking_region);
 }
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface* p_surface,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const int nb_initial_points,
-                                 const int nb_pass,
-                                 const Metric_options& metric,
-                                 const bool pick_valid_causes_stop,
-                                 const bool pick_valid_use_probing,
-                                 const int pick_valid_max_failures,
-                                 const double en_factor)
+                                                         const double approximation,
+                                                         const double facet_circumradius,
+                                                         const double facet_radius_edge_ratio,
+                                                         const double cell_circumradius,
+                                                         const double cell_radius_edge_ratio,
+                                                         const double sliverity,
+                                                         const double distortion,
+                                                         const double beta,
+                                                         const double delta,
+                                                         const int nb_initial_points,
+                                                         const std::size_t max_times_to_try_in_picking_region,
+                                                         const Metric_options& metric,
+                                                         const double epsilon,
+                                                         const double en_factor)
 {
   CGAL::default_random = CGAL::Random(0);
 
   if( NULL == p_surface ) { return NULL; }
   const Implicit_surface* p_domain = p_surface->clone();
 
-  Anisotropic_mesh_parameters param;
   Criteria* criteria = NULL;
   typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
   Metric_field* mf = NULL;
 
-  criteria = build_param_and_metric(p_domain, param, mf, epsilon, approximation, radius_edge_ratio,
-                                    sliverity, circumradius, distortion, beta, delta,
-                                    max_times_to_try_in_picking_region, dim, metric, en_factor);
+  criteria = build_criteria_and_metric(p_domain, mf, approximation, facet_circumradius,
+                                       facet_radius_edge_ratio, cell_circumradius,
+                                       cell_radius_edge_ratio, sliverity,
+                                       distortion, beta, delta, nb_initial_points,
+                                       max_times_to_try_in_picking_region,
+                                       metric, epsilon, en_factor);
 
-  Scene_starset3_item* p_new_item 
-    = new Scene_starset3_item(criteria, mf, p_domain, nb_initial_points, nb_pass);
+  Scene_starset3_item* p_new_item = new Scene_starset3_item(p_domain, mf, criteria);
 
   typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
-  AMesh_function* p_mesh_function = new AMesh_function(p_new_item->star_set(),
-                                                       param, criteria, mf,
-                                                       pick_valid_causes_stop,
-                                                       pick_valid_use_probing,
-                                                       pick_valid_max_failures);
+  AMesh_function* p_mesh_function = new AMesh_function(p_new_item->star_set());
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 

@@ -6,7 +6,6 @@
 #include "ui_Aniso_meshing_dialog.h"
 #include "ui_Choose_star_dialog.h"
 #include "ui_Choose_pickvalid_point_dialog.h"
-#include "ui_Choose_colored_poly_vertex_dialog.h"
 
 #include <QObject>
 #include <QAction>
@@ -21,8 +20,8 @@
 #include "Scene_polyhedron_item.h"
 #include "Scene_constrained_surface_implicit_item.h"
 
-#include "Polyhedron_type_fwd.h"
-#include "Implicit_surface_type_fwd.h"
+#include "Polyhedral_surface_type.h"
+#include "Implicit_surface_type.h"
 
 #include "Scene_starset3_item.h"
 #include "Anisotropic_meshing_thread.h"
@@ -39,78 +38,73 @@ const QColor default_mesh_color(45,169,70);
 
 // declare the CGAL functions
 
-  //polyhedron functions
-Criteria* build_param_and_metric(const CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>* const p_domain,
-                                 Anisotropic_mesh_parameters & param,
-                                 CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const Metric_options& metric,
-                                 const double en_factor);
+//polyhedron functions
+Criteria* build_criteria_and_metric(const Polyhedral_surface* const,
+                                    CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                    const double approximation,
+                                    const double facet_circumradius,
+                                    const double facet_radius_edge_ratio,
+                                    const double cell_circumradius,
+                                    const double cell_radius_edge_ratio,
+                                    const double sliverity,
+                                    const double distortion,
+                                    const double beta,
+                                    const double delta,
+                                    const int nb_initial_points,
+                                    const std::size_t max_times_to_try_in_picking_region,
+                                    const Metric_options& metric,
+                                    const double epsilon,
+                                    const double en_factor);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const int nb_initial_points,
-                                 const int nb_pass,
-                                 const Metric_options& metric,
-                                 const bool pick_valid_causes_stop,
-                                 const bool pick_valid_use_probing,
-                                 const int pick_valid_max_failures,
-                                 const double en_factor);
+                                                         const double approximation,
+                                                         const double facet_circumradius,
+                                                         const double facet_radius_edge_ratio,
+                                                         const double cell_circumradius,
+                                                         const double cell_radius_edge_ratio,
+                                                         const double sliverity,
+                                                         const double distortion,
+                                                         const double beta,
+                                                         const double delta,
+                                                         const int nb_initial_points,
+                                                         const std::size_t max_times_to_try_in_picking_region,
+                                                         const Metric_options& metric,
+                                                         const double epsilon,
+                                                         const double en_factor);
 
-  //implicit functions
-Criteria* build_param_and_metric(const Implicit_surface* p_domain,
-                                 Anisotropic_mesh_parameters & param,
-                                 CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const Metric_options& metric,
-                                 const double en_factor);
-
+//implicit functions
+Criteria* build_criteria_and_metric(const Implicit_surface*,
+                                    CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                    const double approximation,
+                                    const double facet_circumradius,
+                                    const double facet_radius_edge_ratio,
+                                    const double cell_circumradius,
+                                    const double cell_radius_edge_ratio,
+                                    const double sliverity,
+                                    const double distortion,
+                                    const double beta,
+                                    const double delta,
+                                    const int nb_initial_points,
+                                    const std::size_t max_times_to_try_in_picking_region,
+                                    const Metric_options& metric,
+                                    const double epsilon,
+                                    const double en_factor);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
-                                 const double epsilon,
-                                 const double approximation,
-                                 const double radius_edge_ratio,
-                                 const double sliverity,
-                                 const double circumradius,
-                                 const double distortion,
-                                 const double beta,
-                                 const double delta,
-                                 const std::size_t max_times_to_try_in_picking_region,
-                                 const int dim,
-                                 const int nb_initial_points,
-                                 const int nb_pass,
-                                 const Metric_options& metric,
-                                 const bool pick_valid_causes_stop,
-                                 const bool pick_valid_use_probing,
-                                 const int pick_valid_max_failures,
-                                 const double en_factor);
+                                                         const double approximation,
+                                                         const double facet_circumradius,
+                                                         const double facet_radius_edge_ratio,
+                                                         const double cell_circumradius,
+                                                         const double cell_radius_edge_ratio,
+                                                         const double sliverity,
+                                                         const double distortion,
+                                                         const double beta,
+                                                         const double delta,
+                                                         const int nb_initial_points,
+                                                         const std::size_t max_times_to_try_in_picking_region,
+                                                         const Metric_options& metric,
+                                                         const double epsilon,
+                                                         const double en_factor);
 
 double get_approximate(double d, int precision, int& decimals);
 
@@ -194,18 +188,6 @@ public:
     actionDraw_metric_honoring = this->getActionFromMainWindow(mw, "actionDraw_metric_honoring");
     if(actionDraw_metric_honoring)
       connect(actionDraw_metric_honoring, SIGNAL(toggled(bool)), this, SLOT(view_metric_honoring(bool)));
-
-    actionDraw_colored_poly = this->getActionFromMainWindow(mw, "actionDraw_colored_poly");
-    if(actionDraw_colored_poly)
-      connect(actionDraw_colored_poly, SIGNAL(toggled(bool)), this, SLOT(view_colored_poly(bool)));
-
-    actionDraw_colored_poly_one_vertex = this->getActionFromMainWindow(mw, "actionDraw_colored_poly_one_vertex");
-    if(actionDraw_colored_poly_one_vertex)
-      connect(actionDraw_colored_poly_one_vertex, SIGNAL(triggered()), this, SLOT(view_colored_poly_one_vertex()));
-
-    actionDraw_colored_poly_mem = this->getActionFromMainWindow(mw, "actionDraw_colored_poly_mem");
-    if(actionDraw_colored_poly_mem)
-      connect(actionDraw_colored_poly_mem, SIGNAL(toggled(bool)), this, SLOT(view_colored_poly_mem(bool)));
   }
 
   virtual QList<QAction*> actions() const
@@ -251,10 +233,7 @@ public slots:
   void view_distortion(bool);
   void view_metric_honoring(bool);
   void view_metric_operations_debug(bool);
-  void view_colored_poly(bool);
-  void view_all_colored_poly_vertices();
-  void view_colored_poly_one_vertex();
-  void view_colored_poly_mem(bool);
+
   //others
   void meshing_done_resume(Anisotropic_meshing_thread* t);
   void meshing_done_nresume(Anisotropic_meshing_thread* t);
@@ -284,9 +263,6 @@ private:
   QAction* actionDraw_mesh_3;
   QAction* actionDraw_distortion;
   QAction* actionDraw_metric_honoring;
-  QAction* actionDraw_colored_poly;
-  QAction* actionDraw_colored_poly_one_vertex;
-  QAction* actionDraw_colored_poly_mem;
 
   Messages_interface* msg;
   QMessageBox* message_box_;
@@ -309,9 +285,6 @@ Anisotropic_mesh_3_plugin()
   , actionDraw_inconsistent_facets(NULL)
   , actionDraw_distortion(NULL)
   , actionDraw_metric_honoring(NULL)
-  , actionDraw_colored_poly(NULL)
-  , actionDraw_colored_poly_one_vertex(NULL)
-  , actionDraw_colored_poly_mem(NULL)
   , msg(NULL)
   , message_box_(NULL)
   , source_item_(NULL)
@@ -362,14 +335,16 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
           &dialog, SLOT(reject()));
 
   // Connect checkboxes to spinboxes
-  connect(ui.noRadiusEdgeRatio,   SIGNAL(toggled(bool)),
-          ui.radius_edge_ratio,   SLOT(setEnabled(bool)));
+  connect(ui.noFacet_RadiusEdgeRatio,   SIGNAL(toggled(bool)),
+          ui.facet_radius_edge_ratio,   SLOT(setEnabled(bool)));
+  connect(ui.noCell_RadiusEdgeRatio,   SIGNAL(toggled(bool)),
+          ui.cell_radius_edge_ratio,   SLOT(setEnabled(bool)));
   connect(ui.noSliverity,         SIGNAL(toggled(bool)),
           ui.sliverity,           SLOT(setEnabled(bool)));
-  connect(ui.noCircumradius,      SIGNAL(toggled(bool)),
-          ui.circumradius,        SLOT(setEnabled(bool)));
-//  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
-//          ui.distortion,          SLOT(setEnabled(bool)));
+  connect(ui.noFacet_Circumradius,      SIGNAL(toggled(bool)),
+          ui.facet_circumradius,        SLOT(setEnabled(bool)));
+  connect(ui.noCell_Circumradius,      SIGNAL(toggled(bool)),
+          ui.cell_circumradius,        SLOT(setEnabled(bool)));
   connect(ui.noApproximation,     SIGNAL(toggled(bool)),
           ui.approximation,       SLOT(setEnabled(bool)));
 
@@ -381,9 +356,11 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
                              .arg(bbox.height(),0,'g',3)
                              .arg(bbox.depth(),0,'g',3) );  
   double max_size = (std::max)((std::max)(bbox.width(),bbox.height()),bbox.depth());
-  ui.radius_edge_ratio->setValue(3.0);
+  ui.facet_radius_edge_ratio->setValue(3.0);
+  ui.cell_radius_edge_ratio->setValue(3.0);
   ui.sliverity->setValue(0.3);
-  ui.circumradius->setValue(1.0);
+  ui.facet_circumradius->setValue(1.0);
+  ui.cell_circumradius->setValue(1.0);
   ui.distortion->setValue(1.8);
   ui.approximation->setValue(0.01*max_size);
   ui.epsilon->setValue(0.1);
@@ -420,25 +397,27 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   if( i == QDialog::Rejected ) { return; }
   
   // 0 means parameter is not considered
-  const double radius_edge_ratio = !ui.noRadiusEdgeRatio->isChecked() ? 0 : ui.radius_edge_ratio->value(); 
+  const double facet_radius_edge_ratio = !ui.noFacet_RadiusEdgeRatio->isChecked() ? 0 : ui.facet_radius_edge_ratio->value();
+  const double cell_radius_edge_ratio = !ui.noCell_RadiusEdgeRatio->isChecked() ? 0 : ui.cell_radius_edge_ratio->value();
   const double sliverity = !ui.noSliverity->isChecked() ? 0 : ui.sliverity->value(); 
-  const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value(); 
+  const double facet_circumradius = !ui.noFacet_Circumradius->isChecked() ? 0 : ui.facet_circumradius->value();
+  const double cell_circumradius = !ui.noCell_Circumradius->isChecked() ? 0 : ui.cell_circumradius->value();
   const double distortion = /*!ui.noDistortion->isChecked() ? 0 :*/ ui.distortion->value();
   const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
   const double epsilon = ui.epsilon->value();
   const double beta = ui.beta->value();
   const double delta = ui.delta->value();
-  const int max_times_to_try_in_picking_region = ui.maxTries->value();
-  const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
-  const bool pick_valid_use_probing = ui.pick_valid_probing->isChecked();
-  const int pick_valid_max_failures = ui.maxPickFailures->value();
+  const std::size_t max_times_to_try_in_picking_region = ui.maxTries->value();
+
   int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
     dim = 2;
   else if(ui.dimension->currentText().compare(QString("Volume")) == 0)
     dim = 3;
+  else if(ui.dimension->currentText().compare(QString("Surface + Volume")) == 0)
+    dim = 6;
+
   const int nb_initial_points = ui.nbInitialPoints->value();
-  const int nb_pass = ui.pass_num->value();
   int metric_index = ui.comboBox_metric->currentIndex();
   Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
   const double en_factor = ui.en_factor->value();
@@ -459,12 +438,12 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    thread = cgal_code_anisotropic_mesh_3(pPoly, epsilon,
-      approximation, radius_edge_ratio, sliverity, circumradius,
-      distortion, beta, delta, max_times_to_try_in_picking_region,
-      dim, nb_initial_points, nb_pass, metric, pick_valid_causes_stop,
-      pick_valid_use_probing, pick_valid_max_failures,
-      en_factor);
+    thread = cgal_code_anisotropic_mesh_3(pPoly, approximation, facet_circumradius,
+                                          facet_radius_edge_ratio, cell_circumradius,
+                                          cell_radius_edge_ratio, sliverity,
+                                          distortion, beta, delta, nb_initial_points,
+                                          max_times_to_try_in_picking_region,
+                                          metric, epsilon, en_factor);
   }
   //// Function
   else if( NULL != function_item )
@@ -475,12 +454,12 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    thread = cgal_code_anisotropic_mesh_3(pFunction, epsilon,
-      approximation, radius_edge_ratio, sliverity, circumradius,
-      distortion, beta, delta, max_times_to_try_in_picking_region,
-      dim, nb_initial_points, nb_pass, metric, pick_valid_causes_stop,
-      pick_valid_use_probing, pick_valid_max_failures,
-      en_factor);
+    thread = cgal_code_anisotropic_mesh_3(pFunction, approximation, facet_circumradius,
+                                          facet_radius_edge_ratio, cell_circumradius,
+                                          cell_radius_edge_ratio, sliverity,
+                                          distortion, beta, delta, nb_initial_points,
+                                          max_times_to_try_in_picking_region,
+                                          metric, epsilon, en_factor);
   }
 
   if ( NULL == thread )
@@ -495,7 +474,8 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   QApplication::restoreOverrideCursor();
 }
 
-void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
+void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3()
+{
   // ------------------------------------------
   // Check if selected item can be resumed from
   // ------------------------------------------
@@ -508,19 +488,19 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
     QMessageBox::warning(mw,tr(""),tr("Nothing to resume from"));
     return;
   }
-  else{
+  else
+  {
     item = ssetitem;
   }
 
-  typedef CGAL::Anisotropic_mesh_3::Constrain_surface_3_polyhedral<Kernel, Polyhedron>  Constrain_surface_polyhedral;
-  const Constrain_surface_polyhedral* poly_surf =
-      dynamic_cast<const Constrain_surface_polyhedral*>(ssetitem->star_set().constrain_surface());
+  Scene_polyhedron_item* poly_item =
+    qobject_cast<Scene_polyhedron_item*>(scene->item(index));
 
-  const Implicit_surface* function_surf =
-      dynamic_cast<const Implicit_surface*>(ssetitem->star_set().constrain_surface());
+  Scene_constrained_surface_implicit_item* function_item =
+    qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
 
   // Get item
-  if( NULL == poly_surf && NULL == function_surf)
+  if( NULL == poly_item && NULL == function_item)
   {
     QMessageBox::warning(mw,tr(""),tr("Unknown surface type"));
     return;
@@ -538,14 +518,16 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
           &dialog, SLOT(reject()));
 
   // Connect checkboxes to spinboxes
-  connect(ui.noRadiusEdgeRatio,   SIGNAL(toggled(bool)),
-          ui.radius_edge_ratio,   SLOT(setEnabled(bool)));
+  connect(ui.noFacet_RadiusEdgeRatio,   SIGNAL(toggled(bool)),
+          ui.facet_radius_edge_ratio,   SLOT(setEnabled(bool)));
+  connect(ui.noCell_RadiusEdgeRatio,   SIGNAL(toggled(bool)),
+          ui.cell_radius_edge_ratio,   SLOT(setEnabled(bool)));
   connect(ui.noSliverity,         SIGNAL(toggled(bool)),
           ui.sliverity,           SLOT(setEnabled(bool)));
-  connect(ui.noCircumradius,      SIGNAL(toggled(bool)),
-          ui.circumradius,        SLOT(setEnabled(bool)));
-//  connect(ui.noDistortion,        SIGNAL(toggled(bool)),
-//          ui.distortion,          SLOT(setEnabled(bool)));
+  connect(ui.noFacet_Circumradius,      SIGNAL(toggled(bool)),
+          ui.facet_circumradius,        SLOT(setEnabled(bool)));
+  connect(ui.noCell_Circumradius,      SIGNAL(toggled(bool)),
+          ui.cell_circumradius,        SLOT(setEnabled(bool)));
   connect(ui.noApproximation,     SIGNAL(toggled(bool)),
           ui.approximation,       SLOT(setEnabled(bool)));
 
@@ -557,9 +539,11 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
                              .arg(bbox.height(),0,'g',3)
                              .arg(bbox.depth(),0,'g',3) );
   double max_size = (std::max)((std::max)(bbox.width(),bbox.height()),bbox.depth());
-  ui.radius_edge_ratio->setValue(3.0);
+  ui.facet_circumradius->setValue(1.0);
+  ui.cell_circumradius->setValue(1.0);
+  ui.facet_radius_edge_ratio->setValue(3.0);
+  ui.cell_radius_edge_ratio->setValue(3.0);
   ui.sliverity->setValue(0.3);
-  ui.circumradius->setValue(1.0);
   ui.distortion->setValue(1.8);
   ui.approximation->setValue(0.01*max_size);
   ui.epsilon->setValue(0.1);
@@ -568,7 +552,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   ui.en_factor->setValue(1.);
 
   ui.comboBox_metric->setEnabled(false);
-  //disable the metric field when restarting
+  //disable the metric field menu when restarting
 
   ui.maxTries->setDecimals(0);
   ui.maxTries->setSingleStep(1);
@@ -585,23 +569,25 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
   // 0 means parameter is not considered
   const bool keep_same_parameters = ui.resume_memory->isChecked();
 
-  const double radius_edge_ratio = !ui.noRadiusEdgeRatio->isChecked() ? 0 : ui.radius_edge_ratio->value();
+  const double facet_circumradius = !ui.noFacet_Circumradius->isChecked() ? 0 : ui.facet_circumradius->value();
+  const double cell_circumradius = !ui.noCell_Circumradius->isChecked() ? 0 : ui.cell_circumradius->value();
+  const double facet_radius_edge_ratio = !ui.noFacet_RadiusEdgeRatio->isChecked() ? 0 : ui.facet_radius_edge_ratio->value();
+  const double cell_radius_edge_ratio = !ui.noCell_RadiusEdgeRatio->isChecked() ? 0 : ui.cell_radius_edge_ratio->value();
   const double sliverity = !ui.noSliverity->isChecked() ? 0 : ui.sliverity->value();
-  const double circumradius = !ui.noCircumradius->isChecked() ? 0 : ui.circumradius->value();
   const double distortion = /*!ui.noDistortion->isChecked() ? 0 :*/ ui.distortion->value();
   const double approximation = !ui.noApproximation->isChecked() ? 0. : ui.approximation->value();
   const double epsilon = ui.epsilon->value();
   const double beta = ui.beta->value();
   const double delta = ui.delta->value();
   const int max_times_to_try_in_picking_region = ui.maxTries->value();
-  const bool pick_valid_causes_stop = ui.pick_valid_causes_stop->isChecked();
-  const bool pick_valid_use_probing = ui.pick_valid_probing->isChecked();
-  const int pick_valid_max_failures = ui.maxPickFailures->value();
+  const int nb_initial_points = ui.nbInitialPoints->value(); //irrelevant
+
   int dim = -1;
   if(ui.dimension->currentText().compare(QString("Surface")) == 0)
     dim = 2;
   else if(ui.dimension->currentText().compare(QString("Volume")) == 0)
     dim = 3;
+
   int metric_index = ui.comboBox_metric->currentIndex();
   Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
   const double en_factor = ui.en_factor->value();
@@ -615,19 +601,21 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
 
   // POLYHEDRON -------------------------------------------------------------------------------
 
-  if ( NULL != poly_surf )
+  if ( NULL != poly_item )
   {
-    Anisotropic_mesh_parameters param;
     Criteria* criteria = NULL;
     typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
     Metric_field* mf = NULL;
 
     if( !keep_same_parameters )
     {
-      criteria = build_param_and_metric(poly_surf, param, mf, epsilon, approximation,
-                                        radius_edge_ratio, sliverity, circumradius,
-                                        distortion, beta, delta, max_times_to_try_in_picking_region,
-                                        dim, metric, en_factor);
+      criteria = build_criteria_and_metric((Polyhedral_surface*) ssetitem->star_set().constrain_surface(),
+                                           mf, approximation, facet_circumradius,
+                                           facet_radius_edge_ratio, cell_circumradius,
+                                           cell_radius_edge_ratio, sliverity,
+                                           distortion, beta, delta, nb_initial_points,
+                                           max_times_to_try_in_picking_region,
+                                           metric, epsilon, en_factor);
 
       ssetitem->star_set().set_criteria(criteria);
       {// can't handle metric changes for now
@@ -635,36 +623,29 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
         delete mf;
       }
       ssetitem->star_set().update_stars_criteria(); //update criteria in stars
-      ssetitem->star_set().fill_refinement_queue(); //reset and refill since criteria has been modified
-    }
-    else
-    {
-      param.dim = dim;
     }
 
-    typedef Anisotropic_mesh_function<Constrain_surface_polyhedral, Metric_field> AMesh_function;
-    AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set(), param,
-                                         ssetitem->star_set().criteria(),
-                                         ssetitem->star_set().metric_field(),
-                                         pick_valid_causes_stop, pick_valid_use_probing,
-                                         pick_valid_max_failures);
+    typedef Anisotropic_mesh_function<Polyhedral_surface, Metric_field> AMesh_function;
+    AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set());
 
     thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
   }
   //// FUNCTION -------------------------------------------------------------------------------
-  else if( NULL != function_surf )
+  else if( NULL != function_item )
   {
-    Anisotropic_mesh_parameters param;
     Criteria* criteria = NULL;
     typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
     Metric_field* mf = NULL;
 
     if( !keep_same_parameters )
     {
-      criteria = build_param_and_metric(function_surf, param, mf, epsilon, approximation,
-                                        radius_edge_ratio, sliverity, circumradius,
-                                        distortion, beta, delta, max_times_to_try_in_picking_region,
-                                        dim, metric, en_factor);
+      criteria = build_criteria_and_metric(function_item->function(),
+                                           mf, approximation, facet_circumradius,
+                                           facet_radius_edge_ratio, cell_circumradius,
+                                           cell_circumradius, sliverity,
+                                           distortion, beta, delta, nb_initial_points,
+                                           max_times_to_try_in_picking_region,
+                                           metric, epsilon, en_factor);
 
       ssetitem->star_set().set_criteria(criteria);
       {// can't handle metric changes for now
@@ -672,19 +653,10 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3(){
         delete mf;
       }
       ssetitem->star_set().update_stars_criteria(); //update criteria in stars
-      ssetitem->star_set().fill_refinement_queue(); //reset and refill since criteria has been modified
-    }
-    else
-    {
-      param.dim = dim;
     }
 
     typedef Anisotropic_mesh_function<Implicit_surface, Metric_field> AMesh_function;
-    AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set(), param,
-                                         ssetitem->star_set().criteria(),
-                                         ssetitem->star_set().metric_field(),
-                                         pick_valid_causes_stop, pick_valid_use_probing,
-                                         pick_valid_max_failures);
+    AMesh_function* p_mesh_function = new AMesh_function(ssetitem->star_set());
 
     thread = new Anisotropic_meshing_thread(p_mesh_function, ssetitem);
   }
@@ -753,6 +725,7 @@ void Anisotropic_mesh_3_plugin::view_all_stars()
   }
 }
 
+/*
 void Anisotropic_mesh_3_plugin::view_one_pickvalid_point()
 {
   const Scene_interface::Item_id index = scene->mainSelectionIndex();
@@ -798,6 +771,7 @@ void Anisotropic_mesh_3_plugin::view_one_pickvalid_point()
 
   ssetitem->starset_changed();
 }
+*/
 
 void Anisotropic_mesh_3_plugin::view_all_pickvalid_point()
 {
@@ -939,82 +913,6 @@ void Anisotropic_mesh_3_plugin::view_mesh_3(bool b)
   if(ssetitem != NULL)
   {
     ssetitem->draw_mesh_3() = b;
-    ssetitem->starset_changed();
-  }
-}
-
-void Anisotropic_mesh_3_plugin::view_colored_poly(bool b)
-{
-  const Scene_interface::Item_id index = scene->mainSelectionIndex();
-  Scene_starset3_item* ssetitem =
-    qobject_cast<Scene_starset3_item*>(scene->item(index));
-  if(ssetitem != NULL)
-  {
-    ssetitem->draw_colored_poly() = b;
-    ssetitem->starset_changed();
-  }
-}
-
-void Anisotropic_mesh_3_plugin::view_all_colored_poly_vertices()
-{
-  const Scene_interface::Item_id index = scene->mainSelectionIndex();
-  Scene_starset3_item* ssetitem =
-    qobject_cast<Scene_starset3_item*>(scene->item(index));
-  if(ssetitem != NULL)
-  {
-    ssetitem->draw_colored_poly_vertex_id() = -1;
-    ssetitem->starset_changed();
-  }
-}
-
-void Anisotropic_mesh_3_plugin::view_colored_poly_one_vertex()
-{
-  const Scene_interface::Item_id index = scene->mainSelectionIndex();
-
-  // Get item
-  Scene_starset3_item* ssetitem =
-    qobject_cast<Scene_starset3_item*>(scene->item(index));
-  if( NULL == ssetitem )
-  {
-    QMessageBox::warning(mw,tr(""),tr("Selected object is not a star set."));
-    return;
-  }
-
-  // Create dialog
-  QDialog dialog(mw);
-  Ui::Choose_colored_poly_vertex_dialog ui;
-  ui.setupUi(&dialog);
-  connect(ui.buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
-  connect(ui.buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
-  connect(ui.displayAll, SIGNAL(clicked()), this, SLOT(view_all_colored_poly_vertices()));
-  connect(ui.displayAll, SIGNAL(clicked()), &dialog, SLOT(reject()));
-
-   // Set default parameters
-  int indexMax = ssetitem->nbColoredVertices()-1;
-  ui.objectQuestion->setText(
-    tr("Which vertex do you want to display? (from 0 to %1)").arg(indexMax));
-  ui.vertexId->setDecimals(0);
-  ui.vertexId->setSingleStep(1);
-  ui.vertexId->setValue((std::max)(0, ssetitem->draw_colored_poly_vertex_id()));
-  ui.vertexId->setMinimum(0);
-  ui.vertexId->setMaximum(indexMax);
-
-  // Get value and use it
-  int i = dialog.exec();
-  if(i != QDialog::Rejected)
-    ssetitem->draw_colored_poly_vertex_id() = (int)ui.vertexId->value();
-
-  ssetitem->starset_changed();
-}
-
-void Anisotropic_mesh_3_plugin::view_colored_poly_mem(bool b)
-{
-  const Scene_interface::Item_id index = scene->mainSelectionIndex();
-  Scene_starset3_item* ssetitem =
-    qobject_cast<Scene_starset3_item*>(scene->item(index));
-  if(ssetitem != NULL)
-  {
-    ssetitem->draw_colored_poly_mem() = b;
     ssetitem->starset_changed();
   }
 }

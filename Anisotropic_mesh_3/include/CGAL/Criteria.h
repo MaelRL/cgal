@@ -40,25 +40,28 @@ public:
 //if 0. : criterion is not used
   const FT approximation;
   const FT squared_approximation;
-  const FT distortion;
 
   // facet
-  const FT facet_radius_edge_ratio;
-  const FT squared_facet_radius_edge_radio;
   const FT facet_circumradius;
   const FT squared_facet_circumradius;
+  const FT facet_radius_edge_ratio;
+  const FT squared_facet_radius_edge_radio;
 
   // cell
-  const FT sliverity;
-  const FT cell_radius_edge_ratio;
-  const FT squared_cell_radius_edge_radio;
   const FT cell_circumradius;
   const FT squared_cell_circumradius;
+  const FT cell_radius_edge_ratio;
+  const FT squared_cell_radius_edge_radio;
+  const FT sliverity;
   const bool c_consistency;
 
 //can't be 0
+  const FT distortion;
   const FT beta;
   const FT delta;
+
+//misc
+  const int nb_initial_points;
   const std::size_t max_times_to_try_in_picking_region;
 
 public:
@@ -70,6 +73,7 @@ public:
     std::cout << "checking threshold (beta):          " << beta << std::endl;
     std::cout << "picking region radius (delta):      " << delta << std::endl;
     std::cout << "max. time to try in picking region: " << max_times_to_try_in_picking_region << std::endl;
+    std::cout << "nb of initial points: " << nb_initial_points << std::endl;
 
     std::cout << "facet criteria : " << std::endl;
     std::cout << "radius-edge-ratio (rho_0):          " << facet_radius_edge_ratio << std::endl;
@@ -89,15 +93,16 @@ public:
     fx << "checking threshold (beta):          " << beta << std::endl;
     fx << "picking region radius (delta):      " << delta << std::endl;
     fx << "max. time to try in picking region: " << max_times_to_try_in_picking_region << std::endl;
+    fx << "nb of initial points: " << nb_initial_points << std::endl;
 
     fx << "facet criteria : " << std::endl;
-    fx << "radius-edge-ratio (rho_0):          " << facet_radius_edge_ratio << std::endl;
     fx << "maximum circumradius (r_0):         " << facet_circumradius << std::endl;
+    fx << "radius-edge-ratio (rho_0):          " << facet_radius_edge_ratio << std::endl;
 
     fx << "cell criteria : " << std::endl;
-    fx << "sliverity ratio (sigma_0):          " << sliverity << std::endl;
-    fx << "radius-edge-ratio (rho_0):          " << cell_radius_edge_ratio << std::endl;
     fx << "maximum circumradius (r_0):         " << cell_circumradius << std::endl;
+    fx << "radius-edge-ratio (rho_0):          " << cell_radius_edge_ratio << std::endl;
+    fx << "sliverity ratio (sigma_0):          " << sliverity << std::endl;
   }
 
   bool no_cell_criteria()
@@ -106,33 +111,34 @@ public:
   }
 
   Criteria_base(const FT approximation_ = 0.,
-                const FT distortion_ = 1.2,
-                const FT f_radius_edge_ratio_ = 3.0,
                 const FT f_circumradius_ = 1.0,
-                const FT sliverity_ = 0.2,
+                const FT f_radius_edge_ratio_ = 3.0,
                 const FT c_radius_edge_ratio_ = 3.0,
                 const FT c_circumradius_ = 1.0,
-                const bool c_consistency_ = false,
+                const FT sliverity_ = 0.2,
+                const FT distortion_ = 1.2,
                 const FT beta_ = 2.5,
                 const FT delta_ = 0.3,
+                const int nb_initial_points_ = 4,
                 const std::size_t max_times_to_try_in_picking_region_ = 60
                 )
     :
       approximation(approximation_),
       squared_approximation(approximation_*approximation_),
-      distortion(distortion_),
-      facet_radius_edge_ratio(f_radius_edge_ratio_),
-      squared_facet_radius_edge_radio(f_radius_edge_ratio_ * f_radius_edge_ratio_),
       facet_circumradius(f_circumradius_),
       squared_facet_circumradius(f_circumradius_ * f_circumradius_),
-      sliverity(sliverity_),
-      cell_radius_edge_ratio(c_radius_edge_ratio_),
-      squared_cell_radius_edge_radio(c_radius_edge_ratio_ * c_radius_edge_ratio_),
+      facet_radius_edge_ratio(f_radius_edge_ratio_),
+      squared_facet_radius_edge_radio(f_radius_edge_ratio_ * f_radius_edge_ratio_),
       cell_circumradius(c_circumradius_),
       squared_cell_circumradius(c_circumradius_ * c_circumradius_),
-      c_consistency(c_consistency_),
+      cell_radius_edge_ratio(c_radius_edge_ratio_),
+      squared_cell_radius_edge_radio(c_radius_edge_ratio_ * c_radius_edge_ratio_),
+      sliverity(sliverity_),
+      c_consistency(true), //this thing is useless todo
+      distortion(distortion_),
       beta(beta_),
       delta(delta_),
+      nb_initial_points(nb_initial_points_),
       max_times_to_try_in_picking_region(max_times_to_try_in_picking_region_)
   { }
 };
