@@ -99,8 +99,6 @@ public:
   bool after_insertion(typename Star::Index pid,
                        const Visitor& visitor)
   {
-    std::cout << "after insertion pid: " << pid << std::endl;
-
     fill_previous_ref_queues(pid);
     derived().fill_refinement_queue(pid);
     visitor.fill_refinement_queue(pid);
@@ -147,7 +145,7 @@ public:
   template<typename Visitor>
   bool refine(const Visitor& visitor) //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
   {
-    while(!is_algorithm_done() /*&& derived().continue_ smthg like that to interrupt in the demo TODO*/)
+    while(!is_algorithm_done())
     {
       if(!previous_level.is_algorithm_done())
         if(!previous_level.refine(visitor.previous()))

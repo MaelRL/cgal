@@ -33,13 +33,13 @@ private:
 public:
   Anisotropic_mesh_function(Starset_with_info&);
   ~Anisotropic_mesh_function();
-  
+
   // Launch
   virtual void launch();
-  
+
   // Stop
   virtual void stop();
-  
+
   // Logs
   virtual QStringList parameters_log() const;
   virtual QString status(double time_period) const;
@@ -63,7 +63,6 @@ Anisotropic_mesh_function<D_, Metric_field>::
 {
   delete m_amesher;
 }
-
 
 template < typename D_, typename Metric_field>
 void
@@ -127,7 +126,7 @@ status(double time_period) const
   {
     return QString("Initialization in progress...");
   }
-  
+
   // Get status and return a string corresponding to it
 //  typename Mesher::Mesher_status s = m_amesher->status();
 

@@ -1189,7 +1189,6 @@ public:
     if(m_stars_czones.status() == Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN
        && p == m_stars_czones.conflicting_point()) // just to be safe
     {
-      std::cout << "Zones are already konwn, can skip computations!" << std::endl;
       return m_stars_czones.conflicting_point_id();
     }
 
@@ -1198,8 +1197,7 @@ public:
 
     if(p != m_stars_czones.conflicting_point())
     {
-      std::cout << "Points should have been equal there; ";
-      std::cout << "the conflict zones are not cleaned correctly..." << std::endl;
+      std::cout << "Points should have been equal in compute_conflict_zones." << std::endl;
     }
 
     if(m_stars_czones.status() == Stars_conflict_zones::CONFLICTING_POINT_IS_KNOWN)
@@ -1401,8 +1399,6 @@ public:
                            const Stars& target_stars,
                            const bool infinite_stars = false)
   {
-    std::cout << "perform insertions with cond false. nstars: " << target_stars.size() << std::endl;
-
     Vertex_handle v_in_ch = Vertex_handle();
     typename Stars::const_iterator it = target_stars.begin();
     typename Stars::const_iterator itend = target_stars.end();
@@ -1473,11 +1469,8 @@ public:
                const bool conditional,
                const bool surface_point = false)
   {
-    std::cout << "insert call. p: " << p << " ";
-    std::cout << "surface_point: " << surface_point << " ||  conditional: " << conditional << std::endl;
-
     if(conditional && m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
-      std::cout << "Conflict zones unknown at insertion time...(insert)" << std::endl;
+      std::cout << "Conflict zones unknown at insertion time...insert()" << std::endl;
 
     Index id = insert_to_stars(p, conditional);
     if(id < 0 || id < (int) number_of_stars())

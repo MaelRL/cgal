@@ -54,8 +54,6 @@ private:
   
   void compute_min_max();
 
-
-  
 private:
   Implicit_surface* function_;
   ManipulatedFrame* frame_;

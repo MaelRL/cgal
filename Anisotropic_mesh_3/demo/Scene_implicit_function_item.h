@@ -11,7 +11,6 @@
 
 #define SCENE_IMPLICIT_GRID_SIZE 120
 
-
 class SCENE_IMPLICIT_FUNCTION_ITEM_EXPORT Scene_implicit_function_item 
   : public Scene_item_with_display_list
 {

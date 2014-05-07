@@ -1,8 +1,6 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_STAR_SET_OUTPUT_H
 #define CGAL_ANISOTROPIC_MESH_3_STAR_SET_OUTPUT_H
 
-#include <CGAL/Star_consistency.h>
-
 #include <CGAL/helpers/combinatorics_helper.h>
 
 #include <map>

@@ -76,13 +76,13 @@ public:
     std::cout << "nb of initial points: " << nb_initial_points << std::endl;
 
     std::cout << "facet criteria : " << std::endl;
-    std::cout << "radius-edge-ratio (rho_0):          " << facet_radius_edge_ratio << std::endl;
     std::cout << "maximum circumradius (r_0):         " << facet_circumradius << std::endl;
+    std::cout << "radius-edge-ratio (rho_0):          " << facet_radius_edge_ratio << std::endl;
 
     std::cout << "cell criteria : " << std::endl;
-    std::cout << "sliverity ratio (sigma_0):          " << sliverity << std::endl;
-    std::cout << "radius-edge-ratio (rho_0):          " << cell_radius_edge_ratio << std::endl;
     std::cout << "maximum circumradius (r_0):         " << cell_circumradius << std::endl;
+    std::cout << "radius-edge-ratio (rho_0):          " << cell_radius_edge_ratio << std::endl;
+    std::cout << "sliverity ratio (sigma_0):          " << sliverity << std::endl;
   }
 
   void report(std::ofstream& fx) const
@@ -113,8 +113,8 @@ public:
   Criteria_base(const FT approximation_ = 0.,
                 const FT f_circumradius_ = 1.0,
                 const FT f_radius_edge_ratio_ = 3.0,
-                const FT c_radius_edge_ratio_ = 3.0,
                 const FT c_circumradius_ = 1.0,
+                const FT c_radius_edge_ratio_ = 3.0,
                 const FT sliverity_ = 0.2,
                 const FT distortion_ = 1.2,
                 const FT beta_ = 2.5,

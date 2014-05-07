@@ -119,10 +119,6 @@ public:
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_3& steiner_point)
   {
-    std::cout << "###############################################################" << std::endl;
-    std::cout << "get ref point for next element cells" << std::endl;
-    std::cout << "###############################################################" << std::endl;
-
     Rcell_set_iterator bad_cell;
     bool need_picking_valid;
     Cell_handle c;
@@ -156,7 +152,7 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (succesful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(rp_status == PICK_VALID_FAILED &&
+    if(0 && rp_status == PICK_VALID_FAILED &&
        bad_cell->value != m_refine_queue.queue_min_value(bad_cell->queue_type) && //nothing to push if already last
        !bad_cell->prev_rejection) // if cell has not already been rejected
     {
@@ -489,9 +485,6 @@ public:
   //cells here are necessarily inconsistent, but need to test other criteria too
   void fill_from_unmodified_stars()
   {
-    std::cout << "fill from unmodified @ cell level. Is empty: ";
-    std::cout << this->m_stars_czones.cells_to_check().empty() << std::endl;
-
     typename std::map<Index, Cell_handle_vector>::iterator mit = this->m_stars_czones.cells_to_check().begin();
     typename std::map<Index, Cell_handle_vector>::iterator mend = this->m_stars_czones.cells_to_check().end();
     for(; mit!=mend; ++mit)
@@ -506,7 +499,6 @@ public:
         test_cell(si, *chit, true/*force push*/);
       }
     }
-    m_refine_queue.print();
   }
 
   template<typename Stars>
@@ -566,9 +558,6 @@ public:
         test_cell(star, c, false/*no force push*/, check_if_in);
       }
     }
-
-    std::cout << this->m_stars.size() << " ";
-    m_refine_queue.print();
   }
 
   void fill_refinement_queue(Index pid)
@@ -623,7 +612,6 @@ private:
                                      const Cell_handle& cell, //belongs to star and should be refined
                                      Point_3& p) const
   {
-    std::cout << "pv cell" << std::endl;
     timer_pv.start();
     TPoint_3 circumcenter = cell->circumcenter(*(star->traits()));
     TPoint_3 tp2 = cell->vertex(0)->point();
@@ -660,21 +648,20 @@ private:
       // Pick_valid trick#3: check conflict (encroachment...) at lower levels
       //before testing the validity of the point.
       if((Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) &&
-          ++m_pick_valid_skipped_due_to_conflict) ||
-         !is_valid_point(p, sq_radiusbound, star, new_star))
+         ++m_pick_valid_skipped_due_to_conflict) ||
+         (++m_pick_valid_points_tried &&
+          !is_valid_point(p, sq_radiusbound, star, new_star)))
       {
         Trunk::clear_conflict_zones();
       }
       else
       {
-//        if(is_center_in_conflict)
-//          std::cout << "CENTER IN CONFLICT BUT THE MIGHTY PV PREVAILS" << std::endl;
         timer_pv.stop();
         delete new_star;
         return SUITABLE_POINT;
       }
 
-      if(tried_times++ > this->m_criteria->max_times_to_try_in_picking_region)
+      if(++tried_times >= this->m_criteria->max_times_to_try_in_picking_region)
       {
         p = center;
         delete new_star;
@@ -685,6 +672,7 @@ private:
           this->clear_conflict_zones();
           return POINT_IN_CONFLICT;
         }
+
         timer_pv.stop();
         return PICK_VALID_FAILED;
       }

@@ -110,7 +110,7 @@ public:
         qobject_cast<Scene_constrained_surface_implicit_item*>(scene->item(index));
     return poly_item || image_item || function_item || csi_function_item;
   }
-                                                                     
+
 public slots:
   void mesh_3();
   void meshing_done(Meshing_thread* t);

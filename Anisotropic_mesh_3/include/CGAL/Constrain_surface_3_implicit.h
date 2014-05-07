@@ -162,7 +162,6 @@ public:
           return Object_3();
 
         Point_3 mem_p = lp;
-
         Vector_3 l_r(lp, rp);
         int steps = 100, count = 0;
         Vector_3 step_vec = l_r/steps;

@@ -129,10 +129,6 @@ public:
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_3& steiner_point)
   {
-    std::cout << "###############################################################" << std::endl;
-    std::cout << "get ref point for next element facet" << std::endl;
-    std::cout << "###############################################################" << std::endl;
-
     Rfacet_set_iterator bad_facet;
     bool need_picking_valid;
     Facet f; // to be refined
@@ -141,16 +137,6 @@ public:
     //It'll be popped at insertion if there is no encroachment.
     if(!next_refine_facet(bad_facet, f, need_picking_valid))
       return EMPTY_QUEUE;
-
-    std::cout << "facet to refine: star " << bad_facet->star->index_in_star_set() << std::endl;
-    std::cout << f.first->vertex((f.second+1)%4)->info() << " || ";
-    std::cout << f.first->vertex((f.second+1)%4)->point() << std::endl;
-    std::cout << f.first->vertex((f.second+2)%4)->info() << " || ";
-    std::cout << f.first->vertex((f.second+2)%4)->point() << std::endl;
-    std::cout << f.first->vertex((f.second+3)%4)->info() << " || ";
-    std::cout << f.first->vertex((f.second+3)%4)->point() << std::endl;
-    std::cout << "second: " << f.first->vertex(f.second)->info() << " ";
-    std::cout << f.first->vertex(f.second)->point() << std::endl;
 
 #ifdef ANISO_DEBUG_REFINEMENT_PP
     Vertex_handle v1 = f.first->vertex((f.second+1)%4);
@@ -264,7 +250,6 @@ public:
 
   bool insert_(const Point_3& steiner_point)
   {
-    std::cout << "insert_ call with p: " << steiner_point << std::endl;
     Refine_facet bad_facet;
     bool need_picking_valid;
     Facet f; // to be refined
@@ -285,7 +270,6 @@ public:
     //if(!m_refinement_condition(steiner_point))
     //  return true; //false would stop refinement
 
-    std::cout << "facet insertion " << steiner_point << " stars had size: " << this->m_stars.size() << std::endl;
     Index pid = Trunk::insert(steiner_point, true/*conditional*/, true/*surface point*/);
 
     if(pid != static_cast<Index>(this->m_starset.size()-1))
@@ -296,14 +280,13 @@ public:
     int i,j,k;
     if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
     {
-      std::cout << "facet still in " << std::endl;
       int index = 6 - i - j - k;
       Facet ff = bad_facet.star->make_canonical(Facet(c,index));
 
       typename K::Plane_3 fplane = bad_facet.star->triangle(ff).supporting_plane();
 
       Point_3 steiner2;
-      if(bad_facet.star->is_restricted(ff,steiner2)
+      if(bad_facet.star->is_restricted(ff, steiner2)
         && fplane.oriented_side(bad_facet.star->metric().transform(steiner_point))
            == fplane.oriented_side(bad_facet.star->metric().transform(steiner2)))
       {
@@ -475,7 +458,7 @@ private:
     int nbdone = 0;
     for (; pi != pend && nbdone < nb; pi++)
     {
-      if(nbdone % 100 == 0)
+      if(nbdone > 0 && nbdone % 100 == 0)
         Trunk::clean_stars();
 
       std::size_t this_id = this->m_starset.size();
@@ -702,18 +685,12 @@ public:
   //facets here are necessarily inconsistent, but need to test other criteria too
   void fill_from_unmodified_stars()
   {
-    std::cout << "fill from unmodified @ facet level. Is empty: ";
-    std::cout << this->m_stars_czones.facets_to_check().empty() << std::endl;
-
     typename std::map<Index, Facet_vector>::iterator mit = this->m_stars_czones.facets_to_check().begin();
     typename std::map<Index, Facet_vector>::iterator mend = this->m_stars_czones.facets_to_check().end();
     for(; mit!=mend; ++mit)
     {
       Index i = mit->first;
       Star_handle si = Trunk::get_star(i);
-      std::cout << "in star: " << i << " expected facet n: " << mit->second.size() << std::endl;
-      si->list_restricted_facets();
-      si->list_cells();
 
       Facet_handle fit = mit->second.begin();
       Facet_handle fend = mit->second.end();
@@ -722,13 +699,10 @@ public:
         test_facet(si, fit, true/*force push*/);
       }
     }
-    m_refine_queue.print();
   }
 
   void fill_refinement_queue(Index pid)
   {
-    std::cout << "fill with pid: " << pid << std::endl;
-
     //fill from the stars that were directly in conflict with the inserted point
     fill_refinement_queue(this->m_stars_czones, pid);
 
@@ -828,9 +802,6 @@ private:
         test_facet(star, fi, false/*no force push*/, check_if_in);
       }
     }
-
-    std::cout << this->m_stars.size() << " ";
-    m_refine_queue.print();
   }
 
 private:
@@ -954,7 +925,6 @@ private:
     }
 
     std::set<Edge_ij> edges_around_c;
-    // dimension 2 TODO check that this is correct
     if(dim == 2)
     {
       typename Star::Finite_edges_iterator eit = star->finite_edges_begin();
@@ -962,7 +932,7 @@ private:
       for(; eit != endit; eit++)
       {
         Edge_ij e(*eit);
-        if(e.has(center_id)) // should probably be !e.has()
+        if(e.has(center_id))
           edges_around_c.insert(e);
       }
     }
@@ -1169,7 +1139,7 @@ private:
       m_pick_valid_failed++;
 
 #ifdef ANISO_VERBOSE
-    if(1 || (!success && m_pick_valid_failed % 100 == 0 && m_pick_valid_failed > 0) ||
+    if((!success && m_pick_valid_failed % 100 == 0 && m_pick_valid_failed > 0) ||
        (success && m_pick_valid_succeeded % 100 == 0 && m_pick_valid_succeeded > 0))
     {
       std::cout << "Fpick_valid : ";
@@ -1183,8 +1153,6 @@ private:
                                      const Facet& facet, //belongs to star and should be refined
                                      Point_3& p) const
   {
-    std::cout << "pv facet" << std::endl;
-
     timer_pv.start();
     // compute radius bound, in M_star
     Point_3 center;
@@ -1326,6 +1294,7 @@ public:
       Trunk(starset_, pconstrain_, criteria_, metric_field_,
            ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
       m_refine_queue(),
+      m_pick_valid_uses_3D_checks(false),
       m_pick_valid_succeeded(0),
       m_pick_valid_failed(0),
       m_pick_valid_skipped(0),

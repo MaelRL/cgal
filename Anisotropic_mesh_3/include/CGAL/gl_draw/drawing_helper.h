@@ -6,7 +6,12 @@
 #include <cmath>
 //#include <QColor>
 
-enum Polygon_drawing_options { EDGES_ONLY, EDGES_AND_FACES, FACES_ONLY };
+enum Polygon_drawing_options
+{
+  EDGES_ONLY,
+  EDGES_AND_FACES,
+  FACES_ONLY
+};
 
 template<typename Kernel>
 void gl_draw_triangle(const typename Kernel::Point_3& pa,

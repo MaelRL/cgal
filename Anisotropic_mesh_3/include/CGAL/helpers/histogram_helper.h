@@ -15,31 +15,36 @@ namespace CGAL
 namespace Anisotropic_mesh_3
 {
 
-enum Facet_histogram_type{APPROXIMATION,
-                          FACET_DISTORTION,
-                          FACET_QUALITY,
-                          FACET_SIZE,
-                          FACET_RATIO,
-                          FACET_ANGLE};
+enum Facet_histogram_type
+{
+  APPROXIMATION,
+  FACET_DISTORTION,
+  FACET_QUALITY,
+  FACET_SIZE,
+  FACET_RATIO,
+  FACET_ANGLE
+};
 
-enum Cell_histogram_type{CELL_DISTORTION,
-                         CELL_QUALITY,
-                         CELL_SIZE,
-                         CELL_RATIO,
-                         CELL_ANGLE};
+enum Cell_histogram_type
+{
+  CELL_DISTORTION,
+  CELL_QUALITY,
+  CELL_SIZE,
+  CELL_RATIO,
+  CELL_ANGLE
+};
 
 template <typename Star>
 typename Star::FT
-minimum_dihedral_angle(
-    Star* star,
-    const typename Star::Point_3& p0,
-    const typename Star::Point_3& p1,
-    const typename Star::Point_3& p2,
-    const typename Star::Point_3& p3)
+minimum_dihedral_angle(Star* star,
+                       const typename Star::Point_3& p0,
+                       const typename Star::Point_3& p1,
+                       const typename Star::Point_3& p2,
+                       const typename Star::Point_3& p3)
 {
-  typedef typename Star::Kernel   K;
-  typedef typename K::FT          FT;
-  typedef typename Star::TPoint_3 TPoint;
+  typedef typename Star::Kernel             K;
+  typedef typename K::FT                    FT;
+  typedef typename Star::TPoint_3           TPoint;
   K k = K();
 
   const TPoint& tp0 = star->metric().transform(p0);
@@ -48,12 +53,12 @@ minimum_dihedral_angle(
   const TPoint& tp3 = star->metric().transform(p3);
 
   typename K::Compute_determinant_3 determinant =
-    k.compute_determinant_3_object();
+      k.compute_determinant_3_object();
   typename K::Construct_cross_product_vector_3 cp =
-    k.construct_cross_product_vector_3_object();
+      k.construct_cross_product_vector_3_object();
 
   typename K::Compute_scalar_product_3 sp =
-    k.compute_scalar_product_3_object();
+      k.compute_scalar_product_3_object();
 
   typename K::Vector_3 v01 = tp1-tp0;
   typename K::Vector_3 v02 = tp2-tp0;
@@ -91,6 +96,44 @@ minimum_dihedral_angle(
                    * FT(180) / FT(CGAL_PI));
 }
 
+template <typename Star>
+typename Star::FT
+dihedral_angle(Star* star,
+               const typename Star::Point_3& a,
+               const typename Star::Point_3& b,
+               const typename Star::Point_3& c,
+               const typename Star::Point_3& d)
+{
+  typedef typename Star::Kernel           K;
+  typedef typename Star::TPoint_3         TPoint;
+  typedef typename K::Vector_3            Vector_3;
+  typedef typename K::FT                  FT;
+  K k = K();
+
+  const TPoint& ta = star->metric().transform(a);
+  const TPoint& tb = star->metric().transform(b);
+  const TPoint& tc = star->metric().transform(c);
+  const TPoint& td = star->metric().transform(d);
+
+  typename K::Construct_vector_3 vector = k.construct_vector_3_object();
+  typename K::Construct_cross_product_vector_3 cross_product =
+      k.construct_cross_product_vector_3_object();
+  typename K::Compute_squared_distance_3 sq_distance =
+      k.compute_squared_distance_3_object();
+  typename K::Compute_scalar_product_3 scalar_product =
+      k.compute_scalar_product_3_object();
+
+  const Vector_3 ab = vector(ta, tb);
+  const Vector_3 ac = vector(ta, tc);
+  const Vector_3 ad = vector(ta, td);
+
+  const Vector_3 abad = cross_product(ab, ad);
+  const double x = CGAL::to_double(scalar_product(cross_product(ab, ac), abad));
+  const double l_ab = CGAL::sqrt(CGAL::to_double(sq_distance(a, b)));
+  const double y = l_ab * CGAL::to_double(scalar_product(ac, abad));
+
+  return FT(std::atan2(y, x) * 180 / CGAL_PI );
+}
 
 template<typename FT>
 void output_histogram(const std::vector<int>& histogram,

@@ -14,20 +14,19 @@
 
 class Scene_starset3_item;
 
-//enum Meshing_Dimension {SURFACE = 2, VOLUME = 3, SURFACE_AND_VOLUME = 5};
+enum Meshing_Dimension
+{
+  SURFACE = 2,
+  VOLUME = 3,
+  SHARP_EDGES = 5
+};
 
 class Anisotropic_mesh_function_interface
 {
 public:
   virtual ~Anisotropic_mesh_function_interface() {}
-  
-  // Launch
   virtual void launch() = 0;
-  
-  // Stop
   virtual void stop() = 0;
-  
-  // Logs
   virtual QStringList parameters_log() const = 0;
   virtual QString status(double time_period) const = 0;
 };

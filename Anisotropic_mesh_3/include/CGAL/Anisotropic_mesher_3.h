@@ -142,12 +142,7 @@ public:
     m_cell_mesher.refine(m_cell_visitor);
 
 #else
-    std::cout << "Start surface scan...";
     m_facet_mesher.initialize();
-    std::cout << std::endl << "end scan" << std::endl;
-
-    std::ofstream out("initial.mesh");
-    output_medit(m_stars, out);
 
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
@@ -156,7 +151,6 @@ public:
       m_facet_mesher.one_step(m_facet_visitor);
 
     std::cout << "Total refining surface time: " << timer.time() << "s" << std::endl;
-
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
