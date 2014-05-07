@@ -178,7 +178,8 @@ public:
   }
 
   bool test_point_conflict_from_superior_(const Point_3& p,
-                                          bool is_queue_updated = false) const
+                                          const bool is_queue_updated = true,
+                                          const bool need_picking_valid = false) const
   {
     return false; //not used atm, but it would be [return (dist(tp, tc) < dist(tc, tv0))]
   }
@@ -858,7 +859,8 @@ private:
       {
         p = center;
         delete new_star;
-        if(Mesher_lvl::is_point_in_conflict(p)) //modifies the lower level queue
+        if(Mesher_lvl::is_point_in_conflict(p, true/*modifies the lower level queue*/,
+                                            true/*need_picking_valid*/))
         {
           timer_pv.stop();
           this->clear_conflict_zones();
@@ -909,7 +911,8 @@ private:
       vertex_without_picking_count++;
       steiner = compute_insert_or_snap_point(to_be_refined, c);
 
-      if(Mesher_lvl::is_point_in_conflict(steiner))
+      if(Mesher_lvl::is_point_in_conflict(steiner, true /*lower level queue insertion*/,
+                                          false /*no pick_valid when refining the encroached facet*/))
       {
         Trunk::clear_conflict_zones();
         return POINT_IN_CONFLICT;

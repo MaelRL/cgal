@@ -220,7 +220,8 @@ public:
   }
 
   bool test_point_conflict_from_superior_(const Point_3& p,
-                                          const bool is_queue_updated = true)
+                                          const bool is_queue_updated = true,
+                                          const bool need_picking_valid = false)
   {
     //return false; //if we want to ignore the surface level
 
@@ -244,7 +245,11 @@ public:
         std::cout << is_queue_updated << std::endl;
 */
         if(is_queue_updated)
-          m_refine_queue.push(star, f, star->compute_volume(f), 0);
+        {
+          //there can only be one encroached facet in the queue at a time
+          //so we use the value to pass the boolean
+          m_refine_queue.push(star, f, need_picking_valid, 0);
+        }
         return true;
       }
     }
@@ -536,11 +541,17 @@ private:
           std::cout << "it LIED" << std::endl;
           continue;
         }
+#endif
       }
 
       if(rfacet_it->star->has_facet(rfacet_it->facet, facet))
       {
         need_picking_valid = m_refine_queue.need_picking_valid(rfacet_it->queue_type);
+
+        //for encroachments, value == need_picking_valid
+        if(rfacet_it->queue_type == m_refine_queue.encroachment_queue && rfacet_it->value)
+          need_picking_valid = true;
+
         return true;
       }
       else //top of the queue does not exist anymore
@@ -1213,7 +1224,7 @@ private:
       {
         p = center;
         delete newstar;
-        if(Mesher_lvl::is_point_in_conflict(p))
+        if(Mesher_lvl::is_point_in_conflict(p, true, true))
         {
           timer_pv.stop();
           Trunk::clear_conflict_zones();
@@ -1253,7 +1264,7 @@ private:
       vertex_without_picking_count++;
       to_be_refined->compute_exact_dual_intersection(f, steiner);
 
-      if(Mesher_lvl::is_point_in_conflict(steiner))
+      if(Mesher_lvl::is_point_in_conflict(steiner, true, false))
         return POINT_IN_CONFLICT;
 
       return SUITABLE_POINT;
@@ -1275,7 +1286,7 @@ private:
       vertex_without_picking_count++;
       steiner = compute_insert_or_snap_point(to_be_refined, f);
 
-      if(Mesher_lvl::is_point_in_conflict(steiner))
+      if(Mesher_lvl::is_point_in_conflict(steiner, true, false))
       {
         Trunk::clear_conflict_zones();
         return POINT_IN_CONFLICT;

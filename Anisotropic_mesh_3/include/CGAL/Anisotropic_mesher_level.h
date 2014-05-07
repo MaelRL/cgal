@@ -27,7 +27,7 @@ struct Null_anisotropic_mesher_level
   bool one_step(V) { return false; }
 
   template <typename P>
-  bool test_point_conflict_from_superior(P, bool) { return false; }
+  bool test_point_conflict_from_superior(P, bool, bool) { return false; }
 
   template <typename I>
   void fill_ref_queues_from_superior(I) { }
@@ -66,18 +66,22 @@ public:
   }
 
   bool test_point_conflict_from_superior(const Point& p,
-                                         const bool is_queue_updated = true)
+                                         const bool is_queue_updated = true,
+                                         const bool need_picking_valid = false)
   {
-    return (is_point_in_conflict(p, is_queue_updated) ||
-            derived().test_point_conflict_from_superior_(p, is_queue_updated));
+    return (is_point_in_conflict(p, is_queue_updated, need_picking_valid) ||
+            derived().test_point_conflict_from_superior_(p, is_queue_updated,
+                                                         need_picking_valid));
   }
 
   //this function potentially fills partially the conflict_zones:
   //it gives which stars are in conflict (without giving the actual conflict zones)
   bool is_point_in_conflict(const Point& p,
-                            const bool is_queue_updated = true) const
+                            const bool is_queue_updated = true,
+                            const bool need_picking_valid = false) const
   {
-    return previous_level.test_point_conflict_from_superior(p, is_queue_updated);
+    return previous_level.test_point_conflict_from_superior(p, is_queue_updated,
+                                                            need_picking_valid);
   }
 
   void fill_ref_queues_from_superior(typename Star::Index pid)
