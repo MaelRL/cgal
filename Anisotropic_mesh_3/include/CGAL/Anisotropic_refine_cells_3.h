@@ -808,6 +808,8 @@ private:
     TPoint_3 circumcenter = cell->circumcenter(*(star->traits()));
     TPoint_3 tp2 = cell->vertex(0)->point();
 
+    Point_3 center = Trunk::transform_from_star_point(circumcenter, star);
+
     // pick_valid region radius
     FT sq_circumradius = star->traits()->compute_squared_distance_3_object() (circumcenter, tp2);
     FT sq_radiusbound = sq_circumradius *  this->m_criteria->beta * this->m_criteria->beta;
@@ -825,11 +827,9 @@ private:
 //   bool is_center_in_conflict = Mesher_lvl::is_point_in_conflict(Trunk::transform_from_star_point(circumcenter, star), false);
 //   Trunk::clear_conflict_zones();
 
+    p = center;
     while(true)
     {
-      TPoint_3 tp = random(circumcenter, circumradius);
-      p = Trunk::transform_from_star_point(tp, star);
-
       if(this->m_stars_czones.status() != Stars_conflict_zones::CONFLICTS_UNKNOWN)
       {
         std::cout << "Conflicts zones should have been empty there" << std::endl;
@@ -856,7 +856,7 @@ private:
 
       if(tried_times++ > this->m_criteria->max_times_to_try_in_picking_region)
       {
-        p = Trunk::transform_from_star_point(circumcenter, star);
+        p = center;
         delete new_star;
         if(Mesher_lvl::is_point_in_conflict(p)) //modifies the lower level queue
         {
@@ -867,6 +867,9 @@ private:
         timer_pv.stop();
         return PICK_VALID_FAILED;
       }
+
+      TPoint_3 tp = random(circumcenter, circumradius);
+      p = Trunk::transform_from_star_point(tp, star);
     }
   }
 

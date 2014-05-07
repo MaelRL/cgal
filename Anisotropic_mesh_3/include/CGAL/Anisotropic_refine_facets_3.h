@@ -1179,14 +1179,12 @@ private:
 
     //possible trick#4, if(is_in_conflict(center)) then directly go to lower levels
 
+    p = center; // first test is the circumcenter
     while(true)
     {
-      p = compute_random_steiner_point(star, facet, tccf, circumradius);
-
 #ifdef ANISO_DEBUG_REFINEMENT
       star->debug_steiner_point(p, facet, false);
 #endif
-
       if(this->m_stars_czones.status() != Stars_conflict_zones::CONFLICTS_UNKNOWN)
       {
         std::cout << "Conflicts zones should have been empty there" << std::endl;
@@ -1224,6 +1222,8 @@ private:
         timer_pv.stop();
         return PICK_VALID_FAILED;
       }
+
+      p = compute_random_steiner_point(star, facet, tccf, circumradius);
     }
   }
 
