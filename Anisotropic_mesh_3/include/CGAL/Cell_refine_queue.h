@@ -2,8 +2,13 @@
 #define CGAL_ANISOTROPIC_MESH_3_CELL_REFINE_QUEUE_H
 
 #include <CGAL/Stretched_Delaunay_3.h>
-
 #include <CGAL/helpers/combinatorics_helper.h>
+
+#ifndef ANISO_USE_BOOST_UNORDERED_SET
+#define ANISO_USE_BOOST_UNORDERED_SET
+#include <boost/functional/hash.hpp>
+#include <boost/unordered_set.hpp>
+#endif
 
 #include <set>
 
@@ -19,6 +24,9 @@ template<typename K, typename KExact = K>
 class Refine_cell_iterator_comparer;
 
 template<typename K, typename KExact = K>
+class Refine_cell_hash;
+
+template<typename K, typename KExact = K>
 class Refine_cell
 {
   typedef Refine_cell<K, KExact>                            Self;
@@ -31,7 +39,16 @@ public:
 
   typedef Refine_cell_comparer<K, KExact>                   Rcell_comparer;
   typedef Refine_cell_iterator_comparer<K, KExact>          Rcell_it_comparer;
+  typedef Refine_cell_hash<K, KExact>                       Rcell_hash;
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+  typedef typename boost::unordered_set<Self,
+                                        Rcell_hash,
+                                        Rcell_comparer>     Rcell_set;
+#else
   typedef typename std::set<Self, Rcell_comparer>           Rcell_set;
+#endif
+
   typedef typename Rcell_set::iterator                      Rcell_set_iterator;
   typedef typename std::multiset<Rcell_set_iterator,
                                  Rcell_it_comparer>         Queue;
@@ -76,26 +93,48 @@ public:
   bool operator() (const Refine_cell<K, KExact>& left,
                    const Refine_cell<K, KExact>& right) const
   {
-    /* uncomment to only require unicity of the elements (allow the same cell to be inserted
-       from multiple stars)
-
-     if(std::equal(left.cell.vertices().begin(), left.cell.vertices().end(), right.cell.vertices().begin()))
-       return left.star->index_in_star_set() < right.star->index_in_star_set();
-    */
-
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+    return std::equal(left.cell.vertices().begin(), left.cell.vertices().end(), right.cell.vertices().begin());
+#else
     return std::lexicographical_compare(left.cell.vertices().begin(),
                                         left.cell.vertices().end(),
                                         right.cell.vertices().begin(),
                                         right.cell.vertices().end());
+#endif
   }
 };
+
+template<typename K, typename KExact>
+class Refine_cell_hash
+{
+public:
+  typedef Refine_cell<K, KExact>                           Rcell;
+
+  Refine_cell_hash(){}
+
+  std::size_t operator()(const Rcell& rc) const
+  {
+    return boost::hash_range(rc.cell.vertices().begin(),
+                             rc.cell.vertices().end());
+  }
+};
+
 
 template<typename K, typename KExact/* = K*/>
 class Refine_cell_iterator_comparer
 {
   typedef Refine_cell<K, KExact>                            Rcell;
   typedef Refine_cell_comparer<K, KExact>                   Rcell_comparer;
+  typedef Refine_cell_hash<K, KExact>                       Rcell_hash;
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+  typedef typename boost::unordered_set<Rcell,
+                                        Rcell_hash,
+                                        Rcell_comparer>     Rcell_set;
+#else
   typedef typename std::set<Rcell, Rcell_comparer>          Rcell_set;
+#endif
+
   typedef typename Rcell_set::iterator                      Rcell_set_iterator;
 
 public:
@@ -117,7 +156,16 @@ public:
   typedef Refine_cell<K, KExact>                                Rcell;
   typedef Refine_cell_comparer<K, KExact>                       Rcell_comparer;
   typedef Refine_cell_iterator_comparer<K, KExact>              Rcell_it_comparer;
+  typedef Refine_cell_hash<K, KExact>                           Rcell_hash;
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+  typedef typename boost::unordered_set<Rcell,
+                                        Rcell_hash,
+                                        Rcell_comparer>         Rcell_set;
+#else
   typedef typename std::set<Rcell, Rcell_comparer>              Rcell_set;
+#endif
+
   typedef typename Rcell_set::iterator                          Rcell_set_iterator;
   typedef typename std::multiset<Rcell_set_iterator,
                                  Rcell_it_comparer>             Queue;
@@ -165,18 +213,21 @@ private:
     std::cout << "with new values" << std::endl;
     std::cout << star->index_in_star_set() << " " << value << " " << queue_type << std::endl;
 */
-    //insert is amortized constant if the insertion is done after (c++03).
-    Rcell_set_iterator rcell_hint;
+
+    Rcell_set_iterator rcell_hint = rcells.end();
+    Queue_iterator queue_hint = queues[queue_type]->end();
+
+#ifndef ANISO_USE_BOOST_UNORDERED_SET
     if(rcell_it == rcells.begin())
       rcell_hint = rcells.end(); //can't use hint in that case, end() is safe
     else
       rcell_hint = (--rcell_it)++;
+#endif
 
     //In the general case, we don't know where the insertion will be. In the rejection case
     //the insertion is done at the end.
-    Queue_iterator queue_hint;
     if(!prev_rejection || queues[queue_type]->size() <= 1)
-      queue_hint = queues[queue_type]->end(); //can't use hint in that case, end() is safe
+      queue_hint = queues[queue_type]->end();
     else
       queue_hint = --(queues[queue_type]->end());
 
@@ -188,6 +239,10 @@ private:
 
     //clean both queues of that element
     queues[rcell_it->queue_type]->erase(rcell_it->queue_it);
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+    rcell_hint =
+#endif
     rcells.erase(rcell_it);
 
     //re-insert with the new values
@@ -382,13 +437,15 @@ public:
   }
 
 public:
-  Cell_refine_queue() :
-    encroachments(Rcell_it_comparer()),
-    over_distortions(Rcell_it_comparer()),
-    over_circumradii(Rcell_it_comparer()),
-    bad_shapes(Rcell_it_comparer()),
-    slivers(Rcell_it_comparer()),
-    inconsistents(Rcell_it_comparer())
+  Cell_refine_queue()
+    :
+      rcells(),
+      encroachments(Rcell_it_comparer()),
+      over_distortions(Rcell_it_comparer()),
+      over_circumradii(Rcell_it_comparer()),
+      bad_shapes(Rcell_it_comparer()),
+      slivers(Rcell_it_comparer()),
+      inconsistents(Rcell_it_comparer())
   {
     queues[encroachment_queue] = &encroachments;
     queues[over_distortion_queue] = &over_distortions;

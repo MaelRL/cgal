@@ -2,8 +2,13 @@
 #define CGAL_ANISOTROPIC_MESH_3_FACET_REFINE_QUEUE_H
 
 #include <CGAL/Stretched_Delaunay_3.h>
-
 #include <CGAL/helpers/combinatorics_helper.h>
+
+#ifndef ANISO_USE_BOOST_UNORDERED_SET
+#define ANISO_USE_BOOST_UNORDERED_SET
+#include <boost/functional/hash.hpp>
+#include <boost/unordered_set.hpp>
+#endif
 
 #include <set>
 
@@ -19,6 +24,9 @@ template<typename K, typename KExact = K>
 class Refine_facet_iterator_comparer;
 
 template<typename K, typename KExact = K>
+class Refine_facet_hash;
+
+template<typename K, typename KExact = K>
 class Refine_facet
 {
   typedef Refine_facet<K, KExact>                           Self;
@@ -31,7 +39,16 @@ public:
 
   typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
   typedef Refine_facet_iterator_comparer<K, KExact>         Rfacet_it_comparer;
+  typedef Refine_facet_hash<K, KExact>                      Rfacet_hash;
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+  typedef typename boost::unordered_set<Self,
+                                        Rfacet_hash,
+                                        Rfacet_comparer>    Rfacet_set;
+#else
   typedef typename std::set<Self, Rfacet_comparer>          Rfacet_set;
+#endif
+
   typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
   typedef typename std::multiset<Rfacet_set_iterator,
                                  Rfacet_it_comparer>        Queue;
@@ -73,19 +90,34 @@ class Refine_facet_comparer
 {
 public:
   Refine_facet_comparer() { }
-  bool operator() (const Refine_facet<K> &left, const Refine_facet<K> &right) const
+  bool operator() (const Refine_facet<K, KExact>& left,
+                   const Refine_facet<K, KExact>& right) const
   {
-    /* uncomment to only require unicity of the elements (allow the same facet to be inserted
-       from multiple stars)
-
-     if(std::equal(left.facet.vertices.begin(), left.facet.vertices.end(), right.facet.vertices().begin())
-       return left.star->index_in_star_set() < right.star->index_in_star_set();
-    */
-
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+    return std::equal(left.facet.vertices().begin(),
+                      left.facet.vertices().end(),
+                      right.facet.vertices().begin());
+#else
     return std::lexicographical_compare(left.facet.vertices().begin(),
                                         left.facet.vertices().end(),
                                         right.facet.vertices().begin(),
                                         right.facet.vertices().end());
+#endif
+  }
+};
+
+template<typename K, typename KExact>
+class Refine_facet_hash
+{
+public:
+  typedef Refine_facet<K, KExact>                           Rfacet;
+
+  Refine_facet_hash(){}
+
+  std::size_t operator()(const Rfacet& rf) const
+  {
+    return boost::hash_range(rf.facet.vertices().begin(),
+                             rf.facet.vertices().end());
   }
 };
 
@@ -94,13 +126,23 @@ class Refine_facet_iterator_comparer
 {
   typedef Refine_facet<K, KExact>                           Rfacet;
   typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+  typedef typename boost::unordered_set<Rfacet,
+                                        Refine_facet_hash<K, KExact>,
+                                        Rfacet_comparer>    Rfacet_set;
+#else
   typedef typename std::set<Rfacet, Rfacet_comparer>        Rfacet_set;
+#endif
+
   typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
+  typedef typename Rfacet_set::const_iterator               Rfacet_set_c_iterator;
 
 public:
   Refine_facet_iterator_comparer() { }
-  bool operator() (const Rfacet_set_iterator left,
-                   const Rfacet_set_iterator right) const
+
+  bool operator() (Rfacet_set_iterator left,
+                   Rfacet_set_iterator right) const
   {
     return left->value > right->value;
   }
@@ -116,8 +158,17 @@ public:
   typedef Refine_facet<K, KExact>                           Rfacet;
   typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
   typedef Refine_facet_iterator_comparer<K, KExact>         Rfacet_it_comparer;
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+  typedef typename boost::unordered_set<Rfacet,
+                                        Refine_facet_hash<K, KExact>,
+                                        Rfacet_comparer>    Rfacet_set;
+#else
   typedef typename std::set<Rfacet, Rfacet_comparer>        Rfacet_set;
+#endif
+
   typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
+
   typedef typename std::multiset<Rfacet_set_iterator,
                                  Rfacet_it_comparer>        Queue;
   typedef typename Queue::iterator                          Queue_iterator;
@@ -165,18 +216,20 @@ private:
     std::cout << star->index_in_star_set() << " " << value << " " << queue_type << std::endl;
 */
 
-    //insert is amortized constant if the insertion is done after (c++03).
-    Rfacet_set_iterator rfacet_hint;
+    Rfacet_set_iterator rfacet_hint = rfacets.end();
+    Queue_iterator queue_hint = queues[queue_type]->end();
+
+#ifndef ANISO_USE_BOOST_UNORDERED_SET
     if(rfacet_it == rfacets.begin())
       rfacet_hint = rfacets.end(); //can't use hint in that case, end() is safe
     else
       rfacet_hint = (--rfacet_it)++;
+#endif
 
     //In the general case, we don't know where the insertion will be. In the rejection case
     //the insertion is done at the end.
-    Queue_iterator queue_hint;
     if(!prev_rejection || queues[queue_type]->size() <= 1)
-      queue_hint = queues[queue_type]->end(); //can't use hint in that case, end() is safe
+      queue_hint = queues[queue_type]->end();
     else
       queue_hint = --(queues[queue_type]->end());
 
@@ -188,6 +241,10 @@ private:
 
     //clean both queues of that element
     queues[rfacet_it->queue_type]->erase(rfacet_it->queue_it);
+
+#ifdef ANISO_USE_BOOST_UNORDERED_SET
+    rfacet_hint =
+#endif
     rfacets.erase(rfacet_it);
 
     //re-insert with the new values
@@ -382,13 +439,15 @@ public:
   }
 
 public:
-  Facet_refine_queue() :
-    encroachments(Rfacet_it_comparer()),
-    over_distortions(Rfacet_it_comparer()),
-    over_circumradii(Rfacet_it_comparer()),
-    over_approximation(Rfacet_it_comparer()),
-    bad_shapes(Rfacet_it_comparer()),
-    inconsistents(Rfacet_it_comparer())
+  Facet_refine_queue()
+    :
+      rfacets(),
+      encroachments(Rfacet_it_comparer()),
+      over_distortions(Rfacet_it_comparer()),
+      over_circumradii(Rfacet_it_comparer()),
+      over_approximation(Rfacet_it_comparer()),
+      bad_shapes(Rfacet_it_comparer()),
+      inconsistents(Rfacet_it_comparer())
   {
     queues[encroachment_queue] = &encroachments;
     queues[over_distortion_queue] = &over_distortions;
