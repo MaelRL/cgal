@@ -19,6 +19,16 @@ public:
   FT a, b, c;
 
 public:
+  //  double global_max_sq_eigenvalue() const
+  //  {
+  //    return -1e30; // theory to check : a/c² (a > b > c)
+  //  }
+
+  //  double global_min_sq_eigenvalue() const
+  //  {
+  //    return 1e30; // theory to check : c/a² (a > b > c)
+  //  }
+
   virtual void report(typename std::ofstream &fx) const {
     fx << "type:   ellipsoid" << std::endl;
     fx << "a, b, c :  " << a << " " << b << " " << c << std::endl;

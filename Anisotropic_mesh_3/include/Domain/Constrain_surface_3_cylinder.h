@@ -84,15 +84,6 @@ public:
   {
     return new Constrain_surface_3_cylinder(*this);
   }
-
-  virtual double global_max_curvature() const
-  {
-    return 1. / radius;
-  }
-  virtual double global_min_curvature() const
-  {
-    return 0.;
-  }
   
   Point_container initial_points(const int nb = 8) const
   {

@@ -41,6 +41,28 @@ public:
   FT epsilon;
   double en_factor;
 
+  mutable double m_max_sq_eigenvalue;
+  mutable double m_min_sq_eigenvalue;
+  mutable bool m_cache_max_sq_eigenvalue;
+  mutable bool m_cache_min_sq_eigenvalue;
+
+  virtual double global_max_sq_eigenvalue() const
+  {
+    std::cout << "max sq ev not defined for this mf" << std::endl;
+    return 0.;
+  }
+
+  virtual double global_min_sq_eigenvalue() const
+  {
+    std::cout << "min sq ev not defined for this mf" << std::endl;
+    return 0.;
+  }
+
+  virtual void min_max_sq_eigenvalues(const Point_3&, double&, double&) const
+  {
+    std::cout << "min/max sq evs not defined for this mf" << std::endl;
+  }
+
   virtual Metric compute_metric(const Point_3 &p) const = 0;
 
   Metric uniform_metric(const Point_3& p) const
@@ -112,9 +134,14 @@ public:
   virtual void report(typename std::ofstream &fx) const = 0;
 
   Metric_field(FT epsilon_ = 1.0,
-               const double& en_factor_ = 0.999) // to avoid the degen case of two equal evs
-    : epsilon(epsilon_),
-      en_factor(en_factor_)
+               FT en_factor_ = 0.999) // to avoid the degen case of two equal evs
+    :
+      epsilon(epsilon_),
+      en_factor(en_factor_),
+      m_max_sq_eigenvalue(0.),
+      m_min_sq_eigenvalue(1e30),
+      m_cache_max_sq_eigenvalue(false),
+      m_cache_min_sq_eigenvalue(false)
   { }
 
   virtual ~Metric_field ( ) { }

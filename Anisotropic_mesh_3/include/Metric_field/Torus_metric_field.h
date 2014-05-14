@@ -36,6 +36,16 @@ public:
     FT R, r;
 
 public:
+  double global_max_sq_eigenvalue() const
+  {
+    return 1./r;
+  }
+
+  double global_min_sq_eigenvalue() const
+  {
+    return 0.;
+  }
+
   virtual void report(typename std::ofstream &fx) const
   {
     fx << "type:   torus" << std::endl;

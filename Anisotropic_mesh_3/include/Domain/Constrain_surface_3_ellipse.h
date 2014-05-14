@@ -59,15 +59,6 @@ public:
     return x*x/(a*a) + y*y/(b*b) + z*z/(c*c) - 1.0;
   }
 
-//  virtual double global_max_curvature() const
-//  {
-//    return 1e30; // theory to check : a/c² (a > b > c)
-//  }
-//  virtual double global_min_curvature() const
-//  {
-//    return -1e30; // theory to check : c/a² (a > b > c)
-//  }
-
   Point_container initial_points(const int nb = 8) const 
   {
     Point_container points;

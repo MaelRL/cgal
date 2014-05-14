@@ -65,17 +65,6 @@ public:
     return  1.0 - std::exp(-0.7*first_elli) - std::exp(-0.7*second_elli);
   }
 
-//  virtual double global_max_curvature() const
-//  {
-//    std::cout << "using bad curv values" << std::endl;
-//    return 1e30; //todo
-//  }
-//  virtual double global_min_curvature() const
-//  {
-//    std::cout << "using bad curv values" << std::endl;
-//    return -1e30; //todo
-//  }
-
   Point_container initial_points(const int nb = 8) const 
   {
     Point_container points;

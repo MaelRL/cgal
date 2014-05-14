@@ -17,7 +17,6 @@
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_POLYHEDRAL_H
 
 #include <CGAL/Cartesian.h>
-#include <CGAL/Monge_via_jet_fitting.h>
 
 #include <string>
 #include <fstream>
@@ -84,9 +83,6 @@ class Constrain_surface_3_polyhedral :
       typedef typename Tree::Object_and_primitive_id Object_and_primitive_id;
       typedef typename Tree::Point_and_primitive_id Point_and_primitive_id;
 
-      typedef typename CGAL::Monge_via_jet_fitting<K> My_Monge_via_jet_fitting;
-      typedef typename My_Monge_via_jet_fitting::Monge_form     My_Monge_form;
-
       typedef typename Polyhedron::Vertex_handle    Vertex_handle;
       typedef typename Polyhedron::Facet_handle     Facet_handle;
       typedef typename Polyhedron::Halfedge_handle  Halfedge_handle;
@@ -121,7 +117,6 @@ class Constrain_surface_3_polyhedral :
       int          point_count;
 
       std::vector<Vertex_handle> m_vertices;
-      std::vector<typename Eigen::Matrix3d> m_metrics;
 
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
       std::ofstream* min_vector_field_os;
@@ -132,11 +127,6 @@ class Constrain_surface_3_polyhedral :
     protected:
       mutable C3t3 m_c3t3;
 
-      mutable double m_max_curvature;
-      mutable double m_min_curvature;
-      mutable bool m_cache_max_curvature;
-      mutable bool m_cache_min_curvature;
-      
     public:
       virtual FT get_bounding_radius() const { return bounding_radius; }
       virtual std::string name() const { return std::string("Polyhedron"); }
@@ -208,99 +198,6 @@ class Constrain_surface_3_polyhedral :
       FT compute_sq_approximation(const Point_3& p) const
       {
         return tree->squared_distance(p);
-      }
-
-      virtual void tensor_frame_on_input_point(Vertex_handle v, 
-        Vector_3 &v0/*n*/, Vector_3 &v1/*vmax*/, Vector_3 &v2/*vmin*/,//unit vectors
-        FT& c1/*cmax*/, FT& c2/*cmin*/,
-        const FT& epsilon) 
-      {
-        std::vector<Vertex_handle> points;
-        find_nearest_vertices(v, points, 36/*, max_sqd=0 by default*/);
-//          nearest_start_try_radius*nearest_start_try_radius);
-
-        std::vector<Point_3> points_geo;
-        for(std::size_t i=0; i<points.size(); ++i)
-          points_geo.push_back(points[i]->point());
-
-        My_Monge_form monge_form;
-        My_Monge_via_jet_fitting monge_fit;
-        monge_form = monge_fit(points_geo.begin(), points_geo.end(), 4, 4);
-
-        FT maxc = monge_form.principal_curvatures(0);
-        FT minc = monge_form.principal_curvatures(1);
-        v0 = monge_form.normal_direction();
-
-        if(minc >= 0.)
-        {
-          c1 = (std::max)(epsilon, fabs(maxc));
-          c2 = (std::max)(epsilon, fabs(minc));
-          v1 = monge_form.maximal_principal_direction();
-          v2 = monge_form.minimal_principal_direction();
-        }
-        else if(maxc <= 0.)
-        {
-          c2 = (std::max)(epsilon, fabs(maxc));
-          c1 = (std::max)(epsilon, fabs(minc));
-          v2 = monge_form.maximal_principal_direction();
-          v1 = monge_form.minimal_principal_direction();
-        }
-        else //minc < 0 && maxc > 0
-        {
-          FT abs_min = fabs(minc);
-          if(abs_min < maxc)
-          {
-            c1 = (std::max)(epsilon, fabs(maxc));
-            c2 = (std::max)(epsilon, fabs(minc));
-            v1 = monge_form.maximal_principal_direction();
-            v2 = monge_form.minimal_principal_direction();
-          }
-          else
-          {
-            c2 = (std::max)(epsilon, fabs(maxc));
-            c1 = (std::max)(epsilon, fabs(minc));
-            v2 = monge_form.maximal_principal_direction();
-            v1 = monge_form.minimal_principal_direction();
-          }
-        }
-      }
-
-      void tensor_frame(const Point_3 &p,
-                        Vector_3 &v0,     //unit normal
-                        Vector_3 &v1,     //unit eigenvector
-                        Vector_3 &v2,     //unit eigenvector
-                        double& e0,       //eigenvalue corresponding to v0
-                        double& e1,       //eigenvalue corresponding to v1
-                        double& e2) const //eigenvalue corresponding to v2
-      {
-        //Compute with interpolations & barycentric coordinates
-        Facet_handle facet = find_nearest_facet(p);
-        Vertex_handle va = facet->halfedge()->vertex();
-        Vertex_handle vb = facet->halfedge()->next()->vertex();
-        Vertex_handle vc = facet->halfedge()->next()->next()->vertex();
-
-        //get bary weights
-        Vector_3 v00(va->point(), vb->point());
-        Vector_3 v11(va->point(), vc->point());
-        Vector_3 v22(va->point(), p);
-        FT d00 = v00*v00;
-        FT d01 = v00*v11;
-        FT d11 = v11*v11;
-        FT d20 = v22*v00;
-        FT d21 = v22*v11;
-        FT denom = d00 * d11 - d01 * d01;
-        FT v = (d11 * d20 - d01 * d21) / denom;
-        FT w = (d00 * d21 - d01 * d20) / denom;
-        FT u = 1.0f - v - w;
-
-        std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
-        w_metrics.push_back(std::make_pair(m_metrics[va->tag()], u));
-        w_metrics.push_back(std::make_pair(m_metrics[vb->tag()], v));
-        w_metrics.push_back(std::make_pair(m_metrics[vc->tag()], w));
-        Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
-        m = logexp_interpolate<K>(w_metrics);
-
-        get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
       }
 
       void find_neighbors(Facet_handle facet, 
@@ -553,306 +450,6 @@ class Constrain_surface_3_polyhedral :
           sqrt((4 * bounding_radius * bounding_radius) / ((FT)m_vertices.size() * 2.0));
       }
 
-      void get_metrics_from_file(std::ifstream& input,
-                                 const FT& epsilon,
-                                 const FT& en_factor = 0.999)
-      {
-        std::cout << "reading metrics from file" << std::endl;
-        size_t nv;
-        input >> nv;
-        if(nv != m_vertices.size())
-        {
-          std::cerr << "input metric file is not adapted to the polyhedron" << std::endl;
-          return;
-        }
-
-        FT x,y,z;
-        FT e1, e2, en;
-        Vector_3 v1, v2, vn;
-        Point_3 pi;
-
-        for (std::size_t i = 0; i < m_vertices.size(); ++i)
-        {
-          input >> x >> y >> z;
-          pi = Point_3(x,y,z);
-          input >> e1 >> e2;
-          input >> x >> y >> z;
-          v1 = Vector_3(x,y,z);
-          input >> x >> y >> z;
-          v2 = Vector_3(x,y,z);
-          input >> x >> y >> z;
-          vn = Vector_3(x,y,z);
-
-          e1 = std::sqrt(std::abs(e1));
-          e2 = std::sqrt(std::abs(e2));
-          en = en_factor*(std::max)(e1, e2);
-
-          m_vertices[i]->normal() = vn;
-
-          Metric_base<K, K> M(vn, v1, v2, en, e1, e2, epsilon);
-          Eigen::Matrix3d transf = M.get_transformation();
-          m_metrics.push_back(transf.transpose()*transf);
-
-#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          FT f = get_bounding_radius()*0.02;
-          (*normals_field_os) << "2 " << pi << " " << (pi+f*vn) << std::endl;
-          if(e1>e2)
-          {
-            (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
-            (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
-          }
-          else
-          {
-            (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
-            (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
-          }
-#endif
-        }
-      }
-
-      void compute_local_metric(const FT& epsilon,
-                                const FT& en_factor,
-                                const bool smooth_metric = false)
-      {
-        std::cout << "\nComputing local metric..." << std::endl;
-        m_max_curvature = 0.;
-        m_min_curvature = DBL_MAX;
-
-        std::ofstream out("poly_curvatures.txt");
-        out << m_vertices.size() << std::endl;
-
-        for (std::size_t i = 0; i < m_vertices.size(); ++i)
-        {
-          if (i % 100 == 0)
-            std::cout << ".";
-
-          Vector_3 vn, v1, v2;
-          FT e1, e2, en;
-          tensor_frame_on_input_point(m_vertices[i], 
-            vn/*normal*/, v1/*vmax*/, v2/*vmin*/,
-            e1/*cmax*/, e2/*cmin*/, epsilon);
-
-          en = en_factor*(std::max)(e1, e2);
-          m_max_curvature = (std::max)(m_max_curvature, en);
-          m_min_curvature = (std::min)(m_min_curvature, (std::min)(e1, e2));
-
-          e1 = std::sqrt(e1);
-          e2 = std::sqrt(e2);
-          en = en_factor*(std::max)(e1, e2);
-
-          const Point_3& pi = m_vertices[i]->point();
-//          tensor_frame_on_point(pi, vn, v1, v2, e1, e2, epsilon);
-
-          out << pi.x() << " " << pi.y() << " " << pi.z() << std::endl;
-          out << e1 << " " << e2 << "     ";
-          out << v1.x() << " " << v1.y() << " " << v1.z() << "     ";
-          out << v2.x() << " " << v2.y() << " " << v2.z() << "     ";
-          out << vn.x() << " " << vn.y() << " " << vn.z() << std::endl;
-
-#ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          if(!smooth_metric)
-          {
-            FT f = get_bounding_radius()*0.02;
-            (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
-            (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
-            (*normals_field_os) << "2 " << pi << " " << (pi+f*vn) << std::endl;
-          }
-#endif
-
-          std::size_t index = m_vertices[i]->tag();
-          if(i != index) 
-            std::cerr << "Error1 in indices in compute_local_metric!" << std::endl;
-
-          m_vertices[i]->normal() = vn;
-
-          Metric_base<K, K> m(vn, v1, v2, en, e1, e2, epsilon);
-          Eigen::Matrix3d transf = m.get_transformation();
-          m_metrics.push_back(transf.transpose()*transf);
-
-          //if(m_metrics.size() != i+1 )
-          //  std::cerr << "Error3 in indices in compute_local_metric!" << std::endl;
-        }
-
-        m_cache_max_curvature = true;
-        m_cache_min_curvature = true;
-        std::cout << "done." << std::endl;
-      }
-
-      void heat_kernel_smoothing(const FT& epsilon)
-      {
-        std::cout << "Smoothing the metric field" << std::endl;
-        int smooth_step_n = 3;
-
-        while(smooth_step_n--)
-        {
-          std::cout << "computing new metrics... steps left : " << smooth_step_n << std::endl;
-
-          std::vector<typename Eigen::Matrix3d> temp_m_metrics;
-          for (std::size_t i = 0; i < m_vertices.size(); ++i)
-          {
-            Vertex_handle vi = m_vertices[i];
-
-            std::vector<Vertex_handle> points;
-            std::set<Vertex_handle> visited;
-            std::map<FT,Vertex_handle> ring;
-            std::vector<FT> sq_distances;
-
-            //find first ring neighbours
-            visited.insert(vi);
-            find_ring_vertices(vi->point(), vi, visited, ring);
-            typename std::map<FT, Vertex_handle>::iterator it = ring.begin();
-            while(it != ring.end())
-              points.push_back((*it++).second);
-
-            points.push_back(vi);
-
-            FT dist_sum = 0.;
-            for(std::size_t j=0; j<points.size(); ++j)
-            {
-              sq_distances.push_back(CGAL::squared_distance(vi->point(), points[j]->point()));
-              dist_sum += std::sqrt(sq_distances[j]);
-            }
-            FT sigma = dist_sum/((FT) points.size());
-            FT coeff = -1./(2*sigma*sigma);
-
-            //coeff W_sigma
-            std::vector<FT> wsigmas(points.size());
-            FT w_sigmas_sum = 0.;
-
-            for(std::size_t j=0; j<points.size(); ++j)
-            {
-              FT sq_dist = sq_distances[j];
-              FT w = std::exp(coeff * sq_dist);
-              w_sigmas_sum += w;
-              wsigmas[j] = w;
-            }
-
-            for(std::size_t j=0; j<points.size(); ++j)
-              wsigmas[j] /= w_sigmas_sum;
-
-            //compute diffusion for each coeff of the tensor
-            Eigen::Matrix3d new_tensor_at_vi = Eigen::Matrix3d::Zero();
-
-            for(int j = 0; j < 3; j++)
-              for(int k = 0; k < 3; k++)
-                for(std::size_t l=0; l<points.size(); ++l)
-                  new_tensor_at_vi(j,k) += wsigmas[l] * m_metrics[points[l]->tag()](j,k); //neighbours
-
-            //compute new principal directions & curvature values
-            double e0,e1,e2;
-            Vector_3 v0,v1,v2;
-            get_eigen_vecs_and_vals<K>(new_tensor_at_vi, v0, v1, v2, e0, e1, e2);
-
-            Vector_3 ni = vi->normal();
-            FT sp0 = std::abs(v0*ni);
-            FT sp1 = std::abs(v1*ni);
-            FT sp2 = std::abs(v2*ni);
-            FT max_sp = (std::max)(sp0,(std::max)(sp1,sp2));
-
-            FT temp_e, temp_sp;
-            Vector_3 temp_v;
-
-            if(sp1 == max_sp)
-            {
-              temp_e = e0;
-              e0 = e1;
-              e1 = e2;
-              e2 = temp_e;
-
-              temp_v = v0;
-              v0 = v1;
-              v1 = v2;
-              v2 = temp_v;
-
-              temp_sp = sp0;
-              sp0 = sp1;
-              sp1 = sp2;
-              sp2 = temp_sp;
-            }
-            else if(sp2 == max_sp)
-            {
-              temp_e = e0;
-              e0 = e2;
-              e2 = e1;
-              e1 = temp_e;
-
-              temp_v = v0;
-              v0 = v2;
-              v2 = v1;
-              v1 = temp_v;
-
-              temp_sp = sp0;
-              sp0 = sp2;
-              sp2 = sp1;
-              sp1 = temp_sp;
-            }
-
-            //projection on the tangent plane
-            v1 = v1-(v1*ni)*ni;
-            v2 = v2-(v2*ni)*ni;
-
-            v1 = v1/CGAL::sqrt(v1*v1);
-            v2 = v2/CGAL::sqrt(v2*v2);
-
-            //orthogonalize v2 to v1...
-            v2 = v2 - (v2*v1)*v1;
-            v2 = v2/CGAL::sqrt(v2*v2);
-
-#ifdef ANISO_DEBUG_HEAT_KERNEL
-            std::cout << "point is : " << vi->tag() << " || " << vi->point() << std::endl;
-
-            std::cout << points.size() << " neighbours" << std::endl;
-            for(std::size_t j=0; j<points.size(); ++j)
-                std::cout << " " << points[j]->tag() << " ";
-            std::cout << std::endl;
-
-            std::cout << "sigma sum : " << w_sigmas_sum << std::endl;
-            for(std::size_t j=0; j<points.size(); ++j)
-                std::cout << wsigmas[j] << " ";
-            std::cout << std::endl;
-
-            std::cout << "old tensor : " << std::endl << m_metrics[i] << std::endl;
-            std::cout << "new tensor : " << std::endl << new_tensor_at_vi << std::endl;
-
-            std::cout << "ni : " << ni << std::endl;
-            std::cout << "evs & vs: " << std::endl;
-            std::cout << e0 << " || " << v0 << " || " << sp0 << std::endl; //should be the normal in new basis
-            std::cout << e1 << " || " << v1 << " || " << sp1 << std::endl;
-            std::cout << e2 << " || " << v2 << " || " << sp2 << std::endl;
-#endif
-
-            //new metric
-            Metric_base<K, K> M(ni, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2), epsilon);
-            Eigen::Matrix3d transf = M.get_transformation();
-            temp_m_metrics.push_back(transf.transpose()*transf);
-
- #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-            if(smooth_step_n == 0)
-            {
-              Point_3 pi = vi->point();
-              FT f = get_bounding_radius()*0.02;
-              (*normals_field_os) << "2 " << pi << " " << (pi+f*v0) << std::endl;
-              if(e1 > e2)
-              {
-                (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
-                (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
-              }
-              else
-              {
-                (*min_vector_field_os) << "2 " << pi << " " << (pi+f*v1) << std::endl;
-                (*max_vector_field_os) << "2 " << pi << " " << (pi+f*v2) << std::endl;
-              }
-            }
-#endif
-          }
-
-          //update all the metrics
-          m_metrics = temp_m_metrics;
-        }
-
-        std::cout << "smoothed the metric field!" << std::endl;
-      }
-
       virtual void compute_poles(std::set<Point_3>& poles) const
       {
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
@@ -916,72 +513,14 @@ class Constrain_surface_3_polyhedral :
         return Point_container(all_points.begin(), (all_points.begin() + nb));
       }
 
-      virtual double global_max_curvature() const
-      {
-        if(m_cache_max_curvature)
-          return m_max_curvature;
-
-        m_max_curvature = 0.;
-        m_min_curvature = DBL_MAX;
-        typename C3t3::Triangulation::Finite_vertices_iterator v;
-        for(v = m_c3t3.triangulation().finite_vertices_begin();
-            v != m_c3t3.triangulation().finite_vertices_end();
-            ++v)
-        {
-          double minc, maxc;
-          min_max_curvatures(v->point(), minc, maxc);
-          m_max_curvature = (std::max)(m_max_curvature, maxc);
-          m_min_curvature = (std::min)(m_min_curvature, minc);
-        }
-        m_cache_max_curvature = true;
-        m_cache_min_curvature = true;
-        return m_max_curvature;
-      }
-
-      virtual double global_min_curvature() const
-      {
-        if(m_cache_min_curvature)
-          return m_min_curvature;
-
-        global_max_curvature(); //computes both max and min
-
-        return m_min_curvature;
-      }
-
-      void min_max_curvatures(const Point_3& p,
-                              double& minc, 
-                              double& maxc) const
-      {
-        Vector_3 v0, v1, v2;
-        double e0, e1, e2;
-        tensor_frame(p, v0, v1, v2, e0, e1, e2);
-        minc = (std::min)(e0, (std::min)(e1, e2));
-        maxc = (std::max)(e0, (std::max)(e1, e2));
-      }
-
-      void initialize(const FT& epsilon,
-                      const FT& en_factor = 0.999,
-                      const bool smooth_metric = false)
+      void initialize()
       {
         set_aabb_tree();
         
         point_count = (int)m_polyhedron.size_of_vertices();
         m_vertices.reserve(point_count);
-        m_metrics.reserve(point_count);
 
         compute_bounding_box();
-
-        std::ifstream metric_input("metrics.txt");
-        if(metric_input)
-          get_metrics_from_file(metric_input, epsilon, en_factor);
-        else
-          compute_local_metric(epsilon, en_factor, smooth_metric);
-        //note todo: not a txt file =/> it is a curvature field. So it's a waste
-        //to compute the curv metric field if the mfield is euclidean for example.
-
-        std::ifstream is_file_present("smoothing.txt"); //dummy file to switch on/off
-        if(is_file_present)
-          heat_kernel_smoothing(epsilon);
       }
 
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
@@ -989,41 +528,31 @@ class Constrain_surface_3_polyhedral :
         gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
       }
 
-      Constrain_surface_3_polyhedral(const char *filename,
-                                     const FT& epsilon,
-                                     const FT& en_factor = 0.999,
-                                     const bool smooth_metric = false)
-        : m_vertices(),
-          m_metrics(),
-          m_cache_max_curvature(false), 
-          m_cache_min_curvature(false)
-        {
+      Constrain_surface_3_polyhedral(const char *filename)
+        :
+          m_vertices()
+      {
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          min_vector_field_os = new std::ofstream("vector_field_min.polylines.cgal");
-          max_vector_field_os = new std::ofstream("vector_field_max.polylines.cgal");
-          normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
+        min_vector_field_os = new std::ofstream("vector_field_min.polylines.cgal");
+        max_vector_field_os = new std::ofstream("vector_field_max.polylines.cgal");
+        normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
 #endif
-          set_domain_and_polyhedron(filename);
-          initialize(epsilon, en_factor, smooth_metric);
-        }
+        set_domain_and_polyhedron(filename);
+        initialize();
+      }
 
-      Constrain_surface_3_polyhedral(const Polyhedron& p, 
-                                     const FT& epsilon,
-                                     const FT& en_factor = 0.999,
-                                     const bool smooth_metric = false)
-        : m_vertices(),
-          m_metrics(),
-          m_cache_max_curvature(false), 
-          m_cache_min_curvature(false)
-        {
+      Constrain_surface_3_polyhedral(const Polyhedron& p)
+        :
+          m_vertices()
+      {
 #ifdef CGAL_DEBUG_OUTPUT_VECTOR_FIELD
-          min_vector_field_os = new std::ofstream("vector_field_min.polylines.cgal");
-          max_vector_field_os = new std::ofstream("vector_field_max.polylines.cgal");
-          normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
+        min_vector_field_os = new std::ofstream("vector_field_min.polylines.cgal");
+        max_vector_field_os = new std::ofstream("vector_field_max.polylines.cgal");
+        normals_field_os = new std::ofstream("vector_field_normals.polylines.cgal");
 #endif
-          set_domain_and_polyhedron(p);
-          initialize(epsilon, en_factor, smooth_metric);
-        }
+        set_domain_and_polyhedron(p);
+        initialize();
+      }
 
       Constrain_surface_3_polyhedral* clone() const
       {

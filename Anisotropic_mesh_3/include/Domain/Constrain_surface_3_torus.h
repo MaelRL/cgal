@@ -94,15 +94,6 @@ public:
       return Base::initial_points(points,seeds, 0.05, nb);
   }
 
-  virtual double global_max_curvature() const
-  {
-    return 1./r;
-  }
-  virtual double global_min_curvature() const
-  {
-    return 0.; //in theory -1/(R-r), but positive values taken only
-  }
-
   Point_3 point_on_surface(const FT& u/*small circle*/, 
                            const FT& v/*big circle*/) const
   {

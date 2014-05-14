@@ -104,15 +104,6 @@ public:
     return Base::initial_points(points,seeds, 0.05, nb);
   }
 
-  virtual double global_max_curvature() const
-  {
-    return 10;
-  }
-  virtual double global_min_curvature() const
-  {
-    return 0.;
-  }
-
   Constrain_surface_3_cyclide* clone() const // Covariant Return Types
   { 
     return new Constrain_surface_3_cyclide(*this);

@@ -31,6 +31,16 @@ public:
   typedef typename Base::Vector_3 Vector_3;
 
 public:
+  double global_max_sq_eigenvalue() const
+  {
+    return 1.;
+  }
+
+  double global_min_sq_eigenvalue() const
+  {
+    return 1.;
+  }
+
   virtual void report(typename std::ofstream &fx) const
   {
     fx << "type:   spherical" << std::endl;

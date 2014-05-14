@@ -61,15 +61,6 @@ public:
     return Point_container(ip.begin(), ip.end());
   }
 
-  virtual double global_max_curvature() const
-  {
-    return 1.;
-  }
-  virtual double global_min_curvature() const
-  {
-    return 1.;
-  }
-
   virtual void compute_poles(std::set<Point_3>& poles) const
   {
     // warning : the sphere is a degenerate case

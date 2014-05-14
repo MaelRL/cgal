@@ -104,11 +104,6 @@ namespace CGAL{
       mutable C3t3 m_c3t3;
       FT error_bound;
 
-      mutable double m_max_curvature;
-      mutable double m_min_curvature;
-      mutable bool m_cache_max_curvature;
-      mutable bool m_cache_min_curvature;
-
     public:
       virtual FT get_bounding_radius() const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
@@ -228,190 +223,6 @@ public:
         }
       }
 
-      Eigen::Matrix3d hessian(const Point_3 &p, const FT delta = 1e-5) const
-      {
-        Vector_3 xp = gradient(Point_3(p.x() + delta, p.y(), p.z()), delta);
-        Vector_3 xn = gradient(Point_3(p.x() - delta, p.y(), p.z()), delta);
-        Vector_3 yp = gradient(Point_3(p.x(), p.y() + delta, p.z()), delta);
-        Vector_3 yn = gradient(Point_3(p.x(), p.y() - delta, p.z()), delta);
-        Vector_3 zp = gradient(Point_3(p.x(), p.y(), p.z() + delta), delta);
-        Vector_3 zn = gradient(Point_3(p.x(), p.y(), p.z() - delta), delta);
-        FT dd = 1. / (2. * delta);
-        Eigen::Matrix3d m;
-        m(0,0) = dd*(xp.x() - xn.x()); m(0,1) = dd*(yp.x() - yn.x()); m(0,2) = dd*(zp.x() - zn.x());
-        m(1,0) = dd*(xp.y() - xn.y()); m(1,1) = dd*(yp.y() - yn.y()); m(1,2) = dd*(zp.y() - zn.y());
-        m(2,0) = dd*(xp.z() - xn.z()); m(2,1) = dd*(yp.z() - yn.z()); m(2,2) = dd*(zp.z() - zn.z());
-        return m;
-      }
-
-      int are_zeros(const double& d1, const double& d2, const double& d3,
-                    bool& z1, bool& z2, bool& z3) const
-      {
-        int count = 0;
-        z1 = (std::abs(d1) < ZERO_EIGENVALUE);  if(z1) count++;
-        z2 = (std::abs(d2) < ZERO_EIGENVALUE);  if(z2) count++;
-        z3 = (std::abs(d3) < ZERO_EIGENVALUE);  if(z3) count++;
-        return count;
-      }
-
-      void tensor_frame(const Point_3 &p,
-                        Vector_3 &v0, //unit normal
-                        Vector_3 &v1, //unit eigenvector
-                        Vector_3 &v2, //unit eigenvector
-                        double& e0, //eigenvalue corresponding to v0
-                        double& e1, //eigenvalue corresponding to v1
-                        double& e2, //eigenvalue corresponding to v2
-                        const FT delta = 1e-5) const
-      {
-        // method in the book
-        Vector_3 gx = gradient(p, delta);
-        Eigen::Vector3d grad(gx.x(), gx.y(), gx.z());
-        double gl = grad.norm();
-        if(gl != 0.)
-          grad.normalize();
-        else
-          std::cout << "Warning : gradient is null vector at "<< p <<"!" << std::endl;
-        Eigen::Vector3d normal = -grad;
-
-        Eigen::Matrix3d PN = Eigen::Matrix3d::Identity() - (normal * normal.transpose());
-        Eigen::Matrix3d hess = (1./gl) * hessian(p, delta) ;
-        Eigen::Matrix3d m = (PN * hess * PN);
-
-#ifdef ANISO_DEBUG_METRIC
-        std::cout.precision(10);
-        std::cout << "Normal : " << std::endl;
-        std::cout << normal << std::endl;
-        std::cout << "NN^t : " << std::endl;
-        std::cout << normal * normal.transpose() << std::endl;
-        std::cout << "Matrices before EVs computing : " << std::endl;
-        std::cout << "PN : " << std::endl;
-        std::cout << PN << std::endl;
-        std::cout << "Hessian with grad_len = " << gl << std::endl;
-        std::cout << hess << std::endl;
-        std::cout << "M : " << std::endl;
-        std::cout << m << std::endl;
-#endif
-
-        Eigen::EigenSolver<Eigen::Matrix3d> es(m, true/*compute eigenvectors and values*/);
-        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvalueType& vals = es.eigenvalues();
-        const Eigen::EigenSolver<Eigen::Matrix3d>::EigenvectorsType& vecs = es.eigenvectors();
-
-        // look for smallest eigenvalue
-        FT min_abs_value = DBL_MAX;
-        int min_id = 0;
-        for (int i = 0; i < 3; i++)
-        {
-          double avi = std::abs(std::real(vals[i]));
-          if(avi < min_abs_value)
-          {
-            min_abs_value = avi;
-            min_id = i;
-          }
-        }
-
-        // normal is ok (computed with gradient)
-        v0 = get_vector(normal);
-
-        bool z0, z1, z2;
-        double ev0 = std::abs(std::real(vals[min_id])); //should be the smallest
-        double ev1 = std::abs(std::real(vals[(min_id + 1) % 3]));
-        double ev2 = std::abs(std::real(vals[(min_id + 2) % 3]));
-        int zeros = are_zeros(ev0, ev1, ev2, z0, z1, z2);
-
-        if(zeros == 1) //it is ev0
-        {
-          if(!z0) std::cout << "Error1 : see tensor_frame, zeros==1\n";
-          Vector_3 normal_test = get_eigenvector<K>(vecs.col(min_id));
-          if(!are_equal(v0, normal_test))
-           std::cout << "Error2 : see tensor_frame, zeros==1\n";
-
-          e1 = ev1;
-          e2 = ev2;
-          v1 = get_eigenvector<K>(vecs.col((min_id + 1) % 3));
-          v2 = get_eigenvector<K>(vecs.col((min_id + 2) % 3));
-
-          //make sure the vectors form an orthogonal matrix
-          //when eigenvalues are the same, vectors returned by Eigen are not
-          //necessarily orthogonal
-          if(std::abs(v1*v2) > ZERO_DOT_PRODUCT)
-            v2 = normalize(CGAL::cross_product(v0, v1));
-        }
-        else if(zeros == 2)
-        {
-          int id = -1; // the id of the non-zero eigenvalue
-          if(z0 && z1)      id = ((min_id + 2) % 3); //d2
-          else if(z0 && z2) id = ((min_id + 1) % 3); //d1
-          else if(z1 && z2) id = min_id;//d0
-          else std::cerr << "Error1 : see tensor_frame, zeros==2\n";
-
-          //the non-zero one
-          e1 = std::abs(std::real(vals[id]));
-          v1 = get_eigenvector<K>(vecs.col(id));
-          //the last one : choose the vector which is not // to the normal
-          Vector_3 normal_test_1 = get_eigenvector<K>(vecs.col((id + 1) % 3));
-          Vector_3 normal_test_2 = get_eigenvector<K>(vecs.col((id + 2) % 3));
-          if(are_equal(normal_test_1, v0))
-          {
-            e2 = std::abs(std::real(vals[(min_id + 2) % 3]));
-            v2 = normal_test_2;
-          }
-          else if(are_equal(normal_test_2, v0))
-          {
-            e2 = std::abs(std::real(vals[(min_id + 1) % 3]));
-            v2 = normal_test_1;
-          }
-          else
-          {
-            e2 = 0.;
-            v2 = normalize(CGAL::cross_product(v0, v1));
-            std::cerr << "Error2 : see tensor_frame, zeros==2\n";
-          }
-        }
-        else if(zeros == 3)
-        {
-          orthogonal_vectors(v0, v1, v2);
-          v1 = normalize(v1);
-          v2 = normalize(v2);
-          e1 = 0.;
-          e2 = 0.;
-        }
-        else
-        {//zeros == 0
-          std::cout << "Error : see tensor_frame, zeros==0\n";
-          std::cout << "p : " << p << std::endl;
-          std::cout << ev0 << " " << ev1 << " " << ev2 << std::endl;
-          std::cout << m << std::endl;
-        }
-
-        e0 = (std::max)(e1, e2);
-      }
-
-      bool are_equal(const Vector_3& v1,        //unit vector
-                     const Vector_3& v2) const  //unit vector
-      {
-        return (std::abs(std::abs(v1*v2) - 1.) < 1e-10);
-      }
-
-      Vector_3 get_vector(const Eigen::Vector3d& v) const
-      {
-        return Vector_3(v[0], v[1], v[2]);
-      }
-
-      Vector_3 normalize(const Vector_3& v) const
-      {
-        return std::sqrt(1./(v*v)) * v;
-      }
-
-      void orthogonal_vectors(const Vector_3& u,
-                              Vector_3& v,
-                              Vector_3& w) const
-      {
-        typename K::Line_3 support(CGAL::ORIGIN, CGAL::ORIGIN + u);
-        typename K::Plane_3 p = support.perpendicular_plane(CGAL::ORIGIN);
-        v = p.base1();
-        w = p.base2();
-      }
-
       void build_colored_polyhedron(Colored_polyhedron& poly) const
       {
         std::cout << "trying to convert c3t3 to polyhedron and outputing it (I)...";
@@ -526,51 +337,6 @@ public:
         compute_triangulation_poles(m_c3t3, std::inserter(poles, poles.end()), get_bbox());
       }
 
-      virtual double global_max_curvature() const
-      {
-        if(m_cache_max_curvature)
-          return m_max_curvature;
-
-        m_max_curvature = 0.;
-        m_min_curvature = DBL_MAX;
-        typename C3t3::Triangulation::Finite_vertices_iterator v;
-        for(v = m_c3t3.triangulation().finite_vertices_begin();
-            v != m_c3t3.triangulation().finite_vertices_end();
-            ++v)
-        {
-          if(m_c3t3.in_dimension(v) == 1 || m_c3t3.in_dimension(v) == 2)
-          {
-            double minc, maxc;
-            min_max_curvatures(v->point(), minc, maxc);
-            m_max_curvature = (std::max)(m_max_curvature, maxc);
-            m_min_curvature = (std::min)(m_min_curvature, minc);
-          }
-        }
-        m_cache_max_curvature = true;
-        m_cache_min_curvature = true;
-        return m_max_curvature;
-      }
-
-      virtual double global_min_curvature() const
-      {
-        if(m_cache_min_curvature)
-          return m_min_curvature;
-
-        global_max_curvature(); //computes both max and min
-        return m_min_curvature;
-      }
-
-      void min_max_curvatures(const Point_3& p,
-                              double& minc,
-                              double& maxc) const
-      {
-        Vector_3 n, v1, v2;
-        double en, e1, e2;
-        tensor_frame(p, n, v1, v2, en, e1, e2, 1e-5);
-        minc = (std::min)(e1, e2);
-        maxc = (std::max)(e1, e2);
-      }
-
       void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
       {
         gl_draw_c3t3<C3t3, Plane_3>(m_c3t3, plane);
@@ -579,14 +345,13 @@ public:
       virtual Constrain_surface_3_implicit* clone() const = 0; // Uses the copy constructor
 
       Constrain_surface_3_implicit(const FT error = 1e-5)
-        : Base(),
-          error_bound(error),
-          m_cache_max_curvature(false),
-          m_cache_min_curvature(false) {}
+        :
+          Base(),
+          error_bound(error)
+      { }
 
       virtual ~Constrain_surface_3_implicit(){}
     };
-
 
     template<typename K>
     class Constrain_surface_3_implicit_with_bounding_sphere :

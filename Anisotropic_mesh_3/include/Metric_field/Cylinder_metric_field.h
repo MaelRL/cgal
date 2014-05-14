@@ -35,6 +35,15 @@ public:
   FT height;
 
 public:
+  double global_max_sq_eigenvalue() const
+  {
+    return 1. / radius;
+  }
+  double global_min_sq_eigenvalue() const
+  {
+    return 0.;
+  }
+
   virtual void report(typename std::ofstream &fx) const {
     fx << "type:   cylinder" << std::endl;
     fx << "epsilon: " << this->epsilon << std::endl;
