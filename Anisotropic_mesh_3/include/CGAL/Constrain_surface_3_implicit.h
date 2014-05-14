@@ -126,22 +126,6 @@ namespace CGAL{
           return CGAL::ON_ORIENTED_BOUNDARY;
       }
 
-      virtual Vector_3 gradient(const Point_3 &p, const FT delta = 1e-5) const
-      {
-        FT dd = 1. / (2. * delta);
-        return dd * Vector_3(
-          (evaluate(p.x() + delta, p.y(), p.z()) - evaluate(p.x() - delta, p.y(), p.z())),
-          (evaluate(p.x(), p.y() + delta, p.z()) - evaluate(p.x(), p.y() - delta, p.z())),
-          (evaluate(p.x(), p.y(), p.z() + delta) - evaluate(p.x(), p.y(), p.z() - delta)));
-      }
-
-      //virtual Vector_3 normal(const Point_3 &p, const FT delta = 1e-5) const
-      //{
-      //  Vector_3 n = gradient(p, delta);
-      //  FT inv_len = -1. / sqrt(n*n);
-      //  return inv_len * n;
-      //}
-
 public:
       Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3 &ref) const
       {

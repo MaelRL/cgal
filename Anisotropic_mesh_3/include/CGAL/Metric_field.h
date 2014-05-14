@@ -71,10 +71,10 @@ public:
                         1., 1., 1.);
   }
 
-  Metric build_metric(const Vector_3& vn, const Vector_3& v1, const Vector_3& v2,
-                      const double& en, const double& e1, const double& e2) const
+  Metric build_metric(const Vector_3& v0, const Vector_3& v1, const Vector_3& v2,
+                      const double& e0, const double& e1, const double& e2) const
   {
-    return Metric(vn, v1, v2, this->en_factor*en, e1, e2, epsilon);
+    return Metric(v0, v1, v2, en_factor*e0, e1, e2, epsilon);
   }
 
   //metric_si is the metric at point si. The function scales it to the point p
@@ -114,17 +114,17 @@ public:
     Eigen::Matrix3d intersected_metric = matrix_intersection<K>(M_p, M_q);
 
     Vector_3 intersected_v0, intersected_v1, intersected_v2;
-    double e_0, e_1, e_2;
+    double e0, e1, e2;
     get_eigen_vecs_and_vals<K>(intersected_metric,
                                intersected_v0, intersected_v1, intersected_v2,
-                               e_0, e_1, e_2);
+                               e0, e1, e2);
 
-    //want F, not M
-    e_0 = std::sqrt(e_0);
-    e_1 = std::sqrt(e_1);
-    e_2 = std::sqrt(e_2);
+    //need F, not M
+    e0 = std::sqrt(e0);
+    e1 = std::sqrt(e1);
+    e2 = std::sqrt(e2);
 
-    Metric ret_met = build_metric(intersected_v0, intersected_v1, intersected_v2, e_0, e_1, e_2);
+    Metric ret_met = build_metric(intersected_v0, intersected_v1, intersected_v2, e0, e1, e2);
     std::cout << "final intersected metric : " << std::endl << ret_met.get_transformation() << std::endl;
 
     return ret_met;
@@ -144,7 +144,7 @@ public:
       m_cache_min_sq_eigenvalue(false)
   { }
 
-  virtual ~Metric_field ( ) { }
+  virtual ~Metric_field( ) { }
 };
 
 } // Anisotropic_mesh_3

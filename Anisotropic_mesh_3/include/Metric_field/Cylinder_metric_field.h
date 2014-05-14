@@ -80,18 +80,17 @@ public:
     double nv1 = std::sqrt(v1.squared_length());
     double nv2 = std::sqrt(v2.squared_length());
 
-    return Metric(1./nn * n,
-                  1./nv1 * v1,
-                  1./nv2 * v2,
-      1./radius, //normal -> e_n = max curvature
-      0.,
-      1./radius,
-      this->epsilon);
+    return this->build_metric(1./nn * n,
+                              1./nv1 * v1,
+                              1./nv2 * v2,
+                              1./radius, //normal -> e_n = en_factor * max curvature
+                              0.,
+                              1./radius);
   }
 
   Cylinder_metric_field(FT radius_ = 1.0, FT height_ = 10.,
-                                          FT epsilon_ = 1.0)
-    : Metric_field<K>(epsilon_), radius(radius_), height(height_){ }
+                        FT epsilon_ = 1.0, FT en_factor_ = 0.999)
+    : Metric_field<K>(epsilon_, en_factor_), radius(radius_), height(height_) { }
 };
 
 

@@ -80,7 +80,8 @@ inline std::ostream& operator<<(std::ostream& os, const Refine_facet<K, KExact>&
 {
   os << src.star->index_in_star_set() << " || ";
   os << src.facet[0] << " " << src.facet[1] << " " << src.facet[2];
-  os << " || val: " << src.value << " ";
+  os << " || qt: " << src.queue_type;
+  os << " || val: " << src.value;
   os << " || rej: " << src.prev_rejection << std::endl;
   return os;
 }

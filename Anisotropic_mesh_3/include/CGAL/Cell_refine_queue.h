@@ -80,7 +80,8 @@ inline std::ostream& operator<<(std::ostream& os, const Refine_cell<K, KExact>& 
 {
   os << src.star->index_in_star_set() << " || ";
   os << src.cell[0] << " " << src.cell[1] << " " << src.cell[2] << " " << src.cell[3];
-  os << " || val: " << src.value << " ";
+  os << " || val: " << src.queue_type;
+  os << " || val: " << src.value;
   os << " || rej: " << src.prev_rejection << std::endl;
   return os;
 }
@@ -358,7 +359,6 @@ public:
     return (*(--queues[queue_type]->end()))->value;
   }
 
-public:
   void print_rcells()
   {
     std::cout << "rcells: " << std::endl;

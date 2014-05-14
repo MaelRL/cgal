@@ -303,8 +303,8 @@ class Constrain_surface_3_polyhedral :
       }
 
       inline void find_nearest_vertices_kanle(Vertex_handle v, 
-                                        std::vector<Vertex_handle>& points,
-                                        int count) 
+                                              std::vector<Vertex_handle>& points,
+                                              int count)
       {
         const Point_3& p = v->point();
         FT dist = nearest_start_try_radius;

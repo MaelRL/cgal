@@ -45,11 +45,12 @@ public:
     return Metric(Vector_3(1, 0, 0),
                   Vector_3(0, ((1.0 / lambda) + (1.0 - 1.0 / lambda) * (1.0 - exp(-(p.x() * p.x() / sigma / sigma)))),
                   0),
-                  Vector_3(0, 0, 1));
+                  Vector_3(0, 0, 1)); //fixme
   }
 
-  Shock_metric_field(const FT &sigma_ = 0.5, const FT &lambda_ = 3.0) : sigma(sigma_), lambda(lambda_)
-  { }
+  Shock_metric_field(const FT &sigma_ = 0.5, const FT &lambda_ = 3.0,
+                     FT epsilon_ = 1e-3, FT en_factor_ = 0.999)
+    : Metric_field<K>(epsilon_, en_factor_), sigma(sigma_), lambda(lambda_) { }
 };
 
 

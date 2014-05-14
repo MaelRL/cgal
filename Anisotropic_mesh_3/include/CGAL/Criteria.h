@@ -154,7 +154,7 @@ public:
   typedef Criteria_base<K>      Criteria;
 
 public:
-  const Traits &traits;
+  const Traits& traits;
   const Criteria* criteria;
 
 public:

@@ -49,19 +49,20 @@ public:
                * (lambda - 1.0 / lambda)
                + (1.0 / lambda);
 
-    return Metric(Vector_3(1, 0, 0),
-                  Vector_3(0, 1, 0),
-                  Vector_3(0, 0, 1),
-                  1.,
-                  alpha*d,
-                  1.,
-                  this->epsilon);
+    return this->build_metric(Vector_3(1, 0, 0),
+                              Vector_3(0, 1, 0),
+                              Vector_3(0, 0, 1),
+                              1., alpha*d, 1.);
     //return Metric(Vector_3(1, 0, 0), Vector_3(0,
     //	((atan(p.y() / sigma) / CGAL_PI) + 0.5) * (lambda - 1.0 / lambda) + (1.0 / lambda), 0),
     //	Vector_3(0, 0, 1));
   }
-    Arctan_metric_field(FT lambda_, FT sigma_, FT alpha_, FT epsilon_ = 1e-6)
-   :Metric_field<K>(epsilon_), lambda(lambda_), sigma(sigma_), alpha(alpha_){ }
+    Arctan_metric_field(FT lambda_, FT sigma_, FT alpha_,
+                        FT epsilon_ = 1e-6, FT en_factor_ = 0.999)
+      :
+        Metric_field<K>(epsilon_, en_factor_),
+        lambda(lambda_), sigma(sigma_), alpha(alpha_)
+    { }
 };
   }
 }

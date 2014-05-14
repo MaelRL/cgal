@@ -18,10 +18,14 @@
 
 #include <CGAL/Metric_field.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
-class Stretched_metric_field : public Metric_field<K> {
+class Stretched_metric_field : public Metric_field<K>
+{
 public:
     typedef Metric_field<K>        Base;
     typedef typename Base::FT      FT;
@@ -30,9 +34,7 @@ public:
 
 public:
     FT stretch_parameter;
-public:
-    typedef typename Metric_field<K>::Metric    Metric;
-    typedef typename Metric_field<K>::Point_3   Point_3;
+
 public:
     virtual void report(typename std::ofstream &fx) const
   {
@@ -45,7 +47,9 @@ public:
     return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, exp(p.x() / stretch_parameter)));
   }
 
-    Stretched_metric_field(const FT &stretch_parameter_) : stretch_parameter(stretch_parameter_) { }
+    Stretched_metric_field(FT stretch_parameter_,
+                           FT epsilon_ = 1e-3, FT en_factor_ = 0.999)
+      : Metric_field<K>(epsilon_, en_factor_), stretch_parameter(stretch_parameter_) { }
 };
 
 
@@ -121,5 +125,7 @@ public:
 };
 */
 
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif

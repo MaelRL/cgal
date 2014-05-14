@@ -1614,23 +1614,24 @@ protected:
   }
 
 //Constructors
-  Anisotropic_refine_trunk(Starset& m_starset_,
-                           const Constrain_surface* m_pConstrain_,
-                           const Criteria* m_criteria_,
-                           const Metric_field* m_metric_field_,
-                           DT& m_ch_triangulation_,
-                           AABB_tree& m_aabb_tree_,
-                           Kd_tree& m_kd_tree_,
-                           Stars_conflict_zones& m_stars_czones_)
+public:
+  Anisotropic_refine_trunk(Starset& starset_,
+                           const Constrain_surface* pConstrain_,
+                           const Criteria* criteria_,
+                           const Metric_field* metric_field_,
+                           DT& ch_triangulation_,
+                           AABB_tree& aabb_tree_,
+                           Kd_tree& kd_tree_,
+                           Stars_conflict_zones& stars_czones_)
   :
-    m_starset(m_starset_),
-    m_pConstrain(m_pConstrain_),
-    m_criteria(m_criteria_),
-    m_metric_field(m_metric_field_),
-    m_ch_triangulation(m_ch_triangulation_),
-    m_aabb_tree(m_aabb_tree_),
-    m_kd_tree(m_kd_tree_),
-    m_stars_czones(m_stars_czones_)
+    m_starset(starset_),
+    m_pConstrain(pConstrain_),
+    m_criteria(criteria_),
+    m_metric_field(metric_field_),
+    m_ch_triangulation(ch_triangulation_),
+    m_aabb_tree(aabb_tree_),
+    m_kd_tree(kd_tree_),
+    m_stars_czones(stars_czones_)
   { }
 
 };  // Anisotropic_refine_trunk

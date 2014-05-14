@@ -18,22 +18,23 @@
 
 #include <CGAL/Metric_field.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
-
-
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Torus_metric_field : public Metric_field<K> 
 {
 public:
-    typedef Metric_field<K>        Base;
-    typedef typename Base::FT      FT;
-    typedef typename Base::Metric  Metric;
-    typedef typename Base::Point_3 Point_3;
-    typedef typename Base::Vector_3 Vector_3;
+  typedef Metric_field<K>          Base;
+  typedef typename Base::FT        FT;
+  typedef typename Base::Metric    Metric;
+  typedef typename Base::Point_3   Point_3;
+  typedef typename Base::Vector_3  Vector_3;
 
 public:
-    FT R, r;
+  FT R, r;
 
 public:
   double global_max_sq_eigenvalue() const
@@ -82,12 +83,12 @@ public:
       Phi = M_PI - Phi;
 
       //correct curvature
-    //FT e1 = std::max(std::abs(std::cos(Phi)/(R+r*std::cos(Phi))), this->epsilon );
-    //FT e2 = std::max(1./r, this->epsilon);
+    FT e1 = std::max(std::abs(std::cos(Phi)/(R+r*std::cos(Phi))), this->epsilon);
+    FT e2 = std::max(1./r, this->epsilon);
 
       //naive curvature
-    FT e1 = (std::max)(1./R, this->epsilon);
-    FT e2 = (std::max)(1./r, this->epsilon);
+//    FT e1 = (std::max)(1./R, this->epsilon);
+//    FT e2 = (std::max)(1./r, this->epsilon);
     
       //good looking curvature
     //FT e1 = std::max(1./(R-r*std::cos(Phi)), this->epsilon);
@@ -97,11 +98,12 @@ public:
     return this->build_metric(n, v2, v1, en, e2, e1);
   }
 
-  Torus_metric_field(const FT& R_ = 0.7, 
-                     const FT& r_ = 0.3, 
-                     const FT& epsilon_ = 0.999,
-                     const double& en_factor_ = 1.) 
+  Torus_metric_field(FT R_ = 0.7, FT r_ = 0.3,
+                     FT epsilon_ = 1e-3, FT en_factor_ = 0.999)
    : Metric_field<K>(epsilon_, en_factor_), R(R_), r(r_) { }
 };
+
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif //CGAL_ANISOTROPIC_MESH_3_TORUS_METRIC_FIELD

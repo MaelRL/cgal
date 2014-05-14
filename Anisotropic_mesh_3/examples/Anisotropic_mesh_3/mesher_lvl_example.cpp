@@ -9,7 +9,6 @@
 #include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
-#include <Metric_field/Custom_metric_field.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
 #include <Metric_field/External_metric_field.h>
 
@@ -76,8 +75,7 @@ int main(int argc, char** argv)
   //----------- pick a metric field! ----
 //  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
 //  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6);
-  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
-//  External_metric_field<K>* metric_field = new External_metric_field<K>(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fertility_Metric.txt");
+  External_metric_field<K>* metric_field = new External_metric_field<K>(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fertility_Metric.txt");
 //  Polyhedral_curvature_metric_field<K>* metric_field = new Polyhedral_curvature_metric_field<K>(pdomain);
 
   Starset<K> starset;

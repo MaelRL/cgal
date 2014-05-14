@@ -75,10 +75,13 @@ public:
       y3 = -y1 * z1 / r / R;
       z3 = r / R;
     }
-    return Metric(Vector_3(x1, y1, z1), Vector_3(x2, y2, z2), Vector_3(x3, y3, z3));
+    return Metric(Vector_3(x1, y1, z1),
+                  Vector_3(x2, y2, z2),
+                  Vector_3(x3, y3, z3)); //fixme
   }
 
-  Particle_metric_field() : particles() { }
+  Particle_metric_field(FT epsilon_ = 1e-3, FT en_factor_ = 0.999)
+    : Metric_field<K>(epsilon_, en_factor_), particles() { }
 };
 
 

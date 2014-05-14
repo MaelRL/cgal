@@ -71,8 +71,9 @@ public:
     return this->build_metric(n, v1, v2, en, e1, e2);
   }
 
-  Ellipsoid_metric_field(FT a_, FT b_, FT c_, FT epsilon_ = 1e-3)
-    :Metric_field<K>(epsilon_), a(a_), b(b_), c(c_){ }
+  Ellipsoid_metric_field(FT a_, FT b_, FT c_,
+                         FT epsilon_ = 1e-3, FT en_factor_ = 0.999)
+    :Metric_field<K>(epsilon_, en_factor_), a(a_), b(b_), c(c_){ }
 };
 
 

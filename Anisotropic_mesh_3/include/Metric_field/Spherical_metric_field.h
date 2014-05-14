@@ -18,8 +18,10 @@
 
 #include <CGAL/Metric_field.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
-
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Spherical_metric_field : public Metric_field<K> {
@@ -69,9 +71,11 @@ public:
     return Metric(n, v1, v2, 1., 1., 1., this->epsilon);
   }
 
-  Spherical_metric_field(const FT& epsilon_)
-    : Metric_field<K>(epsilon_) { }
+  Spherical_metric_field(FT epsilon_ = 1e-3, FT en_factor_ = 0.999)
+    : Metric_field<K>(epsilon_, en_factor_) { }
 };
 
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif

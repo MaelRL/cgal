@@ -16,10 +16,12 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_EUCLIDEAN_METRIC_FIELD
 #define CGAL_ANISOTROPIC_MESH_3_EUCLIDEAN_METRIC_FIELD
 
-#include "Metric_field.h"
+#include <CGAL/Metric_field.h>
 
-namespace CGAL{
-namespace Anisotropic_mesh_3{
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Euclidean_metric_field : public Metric_field<K> 
@@ -61,7 +63,8 @@ public:
                          const double& en_factor = 0.999)
   : Metric_field<K>(epsilon_, en_factor), m_a(a), m_b(b), m_c(c) { }
 };
-}
-}
+
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif

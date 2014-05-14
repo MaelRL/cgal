@@ -12,6 +12,7 @@
 #include <CGAL/Anisotropic_refine_trunk.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
+#include <CGAL/helpers/histogram_helper.h>
 
 namespace CGAL
 {
@@ -603,7 +604,7 @@ public:
   void fill_refinement_queue()
   {
     std::cout << "fill from all cell" << std::endl;
-    return fill_refinement_queue(this->m_stars, -1);
+    return fill_refinement_queue(this->m_starset, -1);
   }
 
 private:
@@ -659,7 +660,7 @@ private:
       //again here, the new_star is potentially a surface star TODO
 
     //possible trick#4, if(is_in_conflict(center)) then directly go to lower levels
-//   bool is_center_in_conflict = Mesher_lvl::is_point_in_conflict(Trunk::transform_from_star_point(circumcenter, star), false);
+//   bool is_center_in_conflict = Mesher_lvl::is_point_in_conflict(Trunk::transform_from_star_point(circumcenter, star), false, true);
 //   Trunk::clear_conflict_zones();
 
     p = center;
@@ -746,7 +747,7 @@ private:
       steiner = compute_insert_or_snap_point(to_be_refined, c);
 
       if(Mesher_lvl::is_point_in_conflict(steiner, true /*lower level queue insertion*/,
-                                          false /*no pick_valid when refining the encroached facet*/))
+                                          false/*need_picking_valid*/))
       {
         Trunk::clear_conflict_zones();
         return POINT_IN_CONFLICT;
