@@ -25,6 +25,8 @@
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Cartesian_converter.h>
 
+#include <boost/assign/list_of.hpp> // for 'list_of()'
+
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -75,6 +77,10 @@ public:
 
   typedef CGAL::Anisotropic_mesh_3::Starset<K>              Starset;
 
+//Queues
+  typedef CGAL::Anisotropic_mesh_3::Facet_refine_queue<K>   Facet_refine_queue;
+  typedef CGAL::Anisotropic_mesh_3::Cell_refine_queue<K>    Cell_refine_queue;
+
 //Filters
   typedef CGAL::AABB_tree_bbox<K, Star>                     AABB_tree;
   typedef CGAL::AABB_bbox_primitive<Star>                   AABB_primitive;
@@ -91,17 +97,28 @@ public:
   typedef Null_anisotropic_mesher_level                     Null_mesher_level;
   typedef Anisotropic_refine_facets_3<K, Null_mesher_level> Facets_level;
   typedef Anisotropic_refine_cells_3<K, Facets_level>       Cells_level;
+  typedef Anisotropic_refine_facets_3<K, Cells_level>       Facets_consistency_level;
+  typedef Anisotropic_refine_cells_3<K, Facets_consistency_level>
+                                                            Cells_consistency_level;
+
+//Refinement trunk
+  typedef CGAL::Anisotropic_mesh_3::Anisotropic_refine_trunk<K>  Trunk;
 
 //Visitors
-  typedef Null_anisotropic_mesher_visitor                   Null_mesher_visitor;
-  typedef Anisotropic_mesher_visitor<Cells_level, Null_mesher_visitor>
-                                                            Facets_visitor;
-  typedef Null_anisotropic_mesher_visitor_level<Facets_visitor>
-                                                            Cells_visitor;
+  typedef Null_anisotropic_mesher_visitor                         Null_mesher_visitor;
+  typedef Anisotropic_mesher_visitor<Trunk, Null_mesher_visitor>  Facets_visitor;
+  typedef Anisotropic_mesher_visitor<Trunk, Facets_visitor>       Cells_visitor;
+  typedef Anisotropic_mesher_visitor<Trunk, Cells_visitor>        Facets_consistency_visitor;
+  typedef Null_anisotropic_mesher_visitor_level<Facets_consistency_visitor>
+                                                                  Cells_consistency_visitor;
 
 private:
   // Star set
   Starset& m_starset;
+
+  // Queues
+  Facet_refine_queue m_facet_refine_queue;
+  Cell_refine_queue m_cell_refine_queue;
 
   // Filters
   AABB_tree m_aabb_tree; //bboxes of stars
@@ -112,15 +129,20 @@ private:
 
   // Meshers
   Null_mesher_level m_null_mesher;
-  Facets_level m_facet_mesher;
-  Cells_level m_cell_mesher;
+  Facets_level m_facet_mesher; // deals with rules 0-4 of the facet level
+  Cells_level m_cell_mesher; // deals with rules 0-4 of the cell level
+  Facets_consistency_level m_facet_consistency_mesher; // deals with rule 5 of the facet level
+  Cells_consistency_level m_cell_consistency_mesher; // deals with rule 5 of the cell level
 
   // Visitors
   Null_mesher_visitor m_null_visitor;
   Facets_visitor m_facet_visitor;
   Cells_visitor m_cell_visitor;
+  Facets_consistency_visitor m_facet_consistency_visitor;
+  Cells_consistency_visitor m_cell_consistency_visitor;
 
-  RefinementCondition m_refinement_condition; //todo
+  // Refinement restrictions todo
+  RefinementCondition m_refinement_condition;
 
 public:
   double refine_mesh()
@@ -128,18 +150,27 @@ public:
     CGAL::Timer timer;
     timer.start();
     double elapsed_time = 0.;
+    std::ofstream time_out("time.txt");
 
 #if 1//ndef ANISO_VERBOSE
     // Scan surface and refine it
     m_facet_mesher.initialize();
     m_facet_mesher.refine(m_facet_visitor);
 
-    m_facet_visitor.is_active() = true;
     m_facet_mesher.pick_valid_uses_3D_checks() = true;
+    m_facet_consistency_mesher.pick_valid_uses_3D_checks() = true;
 
     // Then scan volume and refine it
     m_cell_mesher.initialize();
     m_cell_mesher.refine(m_cell_visitor);
+
+    // Then scan and solve facet inconsistencies
+    m_facet_consistency_mesher.initialize();
+    m_facet_consistency_mesher.refine(m_facet_consistency_visitor);
+
+    // Then scan and solve cell inconsistencies
+    m_cell_consistency_mesher.initialize();
+    m_cell_consistency_mesher.refine(m_cell_consistency_visitor);
 
 #else
     m_facet_mesher.initialize();
@@ -148,7 +179,11 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     while (!m_facet_mesher.is_algorithm_done())
+    {
       m_facet_mesher.one_step(m_facet_visitor);
+      if(m_starset.size()%10 == 0)
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+    }
 
     std::cout << "Total refining surface time: " << timer.time() << "s" << std::endl;
     elapsed_time += timer.time();
@@ -156,6 +191,8 @@ public:
 
     m_facet_visitor.is_active() = true;
     m_facet_mesher.pick_valid_uses_3D_checks() = true;
+
+    // ------------------------------------------------
 
     std::cout << "Start volume scan...";
     m_cell_mesher.initialize();
@@ -165,7 +202,55 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     while (!m_cell_mesher.is_algorithm_done())
+    {
       m_cell_mesher.one_step(m_cell_visitor);
+      if(m_starset.size()%10 == 0)
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+    }
+
+    std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
+
+    // ------------------------------------------------
+
+    std::cout << "Start consistency surface scan...";
+    m_facet_consistency_mesher.initialize();
+    std::cout << std::endl << "end scan" << std::endl;
+
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
+
+    while (!m_facet_consistency_mesher.is_algorithm_done())
+    {
+      m_facet_consistency_mesher.one_step(m_facet_consistency_visitor);
+      if(m_starset.size()%10 == 0)
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+    }
+
+    std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
+
+    // ------------------------------------------------
+
+    std::cout << "Start consistency volume scan...";
+    m_cell_consistency_mesher.initialize();
+    std::cout << std::endl << "end scan" << std::endl;
+
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
+
+    while (!m_cell_consistency_mesher.is_algorithm_done())
+    {
+      m_cell_consistency_mesher.one_step(m_cell_consistency_visitor);
+      if(m_starset.size()%10 == 0)
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+    }
+
+    std::cout << "Total refining consistency volume time: " << timer.time() << "s" << std::endl;
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
 
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
     std::cout << "Total refining time: " << timer.time()+elapsed_time << "s" << std::endl;
@@ -184,33 +269,21 @@ public:
 
   void one_step()
   {
-    if(!m_facet_mesher.is_active())
-      m_facet_mesher.initialize();
-
-    if(!m_facet_mesher.is_algorithm_done())
-      m_facet_mesher.one_step(m_facet_visitor);
-    else
-    {
-      if(!m_cell_mesher.is_active())
-      {
-        m_facet_visitor.is_active() = true;
-        m_facet_mesher.pick_valid_uses_3D_checks() = true;
-
-        m_cell_mesher.initialize();
-      }
-      m_cell_mesher.one_step(m_cell_visitor);
-    }
+    m_cell_consistency_mesher.one_step(m_cell_consistency_visitor);
   }
 
   bool is_algorithm_done()
   {
-    return m_cell_mesher.is_algorithm_done();
+    return m_cell_consistency_mesher.is_algorithm_done();
   }
 
   void report()
   {
-    m_cell_mesher.report();
+    std::cout << m_starset.size() << " vertices" << std::endl;
     m_facet_mesher.report();
+    m_cell_mesher.report();
+    m_facet_consistency_mesher.report();
+    m_cell_consistency_mesher.report();
     std::cout << "consistency of EVERYTHING: ";
     std::cout << m_starset.is_consistent(true /*verbose*/) << std::endl;
   }
@@ -222,18 +295,38 @@ public:
                        const Metric_field* metric_field_)
     :
       m_starset(starset_),
+      m_facet_refine_queue(),
+      m_cell_refine_queue(),
       m_aabb_tree(100/*insertion buffer size*/),
       m_ch_triangulation(),
       m_kd_tree(m_starset.star_vector()),
       m_star_czones(m_starset),
       m_null_mesher(),
       m_facet_mesher(m_null_mesher, m_starset, pconstrain_, criteria_, metric_field_,
-                      m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones),
+                     m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones,
+                     m_facet_refine_queue, 0, 4),
       m_cell_mesher(m_facet_mesher, m_starset, pconstrain_, criteria_, metric_field_,
-                     m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones),
+                    m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones,
+                    m_cell_refine_queue, 0, 4),
+      m_facet_consistency_mesher(m_cell_mesher, m_starset, pconstrain_, criteria_,
+                                 metric_field_, m_ch_triangulation, m_aabb_tree,
+                                 m_kd_tree, m_star_czones, m_facet_refine_queue,
+                                 5, 5),
+      m_cell_consistency_mesher(m_facet_consistency_mesher, m_starset, pconstrain_,
+                                criteria_, metric_field_, m_ch_triangulation,
+                                m_aabb_tree, m_kd_tree, m_star_czones,
+                                m_cell_refine_queue, 5, 5),
       m_null_visitor(),
-      m_facet_visitor(m_cell_mesher, m_null_visitor),
-      m_cell_visitor(m_facet_visitor)
+      m_facet_visitor(boost::assign::list_of((Trunk*) &m_cell_mesher)
+                                            ((Trunk*) &m_facet_consistency_mesher)
+                                            ((Trunk*) &m_cell_consistency_mesher),
+                      m_null_visitor),
+      m_cell_visitor(boost::assign::list_of((Trunk*) &m_facet_consistency_mesher)
+                                           ((Trunk*) &m_cell_consistency_mesher),
+                    m_facet_visitor),
+      m_facet_consistency_visitor(boost::assign::list_of((Trunk*) &m_cell_consistency_mesher),
+                                  m_cell_visitor),
+      m_cell_consistency_visitor(m_facet_consistency_visitor)
   { }
 
 private:
