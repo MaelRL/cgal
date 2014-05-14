@@ -675,6 +675,12 @@ protected:
   Stars_conflict_zones& m_stars_czones;
 
 public:
+  //virtual functions used in the visitors
+  //We could avoid the virtual by declaring all the different types of visitors manually...
+  virtual const bool& is_active() const = 0;
+  virtual void fill_refinement_queue(Index) = 0;
+
+public:
   Star_vector& stars() const { return m_starset.star_vector(); }
   const Constrain_surface* constrain_surface() const { return m_pConstrain; }
   const Criteria* criteria() const { return m_criteria; }
@@ -1504,6 +1510,107 @@ public:
 #endif
 
     return id;
+  }
+
+protected:
+  //Initialization
+  void initialize_medial_axis(Point_set& poles)
+  {
+#ifdef ANISO_VERBOSE
+    std::cout << "Initialize medial axis..." << std::endl;
+    std::cout << "Get poles..." << std::endl;
+#endif
+    this->m_pConstrain->compute_poles(poles);
+
+    //TEMP ---------------------------------------------------------------------
+    //ugly code to reduce the number of poles to the desired fixed amount
+    std::vector<Point_3> poles_v;
+    std::copy(poles.begin(), poles.end(), std::back_inserter(poles_v));
+    std::random_shuffle(poles_v.begin(), poles_v.end());
+    poles_v.resize(std::min((std::size_t) 500, poles_v.size()));
+    //remark: random shuffle breaks the fact that only taking condition of 1/x
+    //will work since the geometry will be covered properly...
+    // -------------------------------------------------------------------------
+
+#ifdef ANISO_VERBOSE
+    //insert them in all stars
+    std::cout << "Insert poles..." << std::endl;
+#endif
+
+    unsigned int i = 1;
+    unsigned int done = 0;
+    typename std::set<Point_3>::iterator it;
+    for(it = poles.begin(); it != poles.end(); ++it, ++i)
+    {
+      if(i % 100 == 0)
+        clean_stars();
+
+      bool conditional = (i % 50 != 0); //1/50 with no condition
+      if(true) //m_refinement_condition(*it)) TODO
+      {
+        insert(*it, conditional, true/*surface point*/);
+        ++done;
+      }
+    }
+    clean_stars();
+
+#ifdef ANISO_VERBOSE
+    std::cout << done << " points." << std::endl;
+#endif
+  }
+
+  void initialize_stars(const int nb = 50)
+  {
+#ifdef ANISO_VERBOSE
+    std::cout << "Initialize "<< nb << " stars..." << std::endl;
+#endif
+    double approx = this->m_criteria->approximation/this->m_pConstrain->get_bounding_radius();
+    approx = 1e-4;
+
+    //The initial points need to be picked more cleverly as they completely ignore
+    //the input metric field right now TODO
+    typename Constrain_surface::Pointset initial_points = this->m_pConstrain->get_surface_points(2*nb);
+
+    //Disabled usage of poles for now since they are not necessarily well positioned
+    //compared to the 3D metric field.
+    //Point_set poles;
+    //initialize_medial_axis(poles); // poles
+
+#ifdef ANISO_VERBOSE
+    std::cout << "Picked " << initial_points.size() << " initial points" << std::endl;
+    for(typename Constrain_surface::Pointset::iterator it=initial_points.begin(); it!=initial_points.end(); ++it)
+      std::cout << it->x() << " " << it->y() << " " << it->z() << std::endl;
+#endif
+
+    typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
+    typename Constrain_surface::Pointset::iterator pend = initial_points.end();
+    int nbdone = 0;
+    for (; pi != pend && nbdone < nb; pi++)
+    {
+      if(nbdone > 0 && nbdone % 100 == 0)
+        clean_stars();
+
+      std::size_t this_id = this->m_starset.size();
+      int id = -1;
+
+      //if(m_refinement_condition(*pi)) TODO
+      id = insert(*pi, false/*under no condition*/, true/*surface point*/);
+
+      if(this_id == id)
+        nbdone++;
+
+      /*
+        //this would work to stop inserting unneeded initial points, but it's expensive
+        this->clean_stars();
+        if(this->count_restricted_facets() > 0)
+          break;
+        */
+    }
+    clean_stars();
+
+#ifdef ANISO_VERBOSE
+    std::cout << "done (" << this->m_starset.size() << " stars)." << std::endl;
+#endif
   }
 
 //Constructors

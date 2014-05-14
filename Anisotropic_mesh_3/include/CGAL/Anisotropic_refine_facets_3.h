@@ -79,7 +79,12 @@ public:
   typedef typename Refine_queue::Rfacet_set_iterator               Rfacet_set_iterator;
 
 private:
-  Refine_queue m_refine_queue;
+  Refine_queue& m_refine_queue;
+
+  // these two ints determine which queues (in the facet refinement queue) are
+  // used by this level
+  const int m_queue_ids_start;
+  const int m_queue_ids_end;
 
   //this boolean is exactly m_facet_visitor.is_active(), but carrying the visitor
   //all the way down to is_valid_point() is even less pretty
@@ -102,18 +107,32 @@ public:
   bool& pick_valid_uses_3D_checks() { return m_pick_valid_uses_3D_checks; }
   const bool& pick_valid_uses_3D_checks() const { return m_pick_valid_uses_3D_checks; }
 
+  bool& is_active() { return Mesher_lvl::is_active(); }
+  const bool& is_active() const { return Mesher_lvl::is_active(); }
+
+  bool is_criterion_tested(int queue_id) const
+  {
+    return (m_queue_ids_start <= queue_id && queue_id <= m_queue_ids_end);
+  }
+
 public:
 //functions used in the Mesher_lvl class
   void initialize_()
   {
-    initialize_stars();
-    this->m_ch_triangulation.infinite_vertex()->info() = -10;
-    Trunk::build_aabb_tree();
+    std::cout << "Initializing facet level with ids: " << m_queue_ids_start;
+    std::cout << " " << m_queue_ids_end << std::endl;
 
-    std::cout << Trunk::number_of_stars() << " stars and ";
-    std::cout << this->m_starset.count_restricted_facets() << " restricted facets" << std::endl;
+    if(this->m_starset.empty())
+    {
+      std::cout << "Starting with criteria: " << std::endl;
+      this->m_criteria->report();
+
+      Trunk::initialize_stars();
+      this->m_ch_triangulation.infinite_vertex()->info() = -10;
+      Trunk::build_aabb_tree();
+    }
+
     fill_refinement_queue();
-
     Mesher_lvl::is_active() = true;
 
     std::ofstream out("initial.mesh");
@@ -124,7 +143,7 @@ public:
 
   bool is_algorithm_done_()
   {
-    return m_refine_queue.empty();
+    return m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end);
   }
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_3& steiner_point)
@@ -372,143 +391,20 @@ public:
   {
     std::cout << "facet consistency : ";
     std::cout << this->m_starset.is_consistent(true /*verbose*/, FACETS_ONLY) << std::endl;
-    //all_facet_histograms(this->m_stars, this->m_pConstrain, this->m_criteria);
+    all_facet_histograms(this->m_starset, this->m_pConstrain, this->m_criteria);
     std::cout << "FACET pick_valid stats: " << std::endl;
+    std::cout << "tried: " << m_pick_valid_points_tried << " || ";
     std::cout << "skipped: " << m_pick_valid_skipped << " || ";
     std::cout << "succeeded: " << m_pick_valid_succeeded << " || ";
     std::cout << "rejected: " << m_pick_valid_rejected << " || ";
     std::cout << "failed: " << m_pick_valid_failed << std::endl;
+    std::cout << "avg distortion: " << m_avg_dist/((double) (m_pick_valid_skipped+m_pick_valid_succeeded+m_pick_valid_failed)) << std::endl;
     std::cout << "facet pv: " << timer_pv.time() << " " << timer_pv.intervals() << std::endl;
     std::cout << "facet npv: " << timer_npv.time() << " " << timer_npv.intervals() << std::endl;
     std::cout << "facet leaking: " << m_leak_counter << std::endl;
   }
 
-private:
-//Initialization
-  void initialize_medial_axis(Point_set& poles)
-  {
-#ifdef ANISO_VERBOSE
-    std::cout << "Initialize medial axis..." << std::endl;
-    std::cout << "Get poles..." << std::endl;
-#endif
-    this->m_pConstrain->compute_poles(poles);
-
-    //TEMP ---------------------------------------------------------------------
-    //ugly code to reduce the number of poles to the desired fixed amount
-    std::vector<Point_3> poles_v;
-    std::copy(poles.begin(), poles.end(), std::back_inserter(poles_v));
-    std::random_shuffle(poles_v.begin(), poles_v.end());
-    poles_v.resize(std::min((std::size_t) 500, poles_v.size()));
-    //remark: random shuffle breaks the fact that only taking condition of 1/x
-    //will work since the geometry will be covered properly...
-    // -------------------------------------------------------------------------
-
-#ifdef ANISO_VERBOSE
-    //insert them in all stars
-    std::cout << "Insert poles..." << std::endl;
-#endif
-
-    unsigned int i = 1;
-    unsigned int done = 0;
-    typename std::set<Point_3>::iterator it;
-    for(it = poles.begin(); it != poles.end(); ++it, ++i)
-    {
-      if(i % 100 == 0)
-        Trunk::clean_stars();
-
-      bool conditional = (i % 50 != 0); //1/50 with no condition
-      if(true) //m_refinement_condition(*it)) TODO
-      {
-        Trunk::insert(*it, conditional, true/*surface point*/);
-        ++done;
-      }
-    }
-    Trunk::clean_stars();
-
-#ifdef ANISO_VERBOSE
-    std::cout << done << " points." << std::endl;
-#endif
-  }
-
-  void initialize_stars(const int nb = 50)
-  {
-#ifdef ANISO_VERBOSE
-    std::cout << "Initialize "<< nb << " stars..." << std::endl;
-#endif
-    double approx = this->m_criteria->approximation/this->m_pConstrain->get_bounding_radius();
-    approx = 1e-4;
-
-    //The initial points need to be picked more cleverly as they completely ignore
-    //the input metric field right now TODO
-    typename Constrain_surface::Pointset initial_points = this->m_pConstrain->get_surface_points(2*nb);
-
-    //Disabled usage of poles for now since they are not necessarily well positioned
-    //compared to the 3D metric field.
-    //Point_set poles;
-    //initialize_medial_axis(poles); // poles
-
-#ifdef ANISO_VERBOSE
-    std::cout << "Picked " << initial_points.size() << " initial points" << std::endl;
-    for(typename Constrain_surface::Pointset::iterator it=initial_points.begin(); it!=initial_points.end(); ++it)
-      std::cout << it->x() << " " << it->y() << " " << it->z() << std::endl;
-#endif
-
-    typename Constrain_surface::Pointset::iterator pi = initial_points.begin();
-    typename Constrain_surface::Pointset::iterator pend = initial_points.end();
-    int nbdone = 0;
-    for (; pi != pend && nbdone < nb; pi++)
-    {
-      if(nbdone > 0 && nbdone % 100 == 0)
-        Trunk::clean_stars();
-
-      std::size_t this_id = this->m_starset.size();
-      int id = -1;
-
-      //if(m_refinement_condition(*pi)) TODO
-        id = Trunk::insert(*pi, false/*under no condition*/, true/*surface point*/);
-
-      if(this_id == id)
-        nbdone++;
-
-      /*
-      //this would work to stop inserting unneeded initial points, but it's expensive
-      this->clean_stars();
-      if(this->count_restricted_facets() > 0)
-        break;
-      */
-    }
-    Trunk::clean_stars();
-
-#ifdef ANISO_VERBOSE
-    std::cout << "done (" << this->m_starset.size() << " stars)." << std::endl;
-#endif
-  }
-
-  //Most of that function body/parameters is debug; it could simply be f(i){queues[i]->pop();}
-  bool next_refine_facet_pop(Refine_facet& refine_facet,
-                             Facet& facet,
-                             bool& need_picking_valid)
-  {
-    Rfacet_set_iterator rfsit;
-    if(!m_refine_queue.top(rfsit))
-    {
-      std::cout << "empty queue at facet pop time...?" << std::endl; //shouldn't happen
-      return false;
-    }
-
-    refine_facet = *rfsit; //have to copy since the pop invalidates the iterator
-
-    if(!rfsit->star->has_facet(rfsit->facet, facet))
-    {
-      std::cout << "problems at facet pop time" << std::endl;
-      return false;
-    }
-
-    need_picking_valid = m_refine_queue.need_picking_valid(rfsit->queue_type);
-    m_refine_queue.pop();
-    return true;
-  }
-
+public:
   //Facet refinement function
   bool next_refine_facet(Rfacet_set_iterator& rfacet_it,
                          Facet& facet,
@@ -516,11 +412,13 @@ private:
   {
     while(true)
     {
-      if(!m_refine_queue.top(rfacet_it))
+      if(!m_refine_queue.top(rfacet_it, m_queue_ids_start, m_queue_ids_end))
       {
+        return false;
+#if 0
         std::cout << "it says it's empty" << std::endl;
         fill_refinement_queue();
-        if(!m_refine_queue.top(rfacet_it))
+        if(!m_refine_queue.top(rfacet_it, m_queue_ids_start, m_queue_ids_end))
         {
           std::cout << "it ain't lying" << std::endl;
           return false;
@@ -538,14 +436,40 @@ private:
         need_picking_valid = m_refine_queue.need_picking_valid(rfacet_it->queue_type);
 
         //for encroachments, value == need_picking_valid
-        if(rfacet_it->queue_type == m_refine_queue.encroachment_queue && rfacet_it->value)
+        if(rfacet_it->queue_type == m_refine_queue.encroachment_queue &&
+           rfacet_it->value)
           need_picking_valid = true;
 
         return true;
       }
       else //top of the queue does not exist anymore
-        m_refine_queue.pop();
+        m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
     }
+  }
+
+  //Most of that function body/parameters is debug; it could simply be f(i){queues[i]->pop();}
+  bool next_refine_facet_pop(Refine_facet& refine_facet,
+                             Facet& facet,
+                             bool& need_picking_valid)
+  {
+    Rfacet_set_iterator rfsit;
+    if(!m_refine_queue.top(rfsit, m_queue_ids_start, m_queue_ids_end))
+    {
+      std::cout << "empty queue at facet pop time...?" << std::endl; //shouldn't happen
+      return false;
+    }
+
+    refine_facet = *rfsit; //have to copy since the pop invalidates the iterator
+
+    if(!rfsit->star->has_facet(rfsit->facet, facet))
+    {
+      std::cout << "problems at facet pop time" << std::endl;
+      return false;
+    }
+
+    need_picking_valid = m_refine_queue.need_picking_valid(rfsit->queue_type);
+    m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
+    return true;
   }
 
 private:
@@ -577,7 +501,8 @@ private:
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
 /*
-    if(this->m_criteria->distortion > 0.)
+    if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
+       this->m_criteria->distortion > 0.)
     {
       FT over_distortion = this->m_starset.compute_distortion(*fi) - this->m_criteria->distortion;
       if(over_distortion > 0.)
@@ -597,7 +522,8 @@ private:
 */
 
     // size : 2
-    if(this->m_criteria->facet_circumradius > 0.)
+    if(is_criterion_tested(m_refine_queue.over_circumradius_queue) &&
+       this->m_criteria->facet_circumradius > 0.)
     {
       FT over_circumradius = star->compute_circumradius_overflow(*fi);
       if (over_circumradius > 0)
@@ -615,7 +541,8 @@ private:
     }
 
     // approx : 3
-    if(this->m_criteria->approximation > 0.)
+    if(is_criterion_tested(m_refine_queue.over_approximation_queue) &&
+       this->m_criteria->approximation > 0.)
     {
       FT over_approx = Trunk::sq_distance_to_surface(*fi, star) - this->m_criteria->squared_approximation;
       if(over_approx > 0.)
@@ -633,7 +560,8 @@ private:
     }
 
     // shape : 4
-    if(this->m_criteria->facet_radius_edge_ratio > 0.)
+    if(is_criterion_tested(m_refine_queue.bad_shape_queue) &&
+       this->m_criteria->facet_radius_edge_ratio > 0.)
     {
       FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(*fi);
       if (over_radius_edge_ratio > 0)
@@ -659,7 +587,8 @@ private:
     }
 
     // consistency : 5
-    if(!this->m_starset.is_consistent(*fi))
+    if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
+       !this->m_starset.is_consistent(*fi))
     {
       FT vol = star->compute_volume(*fi);
       if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, vol, 5))
@@ -717,12 +646,14 @@ public:
     m_refine_queue.print();
     std::cout << "End fill f_ref_queue debug" << std::endl;
 #endif
+    std::cout << this->m_starset.size() << " ";
+    m_refine_queue.print();
   }
 
   void fill_refinement_queue()
   {
     std::cout << "fill from all facets" << std::endl;
-    fill_refinement_queue(this->m_starset, -1, false);
+    fill_refinement_queue(this->m_starset, -1);
   }
 
 private:
@@ -1288,12 +1219,17 @@ public:
                               DT& ch_triangulation_,
                               AABB_tree& aabb_tree_,
                               Kd_tree& kd_tree_,
-                              Stars_conflict_zones& m_stars_czones_)
+                              Stars_conflict_zones& m_stars_czones_,
+                              Refine_queue& refine_queue_,
+                              int queue_ids_start_,
+                              int queue_ids_end_)
     :
       Mesher_lvl(previous),
       Trunk(starset_, pconstrain_, criteria_, metric_field_,
            ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
-      m_refine_queue(),
+      m_refine_queue(refine_queue_),
+      m_queue_ids_start(queue_ids_start_),
+      m_queue_ids_end(queue_ids_end_),
       m_pick_valid_uses_3D_checks(false),
       m_pick_valid_succeeded(0),
       m_pick_valid_failed(0),

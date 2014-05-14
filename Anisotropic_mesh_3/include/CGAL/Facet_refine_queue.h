@@ -312,25 +312,18 @@ public:
     return (queue_type >= start_pick_valid);
   }
 
-  bool empty() const
+  bool empty(int start_id = 0, int end_id = nb_queues - 1) const
   {
-    for (int i = 0; i < nb_queues; i++)
+    for (int i=start_id; i<=end_id; i++)
       if (!queues[i]->empty())
         return false;
     return true;
   }
 
-  unsigned int size() const
+  bool top(Rfacet_set_iterator& facet,
+           int start_id = 0, int end_id = nb_queues - 1) const
   {
-    unsigned int nb = 0;
-    for (int i = 0; i < nb_queues; i++)
-      nb += queues[i]->size();
-    return nb; //should be equal to rfacets.size();
-  }
-
-  bool top(Rfacet_set_iterator& facet) const
-  {
-    for (int i = 0; i < nb_queues; i++)
+    for (int i=start_id; i<=end_id; i++)
       if(!queues[i]->empty())
       {
         facet = *(queues[i]->begin());
@@ -344,9 +337,9 @@ public:
     return false;
   }
 
-  bool pop()
+  bool pop(int start_id = 0, int end_id = nb_queues - 1)
   {
-    for (int i = 0; i < nb_queues; i++)
+    for (int i=start_id; i<=end_id; i++)
       if (!queues[i]->empty())
       {
         rfacets.erase(*(queues[i]->begin()));
@@ -356,9 +349,9 @@ public:
     return false;
   }
 
-  void clear()
+  void clear(int start_id = 0, int end_id = nb_queues - 1)
   {
-    for(int i = 0; i < nb_queues; i++)
+    for(int i=start_id; i<=end_id; i++)
       queues[i]->clear();
   }
 
@@ -387,9 +380,9 @@ public:
       std::cout << **vit;
   }
 
-  void print_queues()
+  void print_queues(int start_id = 0, int end_id = nb_queues - 1)
   {
-    for(int i=0; i<nb_queues; ++i)
+    for(int i=start_id; i<= end_id; ++i)
       print_queue(i);
   }
 
@@ -402,10 +395,10 @@ public:
     std::cout << rfacets.size() << std::endl;
   }
 
-  std::size_t count() const
+  std::size_t count(int start_id = 0, int end_id = nb_queues - 1) const
   {
     std::size_t count = 0;
-    for(int i=0; i< nb_queues; ++i)
+    for(int i=start_id; i<= end_id; ++i)
       count += queues[i]->size();
     return count;
   }

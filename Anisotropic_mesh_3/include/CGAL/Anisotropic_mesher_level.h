@@ -31,6 +31,8 @@ struct Null_anisotropic_mesher_level
 
   template <typename I>
   void fill_ref_queues_from_superior(I) { }
+
+  Null_anisotropic_mesher_level() { }
 };
 
 template < typename Star, /* Stretched DT */
@@ -52,7 +54,7 @@ private:
 
 public:
   const Previous& previous() const { return previous_level; }
-  const bool is_active() const { return m_is_active; }
+  const bool& is_active() const { return m_is_active; }
   bool& is_active() { return m_is_active; }
 
   void initialize()
@@ -69,9 +71,11 @@ public:
                                          const bool is_queue_updated = true,
                                          const bool need_picking_valid = false)
   {
-    return (is_point_in_conflict(p, is_queue_updated, need_picking_valid) ||
-            derived().test_point_conflict_from_superior_(p, is_queue_updated,
-                                                         need_picking_valid));
+    //can't test conflicts at all lower levels if we're interlacing surface
+    //and mesher levels (since a facet refining point obviously encroaches a
+    //facet)
+    return derived().test_point_conflict_from_superior_(p, is_queue_updated,
+                                                         need_picking_valid);
   }
 
   //this function potentially fills partially the conflict_zones:
@@ -97,7 +101,7 @@ public:
 
   template<typename Visitor>
   bool after_insertion(typename Star::Index pid,
-                       const Visitor& visitor)
+                       Visitor& visitor)
   {
     fill_previous_ref_queues(pid);
     derived().fill_refinement_queue(pid);
@@ -123,7 +127,7 @@ public:
   }
 
   template<typename Visitor>
-  bool process_one_element(const Visitor& visitor)
+  bool process_one_element(Visitor& visitor)
   {
     Point p;
     Refinement_point_status status = get_refinement_point_for_next_element(p);
@@ -139,11 +143,13 @@ public:
 
   bool is_algorithm_done()
   {
-    return ( previous_level.is_algorithm_done() && derived().is_algorithm_done_() );
+    return previous_level.is_algorithm_done() &&
+           m_is_active && derived().is_algorithm_done_();
   }
 
+  //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
   template<typename Visitor>
-  bool refine(const Visitor& visitor) //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
+  bool refine(Visitor& visitor)
   {
     while(!is_algorithm_done())
     {
@@ -157,12 +163,17 @@ public:
   }
 
   template<typename Visitor>
-  bool one_step(const Visitor& visitor)
+  bool one_step(Visitor& visitor)
   {
     if(!previous_level.is_algorithm_done())
       return previous_level.one_step(visitor.previous());
     else
+    {
+      if(!m_is_active)
+        initialize();
+
       return process_one_element(visitor);
+    }
   }
 
   Anisotropic_mesher_level(Previous& previous)

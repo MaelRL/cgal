@@ -1,6 +1,8 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_MESHER_VISITOR_H
 #define CGAL_ANISOTROPIC_MESH_3_MESHER_VISITOR_H
 
+#include <vector>
+
 namespace CGAL
 {
 namespace Anisotropic_mesh_3
@@ -10,6 +12,7 @@ struct Null_anisotropic_mesher_visitor
 {
   typedef Null_anisotropic_mesher_visitor Self;
 
+  Self& previous() { return *this; }
   const Self& previous() const { return *this; }
 
   template<typename I>
@@ -25,6 +28,7 @@ class Null_anisotropic_mesher_visitor_level
   Previous& previous_level;
 
 public:
+  Previous& previous() { return previous_level; }
   const Previous& previous() const { return previous_level; }
 
   void fill_refinement_queue(int) const { }
@@ -34,34 +38,34 @@ public:
   { }
 };
 
-template <typename Mesher_level,
+template <typename Trunk,
           typename Previous>
 class Anisotropic_mesher_visitor
 {
-  Mesher_level& mesher_level;
   Previous& previous_level;
-  bool m_is_active;
+  const std::vector<Trunk*> mesher_levels;
 
 public:
+  Previous& previous() { return previous_level; }
   const Previous& previous() const { return previous_level; }
-  const bool is_active() const { return m_is_active; }
-  bool& is_active() { return m_is_active; }
 
   template<typename Index>
-  void fill_refinement_queue(Index relative_point) const
+  void fill_refinement_queue(Index relative_point)
   {
-    if(m_is_active)
-      mesher_level.fill_refinement_queue(relative_point);
+    for(std::size_t i=0; i<mesher_levels.size(); ++i)
+      if(mesher_levels[i]->is_active())
+        mesher_levels[i]->fill_refinement_queue(relative_point);
   }
 
-  Anisotropic_mesher_visitor(Mesher_level& mesher_level_,
+  Anisotropic_mesher_visitor(std::vector<Trunk*> mesher_level_,
                              Previous& previous_level_)
-    : mesher_level(mesher_level_),
+    :
       previous_level(previous_level_),
-      m_is_active(false)
+      mesher_levels(mesher_level_)
   { }
 
 }; // Anisotropic_mesher_visitor
+
 
 } // Anisotropic_mesh_3
 } // CGAL

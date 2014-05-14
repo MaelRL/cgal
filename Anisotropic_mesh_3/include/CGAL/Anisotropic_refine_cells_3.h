@@ -77,10 +77,11 @@ public:
   typedef typename Refine_queue::Rcell                            Refine_cell;
   typedef typename Refine_queue::Rcell_set_iterator               Rcell_set_iterator;
 
-public: //tmp
-  Refine_queue m_refine_queue;
-
 private:
+  Refine_queue& m_refine_queue;
+  const int m_queue_ids_start;
+  const int m_queue_ids_end;
+
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
   int m_pick_valid_skipped;
@@ -96,25 +97,42 @@ public:
   mutable CGAL::Timer timer_npv;
 
 public:
+  bool& is_active() { return Mesher_lvl::is_active(); }
+  const bool& is_active() const { return Mesher_lvl::is_active(); }
+
+  bool is_criterion_tested(int queue_id) const
+  {
+    return (m_queue_ids_start <= queue_id && queue_id <= m_queue_ids_end);
+  }
+
+public:
 //functions used in the Mesher_lvl class
   void initialize_()
   {
-    std::cout << "initialize cell level" << std::endl;
-    //remark #1
-    //star set shouldn't be empty since we initialized with a few surface stars first,
-    //even if we didn't refine for the facet level. Should probably check anyway. TODO
+    std::cout << "Initializing cell level with ids: " << m_queue_ids_start;
+    std::cout << " " << m_queue_ids_end << std::endl;
 
-    std::cout << "\nInitializing Cells...\n";
-    fill_refinement_queue(this->m_starset, -1);
+    if(this->m_starset.empty())
+    {
+      std::cout << "Starting with criteria: " << std::endl;
+      this->m_criteria->report();
 
+      Trunk::initialize_stars();
+      this->m_ch_triangulation.infinite_vertex()->info() = -10;
+      Trunk::build_aabb_tree();
+    }
+
+
+    fill_refinement_queue();
     m_refine_queue.print();
+
     Mesher_lvl::is_active() = true;
     this->m_stars_czones.cells_need_checks() = true;
   }
 
   bool is_algorithm_done_()
   {
-    return m_refine_queue.empty();
+    return m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end);
   }
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_3& steiner_point)
@@ -314,7 +332,7 @@ private:
                              bool& need_picking_valid)
   {
     Rcell_set_iterator rcsit;
-    if(!m_refine_queue.top(rcsit))
+    if(!m_refine_queue.top(rcsit, m_queue_ids_start, m_queue_ids_end))
     {
       std::cout << "empty queue at cell pop time...?" << std::endl; //shouldn't happen
       return false;
@@ -329,7 +347,7 @@ private:
     }
 
     need_picking_valid = m_refine_queue.need_picking_valid(rcsit->queue_type);
-    m_refine_queue.pop();
+    m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
     return true;
   }
 
@@ -339,12 +357,13 @@ private:
   {
     while(true)
     {
-      //m_refine_queue.print();
-      if(!m_refine_queue.top(refine_cell))
+      if(!m_refine_queue.top(refine_cell, m_queue_ids_start, m_queue_ids_end))
       {
+        return false;
+#if 0
         std::cout << "it says it's empty" << std::endl;
         fill_refinement_queue(this->m_starset, -1);
-        if(!m_refine_queue.top(refine_cell))
+        if(!m_refine_queue.top(refine_cell, m_queue_ids_start, m_queue_ids_end))
         {
           std::cout << "it ain't lying" << std::endl;
           return false;
@@ -354,20 +373,21 @@ private:
           std::cout << "it LIED" << std::endl;
           continue;
         }
+#endif
       }
 
       if(refine_cell->star->has_cell(refine_cell->cell, cell))
       {
         if(!refine_cell->star->is_inside(cell))
         {
-          m_refine_queue.pop();
+          m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
           continue;
         }
         need_picking_valid = m_refine_queue.need_picking_valid(refine_cell->queue_type);
         return true;
       }
       else
-        m_refine_queue.pop();
+        m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
     }
   }
 
@@ -377,7 +397,8 @@ private:
     //note : distortion is now used only to speed-up pick_valid
     // over distortion 1
 /*
-    if(0 && this->m_criteria->distortion > 0.)
+    if(0 && is_criterion_tested(m_refine_queue.over_distortion_queue) &&
+        && this->m_criteria->distortion > 0.)
     {
       FT over_distortion = this->m_starset.compute_distortion(c) - this->m_criteria->distortion;
       if(over_distortion > 0.)
@@ -397,7 +418,8 @@ private:
 */
 
     // too big 2
-    if(this->m_criteria->cell_circumradius > 0.)
+    if(is_criterion_tested(m_refine_queue.over_circumradius_queue) &&
+       this->m_criteria->cell_circumradius > 0.)
     {
       FT over_circumradius = star->compute_circumradius_overflow(c);
       if(over_circumradius > 0)
@@ -421,7 +443,8 @@ private:
     }
 
     // bad shape 3
-    if(this->m_criteria->cell_radius_edge_ratio > 0.)
+    if(is_criterion_tested(m_refine_queue.bad_shape_queue) &&
+       this->m_criteria->cell_radius_edge_ratio > 0.)
     {
       FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(c);
       if(over_radius_edge_ratio > 0)
@@ -440,7 +463,8 @@ private:
     }
 
     // sliverity 4
-    if(this->m_criteria->sliverity > 0.)
+    if(is_criterion_tested(m_refine_queue.sliver_queue) &&
+       this->m_criteria->sliverity > 0.)
     {
       FT over_sliverity = star->compute_sliverity_overflow(c);
       if(over_sliverity > 0)
@@ -459,7 +483,8 @@ private:
     }
 
     // consistency 5
-    if(!this->m_starset.is_consistent(c))
+    if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
+       !this->m_starset.is_consistent(c))
     {
       FT vol = star->compute_volume(c);
       if(!check_if_in || !m_refine_queue.is_cell_in(star, c, vol, 5))
@@ -571,12 +596,14 @@ public:
     m_refine_queue.print();
     std::cout << "End fill c_ref_queue debug" << std::endl;
 #endif
+    std::cout << this->m_starset.size() << " ";
+    m_refine_queue.print();
   }
 
   void fill_refinement_queue()
   {
     std::cout << "fill from all cell" << std::endl;
-    return fill_refinement_queue(this->m_stars, -1, true);
+    return fill_refinement_queue(this->m_stars, -1);
   }
 
 private:
@@ -737,12 +764,17 @@ public:
                              DT& ch_triangulation_,
                              AABB_tree& aabb_tree_,
                              Kd_tree& kd_tree_,
-                             Stars_conflict_zones& m_stars_czones_)
+                             Stars_conflict_zones& m_stars_czones_,
+                             Refine_queue& refine_queue_,
+                             const int queue_ids_start_,
+                             const int queue_ids_end_)
   :
     Mesher_lvl(previous),
     Trunk(starset_, pconstrain_, criteria_, metric_field_,
           ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
-    m_refine_queue(),
+    m_refine_queue(refine_queue_),
+    m_queue_ids_start(queue_ids_start_),
+    m_queue_ids_end(queue_ids_end_),
     m_pick_valid_succeeded(0),
     m_pick_valid_failed(0),
     m_pick_valid_skipped(0),
