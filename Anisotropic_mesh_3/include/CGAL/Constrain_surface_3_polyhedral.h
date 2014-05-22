@@ -128,6 +128,8 @@ class Constrain_surface_3_polyhedral :
       mutable C3t3 m_c3t3;
 
     public:
+      C3t3 c3t3() const { return m_c3t3; }
+
       virtual FT get_bounding_radius() const { return bounding_radius; }
       virtual std::string name() const { return std::string("Polyhedron"); }
       virtual typename CGAL::Bbox_3 get_bbox() const
@@ -259,7 +261,7 @@ class Constrain_surface_3_polyhedral :
       void find_nearest_vertices(Vertex_handle v,
                                  std::vector<Vertex_handle>& points,
                                  int count,
-                                 const double max_sqd = 0.)
+                                 const double max_sqd = 0.) const
       {
         std::set<Vertex_handle> visited;
         std::map<FT, Vertex_handle/*sqd to center : closest come first*/> ring;
@@ -282,7 +284,7 @@ class Constrain_surface_3_polyhedral :
                               Vertex_handle v,
                               std::set<Vertex_handle>& visited,
                               std::map<FT,Vertex_handle>& ring,
-                              const double max_sqd = 0.)
+                              const double max_sqd = 0.) const
       {
         HV_circulator h = v->vertex_begin();
         HV_circulator hend = h;
@@ -346,7 +348,9 @@ class Constrain_surface_3_polyhedral :
         }
       }
 
-      inline void find_nearest_vertices(const Point_3 &p, std::vector<Vertex_handle> &points, const FT max_dist)
+      inline void find_nearest_vertices(const Point_3 &p,
+                                        std::vector<Vertex_handle> &points,
+                                        const FT max_dist) const
       {
         std::list<typename Polyhedron::Vertex_handle> visited;
         std::list<typename Polyhedron::Vertex_handle> queue;

@@ -41,6 +41,7 @@ const QColor default_mesh_color(45,169,70);
 //polyhedron functions
 Criteria* build_criteria_and_metric(const Polyhedral_surface* const,
                                     CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                    const int dimension,
                                     const double approximation,
                                     const double facet_circumradius,
                                     const double facet_radius_edge_ratio,
@@ -57,6 +58,7 @@ Criteria* build_criteria_and_metric(const Polyhedral_surface* const,
                                     const double en_factor);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
+                                                         const int dimension,
                                                          const double approximation,
                                                          const double facet_circumradius,
                                                          const double facet_radius_edge_ratio,
@@ -75,6 +77,7 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron*,
 //implicit functions
 Criteria* build_criteria_and_metric(const Implicit_surface*,
                                     CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                    const int dimension,
                                     const double approximation,
                                     const double facet_circumradius,
                                     const double facet_radius_edge_ratio,
@@ -91,6 +94,7 @@ Criteria* build_criteria_and_metric(const Implicit_surface*,
                                     const double en_factor);
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*,
+                                                         const int dimension,
                                                          const double approximation,
                                                          const double facet_circumradius,
                                                          const double facet_radius_edge_ratio,
@@ -438,7 +442,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    thread = cgal_code_anisotropic_mesh_3(pPoly, approximation, facet_circumradius,
+    thread = cgal_code_anisotropic_mesh_3(pPoly, dim, approximation, facet_circumradius,
                                           facet_radius_edge_ratio, cell_circumradius,
                                           cell_radius_edge_ratio, sliverity,
                                           distortion, beta, delta, nb_initial_points,
@@ -454,7 +458,7 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
       QMessageBox::critical(mw,tr(""),tr("ERROR: no data in selected item")); 
       return;
     }
-    thread = cgal_code_anisotropic_mesh_3(pFunction, approximation, facet_circumradius,
+    thread = cgal_code_anisotropic_mesh_3(pFunction, dim, approximation, facet_circumradius,
                                           facet_radius_edge_ratio, cell_circumradius,
                                           cell_radius_edge_ratio, sliverity,
                                           distortion, beta, delta, nb_initial_points,
@@ -587,6 +591,8 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3()
     dim = 2;
   else if(ui.dimension->currentText().compare(QString("Volume")) == 0)
     dim = 3;
+  else if(ui.dimension->currentText().compare(QString("Surface + Volume")) == 0)
+    dim = 6;
 
   int metric_index = ui.comboBox_metric->currentIndex();
   Metric_options metric = (Metric_options)ui.comboBox_metric->itemData(metric_index).toInt();
@@ -610,7 +616,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3()
     if( !keep_same_parameters )
     {
       criteria = build_criteria_and_metric((Polyhedral_surface*) ssetitem->star_set().constrain_surface(),
-                                           mf, approximation, facet_circumradius,
+                                           mf, dim, approximation, facet_circumradius,
                                            facet_radius_edge_ratio, cell_circumradius,
                                            cell_radius_edge_ratio, sliverity,
                                            distortion, beta, delta, nb_initial_points,
@@ -640,7 +646,7 @@ void Anisotropic_mesh_3_plugin::resume_aniso_mesh_3()
     if( !keep_same_parameters )
     {
       criteria = build_criteria_and_metric(function_item->function(),
-                                           mf, approximation, facet_circumradius,
+                                           mf, dim, approximation, facet_circumradius,
                                            facet_radius_edge_ratio, cell_circumradius,
                                            cell_circumradius, sliverity,
                                            distortion, beta, delta, nb_initial_points,

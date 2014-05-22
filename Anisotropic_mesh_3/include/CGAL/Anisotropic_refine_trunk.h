@@ -1613,6 +1613,52 @@ protected:
 #endif
   }
 
+public:
+//Resuming
+  void resume_from_mesh_file_(const char* filename)
+  {
+    std::ifstream in(filename);
+    std::string word;
+    int useless, nv;
+    FT x,y,z;
+
+    in >> word >> useless; //MeshVersionFormatted i
+    in >> word >> useless; //Dimension d
+    in >> word >> nv;
+
+    std::cout << "filename: " << filename << std::endl;
+    std::cout << "resuming read from " << nv << " vertices in file" << std::endl;
+
+    if(!m_starset.empty())
+      std::cout << "resuming with a non empty star set... ?" << std::endl;
+
+    for(int i=0; i<nv; ++i)
+    {
+      in >> x >> y >> z >> useless;
+      Point_3 p(x,y,z);
+
+      if(m_starset.size()< 10)
+        insert(p, false);
+      else
+      {
+        if(m_starset.size() == 10)
+        {
+          m_ch_triangulation.infinite_vertex()->info() = -10;
+          build_aabb_tree();
+        }
+
+        compute_conflict_zones(p);
+        m_stars_czones.compute_elements_needing_check();
+        insert(p, true);
+      }
+
+      clear_conflict_zones();
+
+      if(i%100 == 0)
+        clean_stars();
+    }
+  }
+
 //Constructors
 public:
   Anisotropic_refine_trunk(Starset& starset_,

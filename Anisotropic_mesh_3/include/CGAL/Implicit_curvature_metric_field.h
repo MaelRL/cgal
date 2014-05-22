@@ -37,12 +37,12 @@ public:
     this->m_max_sq_eigenvalue = 0.;
     this->m_min_sq_eigenvalue = DBL_MAX;
     typename C3t3::Triangulation::Finite_vertices_iterator v;
-    for(v = m_pConstrain.m_c3t3.triangulation().finite_vertices_begin();
-        v != m_pConstrain.m_c3t3.triangulation().finite_vertices_end();
+    for(v = m_pConstrain.c3t3().triangulation().finite_vertices_begin();
+        v != m_pConstrain.c3t3().triangulation().finite_vertices_end();
         ++v)
     {
-      if(m_pConstrain.m_c3t3.in_dimension(v) == 1 ||
-         m_pConstrain.m_c3t3.in_dimension(v) == 2)
+      if(m_pConstrain.c3t3().in_dimension(v) == 1 ||
+         m_pConstrain.c3t3().in_dimension(v) == 2)
       {
         double minc, maxc;
         min_max_sq_eigenvalues(v->point(), minc, maxc);
@@ -85,9 +85,12 @@ public:
   {
     FT dd = 1. / (2. * delta);
     return dd * Vector_3(
-          (evaluate(p.x() + delta, p.y(), p.z()) - evaluate(p.x() - delta, p.y(), p.z())),
-          (evaluate(p.x(), p.y() + delta, p.z()) - evaluate(p.x(), p.y() - delta, p.z())),
-          (evaluate(p.x(), p.y(), p.z() + delta) - evaluate(p.x(), p.y(), p.z() - delta)));
+          (m_pConstrain.evaluate(p.x() + delta, p.y(), p.z()) -
+           m_pConstrain.evaluate(p.x() - delta, p.y(), p.z())),
+          (m_pConstrain.evaluate(p.x(), p.y() + delta, p.z()) -
+           m_pConstrain.evaluate(p.x(), p.y() - delta, p.z())),
+          (m_pConstrain.evaluate(p.x(), p.y(), p.z() + delta) -
+           m_pConstrain.evaluate(p.x(), p.y(), p.z() - delta)));
   }
 
   //virtual Vector_3 normal(const Point_3 &p, const FT delta = 1e-5) const

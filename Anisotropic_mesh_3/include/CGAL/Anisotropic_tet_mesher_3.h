@@ -7,6 +7,7 @@
 #include <CGAL/Metric_field.h>
 #include <CGAL/Criteria.h>
 
+#include <CGAL/Anisotropic_mesher_3_base.h>
 #include <CGAL/Anisotropic_refine_cells_3.h>
 #include <CGAL/Anisotropic_mesher_visitor.h>
 
@@ -42,9 +43,10 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K, typename RefinementCondition = No_condition<typename K::Point_3> >
-class Anisotropic_tet_mesher_3
+class Anisotropic_tet_mesher_3 : public Anisotropic_mesher_3_base
 {
   typedef Anisotropic_tet_mesher_3<K, RefinementCondition>  Self;
+  typedef Anisotropic_mesher_3_base                         Base;
 
 public:
   //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
@@ -154,6 +156,11 @@ public:
     return elapsed_time;
   }
 
+  void resume_from_mesh_file(const char* filename)
+  {
+    m_cell_mesher.resume_from_mesh_file(filename);
+  }
+
   // Step-by-step methods
   void initialize()
   {
@@ -180,10 +187,11 @@ public:
 
 public:
   Anisotropic_tet_mesher_3(Starset& starset_,
-                       const Constrain_surface* pconstrain_,
-                       const Criteria* criteria_,
-                       const Metric_field* metric_field_)
+                           const Constrain_surface* pconstrain_,
+                           const Criteria* criteria_,
+                           const Metric_field* metric_field_)
     :
+      Base(),
       m_starset(starset_),
       m_cell_refine_queue(),
       m_aabb_tree(100/*insertion buffer size*/),

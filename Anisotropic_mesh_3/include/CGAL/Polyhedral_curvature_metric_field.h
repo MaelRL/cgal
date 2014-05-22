@@ -48,8 +48,8 @@ public:
     this->m_max_sq_eigenvalue = 0.;
     this->m_min_sq_eigenvalue = DBL_MAX;
     typename C3t3::Triangulation::Finite_vertices_iterator v;
-    for(v = m_pConstrain.m_c3t3.triangulation().finite_vertices_begin();
-        v != m_pConstrain.m_c3t3.triangulation().finite_vertices_end();
+    for(v = m_pConstrain.c3t3().triangulation().finite_vertices_begin();
+        v != m_pConstrain.c3t3().triangulation().finite_vertices_end();
         ++v)
     {
       double minc, maxc;
@@ -94,7 +94,7 @@ public:
                                    FT& c1/*cmax*/, FT& c2/*cmin*/)
   {
     std::vector<Vertex_handle> points;
-    m_pConstrain->find_nearest_vertices(v, points, 36/*, max_sqd=0 by default*/);
+    m_pConstrain.find_nearest_vertices(v, points, 36/*, max_sqd=0 by default*/);
 //          nearest_start_try_radius*nearest_start_try_radius);
 
     std::vector<Point_3> points_geo;
@@ -152,7 +152,7 @@ public:
                     double& e2) const //eigenvalue corresponding to v2
   {
     //Compute with interpolations & barycentric coordinates
-    Facet_handle facet = m_pConstrain->find_nearest_facet(p);
+    Facet_handle facet = m_pConstrain.find_nearest_facet(p);
     Vertex_handle va = facet->halfedge()->vertex();
     Vertex_handle vb = facet->halfedge()->next()->vertex();
     Vertex_handle vc = facet->halfedge()->next()->next()->vertex();
@@ -201,7 +201,7 @@ public:
                                   e1/*cmax*/, e2/*cmin*/);
 
       e0 = this->en_factor*(std::max)(e1, e2);
-      this->m_max_sq_eigenvalue = (std::max)(this->m_max_sq_peigenvalue, e0);
+      this->m_max_sq_eigenvalue = (std::max)(this->m_max_sq_eigenvalue, e0);
       this->m_min_sq_eigenvalue = (std::min)(this->m_min_sq_eigenvalue, (std::min)(e1, e2));
 
       e1 = std::sqrt(e1);
@@ -238,8 +238,8 @@ public:
       //  std::cerr << "Error3 in indices in compute_local_metric!" << std::endl;
     }
 
-    this->m_cache_max_eigenvalue = true;
-    this->m_cache_min_eigenvalue = true;
+    this->m_cache_max_sq_eigenvalue = true;
+    this->m_cache_min_sq_eigenvalue = true;
     std::cout << "done." << std::endl;
   }
 
@@ -264,7 +264,7 @@ public:
 
         //find first ring neighbours
         visited.insert(vi);
-        find_ring_vertices(vi->point(), vi, visited, ring);
+        m_pConstrain.find_ring_vertices(vi->point(), vi, visited, ring);
         typename std::map<FT, Vertex_handle>::iterator it = ring.begin();
         while(it != ring.end())
           points.push_back((*it++).second);

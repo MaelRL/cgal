@@ -17,6 +17,7 @@
 
 Criteria* build_criteria_and_metric(const Polyhedral_surface* const p_domain,
                                     CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,
+                                    const int dimension,
                                     const double approximation,
                                     const double facet_circumradius,
                                     const double facet_radius_edge_ratio,
@@ -56,10 +57,11 @@ Criteria* build_criteria_and_metric(const Polyhedral_surface* const p_domain,
   return new Criteria(approximation, facet_circumradius, facet_radius_edge_ratio,
                       cell_circumradius, cell_radius_edge_ratio, sliverity,
                       distortion, beta, delta, nb_initial_points,
-                      max_times_to_try_in_picking_region);
+                      max_times_to_try_in_picking_region, dimension);
 }
 
 Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_poly,
+                                                         const int dimension,
                                                          const double approximation,
                                                          const double facet_circumradius,
                                                          const double facet_radius_edge_ratio,
@@ -78,14 +80,13 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Polyhedron* p_pol
   CGAL::default_random = CGAL::Random(0);
 
   if( NULL == p_poly ) { return NULL; }
-  const Polyhedral_surface* const p_domain
-      = new Polyhedral_surface(*p_poly, epsilon, en_factor, approximation);
+  const Polyhedral_surface* const p_domain = new Polyhedral_surface(*p_poly);
 
   Criteria* criteria = NULL;
   typedef CGAL::Anisotropic_mesh_3::Metric_field<Kernel> Metric_field;
   Metric_field* mf = NULL;
 
-  criteria = build_criteria_and_metric(p_domain, mf, approximation, facet_circumradius,
+  criteria = build_criteria_and_metric(p_domain, mf, dimension, approximation, facet_circumradius,
                                        facet_radius_edge_ratio, cell_circumradius,
                                        cell_radius_edge_ratio, sliverity,
                                        distortion, beta, delta, nb_initial_points,

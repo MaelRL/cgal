@@ -7,6 +7,7 @@
 #include <CGAL/Metric_field.h>
 #include <CGAL/Criteria.h>
 
+#include <CGAL/Anisotropic_mesher_3_base.h>
 #include <CGAL/Anisotropic_refine_facets_3.h>
 #include <CGAL/Anisotropic_refine_cells_3.h>
 #include <CGAL/Anisotropic_mesher_visitor.h>
@@ -43,23 +44,16 @@ namespace CGAL
 namespace Anisotropic_mesh_3
 {
 
-template<typename PointType>
-struct No_condition
-{
-  bool operator()(const PointType& p) const
-  {
-    return true;
-  }
-};
-
 template<typename K, typename RefinementCondition = No_condition<typename K::Point_3> >
-class Anisotropic_mesher_3
+class Anisotropic_mesher_3 : public Anisotropic_mesher_3_base
 {
+  typedef Anisotropic_mesher_3<K, RefinementCondition>      Self;
+  typedef Anisotropic_mesher_3_base                         Base;
+
 public:
   //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef K                                                 KExact;
 
-  typedef Anisotropic_mesher_3<K, RefinementCondition>      Self;
 
   typedef Stretched_Delaunay_3<K, KExact>                   Star;
   typedef Star*                                             Star_handle;
@@ -261,6 +255,11 @@ public:
     return elapsed_time;
   }
 
+  void resume_from_mesh_file(const char* filename)
+  {
+    m_facet_mesher.resume_from_mesh_file(filename);
+  }
+
   // Step-by-step methods
   void initialize()
   {
@@ -294,6 +293,7 @@ public:
                        const Criteria* criteria_,
                        const Metric_field* metric_field_)
     :
+      Base(),
       m_starset(starset_),
       m_facet_refine_queue(),
       m_cell_refine_queue(),

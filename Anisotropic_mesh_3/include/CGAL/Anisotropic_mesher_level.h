@@ -176,6 +176,11 @@ public:
     }
   }
 
+  void resume_from_mesh_file(const char* filename)
+  {
+    derived().resume_from_mesh_file_(filename);
+  }
+
   Anisotropic_mesher_level(Previous& previous)
     :
       previous_level(previous),

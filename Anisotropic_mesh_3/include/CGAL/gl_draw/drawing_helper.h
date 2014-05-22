@@ -14,6 +14,27 @@ enum Polygon_drawing_options
 };
 
 template<typename Kernel>
+void gl_draw_segment(const typename Kernel::Point_3& pa,
+                     const typename Kernel::Point_3& pb,
+                     const bool draw_extremities = false)
+{
+  ::glBegin(GL_LINES);
+  ::glVertex3d(pa.x(),pa.y(),pa.z());
+  ::glVertex3d(pb.x(),pb.y(),pb.z());
+  ::glEnd();
+
+  if(draw_extremities)
+  {
+    ::glColor3d(93./256.,204./256.,232./256.);
+    ::glPointSize(5.);
+    ::glBegin(GL_POINTS);
+    ::glVertex3d(pa.x(),pa.y(),pa.z());
+    ::glVertex3d(pb.x(),pb.y(),pb.z());
+    ::glEnd();
+  }
+}
+
+template<typename Kernel>
 void gl_draw_triangle(const typename Kernel::Point_3& pa,
                       const typename Kernel::Point_3& pb,
                       const typename Kernel::Point_3& pc,
@@ -71,27 +92,23 @@ void gl_draw_facet(const Facet& f,
                    option, r, g, b);
 }
 
-
-template<typename Kernel>
-void gl_draw_segment(const typename Kernel::Point_3& pa,
-                     const typename Kernel::Point_3& pb,
-                     const bool draw_extremities = false)
+template<typename Kernel, typename Cell_handle>
+void gl_draw_tetrahedron(const Cell_handle c,
+                         const Polygon_drawing_options& option,
+                         const float r = 205.,
+                         const float g = 175.,
+                         const float b = 149.)
 {
-  ::glBegin(GL_LINES);
-  ::glVertex3d(pa.x(),pa.y(),pa.z());
-  ::glVertex3d(pb.x(),pb.y(),pb.z());
-  ::glEnd();
-
-  if(draw_extremities)
-  {
-    ::glColor3d(93./256.,204./256.,232./256.);
-    ::glPointSize(5.);
-    ::glBegin(GL_POINTS);
-    ::glVertex3d(pa.x(),pa.y(),pa.z());
-    ::glVertex3d(pb.x(),pb.y(),pb.z());
-    ::glEnd();
-  }
+  const typename Kernel::Point_3& pa = c->vertex(0)->point();
+  const typename Kernel::Point_3& pb = c->vertex(1)->point();
+  const typename Kernel::Point_3& pc = c->vertex(2)->point();
+  const typename Kernel::Point_3& pd = c->vertex(3)->point();
+  gl_draw_triangle<Kernel>(pa, pb, pc, option, r, g, b);
+  gl_draw_triangle<Kernel>(pa, pb, pd, option, r, g, b);
+  gl_draw_triangle<Kernel>(pb, pc, pd, option, r, g, b);
+  gl_draw_triangle<Kernel>(pa, pc, pd, option, r, g, b);
 }
+
 
 template<typename Kernel>
 void gl_draw_ellipsoid(const typename Kernel::Point_3& center,
@@ -162,7 +179,6 @@ void gl_draw_ellipsoid(const typename Kernel::Point_3& center,
   ::glVertex3d(x,y,z);
   ::glEnd();
 }
-
 
 template<typename Kernel>
 void gl_draw_sphere(const typename Kernel::Sphere_3& s)
@@ -338,7 +354,6 @@ void gl_draw_c3t3(const C3T3& c3t3,
       }
   }
   */
-
 }
 
 template<typename Colored_polyhedron>

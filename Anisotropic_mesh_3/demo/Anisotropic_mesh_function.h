@@ -13,22 +13,26 @@
 #include <QStringList>
 #include <QString>
 
-#include <CGAL/Anisotropic_mesher_3.h>
-
-#include <StarSet_type.h>
 #include <Anisotropic_meshing_thread.h>
+#include <StarSet_type.h>
+
+#include <CGAL/Anisotropic_mesher_3.h>
+#include <CGAL/Anisotropic_surface_mesher_3.h>
+#include <CGAL/Anisotropic_tet_mesher_3.h>
 
 template < typename Domain_, typename Metric_field >
 class Anisotropic_mesh_function
   : public Anisotropic_mesh_function_interface
 {
-  typedef CGAL::Anisotropic_mesh_3::Anisotropic_mesher_3<Kernel>    AMesher;
+  typedef CGAL::Anisotropic_mesh_3::Anisotropic_mesher_3_base            Mesher_base;
+  typedef CGAL::Anisotropic_mesh_3::Anisotropic_mesher_3<Kernel>         AMesher;
+  typedef CGAL::Anisotropic_mesh_3::Anisotropic_surface_mesher_3<Kernel> ASMesher;
+  typedef CGAL::Anisotropic_mesh_3::Anisotropic_tet_mesher_3<Kernel>     ATMesher;
 
 private:
   Starset_with_info& m_starset_with_info;
   bool m_continue;
-
-  AMesher* m_amesher;
+  Mesher_base* m_amesher;
 
 public:
   Anisotropic_mesh_function(Starset_with_info&);
@@ -69,10 +73,23 @@ void
 Anisotropic_mesh_function<D_, Metric_field>::
 launch()
 {
-  m_amesher = new AMesher(m_starset_with_info,
-                          m_starset_with_info.constrain_surface(),
-                          m_starset_with_info.criteria(),
-                          m_starset_with_info.metric_field());
+  int dimension = m_starset_with_info.criteria()->dimension;
+  if(dimension == 2)
+    m_amesher = new ASMesher(m_starset_with_info,
+                             m_starset_with_info.constrain_surface(),
+                             m_starset_with_info.criteria(),
+                             m_starset_with_info.metric_field());
+  else if(dimension ==3)
+    m_amesher = new ATMesher(m_starset_with_info,
+                             m_starset_with_info.constrain_surface(),
+                             m_starset_with_info.criteria(),
+                             m_starset_with_info.metric_field());
+  else if(dimension == 6)
+    m_amesher = new AMesher(m_starset_with_info,
+                            m_starset_with_info.constrain_surface(),
+                            m_starset_with_info.criteria(),
+                            m_starset_with_info.metric_field());
+
   m_amesher->initialize();
 
   while(!m_amesher->is_algorithm_done() && m_continue)
@@ -95,6 +112,7 @@ template < typename D_, typename Metric_field>
 QStringList
 Anisotropic_mesh_function<D_, Metric_field>::
 parameters_log() const
+{
   const Criteria* criteria = m_starset_with_info.criteria();
 
   return QStringList()

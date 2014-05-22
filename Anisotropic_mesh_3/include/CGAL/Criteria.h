@@ -64,6 +64,8 @@ public:
   const int nb_initial_points;
   const std::size_t max_times_to_try_in_picking_region;
 
+  const int dimension;
+
 public:
   void report() const
   {
@@ -120,7 +122,8 @@ public:
                 const FT beta_ = 2.5,
                 const FT delta_ = 0.3,
                 const int nb_initial_points_ = 4,
-                const std::size_t max_times_to_try_in_picking_region_ = 60
+                const std::size_t max_times_to_try_in_picking_region_ = 60,
+                const int dimension_ = 6
                 )
     :
       approximation(approximation_),
@@ -139,7 +142,8 @@ public:
       beta(beta_),
       delta(delta_),
       nb_initial_points(nb_initial_points_),
-      max_times_to_try_in_picking_region(max_times_to_try_in_picking_region_)
+      max_times_to_try_in_picking_region(max_times_to_try_in_picking_region_),
+      dimension(dimension_)
   { }
 };
 

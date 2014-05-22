@@ -7,11 +7,12 @@
 typedef CGAL::Exact_predicates_inexact_constructions_kernel     Epick;
 typedef CGAL::Robust_circumcenter_traits_3<Epick>               Kernel;
 
-#include <CGAL/Starset.h>
-#include <CGAL/Stretched_Delaunay_3.h>
+#include <CGAL/Constrain_surface_3.h>
 #include <CGAL/Criteria.h>
 #include <CGAL/Metric_field.h>
-#include <CGAL/Constrain_surface_3.h>
+#include <CGAL/Starset.h>
+#include <CGAL/gl_draw/Starset_display.h>
+#include <CGAL/Stretched_Delaunay_3.h>
 
 #include <vector>
 
@@ -24,6 +25,8 @@ typedef CGAL::Anisotropic_mesh_3::Starset_with_info<Kernel,
                                                     Constrain_surface,
                                                     Metric,
                                                     Criteria>   Starset_with_info;
+typedef CGAL::Anisotropic_mesh_3::Starset_display<Starset_with_info>
+                                                                Starset_display;
 
 /*template <typename K>
 struct Wrapper

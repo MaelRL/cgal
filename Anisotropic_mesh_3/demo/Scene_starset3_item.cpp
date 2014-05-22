@@ -189,7 +189,7 @@ Scene_starset3_item::direct_draw() const
     ::glEnable(GL_LIGHTING);
 
   const Kernel::Plane_3& plane = this->plane();
-  CGAL::Anisotropic_mesh_3::Starset_display<Starset> ss_display(d->m_starset);
+  Starset_display ss_display(d->m_starset);
 
   if(m_draw_surface_star_set)
     ss_display.gl_draw(plane, true/*draw_edges*/, m_draw_star_id);

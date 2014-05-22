@@ -105,6 +105,8 @@ namespace CGAL{
       FT error_bound;
 
     public:
+      C3t3 c3t3() const { return m_c3t3; }
+
       virtual FT get_bounding_radius() const = 0;
       virtual typename CGAL::Bbox_3 get_bbox() const = 0;
       virtual std::string name() const { return std::string("Implicit"); }
@@ -193,6 +195,22 @@ public:
         }
         return make_object(mp);
       }
+
+      virtual Vector_3 gradient(const Point_3 &p, const FT delta = 1e-5) const
+      {
+        FT dd = 1. / (2. * delta);
+        return dd * Vector_3(
+          (evaluate(p.x() + delta, p.y(), p.z()) - evaluate(p.x() - delta, p.y(), p.z())),
+          (evaluate(p.x(), p.y() + delta, p.z()) - evaluate(p.x(), p.y() - delta, p.z())),
+          (evaluate(p.x(), p.y(), p.z() + delta) - evaluate(p.x(), p.y(), p.z() - delta)));
+      }
+
+      //virtual Vector_3 normal(const Point_3 &p, const FT delta = 1e-5) const
+      //{
+      //  Vector_3 n = gradient(p, delta);
+      //  FT inv_len = -1. / sqrt(n*n);
+      //  return inv_len * n;
+      //}
 
       FT compute_sq_approximation(const Point_3& p) const
       {
