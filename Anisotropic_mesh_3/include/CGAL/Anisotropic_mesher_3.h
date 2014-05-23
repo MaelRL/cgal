@@ -1,5 +1,5 @@
-#ifndef CGAL_ANISOTROPIC_MESH_3_MESHER_H
-#define CGAL_ANISOTROPIC_MESH_3_MESHER_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_MESHER_3_H
+#define CGAL_ANISOTROPIC_MESH_3_MESHER_3_H
 
 #include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_3.h>
@@ -337,4 +337,4 @@ private:
 }  // Anisotropic_mesh_3
 }  // CGAL
 
-#endif // CGAL_ANISOTROPIC_MESH_3_MESHER_H
+#endif // CGAL_ANISOTROPIC_MESH_3_MESHER_3_H

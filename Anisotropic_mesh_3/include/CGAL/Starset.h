@@ -211,8 +211,8 @@ public:
   {
     if(option != FACETS_ONLY)
     {
-      Cell_handle_handle cit = star->begin_finite_star_cells();
-      Cell_handle_handle citend = star->end_finite_star_cells();
+      Cell_handle_handle cit = star->finite_star_cells_begin();
+      Cell_handle_handle citend = star->finite_star_cells_end();
       for(; cit != citend; cit++)
       {
         if(!star->is_inside(*cit))
@@ -224,8 +224,8 @@ public:
 
     if(option != CELLS_ONLY)
     {
-      Facet_set_iterator fit = star->begin_restricted_facets();
-      Facet_set_iterator fitend = star->end_restricted_facets();
+      Facet_set_iterator fit = star->restricted_facets_begin();
+      Facet_set_iterator fitend = star->restricted_facets_end();
       for(; fit != fitend; fit++)
         if(!is_consistent(*fit, verbose))
           return false;

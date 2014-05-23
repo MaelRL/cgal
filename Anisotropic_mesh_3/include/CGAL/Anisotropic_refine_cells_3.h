@@ -123,7 +123,6 @@ public:
       Trunk::build_aabb_tree();
     }
 
-
     fill_refinement_queue();
     m_refine_queue.print();
 
@@ -280,8 +279,8 @@ public:
     std::cout << "info on the newly created star: " << std::endl;
     std::map<Cell_ijkl, int> new_cells;
     Star_handle star = this->m_starset[pid];
-    typename Star::Cell_handle_handle ci = star->begin_finite_star_cells();
-    typename Star::Cell_handle_handle ciend = star->end_finite_star_cells();
+    typename Star::Cell_handle_handle ci = star->finite_star_cells_begin();
+    typename Star::Cell_handle_handle ciend = star->finite_star_cells_end();
     for (; ci != ciend; ++ci)
       if(!is_consistent(this->m_stars, *ci))
       {
@@ -558,8 +557,8 @@ public:
       }
       */
 
-      Cell_handle_handle ci = star->begin_finite_star_cells();
-      Cell_handle_handle ciend = star->end_finite_star_cells();
+      Cell_handle_handle ci = star->finite_star_cells_begin();
+      Cell_handle_handle ciend = star->finite_star_cells_end();
       for(; ci != ciend; ci++)
       {
         Cell_handle c = *ci;

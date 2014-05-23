@@ -204,8 +204,8 @@ void facet_histogram(const Starset& stars,
     if(!si->is_surface_star())
       continue;
 
-    typename Starset::Facet_set_iterator fit = si->begin_restricted_facets();
-    typename Starset::Facet_set_iterator fend = si->end_restricted_facets();
+    typename Starset::Facet_set_iterator fit = si->restricted_facets_begin();
+    typename Starset::Facet_set_iterator fend = si->restricted_facets_end();
     for(; fit != fend; ++fit)
     {
       typename Starset::Facet f = *fit;
@@ -382,8 +382,8 @@ void cell_histogram(const Starset& stars,
   {
     typename Starset::Star_handle si = stars[i];
 
-    typename Starset::Cell_handle_handle cit = si->begin_finite_star_cells();
-    typename Starset::Cell_handle_handle cend = si->end_finite_star_cells();
+    typename Starset::Cell_handle_handle cit = si->finite_star_cells_begin();
+    typename Starset::Cell_handle_handle cend = si->finite_star_cells_end();
     for(; cit != cend; ++cit)
     {
       typename Starset::Cell_handle c = *cit;
@@ -542,8 +542,8 @@ void dihedral_angle_histogram(const Starset& stars,
   {
     typename Starset::Star_handle si = stars[i];
 
-    typename Starset::Cell_handle_handle cit = si->begin_finite_star_cells();
-    typename Starset::Cell_handle_handle cend = si->end_finite_star_cells();
+    typename Starset::Cell_handle_handle cit = si->finite_star_cells_begin();
+    typename Starset::Cell_handle_handle cend = si->finite_star_cells_end();
     for(; cit != cend; ++cit)
     {
       typename Starset::Cell_handle c = *cit;

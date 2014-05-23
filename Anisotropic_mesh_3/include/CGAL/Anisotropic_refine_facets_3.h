@@ -680,8 +680,8 @@ private:
     {
       Star_handle star = Trunk::get_star(si);
 
-      Facet_set_iterator fi = star->begin_restricted_facets();
-      Facet_set_iterator fiend = star->end_restricted_facets();
+      Facet_set_iterator fi = star->restricted_facets_begin();
+      Facet_set_iterator fiend = star->restricted_facets_end();
       for (; fi != fiend; fi++)
       {
 /*TODO
@@ -699,9 +699,12 @@ private:
         Vertex_handle v2 = cell->vertex((offset+2)%4);
         Vertex_handle v3 = cell->vertex((offset+3)%4);
 
-        if(CGAL::squared_distance(star->metric().inverse_transform(v1->point()), m_stars[v1->info()]->center_point()) > 1e-10 ||
-           CGAL::squared_distance(star->metric().inverse_transform(v2->point()), m_stars[v2->info()]->center_point()) > 1e-10 ||
-           CGAL::squared_distance(star->metric().inverse_transform(v3->point()), m_stars[v3->info()]->center_point()) > 1e-10)
+        typename Star::Traits::Compute_squared_distance_3 csd =
+            m_traits->compute_squared_distance_3_object();
+
+        if(csd(star->metric().inverse_transform(v1->point()), m_stars[v1->info()]->center_point()) > 1e-10 ||
+           csd(star->metric().inverse_transform(v2->point()), m_stars[v2->info()]->center_point()) > 1e-10 ||
+           csd(star->metric().inverse_transform(v3->point()), m_stars[v3->info()]->center_point()) > 1e-10)
         {
           std::cout.precision(20);
           std::cout << "points differ in fill_ref_queue: " << v1->info() << " " << v2->info() << " " << v3->info() << std::endl;
@@ -820,8 +823,8 @@ private:
   void facets_created(Star_handle star,
                       std::map<Facet_ijk, int>& facets) const
   {
-    typename Star::Facet_set_iterator it = star->begin_restricted_facets();
-    typename Star::Facet_set_iterator iend = star->end_restricted_facets();
+    typename Star::Facet_set_iterator it = star->restricted_facets_begin();
+    typename Star::Facet_set_iterator iend = star->restricted_facets_end();
     for(; it != iend; it++)
       add_to_map(Facet_ijk(*it), facets);
   }

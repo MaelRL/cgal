@@ -5,6 +5,10 @@
 
 // helper for combinatorics
 
+class Edge_ij;
+class Facet_ijk;
+class Cell_ijkl;
+
 template<int count>
 inline bool is_same_ids(int *cids, int *dids) 
 {
@@ -31,6 +35,15 @@ inline bool is_same_ids(int *cids, int *dids)
   }
   return true;
 }
+
+//template<typename Cell_handle>
+//inline bool is_same(const Cell_handle &c, int *vertices)
+//{
+//  int cids[4];
+//  for (int i = 0; i < 4; i++)
+//    cids[i] = c->vertex(i)->info();
+//  return is_same_ids<4>(cids, vertices);
+//}
 
 template<typename Element, typename OneMap>
 void add_to_map(const Element& e, OneMap& m)
@@ -139,7 +152,6 @@ public :
     std::copy(ids.begin(), ids.end(), m_simplex.begin());
     sort();
   }
-
 };
 
 class Edge_ij : public Ordered_simplex_base<2>

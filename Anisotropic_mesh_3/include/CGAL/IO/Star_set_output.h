@@ -63,8 +63,8 @@ void output_star_off(const Starset& stars,
   std::set<Facet_ijk> output_facets;
   std::set<Cell_ijkl> output_cells;
 
-  typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
-  typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
+  typename Starset::Cell_handle_handle ci = star->finite_star_cells_begin();
+  typename Starset::Cell_handle_handle ciend = star->finite_star_cells_end();
   for(; ci != ciend; ci++)
   {
     typename Starset::Cell_handle c = *ci;
@@ -134,8 +134,8 @@ void output_off(const Starset& stars,
     typename Starset::Star_handle star = *it;
     points.push_back(star->center_point());
 
-    typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
-    typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
+    typename Starset::Cell_handle_handle ci = star->finite_star_cells_begin();
+    typename Starset::Cell_handle_handle ciend = star->finite_star_cells_end();
     for (; ci != ciend; ++ci)
     {
       typename Starset::Cell_handle c = *ci;
@@ -206,8 +206,8 @@ void output_surface_off(const Starset& stars,
     typename Starset::Star_handle star = *si;
     points.push_back(star->center_point());
 
-    typename Starset::Facet_set_iterator fi = star->begin_restricted_facets();
-    typename Starset::Facet_set_iterator fiend = star->end_restricted_facets();
+    typename Starset::Facet_set_iterator fi = star->restricted_facets_begin();
+    typename Starset::Facet_set_iterator fiend = star->restricted_facets_end();
     for (; fi != fiend; ++fi)
     {
       typename Starset::Point_3 cc;
@@ -257,8 +257,8 @@ void output_surface_off(const Starset& stars,
     for(; it != itend; it++)
     {
       typename Starset::Star_handle star = *it;
-      typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
-      typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
+      typename Starset::Cell_handle_handle ci = star->finite_star_cells_begin();
+      typename Starset::Cell_handle_handle ciend = star->finite_star_cells_end();
       for(; ci != ciend; ci++)
       {
         if(!star->is_inside(*ci))
@@ -311,8 +311,8 @@ void output_surface_medit(const Starset& stars,
   for(int i = 0; i < (int)stars.size(); i++)
   {
     typename Starset::Star_handle s = stars[i];
-    typename Starset::Facet_set_iterator fit = s->begin_restricted_facets();
-    typename Starset::Facet_set_iterator fend = s->end_restricted_facets();
+    typename Starset::Facet_set_iterator fit = s->restricted_facets_begin();
+    typename Starset::Facet_set_iterator fend = s->restricted_facets_end();
     for(; fit != fend; ++fit)
       facets.insert(Facet_ijk(*fit));
   }
@@ -388,8 +388,8 @@ void output_medit(const Starset& stars,
   for(; sit != sitend; sit++)
   {
     typename Starset::Star_handle star = *sit;
-    typename Starset::Cell_handle_handle ci = star->begin_finite_star_cells();
-    typename Starset::Cell_handle_handle ciend = star->end_finite_star_cells();
+    typename Starset::Cell_handle_handle ci = star->finite_star_cells_begin();
+    typename Starset::Cell_handle_handle ciend = star->finite_star_cells_end();
     for(; ci != ciend; ci++)
     {
       if(!star->is_inside(*ci))
@@ -455,8 +455,8 @@ void output_surface_voronoi(const Starset& stars,
   for(; sit != sitend; sit++)
   {
     typename Starset::Star_handle si = *sit;
-    typename Starset::Facet_set_iterator fit = si->begin_restricted_facets();
-    typename Starset::Facet_set_iterator fend = si->end_restricted_facets();
+    typename Starset::Facet_set_iterator fit = si->restricted_facets_begin();
+    typename Starset::Facet_set_iterator fend = si->restricted_facets_end();
     for(; fit != fend; ++fit)
     {
       Point p;

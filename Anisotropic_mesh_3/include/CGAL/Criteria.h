@@ -262,11 +262,13 @@ public:
 
   FT element_quality(THREE_POINTS(Point_3)) const
   {
+    typename Traits::Compute_squared_distance_3 sqd =
+        traits.compute_squared_distance_3_object();
     FT alpha = 4.*std::sqrt(3.);
     FT A = compute_volume(p, q, r);
-    FT a = CGAL::squared_distance(p, q);
-    FT b = CGAL::squared_distance(p, r);
-    FT c = CGAL::squared_distance(q, r);
+    FT a = sqd(p, q);
+    FT b = sqd(p, r);
+    FT c = sqd(q, r);
     FT quality = alpha*A/(a+b+c);
 
     return quality;

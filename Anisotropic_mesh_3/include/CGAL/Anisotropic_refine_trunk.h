@@ -980,8 +980,8 @@ public:
   void cells_created(Star_handle star,
                       std::map<Cell_ijkl, int>& cells) const
   {
-    Cell_handle_handle ci = star->begin_finite_star_cells();
-    Cell_handle_handle ciend = star->end_finite_star_cells();
+    Cell_handle_handle ci = star->finite_star_cells_begin();
+    Cell_handle_handle ciend = star->finite_star_cells_end();
     for(; ci != ciend; ci++)
       add_to_map(Cell_ijkl(*ci), cells);
   }
@@ -1381,7 +1381,7 @@ public:
           //should probably be (++czit)-- but it doesn't really matter since something went wrong if we're in there
 
         si->print_vertices(true);
-        si->print_faces();
+        si->print_facets();
         std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
         return vi->info();
       }
@@ -1427,7 +1427,7 @@ public:
         remove_from_stars(this_id, target_stars.begin(), ++it);
 
         si->print_vertices(true);
-        si->print_faces();
+        si->print_facets();
         std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
         return vi->info();
       }
