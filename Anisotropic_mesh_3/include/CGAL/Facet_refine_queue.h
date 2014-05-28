@@ -361,6 +361,28 @@ public:
     return (*(--queues[queue_type]->end()))->value;
   }
 
+  void clean()
+  {
+    CGAL::Timer t;
+    t.start();
+    int size = rfacets.size();
+
+    Rfacet_set_iterator rfit = rfacets.begin();
+    Rfacet_set_iterator rfend = rfacets.end();
+    for(; rfit != rfend; ++rfit)
+    {
+      Facet f;
+      if(!rfit->star->has_facet(rfit->facet, f))
+      {
+        queues[rfit->queue_type]->erase(rfit->queue_it);
+        rfacets.erase(rfit);
+      }
+    }
+
+    t.stop();
+    std::cout << "clean: " << size << " " << rfacets.size() << " in " << t.time() << std::endl;
+  }
+
 public:
   void print_rfacets()
   {

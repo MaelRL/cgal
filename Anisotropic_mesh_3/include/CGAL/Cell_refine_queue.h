@@ -359,6 +359,29 @@ public:
     return (*(--queues[queue_type]->end()))->value;
   }
 
+  void clean()
+  {
+    CGAL::Timer t;
+    t.start();
+    int size = rcells.size();
+
+    Rcell_set_iterator rcit = rcells.begin();
+    Rcell_set_iterator rcend = rcells.end();
+    for(; rcit != rcend; ++rcit)
+    {
+      Cell_handle c;
+      if(!rcit->star->has_cell(rcit->cell, c))
+      {
+        queues[rcit->queue_type]->erase(rcit->queue_it);
+        rcells.erase(rcit);
+      }
+    }
+
+    t.stop();
+    std::cout << "clean: " << size << " " << rcells.size() << " in " << t.time() << std::endl;
+  }
+  
+public:
   void print_rcells()
   {
     std::cout << "rcells: " << std::endl;
