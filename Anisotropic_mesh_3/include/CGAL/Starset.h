@@ -101,8 +101,8 @@ public:
     std::set<Facet_ijk> facets;
     for(unsigned int i = 0; i < m_stars.size(); i++)
     {
-      Facet_set_iterator fit = m_stars[i]->begin_restricted_facets();
-      Facet_set_iterator fitend = m_stars[i]->end_restricted_facets();
+      Facet_set_iterator fit = m_stars[i]->restricted_facets_begin();
+      Facet_set_iterator fitend = m_stars[i]->restricted_facets_end();
       for(; fit != fitend; fit++)
         facets.insert(Facet_ijk(*fit));
     }
@@ -115,8 +115,8 @@ public:
     for (int i = 0; i < (int)m_stars.size(); i++)
     {
       Star_handle si = m_stars[i];
-      typename Star::Cell_handle_handle cit = si->begin_finite_star_cells();
-      typename Star::Cell_handle_handle cend = si->end_finite_star_cells();
+      typename Star::Cell_handle_handle cit = si->finite_star_cells_begin();
+      typename Star::Cell_handle_handle cend = si->finite_star_cells_end();
       for(; cit != cend; cit++)
         // if(si->is_inside(*cit))
         count++;
@@ -361,8 +361,8 @@ public:
       if(!star->is_surface_star())
         continue;
 
-      Facet_set_iterator fit = star->begin_restricted_facets();
-      Facet_set_iterator fitend = star->end_restricted_facets();
+      Facet_set_iterator fit = star->restricted_facets_begin();
+      Facet_set_iterator fitend = star->restricted_facets_end();
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;

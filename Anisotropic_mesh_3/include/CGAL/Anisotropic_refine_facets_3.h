@@ -115,6 +115,8 @@ public:
     return (m_queue_ids_start <= queue_id && queue_id <= m_queue_ids_end);
   }
 
+  Refine_queue& refine_queue() { return m_refine_queue; }
+
 public:
 //functions used in the Mesher_lvl class
   void initialize_()

@@ -111,7 +111,7 @@ public:
 #ifdef ANISO_DEBUG_QUEUE
     std::cout << "Enter fill ref queues debug. Filling with all stars" << std::endl;
     derived().fill_refinement_queue();
-    derived().m_refine_queue.print();
+    derived().refine_queue().print();
     std::cout << "End fill ref queues debug" << std::endl;
 #endif
 

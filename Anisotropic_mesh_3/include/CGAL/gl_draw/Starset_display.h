@@ -59,8 +59,8 @@ public:
 
       if(m_starset.criteria()->dimension == 2)
       {
-        Facet_set_iterator fit = star->begin_restricted_facets();
-        Facet_set_iterator fitend = star->end_restricted_facets();
+        Facet_set_iterator fit = star->restricted_facets_begin();
+        Facet_set_iterator fitend = star->restricted_facets_end();
         for(; fit != fitend; fit++)
         {
           Facet f = *fit;
@@ -414,8 +414,8 @@ public:
     for(std::size_t i = start; i < N; i++)
     {
       Star_handle star = m_starset[i];
-      typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
-      typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+      typename Star::Facet_set_iterator fit = star->restricted_facets_begin();
+      typename Star::Facet_set_iterator fitend = star->restricted_facets_end();
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;
@@ -465,8 +465,8 @@ public:
       if(!star->is_surface_star())
         continue;
 
-      Facet_set_iterator fit = star->begin_restricted_facets();
-      Facet_set_iterator fend = star->end_restricted_facets();
+      Facet_set_iterator fit = star->restricted_facets_begin();
+      Facet_set_iterator fend = star->restricted_facets_end();
       for(; fit != fend; fit++)
       {
         Facet f = *fit;
@@ -531,8 +531,8 @@ public:
     for(std::size_t i = start; i < N; i++)
     {
       Star_handle star = m_starset[i];
-      typename Star::Facet_set_iterator fit = star->begin_restricted_facets();
-      typename Star::Facet_set_iterator fitend = star->end_restricted_facets();
+      typename Star::Facet_set_iterator fit = star->restricted_facets_begin();
+      typename Star::Facet_set_iterator fitend = star->restricted_facets_end();
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;
