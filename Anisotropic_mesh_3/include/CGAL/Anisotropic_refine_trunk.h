@@ -1257,7 +1257,7 @@ public:
      //TODO
     if(1) //metric_reset
     {
-      if(1) //surface_star
+      if(surface_star)
       {
         Metric m_p;
 
@@ -1516,11 +1516,11 @@ protected:
   //Initialization
   void initialize_medial_axis(Point_set& poles)
   {
+    this->m_pConstrain->compute_poles(poles);
 #ifdef ANISO_VERBOSE
     std::cout << "Initialize medial axis..." << std::endl;
-    std::cout << "Get poles..." << std::endl;
+    std::cout << poles.size() << " poles before resize..." << std::endl;
 #endif
-    this->m_pConstrain->compute_poles(poles);
 
     //TEMP ---------------------------------------------------------------------
     //ugly code to reduce the number of poles to the desired fixed amount
@@ -1548,7 +1548,7 @@ protected:
       bool conditional = (i % 50 != 0); //1/50 with no condition
       if(true) //m_refinement_condition(*it)) TODO
       {
-        insert(*it, conditional, true/*surface point*/);
+        insert(*it, false /*no condition*/, false/*surface point*/);
         ++done;
       }
     }
