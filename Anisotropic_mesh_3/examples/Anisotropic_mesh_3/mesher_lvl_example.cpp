@@ -29,6 +29,11 @@ typedef std::vector<Star*>                                   Star_vector;
 
 int main(int argc, char** argv)
 {
+  //std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
+
+  std::streambuf * old = std::cout.rdbuf();
+  //std::cout.rdbuf(0);
+
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
 

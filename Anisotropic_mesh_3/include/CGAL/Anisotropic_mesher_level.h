@@ -108,15 +108,19 @@ public:
     visitor.fill_refinement_queue(pid);
 
     derived().clear_conflict_zones();
-#ifdef ANISO_DEBUG_QUEUE
+
+    if(pid%1000 == 0)
+    {
+      derived().clean_stars();
+      derived().refine_queue().clean();
+    }
+
+#if 0//def ANISO_DEBUG_QUEUE
     std::cout << "Enter fill ref queues debug. Filling with all stars" << std::endl;
     derived().fill_refinement_queue();
     derived().refine_queue().print();
     std::cout << "End fill ref queues debug" << std::endl;
 #endif
-
-    if(pid%100 == 0)
-      derived().clean_stars();
 
     return true;
   }
@@ -143,8 +147,10 @@ public:
 
   bool is_algorithm_done()
   {
-    return previous_level.is_algorithm_done() &&
-           m_is_active && derived().is_algorithm_done_();
+    if(!m_is_active)
+      initialize();
+
+    return previous_level.is_algorithm_done() && derived().is_algorithm_done_();
   }
 
   //boolean return type so that [stop at a prev level] => [immediate stop at all levels]
