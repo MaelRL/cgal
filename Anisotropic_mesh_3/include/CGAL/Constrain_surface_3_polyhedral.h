@@ -62,6 +62,7 @@ class Constrain_surface_3_polyhedral :
 {
 public:
   typedef Constrain_surface_3<K>                     Base;
+  typedef Polyhedron                                 Polyhedron_type;
 
   typedef typename Base::Object_3                    Object_3;
   typedef typename Base::FT                          FT;

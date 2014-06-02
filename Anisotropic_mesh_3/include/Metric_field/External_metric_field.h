@@ -2,9 +2,11 @@
 #define CGAL_ANISOTROPIC_MESH_3_EXTERNAL_METRIC_FIELD_H
 
 #include <CGAL/Constrain_surface_3_polyhedral.h>
-#include <CGAL/Metric_field.h>
+#include <CGAL/Polyhedral_metric_field.h>
 
 #include <CGAL/helpers/metric_helper.h>
+
+#include <boost/array.hpp>
 
 #include <fstream>
 #include <string>
@@ -16,30 +18,65 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K>
-class External_metric_field : public Metric_field<K>
+class External_metric_field : public Polyhedral_metric_field<K>
 {
 public:
-  typedef Metric_field<K>                                       Base;
-  typedef typename Base::FT                                     FT;
+  typedef Polyhedral_metric_field<K>                            Base;
+
   typedef typename Base::Metric                                 Metric;
+  typedef typename Base::Constrain_surface                      Constrain_surface;
+
+  typedef typename Base::FT                                     FT;
   typedef typename Base::Point_3                                Point_3;
   typedef typename Base::Vector_3                               Vector_3;
 
-  typedef Constrain_surface_3_polyhedral<K>                     Constrain_surface;
-  typedef typename Constrain_surface::Vertex_handle             Vertex_handle;
-  typedef typename Constrain_surface::Facet_handle              Facet_handle;
-
-  typedef typename Constrain_surface::Primitive                 Primitive;
-  typedef typename Constrain_surface::Traits                    Traits;
-  typedef typename Constrain_surface::Tree                      Tree;
-  typedef typename Tree::Object_and_primitive_id                Object_and_primitive_id;
-  typedef typename Tree::Point_and_primitive_id                 Point_and_primitive_id;
 
 private:
-  const Constrain_surface& m_pConstrain;
-  std::vector<Eigen::Matrix3d> m_metrics; // !! THIS IS MP NOT FP !!
+  void fix_normal_eigenvalues()
+  {
+    for (std::size_t i = 0; i < this->m_pConstrain.m_vertices.size(); ++i)
+    {
+      boost::array<FT, 3> evs;
+      boost::array<Vector_3, 3> vs;
 
-private:
+      Eigen::Matrix3d m = this->m_metrics[i];
+
+      get_eigen_vecs_and_vals<K>(m, vs[0], vs[1], vs[2], evs[0], evs[1], evs[2]);
+
+      Vector_3 normal = compute_vertex_normal<typename Constrain_surface::Polyhedron_type, K>(this->m_pConstrain.m_vertices[i]);
+      int id_of_vn = -1;
+      FT max_sp = -1e30;
+
+      //std::cout << "normal: " << normal << std::endl;
+      //std::cout << "evs: " << evs[0] << " " << evs[1] << " " << evs[2] << std::endl;
+
+      for(int j=0; j<3; ++j)
+      {
+        FT spi = std::abs(vs[j]*normal);
+        //std::cout << "compared to: " << vs[j] << " " << spi << std::endl;
+        if(spi > max_sp)
+        {
+          id_of_vn = j;
+          max_sp = spi;
+        }
+      }
+
+      //std::cout << "id of vn: " << id_of_vn << std::endl;
+
+      evs[id_of_vn] = (std::max)(evs[(id_of_vn+1)%3], evs[(id_of_vn+2)%3]); //en_factor applied later
+
+      this->m_pConstrain.m_vertices[i]->normal() = vs[id_of_vn];
+
+      //todo clean that, building m_metrics[i] doesn't need all these steps
+      Metric M = this->build_metric(vs[id_of_vn], vs[(id_of_vn+1)%3], vs[(id_of_vn+2)%3],
+                                    std::sqrt(evs[id_of_vn]),
+                                    std::sqrt(evs[(id_of_vn+1)%3]),
+                                    std::sqrt(evs[(id_of_vn+2)%3]));
+      Eigen::Matrix3d transf = M.get_transformation();
+      this->m_metrics[i] = transf.transpose()*transf;
+    }
+  }
+
   void fetch_metric(const char* mf_filename)
   {
     std::cout << "Reading metric file: " << mf_filename << std::endl;
@@ -79,128 +116,28 @@ private:
       }
       else
         break;
-      m_metrics.push_back(met);
+      this->m_metrics.push_back(met);
     }
 
-    if(m_metrics.size() != size)
+    if(this->m_metrics.size() != size)
     {
       std::cout << "problem while reading metric field input" << std::endl;
-      std::cout << "File says: " << size << " but only read " << m_metrics.size() << std::endl;
+      std::cout << "File says: " << size << " but only read " << this->m_metrics.size() << std::endl;
     }
 
     std::cout << "End of read metric field" << std::endl;
-  }
 
-  void tensor_frame_polyhedral_surface(const Point_3 &p,
-                                       Vector_3& v0, Vector_3& v1, Vector_3& v2,
-                                       double& e0, double& e1, double& e2) const
-  {
-    //Compute with interpolations & barycentric coordinates
-    Facet_handle facet = m_pConstrain.find_nearest_facet(p);
-    Vertex_handle va = facet->halfedge()->vertex();
-    Vertex_handle vb = facet->halfedge()->next()->vertex();
-    Vertex_handle vc = facet->halfedge()->next()->next()->vertex();
+    fix_normal_eigenvalues();
+    this->global_smooth();
 
-    //get bary weights
-    Vector_3 v00(va->point(), vb->point());
-    Vector_3 v11(va->point(), vc->point());
-    Vector_3 v22(va->point(), p);
-    FT d00 = v00*v00;
-    FT d01 = v00*v11;
-    FT d11 = v11*v11;
-    FT d20 = v22*v00;
-    FT d21 = v22*v11;
-    FT denom = d00 * d11 - d01 * d01;
-    FT v = (d11 * d20 - d01 * d21) / denom;
-    FT w = (d00 * d21 - d01 * d20) / denom;
-    FT u = 1.0f - v - w;
-
-    std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
-    w_metrics.push_back(std::make_pair(m_metrics[va->tag()], u));
-    w_metrics.push_back(std::make_pair(m_metrics[vb->tag()], v));
-    w_metrics.push_back(std::make_pair(m_metrics[vc->tag()], w));
-    Eigen::Matrix3d m = Eigen::Matrix3d::Zero();
-    m = logexp_interpolate<K>(w_metrics);
-
-    get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
-  }
-
-  void tensor_frame_3D(const Point_3 &p,
-                       Vector_3& v0, Vector_3& v1, Vector_3& v2,
-                       double& e0, double& e1, double& e2) const
-  {
-/* TODO
-    Point_and_primitive_id pp = m_pConstrain.m_tet_tree.closest_point_and_primitive(p);
-    Cell_ijkl_with_coords_access<K>* closest_tet = pp.second; // closest primitive id
-
-    int pid0 = closest_tet->m_cell.vertex(0);
-    int pid1 = closest_tet->m_cell.vertex(1);
-    int pid2 = closest_tet->m_cell.vertex(2);
-    int pid3 = closest_tet->m_cell.vertex(3);
-
-    Point_3 p0 = m_coords[pid0];
-    Point_3 p1 = m_coords[pid1];
-    Point_3 p2 = m_coords[pid2];
-    Point_3 p3 = m_coords[pid3];
-
-//    std::cout << "locate point p : " << p << std::endl;
-//    std::cout << pid0 << " " << p0 << std::endl;
-//    std::cout << pid1 << " " << p1 << std::endl;
-//    std::cout << pid2 << " " << p2 << std::endl;
-//    std::cout << pid3 << " " << p3 << std::endl;
-//    Point_3 closest_point = pp.first;
-//    std::cout << "closest is (should be p) : " << closest_point << std::endl;
-
-    //get bary weights
-    Vector_3 v30(p3, p0);
-    Vector_3 v31(p3, p1);
-    Vector_3 v32(p3, p2);
-    Vector_3 v3b(p3, p);
-
-    FT lambda_0 = CGAL::determinant(v3b.x(), v31.x(), v32.x(),
-                                    v3b.y(), v31.y(), v32.y(),
-                                    v3b.z(), v31.z(), v32.z());
-    FT lambda_1 = CGAL::determinant(v30.x(), v3b.x(), v32.x(),
-                                    v30.y(), v3b.y(), v32.y(),
-                                    v30.z(), v3b.z(), v32.z());
-    FT lambda_2 = CGAL::determinant(v30.x(), v31.x(), v3b.x(),
-                                    v30.y(), v31.y(), v3b.y(),
-                                    v30.z(), v31.z(), v3b.z());
-
-    FT denom = CGAL::determinant(v30.x(), v31.x(), v32.x(),
-                                 v30.y(), v31.y(), v32.y(),
-                                 v30.z(), v31.z(), v32.z());
-
-    lambda_0 /= denom;
-    lambda_1 /= denom;
-    lambda_2 /= denom;
-    FT lambda_3 = 1 - lambda_0 - lambda_1 - lambda_2;
-
-    //interpolate the metrics
-    std::vector<std::pair<Eigen::Matrix3d, FT> > w_metrics;
-    w_metrics.push_back(std::make_pair(m_metrics[pid0], lambda_0));
-    w_metrics.push_back(std::make_pair(m_metrics[pid1], lambda_1));
-    w_metrics.push_back(std::make_pair(m_metrics[pid2], lambda_2));
-    w_metrics.push_back(std::make_pair(m_metrics[pid3], lambda_3));
-    Eigen::Matrix3d m = logexp_interpolate<K>(w_metrics);
-
-    get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
-*/
+    this->output_mf_polylines();
+    this->output_metric_at_input_vertices();
   }
 
 public:
   Metric compute_metric(const Point_3 &p) const
   {
-    Vector_3 v0, v1, v2;
-    double e0, e1, e2;
-
-    if(1)
-      tensor_frame_polyhedral_surface(p, v0, v1, v2, e0, e1, e2);
-    else
-      tensor_frame_3D(p, v0, v1, v2, e0, e1, e2);
-
-    return this->build_metric(v0, v1, v2, std::sqrt(e0), std::sqrt(e1), std::sqrt(e2));
-
+    return Base::compute_metric(p);
   }
 
   void report(typename std::ofstream &fx) const { }
@@ -208,11 +145,9 @@ public:
   External_metric_field(const Constrain_surface& surface_,
                         const char* mf_filename = "metric_field.txt",
                         FT epsilon_ = 1e-6,
-                        const double& en_factor = 0.999)
+                        FT en_factor = 0.999)
   :
-    Metric_field<K>(epsilon_, en_factor),
-    m_pConstrain(surface_),
-    m_metrics()
+    Base(surface_, epsilon_, en_factor)
   {
     fetch_metric(mf_filename);
   }

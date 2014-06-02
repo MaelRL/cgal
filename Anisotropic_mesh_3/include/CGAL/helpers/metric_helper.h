@@ -305,6 +305,17 @@ void get_metric_normal_index(const typename K::Vector_3& normal, const std::vect
   //todo maybe, swap the normal if normal and the metric vector closest to normal have negative scalar prod
 }
 
+template<typename Point>
+Point transform(const Eigen::Matrix3d& f,
+                const Point& p)
+{
+  Eigen::Vector3d ep(p.x(),p.y(),p.z());
+  ep = f * ep;
+  Point result(ep[0],ep[1],ep[2]);
+  return result;
+}
+
+
 } //namespace Aniso
 } //namespace CGAL
 
