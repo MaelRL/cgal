@@ -605,6 +605,82 @@ void dihedral_angle_histogram(const Starset& stars,
   output_histogram(histogram, 0., 180., "histogram_dihedral_angle.cvs");
 }
 
+template<typename Starset, typename Criteria>
+void facet_edge_length_histogram(const Starset& stars,
+                                 const Criteria* const criteria,
+                                 const bool verbose = false)
+{
+  int histogram_size = 1000;
+  double step_size = 2.0 / (double) histogram_size;
+  std::vector<int> histogram(histogram_size, 0);
+  typename Starset::FT val, min_value = 1e30, max_value = -1e30;
+
+  std::size_t N = stars.size();
+  for(std::size_t i=0; i<N; ++i)
+  {
+    typename Starset::Star_handle si = stars[i];
+    if(!si->is_surface_star())
+      continue;
+
+    std::set<int> done;
+    typename Starset::Traits::Compute_squared_distance_3 csd =
+                              si->traits()->compute_squared_distance_3_object();
+
+    typename Starset::TPoint_3 tc = si->center()->point();
+#if 0
+    std::cout << "tc: " << si->index_in_star_set() << " || " << tc << std::endl;
+#endif
+
+    typename Starset::Facet_set_iterator fit = si->restricted_facets_begin();
+    typename Starset::Facet_set_iterator fend = si->restricted_facets_end();
+    for(; fit != fend; ++fit)
+    {
+      for(int i=1; i<4; ++i)
+      {
+        typename Starset::Vertex_handle vi = fit->first->vertex((fit->second+i)%4);
+        if(vi->info() == si->index_in_star_set())
+          continue;
+
+        std::pair<typename std::set<int>::iterator, bool> is_insert_successful;
+        is_insert_successful = done.insert(vi->info());
+        if(!is_insert_successful.second)
+          continue;
+
+        typename Starset::TPoint_3 tp = vi->point();
+        typename Starset::FT d_tc_tp = csd(tc, tp);
+
+        val = d_tc_tp / criteria->squared_facet_circumradius;
+        val = std::sqrt(val);
+
+#if 0
+        std::cout << "------- tp: " << vi->info() << " || " << tp <<  std::endl;
+        std::cout << "+++++++ " << d_tc_tp << " " << criteria->squared_facet_circumradius;
+        std::cout << " ¹¹¹¹¹¹¹¹¹¹¹¹¹¹¹¹¹¹¹¹ " << val << std::endl;
+#endif
+
+        min_value = (std::min)(min_value, val);
+        max_value = (std::max)(max_value, val);
+
+        for(int j=0; j<histogram_size; ++j)
+          if(j*step_size <= val && val < (j+1)*step_size)
+            histogram[j]++;
+
+        if(val >= (histogram_size)*step_size)
+          histogram[histogram_size-1]++;
+      }
+    }
+  }
+
+  if(verbose)
+  {
+    std::cout << "facet edge length histogram" << std::endl;
+    std::cout << "min, max: " << min_value << " " << max_value << std::endl;
+  }
+
+//  output_histogram(histogram, 0., 2., "histogram_facet_edge_length.cvs");
+  output_histogram(histogram, 0., 2.*criteria->facet_circumradius, "histogram_facet_edge_length.cvs");
+}
+
 template<typename Starset, typename Constrain_surface, typename Criteria>
 void all_facet_histograms(const Starset& stars,
                           const Constrain_surface* const m_pConstrain,
@@ -617,6 +693,8 @@ void all_facet_histograms(const Starset& stars,
   facet_histogram(stars, m_pConstrain, m_criteria, FACET_SIZE, verbose);
   facet_histogram(stars, m_pConstrain, m_criteria, FACET_RATIO, verbose);
   //facet_histogram(stars, m_pConstrain, m_criteria, FACET_ANGLE, verbose);
+
+  facet_edge_length_histogram(stars, m_criteria, verbose);
 }
 
 template<typename Starset, typename Criteria>
