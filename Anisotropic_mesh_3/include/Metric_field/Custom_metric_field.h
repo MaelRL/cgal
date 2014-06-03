@@ -44,7 +44,7 @@ public:
     Vector_3 v2(v2x, v2y, v2z);
     Vector_3 v3 = CGAL::cross_product(v1, v2);
 
-    return this->build_metric(v1, v2, v3, h1, h2, h3);
+    return this->build_metric(v1, v2, v3, 1./h1, h2, h3);
   }
 
   virtual Metric compute_metric(const Point_3 &p) const
