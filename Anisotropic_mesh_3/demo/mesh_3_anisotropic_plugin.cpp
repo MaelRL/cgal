@@ -377,13 +377,13 @@ void Anisotropic_mesh_3_plugin::anisotropic_mesh_3()
   ui.comboBox_metric->addItem("Hyperbolic shock", HYPERBOLIC_SHOCK);
   if(t == POLYHEDRAL_SURFACE)
   {
+    ui.comboBox_metric->addItem("External", EXTERNAL_MF);
     ui.comboBox_metric->addItem("Polyhedron curvature", POLYHEDRON_CURVATURE);
     ui.comboBox_metric->setCurrentIndex(2);//polyhedron curvature
   }
   else //IMPLICIT_SURFACE
   {
     ui.comboBox_metric->addItem("Implicit curvature", IMPLICIT_CURVATURE);
-    ui.comboBox_metric->addItem("Torus (1/r, 1/R)", TORUS_NAIVE);
     ui.comboBox_metric->setCurrentIndex(2);//implicit curvature
   }
  

@@ -37,16 +37,6 @@ Criteria* build_criteria_and_metric(const Implicit_surface* p_domain,
     std::cout << "(Metric field : Euclidean)." << std::endl;
     mf = new CGAL::Anisotropic_mesh_3::Euclidean_metric_field<Kernel>(1., 1., 1., epsilon, en_factor);
   }
-  else if(metric == TORUS_NAIVE)
-  {
-    typedef Constrain_surface_3_torus<Kernel> Torus;
-    const Torus* t = static_cast<const Torus*>(p_domain);
-    double r = t->get_r();
-    double R = t->get_R();
-
-    std::cout << "(Metric field : Torus r = " << r << ", R = "<< R <<")" << std::endl;
-    mf = new Torus_metric_field<Kernel>(R, r, epsilon, en_factor);
-  }
   else if(metric == IMPLICIT_CURVATURE)
   {
     std::cout << "(Curvature metric field)." << std::endl;

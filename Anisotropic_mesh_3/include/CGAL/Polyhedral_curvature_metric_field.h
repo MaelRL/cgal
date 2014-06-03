@@ -73,7 +73,7 @@ public:
   {
     Vector_3 v0, v1, v2;
     double e0, e1, e2;
-    tensor_frame(p, v0, v1, v2, e0, e1, e2);
+    this->tensor_frame_polyhedral_surface(p, v0, v1, v2, e0, e1, e2);
     minc = (std::min)(e0, (std::min)(e1, e2));
     maxc = (std::max)(e0, (std::max)(e1, e2));
   }
@@ -193,7 +193,7 @@ public:
 
   virtual Metric compute_metric(const Point_3 &p) const
   {
-    Base::compute_metric(p);
+    return Base::compute_metric(p);
   }
 
   Polyhedral_curvature_metric_field(const Constrain_surface& surface_,
