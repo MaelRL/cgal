@@ -201,7 +201,7 @@ public:
       m_null_mesher(),
       m_facet_mesher(m_null_mesher, m_starset, pconstrain_, criteria_, metric_field_,
                      m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones,
-                     m_facet_refine_queue, 0, 5),
+                     m_facet_refine_queue, 0, 5, true/*use poles*/),
       m_null_visitor(),
       m_facet_visitor(m_null_visitor)
   { }

@@ -81,6 +81,10 @@ public:
 private:
   Refine_queue& m_refine_queue;
 
+  //should poles be used
+  bool m_are_poles_used;
+
+
   // these two ints determine which queues (in the facet refinement queue) are
   // used by this level
   const int m_queue_ids_start;
@@ -129,7 +133,7 @@ public:
       std::cout << "Starting with criteria: " << std::endl;
       this->m_criteria->report();
 
-      Trunk::initialize_stars();
+      Trunk::initialize_stars(m_are_poles_used);
       this->m_ch_triangulation.infinite_vertex()->info() = -10;
       Trunk::build_aabb_tree();
     }
@@ -1227,12 +1231,15 @@ public:
                               Stars_conflict_zones& m_stars_czones_,
                               Refine_queue& refine_queue_,
                               int queue_ids_start_,
-                              int queue_ids_end_)
+                              int queue_ids_end_,
+                              bool are_poles_used_ = false)
     :
       Mesher_lvl(previous),
       Trunk(starset_, pconstrain_, criteria_, metric_field_,
-           ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
+            ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_,
+            false/*not a 3D level*/),
       m_refine_queue(refine_queue_),
+      m_are_poles_used(are_poles_used_),
       m_queue_ids_start(queue_ids_start_),
       m_queue_ids_end(queue_ids_end_),
       m_pick_valid_uses_3D_checks(false),

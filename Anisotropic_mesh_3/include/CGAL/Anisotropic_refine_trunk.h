@@ -661,6 +661,9 @@ private:
   To_exact to_exact;
   Back_from_exact back_from_exact;
 
+  bool m_is_3D_level; // used to determine whether non surface points are poles (metric = identity)
+                      // or ''real'' points with a metric that needs to be computed from the MF
+
 protected:
   Starset& m_starset;
 
@@ -1257,41 +1260,15 @@ public:
      //TODO
     if(1) //metric_reset
     {
-      if(surface_star)
+      if(m_is_3D_level || surface_star)
       {
-        Metric m_p;
-
-        /* TODO
-        if(m_use_c3t3_colors || m_compute_metric_from_triangle)
-        {
-          Vector_3 normal;
-          std::vector<Vector_3> v(3);
-          std::vector<FT> e(3);
-          Eigen::Matrix3d M;
-          if(m_use_c3t3_colors)
-            m_poly_painter.get_color_from_poly(p, M);
-          else
-            M = compute_metric_from_index_set(p, modified_stars);
-
-          get_eigen_vecs_and_vals<K>(M, v[0], v[1], v[2], e[0], e[1], e[2]);
-          int n_ind = -1;
-          m_p.get_third_eigenvector(normal);
-          get_metric_normal_index<K>(normal, v, n_ind);
-          int id_1 = (n_ind + 1) % 3;
-          int id_2 = (n_ind + 2) % 3;
-          m_p = metric_field()->build_metric(v[n_ind], v[id_1], v[id_2],
-                                             std::sqrt(e[n_ind]),
-                                             std::sqrt(e[id_1]),
-                                             std::sqrt(e[id_2]));
-        }
-        else //standard surface case
-        */
-          m_p = metric_field()->compute_metric(p);
-
+        Metric m_p = metric_field()->compute_metric(p);
         star->reset(p, pid, m_p, surface_star);
       }
       else
+      {
         star->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
+      }
     }
 
     if(m_stars_czones.is_empty())
@@ -1476,7 +1453,9 @@ public:
                const bool surface_point = false)
   {
     if(conditional && m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
+    {
       std::cout << "Conflict zones unknown at insertion time...insert()" << std::endl;
+    }
 
     Index id = insert_to_stars(p, conditional);
     if(id < 0 || id < (int) number_of_stars())
@@ -1559,7 +1538,8 @@ protected:
 #endif
   }
 
-  void initialize_stars(const int nb = 50)
+  void initialize_stars(const bool are_poles_used = false,
+                        const int nb = 50)
   {
 #ifdef ANISO_VERBOSE
     std::cout << "Initialize "<< nb << " stars..." << std::endl;
@@ -1571,10 +1551,12 @@ protected:
     //the input metric field right now TODO
     typename Constrain_surface::Pointset initial_points = this->m_pConstrain->get_surface_points(2*nb);
 
-    //Disabled usage of poles for now since they are not necessarily well positioned
-    //compared to the 3D metric field.
-    //Point_set poles;
-    //initialize_medial_axis(poles); // poles
+    //only used in the case of a pure surface mesh (only one mesher level: a facet mesher level)
+    if(are_poles_used)
+    {
+      Point_set poles;
+      initialize_medial_axis(poles); // poles
+    }
 
 #ifdef ANISO_VERBOSE
     std::cout << "Picked " << initial_points.size() << " initial points" << std::endl;
@@ -1668,8 +1650,10 @@ public:
                            DT& ch_triangulation_,
                            AABB_tree& aabb_tree_,
                            Kd_tree& kd_tree_,
-                           Stars_conflict_zones& stars_czones_)
+                           Stars_conflict_zones& stars_czones_,
+                           bool is_3D_level_)
   :
+    m_is_3D_level(is_3D_level_),
     m_starset(starset_),
     m_pConstrain(pConstrain_),
     m_criteria(criteria_),

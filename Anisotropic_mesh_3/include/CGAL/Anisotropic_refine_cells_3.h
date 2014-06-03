@@ -773,7 +773,8 @@ public:
   :
     Mesher_lvl(previous),
     Trunk(starset_, pconstrain_, criteria_, metric_field_,
-          ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_),
+          ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_,
+          true/*3D*/),
     m_refine_queue(refine_queue_),
     m_queue_ids_start(queue_ids_start_),
     m_queue_ids_end(queue_ids_end_),
