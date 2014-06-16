@@ -18,10 +18,14 @@
 
 #include <CGAL/Metric_field.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
-class Shock_metric_field : public Metric_field<K> {
+class Shock_metric_field : public Metric_field<K>
+{
 public:
   typedef Metric_field<K>        Base;
   typedef typename Base::FT      FT;
@@ -53,5 +57,7 @@ public:
     : Metric_field<K>(epsilon_, en_factor_), sigma(sigma_), lambda(lambda_) { }
 };
 
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif

@@ -263,7 +263,7 @@ public:
     return false;
   }
 
-  bool has_cell(const Cell_handle &cell)
+  bool has_cell(const Cell_handle &cell) const
   {
     int cids[4], dids[4];
     for (int i = 0; i < 4; i++)
@@ -281,7 +281,7 @@ public:
     return false;
   }
 
-  bool has_cell(int *vertices, Cell_handle &cell)
+  bool has_cell(int *vertices, Cell_handle &cell) const
   {
     int dids[4];
     Cell_handle_handle ci = star_cells_begin();
@@ -369,7 +369,8 @@ public:
         int center_index = (*ci)->index(m_center);
         for(int i = 0; i < 4; i++)
         {
-          if(i == center_index) continue;
+          if(i == center_index)
+            continue;
           Facet f = this->make_canonical(Facet(*ci, i));
           Point_3 p;
           if(is_restricted(f, p, true)) //updates surface delaunay center, if needed
@@ -614,14 +615,14 @@ public:
   }
 
 public:
-  inline FT compute_volume(const Cell_handle &cell)
+  inline FT compute_volume(const Cell_handle &cell) const
   {
     return m_criteria->compute_volume(
           cell->vertex(0)->point(), cell->vertex(1)->point(),
           cell->vertex(2)->point(), cell->vertex(3)->point());
   }
 
-  inline FT compute_volume(const Facet &facet)
+  inline FT compute_volume(const Facet &facet) const
   {
     return m_criteria->compute_volume(
       facet.first->vertex((facet.second + 1) % 4)->point(),
@@ -629,14 +630,14 @@ public:
       facet.first->vertex((facet.second + 3) % 4)->point());
   }
 
-  inline FT compute_radius_edge_ratio_overflow(const Cell_handle &cell)
+  inline FT compute_radius_edge_ratio_overflow(const Cell_handle &cell) const
   {
     return m_criteria->radius_edge_ratio_overflow(
       cell->vertex(0)->point(), cell->vertex(1)->point(),
       cell->vertex(2)->point(), cell->vertex(3)->point());
   }
 
-  inline FT compute_radius_edge_ratio_overflow(const Facet &facet)
+  inline FT compute_radius_edge_ratio_overflow(const Facet &facet) const
   {
     return m_criteria->radius_edge_ratio_overflow(
       facet.first->vertex((facet.second + 1) % 4)->point(),
@@ -644,7 +645,7 @@ public:
       facet.first->vertex((facet.second + 3) % 4)->point());
   }
 
-  inline FT compute_squared_radius_edge_ratio(const Facet& facet)
+  inline FT compute_squared_radius_edge_ratio(const Facet& facet) const
   {
     return m_criteria->compute_squared_radius_edge_ratio(
       facet.first->vertex((facet.second + 1) % 4)->point(),
@@ -681,7 +682,7 @@ public:
       cell->vertex(2)->point(), cell->vertex(3)->point());
   }
 
-  inline FT compute_circumradius_overflow(const Facet &facet)
+  inline FT compute_circumradius_overflow(const Facet &facet) const
   {
 /*
     //using Delaunay's ball radius
@@ -699,7 +700,7 @@ public:
     return sqr - m_criteria->criteria->squared_facet_circumradius;
   }
 
-  inline FT compute_squared_circumradius(const Facet &facet)
+  inline FT compute_squared_circumradius(const Facet &facet) const
   {
     return m_criteria->compute_squared_circumradius(
       facet.first->vertex((facet.second + 1) % 4)->point(),
@@ -709,19 +710,19 @@ public:
 
   inline FT compute_squared_circumradius(const TPoint_3& p1,
                                          const TPoint_3& p2,
-                                         const TPoint_3& p3)
+                                         const TPoint_3& p3) const
   {
     return m_criteria->compute_squared_circumradius(p1, p2, p3);
   }
 
-  inline FT compute_sliverity_overflow(const Cell_handle &cell)
+  inline FT compute_sliverity_overflow(const Cell_handle &cell) const
   {
     return m_criteria->sliverity_overflow(
       cell->vertex(0)->point(), cell->vertex(1)->point(),
       cell->vertex(2)->point(), cell->vertex(3)->point());
   }
 
-  inline FT compute_squared_circumradius(const Cell_handle ch)
+  inline FT compute_squared_circumradius(const Cell_handle ch) const
   {
     return m_criteria->compute_squared_circumradius(
           ch->vertex(0)->point(), ch->vertex(1)->point(),
@@ -731,7 +732,7 @@ public:
   inline FT compute_squared_circumradius(const TPoint_3& p1,
                                          const TPoint_3& p2,
                                          const TPoint_3& p3,
-                                         const TPoint_3& p4)
+                                         const TPoint_3& p4) const
   {
     return m_criteria->compute_squared_circumradius(p1, p2, p3, p4);
   }
@@ -951,7 +952,7 @@ public:
            typename IFacetsOutputIterator>
   bool find_conflicts(const Point_3& p, BFacetsOutputIterator bfoit /*boundary*/,
                                         CellsOutputIterator coit /*cells*/,
-                                        IFacetsOutputIterator ifoit /*internal*/)
+                                        IFacetsOutputIterator ifoit /*internal*/) const
   {
     int dim = Base::dimension();
     if(dim <= 1)
@@ -983,12 +984,12 @@ public:
   }
 
   template<typename BoundaryFacetsOutputIterator>
-  bool find_conflicts(const Point_3& p, BoundaryFacetsOutputIterator oit)
+  bool find_conflicts(const Point_3& p, BoundaryFacetsOutputIterator oit) const
   {
     return find_conflicts(p, oit, Emptyset_iterator(), Emptyset_iterator());
   }
 
-  bool can_form_sliver(const TPoint_3 &p, const FT &squared_radius_bound)
+  bool can_form_sliver(const TPoint_3 &p, const FT &squared_radius_bound) const
   {
     Cell_handle_handle ci = star_cells_begin();
     Cell_handle_handle cend = star_cells_end();
@@ -1683,7 +1684,7 @@ public:
   }
 
 // ENCROACHMENT
-  bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet)
+  bool is_facet_encroached(const TPoint_3 &tp, const Facet &facet) const
   {
     Point_3 c;
 #ifdef ANISO_USE_EXACT
@@ -1697,7 +1698,7 @@ public:
     return o(tc, tp) < o(tc, tq);
   }
 
-  bool is_encroached(const Point_3 &p, Facet &facet)
+  bool is_encroached(const Point_3 &p, Facet &facet) const
   {
     TPoint_3 tp = m_metric.transform(p);
 
@@ -1845,15 +1846,18 @@ public:
     int li, lj;
     typename Base::Locate_type lt;
     Cell_handle c = Base::locate(tp, lt, li, lj, m_center->cell());
-    if(lt ==  Base::VERTEX){
+    if(lt ==  Base::VERTEX)
+    {
       found_vertex = true;
       vh = c->vertex(li);
     }
 #else
     for(typename Base::Finite_vertices_iterator it =  this->finite_vertices_begin();
         (! found_vertex) && (it != this->finite_vertices_end());
-        ++it){
-      if(p == it->point()){
+        ++it)
+    {
+      if(p == it->point())
+      {
         found_vertex = true;
         vh = it;
       }
@@ -1911,20 +1915,7 @@ public:
     std::cout << ")\n";
   }
 
-  void print_vertices()
-  {
-    std::cout << "list vertices of " << m_center->info() << std::endl;
-    typename Base::Finite_vertices_iterator vit = this->finite_vertices_begin();
-    typename Base::Finite_vertices_iterator vend = this->finite_vertices_end();
-    for(;vit!=vend;++vit)
-    {
-      std::cout << "Vertex ";
-      std::cout << vit->info() << " || ";
-      std::cout << vit->point() << std::endl;
-    }
-  }
-
-  void print_restricted_facets()
+  void print_restricted_facets() const
   {
     std::cout << "Restricted facets of " << m_center->info() << std::endl;
     Facet_set_iterator fi = restricted_facets_begin();
@@ -1959,7 +1950,7 @@ public:
     }
   }
 
-  void print_cells()
+  void print_cells() const
   {
     std::cout << "list cells of " << m_center->info() << std::endl;
     typename Base::Finite_cells_iterator cit = this->finite_cells_begin();

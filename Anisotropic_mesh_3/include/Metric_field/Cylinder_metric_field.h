@@ -18,8 +18,10 @@
 
 #include <CGAL/Metric_field.h>
 
-using namespace CGAL::Anisotropic_mesh_3;
-
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
 template<typename K>
 class Cylinder_metric_field : public Metric_field<K> {
@@ -93,5 +95,7 @@ public:
     : Metric_field<K>(epsilon_, en_factor_), radius(radius_), height(height_) { }
 };
 
+} // Anisotropic_mesh_3
+} // CGAL
 
 #endif

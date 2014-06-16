@@ -278,7 +278,7 @@ void facet_histogram(const Starset& stars,
         FT sqr_in_b = star_b->compute_squared_circumradius(tpa_b, tpb_b, tpc_b);
         FT sqr_in_c = star_c->compute_squared_circumradius(tpa_c, tpb_c, tpc_c);
 
-        val = CGAL::sqrt( (std::min)((std::min)(sqr_in_a, sqr_in_b), sqr_in_c) );
+        val = CGAL::sqrt( (std::max)((std::max)(sqr_in_a, sqr_in_b), sqr_in_c) );
       }
       else if(hist_type == FACET_RATIO)
       {
