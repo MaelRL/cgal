@@ -652,14 +652,29 @@ public:
       facet.first->vertex((facet.second + 3) % 4)->point());
   }
 
-  inline FT compute_squared_radius_edge_ratio(const Cell_handle ch)
+  inline FT compute_squared_radius_edge_ratio(const TPoint_3& tp1,
+                                              const TPoint_3& tp2,
+                                              const TPoint_3& tp3) const
+  {
+    return m_criteria->compute_squared_radius_edge_ratio(tp1, tp2, tp3);
+  }
+
+  inline FT compute_squared_radius_edge_ratio(const Cell_handle ch) const
   {
     return m_criteria->compute_squared_radius_edge_ratio(
           ch->vertex(0)->point(), ch->vertex(1)->point(),
           ch->vertex(2)->point(), ch->vertex(3)->point());
   }
 
-  inline FT compute_circumradius_overflow(const Cell_handle &cell)
+  inline FT compute_squared_radius_edge_ratio(const TPoint_3& tp1,
+                                              const TPoint_3& tp2,
+                                              const TPoint_3& tp3,
+                                              const TPoint_3& tp4) const
+  {
+    return m_criteria->compute_squared_radius_edge_ratio(tp1, tp2, tp3, tp4);
+  }
+
+  inline FT compute_circumradius_overflow(const Cell_handle &cell) const
   {
     return m_criteria->circumradius_overflow(
       cell->vertex(0)->point(), cell->vertex(1)->point(),

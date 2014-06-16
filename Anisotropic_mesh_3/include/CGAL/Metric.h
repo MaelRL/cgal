@@ -35,10 +35,12 @@
 
 #include <Eigen/Dense>
 
-namespace CGAL{
-namespace Anisotropic_mesh_3{
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
 
-template<typename K, typename KExact>
+template<typename K, typename KExact = K>
 class Metric_base
 {
 public:
