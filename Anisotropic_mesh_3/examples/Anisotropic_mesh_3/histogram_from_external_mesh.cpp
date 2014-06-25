@@ -103,7 +103,7 @@ void fetch_from_mesh(std::ifstream& in,
       {
         int n1, n2, n3;
         in >> n1 >> n2 >> n3 >> useless;
-        facets.push_back(n1); facets.push_back(n2); facets.push_back(n3);
+        facets.push_back(n1-1); facets.push_back(n2-1); facets.push_back(n3-1);
       }
     }
 
@@ -114,7 +114,8 @@ void fetch_from_mesh(std::ifstream& in,
       {
         int n1, n2, n3, n4;
         in >> n1 >> n2 >> n3 >> n4 >> useless;
-        cells.push_back(n1); cells.push_back(n2); cells.push_back(n3); cells.push_back(n4);
+        cells.push_back(n1-1); cells.push_back(n2-1);
+        cells.push_back(n3-1); cells.push_back(n4-1);
       }
     }
   }
@@ -128,8 +129,6 @@ void fetch_mesh(const char* filename,
   std::cout << "fetching...: " << filename << std::endl;
 
   std::string input_filename = filename;
-  std::cout << "lel: " << input_filename << std::endl;
-
   std::string extension = input_filename.substr(input_filename.find_last_of('.'));
 
   if (extension == ".off" || extension == ".OFF")
@@ -159,11 +158,10 @@ void output_histogram(const std::vector<int>& histogram,
   std::cout << "output: " << filename << std::endl;
   std::ofstream out(filename);
   std::size_t histo_n = histogram.size();
-  std::cout << "histon: " << histo_n << std::endl;
+  std::cout << "histo_n: " << histo_n << std::endl;
   for(std::size_t i=0; i<histo_n; ++i)
   {
     FT val = min + (max-min)*((FT) i)/((FT) histo_n);
-    std::cout << "valhisto: " << val << std::endl;
     out << i << "," << val << "," << histogram[i] << std::endl;
   }
 }
@@ -177,13 +175,8 @@ void facet_edge_length_histogram(std::vector<Point_3>& points,
     return;
   std::cout << "facet edge external histo with size: " << facets.size() << std::endl;
 
-  int histogram_size = 1000;
-  FT limit_val = limit_val;
-  FT facet_circumradius = 1.0;
-  FT upper_bound = 2.0 * facet_circumradius;
-  FT step_size = upper_bound / (FT) histogram_size;
-  std::vector<int> histogram(histogram_size, 0);
   FT val, min_value = 1e30, max_value = -1e30;
+  std::vector<FT> values;
 
   Star_traits star_traits;
   typename Star_traits::Compute_squared_distance_3 csd = star_traits.compute_squared_distance_3_object();
@@ -207,26 +200,47 @@ void facet_edge_length_histogram(std::vector<Point_3>& points,
       for(int k=0; k<3; ++k)
         tps[k] = m.transform(ps[k]);
 
-
-      val = CGAL::sqrt( csd(tps[0], tps[1]) );
-      std::cout << "val: " << val << " " << val/step_size << std::endl;
+#if 0 // adjacent only
+      val = CGAL::sqrt( csd(tps[j], tps[(j+1)%3]) );
+      std::cout << "val: " << val << std::endl;
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
+
+      val = CGAL::sqrt( csd(tps[j], tps[(j+2)%3]) );
+      std::cout << "val: " << val << std::endl;
+      min_value = (std::min)(min_value, val);
+      max_value = (std::max)(max_value, val);
+      values.push_back(val);
+#else
+      val = CGAL::sqrt( csd(tps[0], tps[1]) );
+      min_value = (std::min)(min_value, val);
+      max_value = (std::max)(max_value, val);
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[0], tps[2]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[1], tps[2]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
+#endif
     }
   }
+  std::cout << "done, outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
 
-  output_histogram(histogram, 0., facet_circumradius, "histogram_facet_edge_length_external.cvs");
+  int histogram_size = 1000;
+  std::vector<int> histogram(histogram_size, 0);
+  FT limit_val = histogram_size - 1.;
+  FT step_size = max_value / (FT) histogram_size;
+
+  for(int i=0; i<values.size(); ++i)
+    histogram[(std::min)(limit_val, std::floor(values[i]/step_size))]++;
+
+  output_histogram(histogram, 0., max_value, "histogram_facet_edge_length_external.cvs");
 }
 
 template<typename Metric_field>
@@ -238,13 +252,8 @@ void cell_edge_length_histogram(std::vector<Point_3>& points,
     return;
   std::cout << "cell edge external histo with size: " << cells.size() << std::endl;
 
-  int histogram_size = 1000;
-  FT limit_val = histogram_size - 1.;
-  FT cell_circumradius = 1.0;
-  FT upper_bound = 2.0 * cell_circumradius;
-  FT step_size = upper_bound / (FT) histogram_size;
-  std::vector<int> histogram(histogram_size, 0);
   FT val, min_value = 1e30, max_value = -1e30;
+  std::vector<FT> values;
 
   Star_traits star_traits;
   typename Star_traits::Compute_squared_distance_3 csd = star_traits.compute_squared_distance_3_object();
@@ -268,64 +277,90 @@ void cell_edge_length_histogram(std::vector<Point_3>& points,
       for(int k=0; k<4; ++k)
         tps[k] = m.transform(ps[k]);
 
-
-      val = CGAL::sqrt( csd(tps[0], tps[1]) );
-      std::cout << "val: " << val << " " << val/step_size << std::endl;
+#if 0 // adjacent only
+      val = CGAL::sqrt( csd(tps[j], tps[(j+1)%4]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
+
+      val = CGAL::sqrt( csd(tps[j], tps[(j+2)%4]) );
+      min_value = (std::min)(min_value, val);
+      max_value = (std::max)(max_value, val);
+      values.push_back(val);
+
+      val = CGAL::sqrt( csd(tps[j], tps[(j+3)%4]) );
+      min_value = (std::min)(min_value, val);
+      max_value = (std::max)(max_value, val);
+      values.push_back(val);
+#else
+      val = CGAL::sqrt( csd(tps[0], tps[1]) );
+      min_value = (std::min)(min_value, val);
+      max_value = (std::max)(max_value, val);
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[0], tps[2]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[0], tps[3]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[1], tps[2]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[1], tps[3]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
 
       val = CGAL::sqrt( csd(tps[2], tps[3]) );
       min_value = (std::min)(min_value, val);
       max_value = (std::max)(max_value, val);
-      histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
+      values.push_back(val);
+#endif
     }
   }
-  std::cout << "done, outputing:" << std::endl;
+  std::cout << "done, outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
 
-  output_histogram(histogram, 0., cell_circumradius, "histogram_cell_edge_length_external.cvs");
+  int histogram_size = 1000;
+  std::vector<int> histogram(histogram_size, 0);
+  FT limit_val = histogram_size - 1.;
+  FT step_size = max_value / (FT) histogram_size;
+
+  for(int i=0; i<values.size(); ++i)
+    histogram[(std::min)(limit_val, std::floor(values[i]/step_size))]++;
+
+  output_histogram(histogram, 0., max_value, "histogram_cell_edge_length_external.cvs");
 }
 
 int main(int argc, char** argv)
 {
+  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
+
   std::vector<Point_3> points;
   std::vector<int> facets, cells;
 
-  Constrain_surface* pdomain = new Constrain_surface("bambimboum.mesh");
-//  Constrain_surface* pdomain = new Constrain_surface("../../data/Anisotropy_CMP/3DSurface/Fandisk.off");
+//  Constrain_surface* pdomain = new Constrain_surface("bambimboum.mesh");
+  Constrain_surface* pdomain = new Constrain_surface("../../data/Anisotropy_CMP/3DSurface/Fandisk.off");
 
   //----------- pick a metric field! ----
-  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
+//  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
 //  Hyperbolic_shock_metric_field* metric_field = new Hyperbolic_shock_metric_field(0.6);
 //  Custom_metric_field* metric_field = new Custom_metric_field();
 
-//  External_metric_field* metric_field = new External_metric_field(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fandisk_Metric.txt");
+  External_metric_field* metric_field = new External_metric_field(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fandisk_Metric.txt");
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "metric_at_input.txt");
 //  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(pdomain);
 //  Implicit_curvature_metric_field* metric_field = new Implicit_curvature_metric_field(pdomain);
 
 //  const char* mesh_filename = (argc>1)?argv[1]:"/home/mrouxel/cgal/Anisotropic_mesh_3/data/Anisotropy_CMP/3DSurface/Fandisk.off";
-  const char* mesh_filename = (argc>1)?argv[1]:"/home/mrouxel/cgal/Anisotropic_mesh_3/examples/Anisotropic_mesh_3/bambimboum.mesh";
+//  const char* mesh_filename = (argc>1)?argv[1]:"../../data/Anisotropy_CMP/Ours_Results/Tet/Spherical.mesh";
+  const char* mesh_filename = (argc>1)?argv[1]:"../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh";
 
   fetch_mesh(mesh_filename, points, facets, cells);
 
