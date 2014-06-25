@@ -207,7 +207,7 @@ public:
   //this function checks if f is incident to the center
   bool is_in_star(const Facet& f) const
   {
-    for(unsigned int i = 0; i < 3; i++)
+    for(int i = 1; i < 4; i++)
     {
       Vertex_handle v = f.first->vertex((f.second+i)%4);
       if(v->info() == m_center->info())
@@ -381,6 +381,11 @@ public:
     is_cache_dirty = false;
   }
 
+  void invalidate_bbox_cache() const
+  {
+    m_is_valid_bbox = false;
+  }
+
   void invalidate_cache() const
   {
     is_cache_dirty = true;
@@ -532,7 +537,7 @@ public:
       std::cout << "done." << std::endl;
   }
 
-  Bbox surface_bbox() const// compute bbox of incident surface Delaunay balls
+  Bbox surface_bbox() const // compute bbox of incident surface Delaunay balls
   {
     typename Traits::Compute_squared_distance_3 csd
       = m_traits->compute_squared_distance_3_object();
@@ -556,7 +561,7 @@ public:
     return m_metric.inverse_transform(bb);
   }
 
-  Bbox volume_bbox() const//// compute bbox of incident cells circumspheres
+  Bbox volume_bbox() const // compute bbox of incident cells circumspheres
   {
     typename Traits::Compute_squared_distance_3 csd
       = m_traits->compute_squared_distance_3_object();
@@ -684,13 +689,6 @@ public:
 
   inline FT compute_circumradius_overflow(const Facet &facet) const
   {
-/*
-    //using Delaunay's ball radius
-    return m_criteria->circumradius_overflow(
-          facet.first->vertex((facet.second+1)%4)->point(),
-          facet.first->vertex((facet.second+2)%4)->point(),
-          facet.first->vertex((facet.second+3)%4)->point());
-*/
     // surface Delaunay ball radius
     Point_3 p;
     compute_dual_intersection(facet,p);
@@ -888,10 +886,11 @@ public:
                                            Cell_handle& in_which_cell) const
   {
     CGAL_PROFILER("[is_in_a_volume_delaunay_ball]");
-    if(this->dimension() < 3) return true;
+    if(this->dimension() < 3)
+      return true;
     Cell_handle_handle ci = star_cells_begin();
     Cell_handle_handle cend = star_cells_end();
-    for (; ci != cend; ci++)
+    for(; ci!=cend; ci++)
     {
       if(is_in_delaunay_ball(tp, *ci))
       {
@@ -969,16 +968,15 @@ public:
     else
     {
       TPoint_3 tp = m_metric.transform(p);
-      Cell_handle ch; //warning : dimension should be 3 to use find_conflicts!
-      // TEST BELOW IS ALWAYS TRUE WITH THE WAY CONFLICT ZONES ARE NOW COMPUTED
-      // VERIFY AND REMOVE TODO
-      // Also could put ch in memory from the call of simulate_insert_to_stars()
-      // and recall (and remove it before find_conflicts) there
-      if(is_in_a_volume_delaunay_ball(tp, ch))
+      Cell_handle ch; // this cell has already been computed previously and could be kept in stars_czones memory todo
+      if(!is_conflicted(tp, ch))
       {
-        Base::find_conflicts(tp, ch, bfoit, coit, ifoit);
-        return true;
+        std::cout << "no conflict in find_conflict.........(bad)" << std::endl;
+        return false;
       }
+
+      Base::find_conflicts(tp, ch, bfoit, coit, ifoit);
+      return true;
     }
     return false;
   }
@@ -1120,7 +1118,8 @@ public:
     {
 #ifdef ANISO_VERBOSE
       std::cout << "CONSTRAIN_RAY_INTERSECTION : source cannot be == target ";
-      std::cout << " ("<< p1 << ")" << std::endl;
+      std::cout.precision(20);
+      std::cout << " ("<< p1 << " | " << p2 << ")" << std::endl;
 #endif
       return false;
     }
@@ -1629,7 +1628,7 @@ public:
     }
     else
     {
-      if(candidate_1 == candidate_2) // just to be safe
+      if(candidate_1 == candidate_2)
         return false;
 
       if(constrain_segment_intersection(candidate_1, candidate_2, p))
@@ -1716,7 +1715,7 @@ public:
   }
 
 public:
-  std::size_t clean() //remove non-adjacent vertices
+  std::size_t clean(bool verbose = false) //remove non-adjacent vertices
   {
     typedef typename std::pair<TPoint_3, int> PPoint;
     std::vector<PPoint> backup;
@@ -1749,7 +1748,8 @@ public:
 
     invalidate_cache();
 
-    //std::cout << "clean: " << nbv << " " << this->number_of_vertices() << " backup: " << backup.size() << std::endl;
+    if(verbose)
+      std::cout << "clean (old/new) @ : " << index_in_star_set() << " :: " << nbv << " " << this->number_of_vertices() << std::endl;
     return (nbv - backup.size());
   }
 
@@ -1915,8 +1915,17 @@ public:
     std::cout << ")\n";
   }
 
+  std::size_t count_restricted_facets() const
+  {
+    update_star_caches();
+    return restricted_facets_cache.size();
+  }
+
   void print_restricted_facets() const
   {
+    if(Base::dimension() < 3)
+      return;
+
     std::cout << "Restricted facets of " << m_center->info() << std::endl;
     Facet_set_iterator fi = restricted_facets_begin();
     Facet_set_iterator fend = restricted_facets_end();
@@ -1943,7 +1952,8 @@ public:
       Facet f = *fit;
       std::cout << "\t\t f(" << f.first->vertex((f.second+1)%4)->info()
                     << " " << f.first->vertex((f.second+2)%4)->info()
-                    << " " << f.first->vertex((f.second+3)%4)->info() << ") ";
+                    << " " << f.first->vertex((f.second+3)%4)->info()
+                    << " - " << f.first->vertex(f.second)->info() << ")";
       if(is_restricted(f))
         std::cout << "restricted";
       std::cout << ",\n";
@@ -1961,7 +1971,7 @@ public:
       std::cout << cit->vertex(0)->info() << " ";
       std::cout << cit->vertex(1)->info() << " ";
       std::cout << cit->vertex(2)->info() << " ";
-      std::cout << cit->vertex(3)->info() << std::endl;
+      std::cout << cit->vertex(3)->info() << " " << Base::is_valid(cit, true) << std::endl;
     }
     std::cout << "end" << std::endl;
   }

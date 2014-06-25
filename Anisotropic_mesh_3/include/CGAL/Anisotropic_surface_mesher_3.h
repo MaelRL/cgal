@@ -127,7 +127,6 @@ public:
     CGAL::Timer timer;
     timer.start();
     double elapsed_time = 0.;
-    std::ofstream time_out("time.txt");
 
 #if 1//ndef ANISO_VERBOSE
     // Scan surface and refine it
@@ -139,6 +138,7 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
+    std::ofstream time_out("time.txt");
     while (!m_facet_mesher.is_algorithm_done())
     {
       m_facet_mesher.one_step(m_facet_visitor);

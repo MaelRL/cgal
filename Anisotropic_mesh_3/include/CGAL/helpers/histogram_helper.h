@@ -643,6 +643,7 @@ void facet_edge_length_histogram(const Starset& stars,
   typedef typename Starset::FT FT;
 
   int histogram_size = 1000;
+  FT limit_val = histogram_size - 1.;
   FT upper_bound = 2.0 * criteria->facet_circumradius; // will obv fail if r_0 = 0
   FT step_size = upper_bound / (FT) histogram_size;
   std::vector<int> histogram(histogram_size, 0);
@@ -655,17 +656,10 @@ void facet_edge_length_histogram(const Starset& stars,
     if(!si->is_surface_star())
       continue;
 
-    std::set<Facet_ijk> done;
-
     typename Starset::Facet_set_iterator fit = si->restricted_facets_begin();
     typename Starset::Facet_set_iterator fend = si->restricted_facets_end();
     for(; fit != fend; ++fit)
     {
-      std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
-      is_insert_successful = done.insert(*fit);
-      if(!is_insert_successful.second)
-        continue;
-
       for(int i=1; i<4; ++i)
       {
         typename Starset::Star_handle star = stars[fit->first->vertex((fit->second+i)%4)->info()];
@@ -680,26 +674,23 @@ void facet_edge_length_histogram(const Starset& stars,
         val = CGAL::sqrt( csd(tp1, tp2) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp2, tp3) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp1, tp3) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
       }
     }
   }
 
-  if(verbose)
-  {
-    std::cout << "facet edge length histogram" << std::endl;
-    std::cout << "min, max: " << min_value << " " << max_value << std::endl;
-  }
+  std::cout << "facet edge length histogram" << std::endl;
+  std::cout << "min, max: " << min_value << " " << max_value << std::endl;
 
   output_histogram(histogram, 0., 2.0 * criteria->facet_circumradius, "histogram_facet_edge_length.cvs");
 }
@@ -712,6 +703,7 @@ void cell_edge_length_histogram(const Starset& stars,
   typedef typename Starset::FT FT;
 
   int histogram_size = 1000;
+  FT limit_val = histogram_size - 1.;
   FT upper_bound = 2.0 * criteria->cell_circumradius; // will obv fail if r_0 = 0
   FT step_size = upper_bound / (FT) histogram_size;
   std::vector<int> histogram(histogram_size, 0);
@@ -723,8 +715,6 @@ void cell_edge_length_histogram(const Starset& stars,
   {
     typename Starset::Star_handle si = stars[i];
 
-    std::set<Cell_ijkl> done;
-
     typename Starset::Cell_handle_handle chit = si->finite_star_cells_begin();
     typename Starset::Cell_handle_handle chend = si->finite_star_cells_end();
     for(; chit!=chend; ++chit)
@@ -732,11 +722,6 @@ void cell_edge_length_histogram(const Starset& stars,
       typename Starset::Cell_handle cit = *chit;
 
       if(!si->is_inside(cit))
-        continue;
-
-      std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
-      is_insert_successful = done.insert(cit);
-      if(!is_insert_successful.second)
         continue;
 
       for(int i=0; i<4; ++i)
@@ -754,41 +739,38 @@ void cell_edge_length_histogram(const Starset& stars,
         val = CGAL::sqrt( csd(tp0, tp1) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp0, tp2) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp0, tp3) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp1, tp2) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp1, tp3) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
 
         val = CGAL::sqrt( csd(tp2, tp3) );
         min_value = (std::min)(min_value, val);
         max_value = (std::max)(max_value, val);
-        histogram[std::floor(val/step_size)]++;
+        histogram[(std::min)(limit_val, std::floor(val/step_size))]++;
       }
     }
   }
 
-  if(verbose)
-  {
-    std::cout << "cell edge length histogram" << std::endl;
-    std::cout << "min, max: " << min_value << " " << max_value << std::endl;
-  }
+  std::cout << "cell edge length histogram" << std::endl;
+  std::cout << "min, max: " << min_value << " " << max_value << std::endl;
 
   output_histogram(histogram, 0., 2.0 * criteria->cell_circumradius, "histogram_cell_edge_length.cvs");
 }

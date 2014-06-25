@@ -174,15 +174,19 @@ protected:
         {
           points.push_back((*it++).second);
 
+//#define ANISO_LOCAL_SMOOTHING
+#ifdef ANISO_LOCAL_SMOOTHING
           max_gamma = (std::max)(max_gamma,
                                  compute_distortion<K>(m_metrics[i], // EXTREMELY UNEFFICIENT
                                                        m_metrics[points.back()->tag()]));
+#endif
         }
 //add center point (or not)
         points.push_back(vi);
         std::size_t size_of_first_ring = points.size();
 
 //skip or not depending on the maximum distortion in the first ring
+#ifdef ANISO_LOCAL_SMOOTHING
         std::cout << "gamma: " << max_gamma << " at " << i << std::endl;
         if(max_gamma < gamma_0)
         {
@@ -190,6 +194,7 @@ protected:
           continue;
         }
         std::cout << "you're in for a little bit of smoothing boy" << std::endl;
+#endif
 
 //compute distances for the first ring
         FT dist_sum = 0.;

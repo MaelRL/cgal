@@ -221,8 +221,8 @@ public:
 
     Index pid;
 
-    // The cell refpoint could be on the surface and should technically give a surface star... TODO
-    // commented code doesn't really work (not precise enough)
+    // The cell refpoint could be on the surface and should technically give a surface star...
+    // commented code doesn't really work (not precise enough) todo
     if(0/*this->m_pConstrain->side_of_constraint(p) == CGAL::ON_ORIENTED_BOUNDARY*/)
       pid = Trunk::insert(p, true/*conditional*/, true/*surface point*/);
     else

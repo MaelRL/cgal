@@ -630,9 +630,7 @@ public:
       Facet_handle fit = mit->second.begin();
       Facet_handle fend = mit->second.end();
       for(; fit!=fend; ++fit)
-      {
         test_facet(si, fit, true/*force push*/);
-      }
     }
   }
 
@@ -660,6 +658,7 @@ public:
   {
     std::cout << "fill from all facets" << std::endl;
     fill_refinement_queue(this->m_starset, -1);
+    m_refine_queue.print();
   }
 
 private:
@@ -690,7 +689,7 @@ private:
       Facet_set_iterator fiend = star->restricted_facets_end();
       for (; fi != fiend; fi++)
       {
-/*TODO
+/*TODO re-add refinement conditions
         Point_3 cc;
         star->compute_dual_intersection(*fi, cc);
         if(!m_refinement_condition(cc))
@@ -949,7 +948,7 @@ private:
       if(!e2.is_valid())
       {
         std::cout << "Warning : e2 was not found!" << std::endl;
-        continue;//TODO : check this is correct
+        continue; //TODO : check this is correct
       }
       bool is_finite_e1 = !e1.is_infinite();
       bool is_finite_e2 = !e2.is_infinite();

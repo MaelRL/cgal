@@ -373,7 +373,8 @@ public:
   virtual FT get_bounding_radius() const = 0;
   virtual FT evaluate(const FT x, const FT y, const FT z) const = 0;
 
-  virtual Oriented_side side_of_constraint(const Point_3 &p) const {
+  virtual Oriented_side side_of_constraint(const Point_3 &p) const
+  {
     FT br = get_bounding_radius();
     if (p.x() * p.x() + p.y() * p.y() + p.z() * p.z() > br * br)
       return CGAL::ON_NEGATIVE_SIDE;

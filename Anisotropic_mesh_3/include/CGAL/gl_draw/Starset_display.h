@@ -439,7 +439,7 @@ public:
                             m_starset[f.first->vertex(index_2)->info()]->metric());
           max_distortion = (std::max)(distortion, max_distortion);
         }
-        float rgf = static_cast<float>(max_distortion/global_max_dis*255.);
+        float rgf = static_cast<float>(max_distortion/3.*255.);
         gl_draw_triangle<K>(pa, pb, pc, FACES_ONLY, rgf, rgf, 255);
       }
     }

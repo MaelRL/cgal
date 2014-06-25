@@ -1196,7 +1196,7 @@ public:
   Index compute_conflict_zones(const Point_3& p) const
   {
     if(m_stars_czones.status() == Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN
-       && p == m_stars_czones.conflicting_point()) // just to be safe
+       && p == m_stars_czones.conflicting_point())
     {
       return m_stars_czones.conflicting_point_id();
     }
@@ -1493,8 +1493,9 @@ public:
 
 protected:
   //Initialization
-  void initialize_medial_axis(Point_set& poles)
+  void initialize_medial_axis()
   {
+    Point_set poles;
     this->m_pConstrain->compute_poles(poles);
 #ifdef ANISO_VERBOSE
     std::cout << "Initialize medial axis..." << std::endl;
@@ -1506,10 +1507,8 @@ protected:
     std::vector<Point_3> poles_v;
     std::copy(poles.begin(), poles.end(), std::back_inserter(poles_v));
     std::random_shuffle(poles_v.begin(), poles_v.end());
-    poles_v.resize(std::min((std::size_t) 500, poles_v.size()));
-    //remark: random shuffle breaks the fact that only taking condition of 1/x
-    //will work since the geometry will be covered properly...
-    // -------------------------------------------------------------------------
+    poles_v.resize(std::min((std::size_t) 150, poles_v.size()));
+    //-------------------------------------------------------------------------
 
 #ifdef ANISO_VERBOSE
     //insert them in all stars
@@ -1518,21 +1517,18 @@ protected:
 
     unsigned int i = 1;
     unsigned int done = 0;
-    typename std::set<Point_3>::iterator it;
-    for(it = poles.begin(); it != poles.end(); ++it, ++i)
+    typename std::vector<Point_3>::iterator it;
+    for(it = poles_v.begin(); it != poles_v.end(); ++it, ++i)
     {
-      if(i % 100 == 0)
-        clean_stars();
-
-      bool conditional = (i % 50 != 0); //1/50 with no condition
+      bool conditional = (i % 10 != 0); //1/10 with no condition
       if(true) //m_refinement_condition(*it)) TODO
       {
-        insert(*it, false /*no condition*/, false/*surface point*/);
+        insert(*it, false /*no condition*/, false/*surface point*/); // tmp
         ++done;
       }
     }
-    clean_stars();
 
+    clean_stars();
 #ifdef ANISO_VERBOSE
     std::cout << done << " points." << std::endl;
 #endif
@@ -1551,12 +1547,9 @@ protected:
     //the input metric field right now TODO
     typename Constrain_surface::Pointset initial_points = this->m_pConstrain->get_surface_points(2*nb);
 
-    //only used in the case of a pure surface mesh (only one mesher level: a facet mesher level)
+    //only used in the case of a pure surface meshing process
     if(are_poles_used)
-    {
-      Point_set poles;
-      initialize_medial_axis(poles); // poles
-    }
+      initialize_medial_axis();
 
 #ifdef ANISO_VERBOSE
     std::cout << "Picked " << initial_points.size() << " initial points" << std::endl;
