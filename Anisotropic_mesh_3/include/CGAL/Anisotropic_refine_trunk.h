@@ -419,7 +419,6 @@ public:
     if(m_are_checks_computed)
       return;
 
-
     //Count the elements. In the general case, an internal facet(cell) is three(four)
     //times in conflict, and there is thus nothing to check.
     std::map<Facet_ijk, int> internal_facets_counter;
@@ -551,6 +550,7 @@ inline std::ostream& operator<<(std::ostream& os, Stars_conflict_zones<K>& src)
   os << "id: " << src.conflicting_point_id() << std::endl;
   os << "size: " << src.size() << std::endl;
   os << "zones: " << std::endl;
+
   typename Stars_conflict_zones<K>::iterator it = src.begin();
   typename Stars_conflict_zones<K>::iterator iend = src.end();
   for(; it!=iend; ++it)
@@ -1599,6 +1599,19 @@ public:
 //Resuming
   void resume_from_mesh_file_(const char* filename)
   {
+    if(!m_starset.empty())
+    {
+      std::cout << "resuming with a non empty star set... ?" << std::endl;
+      return;
+    }
+
+    //if resuming for a surface, add poles
+    if(!m_is_3D_level)
+    {
+      this->m_pConstrain->get_surface_points(50); // initial points are not used
+      initialize_medial_axis();
+    }
+
     std::ifstream in(filename);
     std::string word;
     int useless, nv;
@@ -1611,16 +1624,13 @@ public:
     std::cout << "filename: " << filename << std::endl;
     std::cout << "resuming read from " << nv << " vertices in file" << std::endl;
 
-    if(!m_starset.empty())
-      std::cout << "resuming with a non empty star set... ?" << std::endl;
-
     for(int i=0; i<nv; ++i)
     {
       in >> x >> y >> z >> useless;
       Point_3 p(x,y,z);
 
       if(m_starset.size()< 10)
-        insert(p, false);
+        insert(p, false /*no condition*/, !m_is_3D_level/*surface*/);
       else
       {
         if(m_starset.size() == 10)
@@ -1631,13 +1641,18 @@ public:
 
         compute_conflict_zones(p);
         m_stars_czones.compute_elements_needing_check();
-        insert(p, true);
+        insert(p, true, !m_is_3D_level/*surface*/);
       }
-
       clear_conflict_zones();
+    }
+    clean_stars();
 
-      if(i%100 == 0)
-        clean_stars();
+    std::ofstream out("resumed.mesh");
+    output_medit(m_starset, out);
+    std::ofstream out_facet("resumed_surf.mesh");
+    output_surface_medit(m_starset, out_facet);
+  }
+
     }
   }
 
