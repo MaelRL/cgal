@@ -48,13 +48,13 @@ Criteria* build_criteria_and_metric(const Polyhedral_surface* const p_domain,
   else if(metric == HYPERBOLIC_SHOCK)
   {
     std::cout << "(Hyperbolic shock metric field)." << std::endl;
-    mf = new Hyperbolic_shock_metric_field<Kernel>(0.6, epsilon, en_factor);
+    mf = new CGAL::Anisotropic_mesh_3::Hyperbolic_shock_metric_field<Kernel>(0.6, epsilon, en_factor);
   }
   else if(metric == EXTERNAL_MF)
   {
     std::cout << "(External metric field)" << std::endl;
     const char* mf_filename = "../data/Anisotropy_CMP/3DSurface/Fandisk_Metric.txt"; // todo should be a parameter
-    mf = new External_metric_field<Kernel>(*p_domain, mf_filename, epsilon, en_factor);
+    mf = new CGAL::Anisotropic_mesh_3::External_metric_field<Kernel>(*p_domain, mf_filename, epsilon, en_factor);
   }
   std::cout << "epsilon/en_factor : " << epsilon << " " << en_factor << std::endl;
 

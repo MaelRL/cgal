@@ -40,12 +40,12 @@ Criteria* build_criteria_and_metric(const Implicit_surface* p_domain,
   else if(metric == IMPLICIT_CURVATURE)
   {
     std::cout << "(Curvature metric field)." << std::endl;
-    mf = new Implicit_curvature_metric_field<Kernel>(*p_domain, epsilon, en_factor);
+    mf = new CGAL::Anisotropic_mesh_3::Implicit_curvature_metric_field<Kernel>(*p_domain, epsilon, en_factor);
   }
   else if(metric == HYPERBOLIC_SHOCK)
   {
     std::cout << "(Hyperbolic shock metric field)." << std::endl;
-    mf = new Hyperbolic_shock_metric_field<Kernel>(0.6, epsilon, en_factor);
+    mf = new CGAL::Anisotropic_mesh_3::Hyperbolic_shock_metric_field<Kernel>(0.6, epsilon, en_factor);
   }
   std::cout << "epsilon/en_factor : " << epsilon << " " << en_factor << std::endl;
 
