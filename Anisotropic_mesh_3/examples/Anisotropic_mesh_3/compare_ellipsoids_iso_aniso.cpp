@@ -25,7 +25,7 @@
 
 using namespace CGAL::Anisotropic_mesh_3;
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel	K;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 
 int main(int argc, char* argv[])
 {
@@ -42,25 +42,24 @@ int main(int argc, char* argv[])
 
 //facet criteria
   K::FT approx = (argc > n) ? atof(argv[n++]) : 0.1;
-  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
-  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
 
 //cell criteria
-  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
-  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
   K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
-  bool c_consistency = false;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
 
 //misc
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
   K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
   K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
-                                                    sliverity, c_rho0, c_r0,
-                                                    c_consistency, beta, delta,
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, f_r0, f_rho0,
+                                                    c_r0, c_rho0, sliverity,
+                                                    gamma0, beta, delta, nb,
                                                     max_times_to_try);
 
   Constrain_surface_3_ellipse<K>* pdomain = new Constrain_surface_3_ellipse<K>(a, b, c);
@@ -69,15 +68,19 @@ int main(int argc, char* argv[])
     new Implicit_curvature_metric_field<K>(*pdomain, epsilon);
 
   //aniso
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
-  starset.refine_all();
+  Starset<K> starset;
+  Anisotropic_surface_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+  mesher.refine_mesh();
   std::cout << "Star set has " << starset.number_of_surface_stars() << " surface vertices.\n";
 
   //iso
-  approx = starset.compute_approximation_error();
+//  approx = starset.compute_approximation_error(); fixme
   pdomain->run_mesh_3(approx, true/*verbose*/);
 
+  delete metric_field;
   delete pdomain;
+  delete criteria;
+
   return 0;
 }
 

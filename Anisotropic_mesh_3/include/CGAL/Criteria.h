@@ -53,7 +53,6 @@ public:
   const FT cell_radius_edge_ratio;
   const FT squared_cell_radius_edge_radio;
   const FT sliverity;
-  const bool c_consistency;
 
 //can't be 0
   const FT distortion;
@@ -109,7 +108,7 @@ public:
 
   bool no_cell_criteria()
   {
-    return !sliverity && !cell_circumradius && !cell_radius_edge_ratio && !c_consistency;
+    return !sliverity && !cell_circumradius && !cell_radius_edge_ratio;
   }
 
   Criteria_base(const FT approximation_ = 0.,
@@ -137,7 +136,6 @@ public:
       cell_radius_edge_ratio(c_radius_edge_ratio_),
       squared_cell_radius_edge_radio(c_radius_edge_ratio_ * c_radius_edge_ratio_),
       sliverity(sliverity_),
-      c_consistency(true), //this thing is useless todo
       distortion(distortion_),
       beta(beta_),
       delta(delta_),

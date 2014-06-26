@@ -36,40 +36,44 @@ int main(int argc, char* argv[])
 
 //metric field
   K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
+  K::FT en_factor = (argc > n) ? atof(argv[n++]) : 0.999;
 
 //facet criteria
   K::FT approx = (argc > n) ? atof(argv[n++]) : 0.;
-  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
-  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
   K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
 
 //cell criteria
-  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.2;
-  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
-  bool c_consistency = true;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.2;
 
 //misc
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
   K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
   K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
-                                                    sliverity, c_rho0, c_r0,
-                                                    c_consistency, beta, delta,
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, f_r0, f_rho0,
+                                                    c_r0, c_rho0, sliverity,
+                                                    gamma0, beta, delta, nb,
                                                     max_times_to_try);
 
+  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>(argv[1]);
+  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, epsilon, en_factor);
 
-  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);
-  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, epsilon);
+  Starset<K> starset;
+  Anisotropic_tet_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+  mesher.refine_mesh();
 
-  Cell_star_set_3<K> starset(criteria, metric_field, pdomain, nb);
-  starset.refine_all();
   std::ofstream fx("cell_mesher_poly.mesh");
-  starset.output(fx);
+  output_medit(starset, fx);
 
+  delete metric_field;
   delete pdomain;
+  delete criteria;
+
   return 0;
 }
 

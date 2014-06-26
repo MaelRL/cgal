@@ -3,6 +3,7 @@
 
 #include <CGAL/helpers/combinatorics_helper.h>
 
+#include <fstream>
 #include <map>
 #include <set>
 #include <utility>
@@ -504,6 +505,52 @@ void output_surface_voronoi(const Starset& stars,
   }
 
   fx << "End" << std::endl;
+}
+
+template<typename Starset>
+void output_surface_off(const Starset& stars,
+                        const char* f,
+                        const bool consistent_only = true)
+{
+  std::ofstream out(f);
+  return output_surface_off(stars, out, consistent_only);
+}
+
+template<typename Starset>
+void output_off(const Starset &stars,
+                const char* f,
+                const bool consistent_only = true)
+{
+  std::ofstream out(f);
+  return output_off(stars, out, consistent_only);
+}
+
+template<typename Starset>
+void output_surface_medit(const Starset &stars,
+                          const char* f,
+                          const bool positive_vol = false,
+                          const bool fake_3D = false)
+{
+  std::ofstream out(f);
+  return output_surface_medit(stars, f, positive_vol, fake_3D);
+}
+
+template<typename Starset>
+void output_medit(const Starset &stars,
+                  const char* f,
+                  const bool consistent_only = true,
+                  const bool positive_vol = false)
+{
+  std::ofstream out(f);
+  return output_medit(stars, f, consistent_only, positive_vol);
+}
+
+template<typename Starset>
+void output_surface_voronoi(const Starset &stars,
+                            const char* f)
+{
+  std::ofstream out(f);
+  return output_surface_voronoi(stars, f);
 }
 
 }  // Anisotropic_mesh_3

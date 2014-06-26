@@ -1,4 +1,3 @@
-
 #include <CGAL/Default_configuration.h>
 #define ANISO_GIVE_POINTS_FOR_MEDIAL_AXIS
 
@@ -25,7 +24,6 @@ std::string output_filename(const std::string& filename)
   return file;
 }
 
-
 int main(int argc, char *argv[])
 {
   CGAL::default_random = CGAL::Random(0);
@@ -50,42 +48,43 @@ int main(int argc, char *argv[])
 
 //metric field
   K::FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
+  K::FT en_factor = (argc > n) ? atof(argv[n++]) : 0.999;
 
 //facet criteria
   K::FT approx = (argc > n) ? atof(argv[n++]) : 0.1;
-  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
-  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   K::FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+  K::FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
 
 //cell criteria
-  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
-  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
   K::FT c_r0 = (argc > n) ? atof(argv[n++]) : 0.;
-  bool c_consistency = false;
+  K::FT c_rho0 = (argc > n) ? atof(argv[n++]) : 0.;
+  K::FT sliverity = (argc > n) ? atof(argv[n++]) : 0.;
 
 //misc
+  K::FT gamma0 = (argc > n) ? atof(argv[n++]) : 1.5;
   K::FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
   K::FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
-  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
-                                                    sliverity, c_rho0, c_r0,
-                                                    c_consistency, beta, delta,
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, f_r0, f_rho0,
+                                                    c_r0, c_rho0, sliverity,
+                                                    gamma0, beta, delta, nb,
                                                     max_times_to_try);
 
   Constrain_surface_3_polyhedral<K>* pdomain
-    = new Constrain_surface_3_polyhedral<K>(file.data(), epsilon);
+    = new Constrain_surface_3_polyhedral<K>(file.data());
 
   Polyhedral_curvature_metric_field<K>* metric_field =
-    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon);
+    new Polyhedral_curvature_metric_field<K>(*pdomain, epsilon, en_factor);
   
-  Surface_star_set_3<K> starset(criteria, metric_field, pdomain, 10, 1, No_condition<K::Point_3>(), poles_given, poles_filename);
+  Starset<K> starset;
+  Anisotropic_surface_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
 
-  starset.refine_all();
+  mesher.refine_mesh();
 
   std::string outfile = output_filename(file);
-  starset.output(outfile.c_str());
+  output_surface_off(starset, outfile.c_str());
   
   delete pdomain;
   return 0;

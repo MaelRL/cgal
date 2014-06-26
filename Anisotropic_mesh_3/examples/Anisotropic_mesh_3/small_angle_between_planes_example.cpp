@@ -10,6 +10,8 @@
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_3.h>
 
+#include <fstream>
+
 using namespace CGAL::Anisotropic_mesh_3;
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
@@ -69,6 +71,7 @@ int main(int argc, char** argv)
 
 //metric field
   FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
+  FT en_factor = (argc > n) ? atof(argv[n++]) : 0.999;
 
 //facet criteria
   FT approx = (argc > n) ? atof(argv[n++]) : 0.1;
@@ -80,7 +83,6 @@ int main(int argc, char** argv)
   FT sliverity = (argc > n) ? atof(argv[n++]) : 0.2;
   FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   FT c_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
-  bool c_consistency = true;
 
 //misc
   FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
@@ -89,30 +91,26 @@ int main(int argc, char** argv)
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
 
   build_geometry(angle, 2*bl);
-  Criteria_base<K>* criteria = new Criteria_base<K>(approx, gamma0, f_rho0, f_r0,
-                                                    sliverity, c_rho0, c_r0,
-                                                    c_consistency, beta, delta,
+  Criteria_base<K>* criteria = new Criteria_base<K>(approx, f_r0, f_rho0,
+                                                    c_r0, c_rho0, sliverity,
+                                                    gamma0, beta, delta, nb,
                                                     max_times_to_try);
 
-  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>(argv[1], epsilon);
+  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>(argv[1]);
   Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
 //  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
-//  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, epsilon);
+//  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6, epsilon, en_factor);
 
-  Star_vector stars;
+  Starset<K> starset;
 
-  Anisotropic_mesher_3<K> mesher(stars, pdomain, criteria, metric_field);
+  Anisotropic_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
   double elapsed_time = mesher.refine_mesh();
   std::cout << elapsed_time << std::endl;
 
   std::ofstream out("wedge.mesh");
-  output_medit(stars, out);
+  output_medit(starset, out);
   std::ofstream out_facet("wedge_surf.mesh");
-  output_surface_medit(stars, out_facet);
-  std::ofstream out_off("wedge.off");
-  output_off(stars, out_off);
-  std::ofstream out_surface_off("wedge_surf.off");
-  output_surface_off(stars, out_surface_off);
+  output_surface_medit(starset, out_facet);
 
   delete criteria;
   delete pdomain;

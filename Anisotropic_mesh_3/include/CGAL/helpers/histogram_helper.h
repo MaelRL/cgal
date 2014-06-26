@@ -539,7 +539,7 @@ void cell_histogram(const Starset& stars,
   else if(hist_type == CELL_RATIO)
     output_histogram(histogram, 0., max_val, "histogram_cell_ratio.cvs");
   else //if(hist_type == CELL_ANGLE)
-    output_histogram(histogram, 0., max_val, "histogram _cell_angle.cvs");
+    output_histogram(histogram, 0., max_val, "histogram_cell_angle.cvs");
 
 }
 
