@@ -107,20 +107,19 @@ public:
     typename Kernel::Point_3 p = t.vertex(0);
     typename Kernel::Point_3 q = t.vertex(1);
     typename Kernel::Point_3 r = t.vertex(2);
-    Eigen::Vector3d ep(p.x(),p.y(),p.z());
+    Eigen::Vector3d ep(p.x(), p.y(), p.z());
     ep = eigen_inverse_transformation * ep;
     p = Point_3(ep[0], ep[1], ep[2]);
 
-    ep = Eigen::Vector3d(q.x(),q.y(),q.z());
+    ep = Eigen::Vector3d(q.x(), q.y(), q.z());
     ep = eigen_inverse_transformation * ep;
     q = Point_3(ep[0], ep[1], ep[2]);
 
-
-    ep = Eigen::Vector3d(r.x(),r.y(),r.z());
+    ep = Eigen::Vector3d(r.x(), r.y(), r.z());
     ep = eigen_inverse_transformation * ep;
-    r = Point_3(ep[0], ep[1], p[2]);
+    r = Point_3(ep[0], ep[1], ep[2]);
 
-    return Triangle_3<Kernel>(p,q,r);
+    return Triangle_3<Kernel>(p, q, r);
   }
 
   template <typename Kernel>
@@ -176,7 +175,7 @@ public:
 #endif
     */
 
-  FT compute_distortion(const Metric_base &m)
+  FT compute_distortion(const Metric_base &m) const
   {
     double eigen_dis1 = (m.eigen_transformation * eigen_inverse_transformation).operatorNorm();
     double eigen_dis2 = (eigen_transformation * m.eigen_inverse_transformation).operatorNorm();
