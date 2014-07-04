@@ -458,6 +458,18 @@ public:
     return m_is_topological_disk;
   }
 
+  //need to be outside of the function below since it is used as a template...
+  struct Vertex_neighborhood
+  {
+  public:
+    Vertex_handle m_fn, m_sn; //first and second (potential) neighbors
+    bool visited; //used during cycle check
+
+    Vertex_neighborhood(Vertex_handle fn_) :
+      m_fn(fn_), m_sn(Vertex_handle()), visited(false)
+    { }
+  };
+
   void update_is_topological_disk() const
   {
     if(m_is_valid_topo_disk)
@@ -467,35 +479,156 @@ public:
     if(!is_surface_star() || this->dimension() < 3)
     {
       m_is_topological_disk = false;
-      return;
-    }
-    Facet_set_iterator fit = this->restricted_facets_begin();
-    Facet_set_iterator fend = this->restricted_facets_end();
-    if(fit == fend)
-    {
-      m_is_topological_disk = false;// no restricted facet --> false
+      m_is_valid_topo_disk = true;
       return;
     }
 
-    std::set<Index> vertices_around;
+    Facet_set_iterator fit = this->restricted_facets_begin();
+    Facet_set_iterator fend = this->restricted_facets_end();
+    if(fit == fend) // no restricted facets
+    {
+      m_is_topological_disk = false;
+      m_is_valid_topo_disk = true;
+      return;
+    }
+
+    //for each vertex V of the star S, the map contains its n neighbors (except
+    //the center of the star) that belong to restricted facets. n can have any value
+    //but if we have n!=2, the star is not a topological disk (each edge must be
+    //incident to exactly 2 restricted facets), thus we simply keep the first 2
+    //and exit if n>2 or n<2.
+    typedef std::map<Vertex_handle, Vertex_neighborhood> Cycle_map;
+    Cycle_map cycle_map;
+
+    struct Cycle_map_insertor
+    {
+      Cycle_map& m_cmap;
+
+      bool operator()(Vertex_handle v1, Vertex_handle v2)
+      {
+        //insert v2 as neighbor of v1
+        std::pair<typename Cycle_map::iterator, bool> is_insert_successful;
+        is_insert_successful = m_cmap.insert(
+                                 std::make_pair(v1, Vertex_neighborhood(v2)));
+        if(!is_insert_successful.second) // v1 already is in the cycle map
+        {
+          Vertex_neighborhood& vhn = is_insert_successful.first->second;
+          if(vhn.m_sn != Vertex_handle())
+          {
+            // edge [center,v1] has more than 2 incident restricted facets
+            return false;
+          }
+          vhn.m_sn = v2; // setting v1's second neighbor
+        }
+        return true;
+      }
+
+      Cycle_map_insertor(Cycle_map& cmap_) : m_cmap(cmap_) { }
+    };
+
+    Cycle_map_insertor cm_insertor(cycle_map);
+
+    //fill the map from the restricted facets
     for(; fit != fend; fit++)
     {
       Facet f = *fit;
-      for(unsigned int i = 1; i < 4; i++)
+      std::vector<Vertex_handle> vns; // the 2 vertices of f that are not the center of the star
+      for(int i = 0; i < 4; i++)
       {
-        Vertex_handle v = f.first->vertex((f.second + i)%4);
-        if(v != m_center)
-        {
-          Index j = v->info();
-          std::pair<std::set<Index>::iterator,bool> is_insert_successful;
-          is_insert_successful = vertices_around.insert(j);
-          if(!is_insert_successful.second)
-            vertices_around.erase(is_insert_successful.first);
-        }
+        Vertex_handle v = f.first->vertex(i);
+        if(i != f.second && v != m_center)
+          vns.push_back(v);
+      }
+
+      //insert front() and back() into each other's neighborhoods
+      if( !cm_insertor(vns.front(), vns.back()) ||
+          !cm_insertor(vns.back(), vns.front()) )
+      {
+        //front() or back() already had 2 neighbors
+        m_is_topological_disk = false;
+        m_is_valid_topo_disk = true;
+        return;
       }
     }
-    m_is_topological_disk = vertices_around.empty();
+
+#ifdef ANISO_DEBUG_TOPO_DISK
+    std::cout << "printing cycle map. Size : " << cycle_map.size() << std::endl;
+    for(typename Cycle_map::iterator it=cycle_map.begin(); it!=cycle_map.end(); ++it)
+    {
+      std::cout << it->first->info() << " || ";
+      std::cout << it->second.m_fn->info() << " , ";
+      if(it->second.m_sn != Vertex_handle())
+        std::cout << it->second.m_sn->info();
+      std::cout << std::endl;
+    }
+#endif
+
+    //check that all the vertices have 2 neighbors that live on restricted facets
+    typename Cycle_map::iterator cmit = cycle_map.begin();
+    for(; cmit!=cycle_map.end(); ++cmit)
+    {
+      //if in the map, m_fn is set properly so it is sufficient to check m_sn
+      if(cmit->second.m_sn == Vertex_handle())
+      {
+        m_is_topological_disk = false;
+        m_is_valid_topo_disk = true;
+        return;
+      }
+    }
+
+    //We then check that the vertices form exactly one cycle (we could have n=2
+    //for all the vertices, but more than one cycle).
+    typename Cycle_map::iterator it = cycle_map.begin();
+    Vertex_handle starting_vh = it->first;
+    Vertex_handle current_vh = starting_vh;
+    Vertex_handle next_vh = it->second.m_fn;
+    it->second.visited = true;
+
+    while(true)
+    {
+      current_vh = next_vh;
+      Vertex_neighborhood& vhn = cycle_map.find(current_vh)->second;
+
+      if(current_vh == starting_vh)
+        break;
+
+      if(vhn.visited)
+      {
+        // next vertex was already visited but is not the starting vertex
+        m_is_topological_disk = false;
+        m_is_valid_topo_disk = true;
+        return;
+      }
+
+      vhn.visited = true;
+
+      if((vhn.m_fn == starting_vh || vhn.m_sn == starting_vh) &&
+         cycle_map.find(vhn.m_fn)->second.visited &&
+         cycle_map.find(vhn.m_sn)->second.visited )
+        break; // next_vh will be starting_vh, which means we have a cycle
+
+      if(!(cycle_map.find(vhn.m_fn)->second.visited))
+        next_vh = vhn.m_fn;
+      else
+        next_vh = vhn.m_sn; // might already have been visited, we'll check that later
+    }
+
+    //we're back to the starting vertex, let's check that everything was visited
+    it = cycle_map.begin();
+    for(; it!=cycle_map.end(); ++it)
+    {
+      if(!it->second.visited)
+      {
+        //didn't visit everything
+        m_is_topological_disk = false;
+        m_is_valid_topo_disk = true;
+        return;
+      }
+    }
+
+    //All good, it's a topo disk!
     m_is_valid_topo_disk = true;
+    m_is_topological_disk = true;
   }
 
   void update_bbox(const bool verbose = false) const
