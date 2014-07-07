@@ -661,17 +661,20 @@ private:
   To_exact to_exact;
   Back_from_exact back_from_exact;
 
-  bool m_is_3D_level; // used to determine whether non surface points are poles (metric = identity)
-                      // or ''real'' points with a metric that needs to be computed from the MF
-
 protected:
+  // the following boolean is useful for different purposes:
+  //    --used to indicate whether non-surfacic points are poles (set metric to identity) or
+  //      ''real'' points with a metric that needs to be computed from the MF
+  //    --used to indicate to a surface level that it should use 3D checks for pick_valid
+  //    --used to indicate to a surface level that the stars should use volume bboxes
+  mutable bool m_is_3D_level;
+
   Starset& m_starset;
 
   const Constrain_surface* m_pConstrain;
   const Criteria* m_criteria;
   const Metric_field* m_metric_field;
 
-  DT& m_ch_triangulation;
   AABB_tree& m_aabb_tree;
   Kd_tree& m_kd_tree;
 
@@ -904,45 +907,6 @@ public:
 #endif
   }
 
-  template<typename OutputIterator>
-  bool infinite_stars_in_conflict(const Point_3& p,
-                                  OutputIterator oit,
-                                  const bool collect = true) const
-  {
-    if(m_ch_triangulation.dimension() < 3)
-    {
-      all_stars(oit);
-      return true;
-    }
-
-    int li, lj;
-    typename DT::Locate_type lt;
-    typename DT::Cell_handle c = m_ch_triangulation.locate(p, lt, li, lj);
-
-    if(lt != DT::OUTSIDE_CONVEX_HULL && lt != DT::OUTSIDE_AFFINE_HULL)
-      return false;
-
-    std::vector<typename DT::Facet> bfacets;
-    m_ch_triangulation.find_conflicts(p, c, std::back_inserter(bfacets), Emptyset_iterator());
-
-    if(!collect)
-       return !bfacets.empty();
-
-    typename std::vector<typename DT::Facet>::iterator fit = bfacets.begin();
-    typename std::vector<typename DT::Facet>::iterator fitend = bfacets.end();
-    for(; fit != fitend; fit++)
-    {
-      typename DT::Facet f = *fit;
-      if(m_ch_triangulation.is_infinite(f))
-        continue;
-
-      *oit++ = get_star(f.first->vertex((f.second + 1) % 4)->info());
-      *oit++ = get_star(f.first->vertex((f.second + 2) % 4)->info());
-      *oit++ = get_star(f.first->vertex((f.second + 3) % 4)->info());
-    }
-    return true;
-  }
-
   template<typename StarConstIterator>
   void remove_from_stars(const Index& id,
                          StarConstIterator begin,
@@ -1159,7 +1123,6 @@ public:
     return is;
   }
 
-
 //Conflict zones
   Index simulate_insert_to_stars(const Point_3& p) const
   {
@@ -1168,11 +1131,10 @@ public:
     // find conflicted stars
     Star_set stars;
     finite_stars_in_conflict(p, std::inserter(stars, stars.end())); //aabb tree
-    infinite_stars_in_conflict(p, std::inserter(stars, stars.end())); //convex hull
 
     typename Star_set::iterator it = stars.begin();
-    typename Star_set::iterator itend = stars.end();
-    for(; it != itend; it++)
+    typename Star_set::iterator iend = stars.end();
+    for(; it != iend; it++)
     {
       Star_handle si = get_star(it);
       int id = si->simulate_insert_to_star(p, this_id);
@@ -1248,11 +1210,56 @@ public:
     }
   };
 
+  void insert_from_kd_tree(Star_handle star) const
+  {
+    int counter = 0;
+    bool grew = true;
+    while(grew)
+    {
+      counter++;
+
+      typename Star::Bbox bbox = star->bbox();
+      Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
+      Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
+
+      Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_starset.star_vector()));
+      std::set<Kd_point_info> indices;
+      m_kd_tree.search(std::inserter(indices, indices.end()), query);
+
+#ifdef ANISO_DEBUG_KDTREE
+      std::cout << "bbox given to kd tree: " << std::endl;
+      std::cout << pmin << std::endl << pmax << std::endl;
+      std::cout << "kd tree finds : " << indices.size() << " pts out of " << this->number_of_stars() << std::endl;
+      std::cout << "Brute force kd check...";
+      Star_iterator sit = m_starset.begin();
+      Star_iterator siend = m_starset.end();
+      for(;sit!=siend;++sit)
+        if(query.contains((*sit)->index_in_star_set()) &&
+           indices.find((*sit)->index_in_star_set()) == indices.end())
+          std::cout << "kd tree missed a star buddy" << std::endl;
+      std::cout << "passed" << std::endl;
+#endif
+
+      int old_nv = star->number_of_vertices();
+
+      typename Index_set::iterator it = indices.begin();
+      typename Index_set::iterator iend = indices.end();
+      for(; it!=iend; ++it)
+      {
+        Star_handle si = get_star(it);
+        star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
+      }
+      std::cout << std::endl;
+
+      int new_nv = star->number_of_vertices();
+      grew = (old_nv != new_nv);
+    }
+  }
+
   void create_star(const Point_3 &p,
                    int pid,
                    Star_handle& star,
-                   const bool surface_star = true,
-                   const bool metric_reset = true) const
+                   const bool surface_star) const
   {
 #ifdef USE_ANISO_TIMERS
     std::clock_t start_time = clock();
@@ -1274,6 +1281,18 @@ public:
     if(m_stars_czones.is_empty())
       std::cout << "Warning: empty conflict map at the creation of the new star" << std::endl;
 
+#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+    //adding the 8 bounding box vertices (they are the first 8 stars)
+    if(this->m_starset.size() > 8)
+    {
+      for(int i=0; i<8; ++i)
+      {
+        Star_handle star_i = get_star(i);
+        star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false /*no condition*/);
+      }
+    }
+#endif
+
     typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
     typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
     for(; czit!=czend; ++czit)
@@ -1284,33 +1303,29 @@ public:
         //"false": no condition because they should be there for consistency
     }
 
-    typename Star::Bbox bbox = star->bbox(); // volume bbox + surface bbox when star is not a topo_disk
-    Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
-    Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
-    Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_starset.star_vector()));
-    std::set<Kd_point_info> indices;
-    m_kd_tree.search(std::inserter(indices, indices.end()), query);
+    insert_from_kd_tree(star);
 
-    if(indices.size() != m_stars_czones.size())// because 'indices' contains 'modified_stars'
+    star->clean(true);
+#ifdef ANISO_DEBUG_CREATE_STAR
+    star->print_vertices();
+    star->print_restricted_facets();
+    std::cout << "valid check @ create_star @ " << star->index_in_star_set() << " val: " << star->is_valid() << std::endl;
+    int normal_rfacet_size = star->count_restricted_facets();
+    if(conan_rfacet_size != normal_rfacet_size)
     {
-      Index_set diff;
-      std::set_difference(indices.begin(), indices.end(),
-                          m_stars_czones.begin(), m_stars_czones.end(),
-                          std::inserter(diff, diff.end()),
-                          set_map_comp<Index, Conflict_zone>());
-      typename Index_set::iterator it = diff.begin();
-      while(it != diff.end())
-      {
-        Star_handle si = get_star(it++);
-        star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
-      }
+      std::cout << "conan wins: " << conan_rfacet_size << " " << normal_rfacet_size << std::endl;
+      std::ofstream out("star377.off");
+      this->m_starset.push_back(star);
+      output_surface_star_off<Starset>(m_starset, out, star->index_in_star_set());
+      assert(1==2);
     }
+#endif
   }
 
   Star_handle create_star(const Point_3 &p,
                           int pid)
   {
-    Star_handle star = new Star(m_criteria, m_pConstrain, true /*surface star*/);
+    Star_handle star = new Star(m_criteria, m_pConstrain, true /*surface star*/, m_is_3D_level);
     create_star(p, pid, star, true /*surface star*/);
     return star;
   }
@@ -1318,18 +1333,15 @@ public:
   Star_handle create_inside_star(const Point_3 &p,
                                  int pid) const
   {
-    Star_handle star = new Star(m_criteria, m_pConstrain, false/*not surface star*/);
+    Star_handle star = new Star(m_criteria, m_pConstrain, false/*not surface star*/, m_is_3D_level);
     create_star(p, pid, star, false/*not surface star*/);
     return star;
   }
 
   //this version of "perform_insertions()" uses the conflict zones previous computed
   Index perform_insertions(const Point_3& p,
-                           const Index& this_id,
-                           const bool infinite_stars = false)
+                           const Index& this_id)
   {
-    Vertex_handle v_in_ch = Vertex_handle();
-
     typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
     typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
     for(; czit!=czend; ++czit)
@@ -1352,24 +1364,14 @@ public:
         std::cout << "Warning! Insertion of p"<< this_id
                   << " (" << p << ") in S" << si->index_in_star_set()
                   << " failed. vi->info() :"<< vi->info() << std::endl;
-        if(v_in_ch != Vertex_handle())
-          m_ch_triangulation.remove(v_in_ch);
         remove_from_stars(this_id, m_stars_czones.begin(), ++czit);
-          //should probably be (++czit)-- but it doesn't really matter since something went wrong if we're in there
+        //should probably be (++czit)-- but it doesn't really matter
+        //since something went wrong if we're in there
 
         si->print_vertices(true);
         si->print_facets();
         std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
         return vi->info();
-      }
-      else // inserted, standard configuration
-      {
-        // update the triangulation of the convex hull
-        if(infinite_stars)//(si->is_infinite() && v_in_ch != Vertex_handle())
-        {
-          v_in_ch = m_ch_triangulation.insert(p);
-          v_in_ch->info() = this_id;
-        }
       }
     }
     return this_id;
@@ -1379,15 +1381,14 @@ public:
   template<typename Stars>
   Index perform_insertions(const Point_3& p,
                            const Index& this_id,
-                           const Stars& target_stars,
-                           const bool infinite_stars = false)
+                           const Stars& target_stars)
   {
-    Vertex_handle v_in_ch = Vertex_handle();
     typename Stars::const_iterator it = target_stars.begin();
     typename Stars::const_iterator itend = target_stars.end();
     for(; it != itend; it++)
     {
       Star_handle si = *it;
+
       Index i = si->index_in_star_set();
       Vertex_handle vi = si->insert_to_star(p, this_id, false);
         // equivalent to directly calling si->base::insert(tp)
@@ -1399,8 +1400,6 @@ public:
         std::cout << "Warning! Insertion of p"<< this_id
                   << " (" << p << ") in S" << si->index_in_star_set()
                   << " failed. vi->info() :"<< vi->info() << std::endl;
-        if(v_in_ch != Vertex_handle())
-          m_ch_triangulation.remove(v_in_ch);
         remove_from_stars(this_id, target_stars.begin(), ++it);
 
         si->print_vertices(true);
@@ -1413,13 +1412,6 @@ public:
         //Conflict zones are not computed for the target_stars, so we need to create
         //entries in the conflict zones map (for fill_ref_queue)
         m_stars_czones.conflict_zone(i);
-
-        // update triangulation of convex hull
-        if(infinite_stars)//(si->is_infinite() && v_in_ch != Vertex_handle())
-        {
-          v_in_ch = m_ch_triangulation.insert(p);
-          v_in_ch->info() = this_id;
-        }
       }
     }
     return this_id;
@@ -1432,18 +1424,9 @@ public:
 
     Index id;
     if(conditional)
-    {
-      id = perform_insertions(p, this_id, false/*no convex hull upgrades*/); //stars in conflict
-
-      //TODO CHECK THAT BELOW IS RELEVANT... IT SHOULD ALSO BE OKAY FOR IT TO BE THERE
-      //RATHER THAN FOR BOTH VALUES OF "conditional" SINCE IF WE TAKE ALL STARS,
-      //WE HAVE THE INFINITE STARS ALREADY INCLUDED...
-      Star_set target_stars;
-      infinite_stars_in_conflict(p, std::inserter(target_stars, target_stars.end())); //convex hull
-      id = perform_insertions(p, this_id, target_stars, true/*update convex hull*/);
-    }
+      id = perform_insertions(p, this_id); //stars in conflict
     else
-      id = perform_insertions(p, this_id, m_starset, true/*update convex hull*/); // insert in all stars
+      id = perform_insertions(p, this_id, m_starset); // insert in all stars
 
     return id;
   }
@@ -1453,9 +1436,7 @@ public:
                const bool surface_point = false)
   {
     if(conditional && m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
-    {
       std::cout << "Conflict zones unknown at insertion time...insert()" << std::endl;
-    }
 
     Index id = insert_to_stars(p, conditional);
     if(id < 0 || id < (int) number_of_stars())
@@ -1489,6 +1470,31 @@ public:
 #endif
 
     return id;
+  }
+
+private:
+  //Adding the 8 points of the domain's bbox to avoid infinite cells
+  void initialize_bounding_box_vertices()
+  {
+    std::vector<Point_3> bbox_vertices;
+    Bbox_3 bbox = this->m_pConstrain->get_bbox();
+
+    FT xmin = bbox.xmin(), xmax = bbox.xmax();
+    FT ymin = bbox.ymin(), ymax = bbox.ymax();
+    FT zmin = bbox.zmin(), zmax = bbox.zmax();
+
+    bbox_vertices.push_back(Point_3(xmin, ymin, zmin));
+    bbox_vertices.push_back(Point_3(xmax, ymin, zmin));
+    bbox_vertices.push_back(Point_3(xmax, ymin, zmax));
+    bbox_vertices.push_back(Point_3(xmin, ymin, zmax));
+    bbox_vertices.push_back(Point_3(xmin, ymax, zmin));
+    bbox_vertices.push_back(Point_3(xmax, ymax, zmin));
+    bbox_vertices.push_back(Point_3(xmax, ymax, zmax));
+    bbox_vertices.push_back(Point_3(xmin, ymax, zmax));
+
+    typename std::vector<Point_3>::iterator it;
+    for(it = bbox_vertices.begin(); it != bbox_vertices.end(); ++it)
+      insert(*it, false /*no condition*/, false/*not surface*/);
   }
 
 protected:
@@ -1542,6 +1548,10 @@ protected:
 #endif
     double approx = this->m_criteria->approximation/this->m_pConstrain->get_bounding_radius();
     approx = 1e-4;
+
+#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+    initialize_bounding_box_vertices();
+#endif
 
     //The initial points need to be picked more cleverly as they completely ignore
     //the input metric field right now TODO
@@ -1601,6 +1611,9 @@ public:
     //if resuming for a surface, add poles
     if(!m_is_3D_level)
     {
+#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+      initialize_bounding_box_vertices();
+#endif
       this->m_pConstrain->get_surface_points(50); // initial points are not used
       initialize_medial_axis();
     }
@@ -1627,10 +1640,7 @@ public:
       else
       {
         if(m_starset.size() == 10)
-        {
-          m_ch_triangulation.infinite_vertex()->info() = -10;
           build_aabb_tree();
-        }
 
         compute_conflict_zones(p);
         m_stars_czones.compute_elements_needing_check();
@@ -1646,6 +1656,20 @@ public:
     output_surface_medit(m_starset, out_facet);
   }
 
+protected:
+  void switch_to_volume_bboxes()
+  {
+    Star_iterator sit = m_starset.begin();
+    Star_iterator sitend = m_starset.end();
+    for(; sit!=sitend; ++sit)
+    {
+      Star_handle star_i = get_star(sit);
+      if(!star_i->is_in_3D_mesh())
+      {
+        star_i->is_in_3D_mesh() = true;
+        star_i->invalidate_bbox_cache();
+        star_i->update_bbox();
+      }
     }
   }
 
@@ -1655,7 +1679,6 @@ public:
                            const Constrain_surface* pConstrain_,
                            const Criteria* criteria_,
                            const Metric_field* metric_field_,
-                           DT& ch_triangulation_,
                            AABB_tree& aabb_tree_,
                            Kd_tree& kd_tree_,
                            Stars_conflict_zones& stars_czones_,
@@ -1666,7 +1689,6 @@ public:
     m_pConstrain(pConstrain_),
     m_criteria(criteria_),
     m_metric_field(metric_field_),
-    m_ch_triangulation(ch_triangulation_),
     m_aabb_tree(aabb_tree_),
     m_kd_tree(kd_tree_),
     m_stars_czones(stars_czones_)

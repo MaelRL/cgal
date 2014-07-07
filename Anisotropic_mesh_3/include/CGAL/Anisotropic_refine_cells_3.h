@@ -83,12 +83,12 @@ private:
   const int m_queue_ids_start;
   const int m_queue_ids_end;
 
+  mutable int m_pick_valid_points_tried;
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
   int m_pick_valid_skipped;
   mutable int m_pick_valid_skipped_due_to_conflict;
   int m_pick_valid_rejected;
-  int m_pick_valid_max_failures;
   mutable int vertex_with_picking_count;
   mutable int vertex_without_picking_count;
   mutable int m_leak_counter;
@@ -121,9 +121,10 @@ public:
       this->m_criteria->report();
 
       Trunk::initialize_stars();
-      this->m_ch_triangulation.infinite_vertex()->info() = -10;
       Trunk::build_aabb_tree();
     }
+
+    Trunk::switch_to_volume_bboxes();
 
     fill_refinement_queue();
     m_refine_queue.print();
@@ -657,7 +658,7 @@ private:
                                 star->traits()->compute_random_point_3_object();
 
     std::size_t tried_times = 0;
-    Star_handle new_star = new Star(this->m_criteria, this->m_pConstrain, false/*surface star*/);
+    Star_handle new_star = new Star(this->m_criteria, this->m_pConstrain, false/*surface star*/, Trunk::m_is_3D_level);
       //again here, the new_star is potentially a surface star TODO
 
     //possible trick#4, if(is_in_conflict(center)) then directly go to lower levels
@@ -763,7 +764,6 @@ public:
                              const Constrain_surface* pconstrain_,
                              const Criteria* criteria_,
                              const Metric_field* metric_field_,
-                             DT& ch_triangulation_,
                              AABB_tree& aabb_tree_,
                              Kd_tree& kd_tree_,
                              Stars_conflict_zones& m_stars_czones_,
@@ -773,17 +773,17 @@ public:
   :
     Mesher_lvl(previous),
     Trunk(starset_, pconstrain_, criteria_, metric_field_,
-          ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_,
+          aabb_tree_, kd_tree_, m_stars_czones_,
           true/*3D*/),
     m_refine_queue(refine_queue_),
     m_queue_ids_start(queue_ids_start_),
     m_queue_ids_end(queue_ids_end_),
+    m_pick_valid_points_tried(0),
     m_pick_valid_succeeded(0),
     m_pick_valid_failed(0),
     m_pick_valid_skipped(0),
     m_pick_valid_skipped_due_to_conflict(0),
     m_pick_valid_rejected(0),
-    m_pick_valid_max_failures(0),
     vertex_with_picking_count(0),
     vertex_without_picking_count(0),
     m_leak_counter(0),

@@ -126,6 +126,7 @@ private:
   const Constrain_surface* m_pConstrain;
   Stretched_criteria* m_criteria;
 
+  mutable bool m_is_in_3D_mesh; // if we care about cells, we need 3D pick_valid and volume bboxes
   mutable bool m_is_topological_disk;
   mutable bool m_is_valid_topo_disk;
   mutable Bbox m_bbox;
@@ -167,6 +168,9 @@ public:
 
   bool& is_surface_star()             { return m_is_surface_star; }
   const bool& is_surface_star() const { return m_is_surface_star; }
+
+  bool& is_in_3D_mesh() { return m_is_in_3D_mesh; }
+  const bool& is_in_3D_mesh() const { return m_is_in_3D_mesh; }
 
 public:
   Vertex_handle center() const      { return m_center; }
@@ -644,10 +648,14 @@ public:
 
     if(this->dimension() < 3)
       m_bbox = m_pConstrain->get_bbox(); //should be found by every request to aabb_tree
-    //else if(this->is_topological_disk())
-    //  m_bbox = this->surface_bbox();
+    else if(!m_is_in_3D_mesh)
+    {
+      m_bbox = this->surface_bbox();
+      if(!is_topological_disk())
+        m_bbox = m_bbox + this->volume_bbox();
+    }
     else
-      m_bbox = this->volume_bbox() + this->surface_bbox();
+      m_bbox = this->volume_bbox();
 
     m_is_valid_bbox = true;
 
@@ -987,61 +995,6 @@ public:
   }
 
 public:
-  inline bool is_conflicted(const TPoint_3 &tp,
-                            Cell_handle &in_which_cell) const
-  {
-    if(Base::dimension() <= 1)
-      return true;
-    else if(!is_inside_bbox(m_metric.inverse_transform(tp)))
-      return false;
-    //else if(is_topological_disk()) todo
-      //return is_in_a_surface_delaunay_ball(tp, in_which_cell);
-    else
-    {
-      return (is_in_a_volume_delaunay_ball(tp, in_which_cell) ||
-              is_in_a_surface_delaunay_ball(tp, in_which_cell) );
-    }
-  }
-
-  inline bool is_in_a_surface_delaunay_ball(const TPoint_3& tp,
-                                           Cell_handle& in_which_cell) const
-  {
-    CGAL_PROFILER("[is_in_a_surface_delaunay_ball]");
-    Facet_set_iterator fi = restricted_facets_begin();
-    Facet_set_iterator fend = restricted_facets_end();
-    for(; fi != fend; fi++)
-      if(is_in_surface_delaunay_ball(tp, *fi, in_which_cell))
-        return true;
-    return false;
-  }
-
-  inline bool is_in_a_volume_delaunay_ball(const TPoint_3& tp,
-                                           Cell_handle& in_which_cell) const
-  {
-    CGAL_PROFILER("[is_in_a_volume_delaunay_ball]");
-    if(this->dimension() < 3)
-      return true;
-    Cell_handle_handle ci = star_cells_begin();
-    Cell_handle_handle cend = star_cells_end();
-    for(; ci!=cend; ci++)
-    {
-      if(is_in_delaunay_ball(tp, *ci))
-      {
-        in_which_cell = *ci;
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool is_in_delaunay_ball(const TPoint_3& tp,
-                           const Cell_handle& c) const
-  {
-    CGAL_PROFILER("[conflict volumeDB test]");
-    return (Base::side_of_sphere(c, tp) == CGAL::ON_BOUNDED_SIDE);
-    // i.e. ON_BOUNDARY or ON_BOUNDED_SIDE
-  }
-
   bool is_in_surface_delaunay_ball(const TPoint_3& tp,
                                    const Facet& f,
                                    Cell_handle& in_which_cell) const
@@ -1066,6 +1019,23 @@ public:
 
     Cell_handle c1 = f.first;
     Cell_handle c2 = f.first->neighbor(f.second);
+
+#ifdef ANISO_DEBUG_DELAUNAY_BALLS
+    std::cout << "is in surf dball @ " << index_in_star_set() << " fsecond: " << f.second << std::endl;
+    std::cout << c1->vertex(0)->point() << " || " << c1->vertex(0)->info() << std::endl;
+    std::cout << c1->vertex(1)->point() << " || " << c1->vertex(1)->info() << std::endl;
+    std::cout << c1->vertex(2)->point() << " || " << c1->vertex(2)->info() << std::endl;
+    std::cout << c1->vertex(3)->point() << " || " << c1->vertex(3)->info() << std::endl;
+    std::cout << Base::is_valid(c1, true) << std::endl;
+
+    std::cout << c2->vertex(0)->point() << " || " << c2->vertex(0)->info() << std::endl;
+    std::cout << c2->vertex(1)->point() << " || " << c2->vertex(1)->info() << std::endl;
+    std::cout << c2->vertex(2)->point() << " || " << c2->vertex(2)->info() << std::endl;
+    std::cout << c2->vertex(3)->point() << " || " << c2->vertex(3)->info() << std::endl;
+    std::cout << Base::is_valid(c2, true) << std::endl;
+    std::cout << "end" << std::endl;
+#endif
+
     if(Base::side_of_sphere(c1, tp) == CGAL::ON_BOUNDED_SIDE)
     {
       in_which_cell = c1;
@@ -1077,6 +1047,75 @@ public:
       return true;
     }
     return false;
+  }
+
+  inline bool is_in_a_surface_delaunay_ball(const TPoint_3& tp,
+                                           Cell_handle& in_which_cell) const
+  {
+    CGAL_PROFILER("[is_in_a_surface_delaunay_ball]");
+    Facet_set_iterator fi = restricted_facets_begin();
+    Facet_set_iterator fend = restricted_facets_end();
+    for(; fi != fend; fi++)
+      if(is_in_surface_delaunay_ball(tp, *fi, in_which_cell))
+        return true;
+    return false;
+  }
+
+  bool is_in_delaunay_ball(const TPoint_3& tp,
+                           const Cell_handle& c) const
+  {
+    CGAL_PROFILER("[conflict volumeDB test]");
+    return (Base::side_of_sphere(c, tp) == CGAL::ON_BOUNDED_SIDE);
+  }
+
+  inline bool is_in_a_volume_delaunay_ball(const TPoint_3& tp,
+                                           Cell_handle& in_which_cell) const
+  {
+    CGAL_PROFILER("[is_in_a_volume_delaunay_ball]");
+    if(this->dimension() < 3)
+      return true;
+    Cell_handle_handle ci = star_cells_begin();
+    Cell_handle_handle cend = star_cells_end();
+    for(; ci!=cend; ci++)
+    {
+      if(is_in_delaunay_ball(tp, *ci))
+      {
+        in_which_cell = *ci;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  inline bool is_conflicted(const TPoint_3 &tp,
+                            Cell_handle& in_which_cell) const
+  {
+    if(Base::dimension() < 3)
+      return true;
+    else if(!is_inside_bbox(m_metric.inverse_transform(tp)))
+      return false;
+    else if(!m_is_in_3D_mesh)
+    {
+      if(is_topological_disk())
+        return is_in_a_surface_delaunay_ball(tp, in_which_cell);
+      else
+        return (is_in_a_volume_delaunay_ball(tp, in_which_cell) ||
+                is_in_a_surface_delaunay_ball(tp, in_which_cell) );
+    }
+    else
+      return is_in_a_volume_delaunay_ball(tp, in_which_cell);
+  }
+
+  {
+
+    typename Traits::Compute_squared_distance_3 csd
+      = m_traits->compute_squared_distance_3_object();
+
+
+    {
+    }
+    {
+    }
   }
 
   template<typename BFacetsOutputIterator,
@@ -2431,23 +2470,27 @@ public:
 public:
   Stretched_Delaunay_3(const Criteria* criteria_,
                        const Constrain_surface* pconstrain_surface,
-                       const bool is_surface_star = true) :
-    Base(*(m_traits = new Traits())),
-    m_center_point(CGAL::ORIGIN),
-    m_is_surface_star(is_surface_star),
-    m_metric(),
-    m_pConstrain(pconstrain_surface),
-    m_criteria(new Stretched_criteria(*m_traits, criteria_)),
-    m_is_topological_disk(false),
-    m_is_valid_topo_disk(false),
-    m_is_valid_bbox(false),
-    m_bbox_needs_aabb_update(false),
-    m_metric_needs_update(false),
-    is_cache_dirty(true),
-    restricted_facets_cache(),
-    incident_cells_cache(),
-    finite_incident_cells_cache(),
-    finite_adjacent_vertices_cache(),
+                       const bool is_surface_star = true,
+                       const bool is_in_3D_mesh = false)
+    :
+      Base(*(m_traits = new Traits())),
+      m_center_point(CGAL::ORIGIN),
+      m_is_surface_star(is_surface_star),
+      m_metric(),
+      m_pConstrain(pconstrain_surface),
+      m_criteria(new Stretched_criteria(*m_traits, criteria_)),
+      m_is_in_3D_mesh(is_in_3D_mesh),
+      m_is_topological_disk(false),
+      m_is_valid_topo_disk(false),
+      m_is_valid_bbox(false),
+      m_bbox_needs_aabb_update(false),
+      m_metric_needs_update(false),
+      is_cache_dirty(true),
+      restricted_facets_cache(),
+      incident_cells_cache(),
+      finite_incident_cells_cache(),
+      finite_adjacent_vertices_cache(),
+      timer_clean()
   {
     m_center = Vertex_handle();
     m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
@@ -2459,23 +2502,27 @@ public:
                        const int &index,
                        const Metric &metric_,
                        const Constrain_surface* pconstrain_surface,
-                       const bool is_surface_star = true) :
-    Base(*(m_traits = new Traits())),
-    m_center_point(centerpoint),
-    m_is_surface_star(is_surface_star),
-    m_metric(metric_),
-    m_pConstrain(pconstrain_surface),
-    m_criteria(new Stretched_criteria(*m_traits, criteria_)),
-    m_is_topological_disk(false),
-    m_is_valid_topo_disk(false),
-    m_is_valid_bbox(false),
-    m_bbox_needs_aabb_update(false),
-    m_metric_needs_update(false),
-    is_cache_dirty(true),
-    restricted_facets_cache(),
-    incident_cells_cache(),
-    finite_incident_cells_cache(),
-    finite_adjacent_vertices_cache(),
+                       const bool is_surface_star = true,
+                       const bool is_in_3D_mesh = false)
+    :
+      Base(*(m_traits = new Traits())),
+      m_center_point(centerpoint),
+      m_is_surface_star(is_surface_star),
+      m_metric(metric_),
+      m_pConstrain(pconstrain_surface),
+      m_criteria(new Stretched_criteria(*m_traits, criteria_)),
+      m_is_in_3D_mesh(is_in_3D_mesh),
+      m_is_topological_disk(false),
+      m_is_valid_topo_disk(false),
+      m_is_valid_bbox(false),
+      m_bbox_needs_aabb_update(false),
+      m_metric_needs_update(false),
+      is_cache_dirty(true),
+      restricted_facets_cache(),
+      incident_cells_cache(),
+      finite_incident_cells_cache(),
+      finite_adjacent_vertices_cache(),
+      timer_clean()
   {
     m_center = Base::insert(m_metric.transform(centerpoint));
     m_center->info() = index;

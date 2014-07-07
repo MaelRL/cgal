@@ -104,7 +104,6 @@ private:
 
   // Filters
   AABB_tree m_aabb_tree; //bboxes of stars
-  DT m_ch_triangulation;
   Kd_tree m_kd_tree;     //stars* centers for box queries
 
   mutable Stars_conflict_zones m_star_czones; //conflict zones for the stars in conflict
@@ -195,13 +194,11 @@ public:
       m_starset(starset_),
       m_cell_refine_queue(),
       m_aabb_tree(100/*insertion buffer size*/),
-      m_ch_triangulation(),
       m_kd_tree(m_starset.star_vector()),
       m_star_czones(m_starset),
       m_null_mesher(),
       m_cell_mesher(m_null_mesher, m_starset, pconstrain_, criteria_, metric_field_,
-                    m_ch_triangulation, m_aabb_tree, m_kd_tree, m_star_czones,
-                    m_cell_refine_queue, 0, 5),
+                    m_aabb_tree, m_kd_tree, m_star_czones, m_cell_refine_queue, 0, 5),
       m_null_visitor(),
       m_cell_visitor(m_null_visitor)
   { }

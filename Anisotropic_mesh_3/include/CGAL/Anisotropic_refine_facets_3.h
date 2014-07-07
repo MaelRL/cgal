@@ -84,22 +84,17 @@ private:
   //should poles be used
   bool m_are_poles_used;
 
-
   // these two ints determine which queues (in the facet refinement queue) are
   // used by this level
   const int m_queue_ids_start;
   const int m_queue_ids_end;
 
-  //this boolean is exactly m_facet_visitor.is_active(), but carrying the visitor
-  //all the way down to is_valid_point() is even less pretty
-  bool m_pick_valid_uses_3D_checks;
-
   //debug & info
+  mutable int m_pick_valid_points_tried;
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
   int m_pick_valid_skipped;
   int m_pick_valid_rejected;
-  int m_pick_valid_max_failures;
   mutable int vertex_with_picking_count;
   mutable int vertex_without_picking_count;
   mutable int m_leak_counter;
@@ -108,8 +103,8 @@ public:
   mutable CGAL::Timer timer_pv;
   mutable CGAL::Timer timer_npv;
 
-  bool& pick_valid_uses_3D_checks() { return m_pick_valid_uses_3D_checks; }
-  const bool& pick_valid_uses_3D_checks() const { return m_pick_valid_uses_3D_checks; }
+  bool& is_3D_level() { return Trunk::m_is_3D_level; }
+  const bool& is_3D_level() const { return Trunk::m_is_3D_level; }
 
   bool& is_active() { return Mesher_lvl::is_active(); }
   const bool& is_active() const { return Mesher_lvl::is_active(); }
@@ -134,7 +129,6 @@ public:
       this->m_criteria->report();
 
       Trunk::initialize_stars(m_are_poles_used);
-      this->m_ch_triangulation.infinite_vertex()->info() = -10;
       Trunk::build_aabb_tree();
     }
 
@@ -1025,7 +1019,7 @@ private:
     else if(id < (int) this->m_starset.size()) //already in star set
       return false;
 
-    Trunk::create_star(p, id, new_star);
+    Trunk::create_star(p, id, new_star, true/*surf*/);
 
     bool is = check_consistency(to_be_refined, new_star, sq_radius_bound);
 
@@ -1040,7 +1034,7 @@ private:
                       Star_handle to_be_refined,
                       Star_handle& new_star) const
   {
-    if(m_pick_valid_uses_3D_checks)
+    if(is_3D_level())
       return Trunk::is_valid_point_3D(p, sq_radius_bound, to_be_refined, new_star);
     else
       return is_valid_point_2D(p, sq_radius_bound, to_be_refined, new_star);
@@ -1086,7 +1080,7 @@ private:
     FT circumradius = this->m_criteria->delta * std::sqrt(sq_circumradius);
 
     std::size_t tried_times = 0;
-    Star_handle newstar = new Star(this->m_criteria, this->m_pConstrain, true/*surface*/);
+    Star_handle newstar = new Star(this->m_criteria, this->m_pConstrain, true/*surface*/, Trunk::m_is_3D_level);
 
     //possible trick#4, if(is_in_conflict(center)) then directly go to lower levels
 
@@ -1106,7 +1100,8 @@ private:
       // Pick_valid trick#3: check conflict (encroachment...) at lower levels
       //before testing the validity of the point.
       if(Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) ||
-         !is_valid_point(p, sq_radiusbound, star, newstar))
+         (++m_pick_valid_points_tried &&
+         !is_valid_point(p, sq_radiusbound, star, newstar)))
       {
         Trunk::clear_conflict_zones();
       }
@@ -1201,7 +1196,6 @@ public:
                               const Constrain_surface* pconstrain_,
                               const Criteria* criteria_,
                               const Metric_field* metric_field_,
-                              DT& ch_triangulation_,
                               AABB_tree& aabb_tree_,
                               Kd_tree& kd_tree_,
                               Stars_conflict_zones& m_stars_czones_,
@@ -1212,21 +1206,21 @@ public:
     :
       Mesher_lvl(previous),
       Trunk(starset_, pconstrain_, criteria_, metric_field_,
-            ch_triangulation_, aabb_tree_, kd_tree_, m_stars_czones_,
+            aabb_tree_, kd_tree_, m_stars_czones_,
             false/*not a 3D level*/),
       m_refine_queue(refine_queue_),
       m_are_poles_used(are_poles_used_),
       m_queue_ids_start(queue_ids_start_),
       m_queue_ids_end(queue_ids_end_),
-      m_pick_valid_uses_3D_checks(false),
+      m_pick_valid_points_tried(0),
       m_pick_valid_succeeded(0),
       m_pick_valid_failed(0),
       m_pick_valid_skipped(0),
       m_pick_valid_rejected(0),
-      m_pick_valid_max_failures(0),
       vertex_with_picking_count(0),
       vertex_without_picking_count(0),
       m_leak_counter(0),
+      m_avg_dist(0.),
       timer_pv(),
       timer_npv()
   {}
