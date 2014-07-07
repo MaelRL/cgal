@@ -171,13 +171,10 @@ public:
     Index ind_v2 = v2->info();
     Index ind_v3 = v3->info();
     std::cout << "Trying to refine : " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
+    std::cout << "Bad_facet belongs to: " << bad_facet->star->index_in_star_set() << " npv: " << need_picking_valid << std::endl;
     std::cout << "\tp"<< v1->info() <<" : " << bad_facet->star->metric().inverse_transform(v1->point()) << std::endl;
     std::cout << "\tp"<< v2->info() <<" : " << bad_facet->star->metric().inverse_transform(v2->point()) << std::endl;
     std::cout << "\tp"<< v3->info() <<" : " << bad_facet->star->metric().inverse_transform(v3->point()) << std::endl;
-    std::cout << "\tcheck coordinates : from stars, " << std::endl;
-    std::cout << "\t" << m_stars[ind_v1]->center_point() << " " << &(m_stars[ind_v1]) << std::endl;
-    std::cout << "\t" << m_stars[ind_v2]->center_point() << " " << &(m_stars[ind_v2]) << std::endl;
-    std::cout << "\t" << m_stars[ind_v3]->center_point() << " " << &(m_stars[ind_v3]) << std::endl;
 
     double deg_value = 1e-4;
     bool degenerate = ( (std::abs(v1->point().x()-v2->point().x()) < deg_value &&
@@ -300,89 +297,69 @@ public:
     if(pid != static_cast<Index>(this->m_starset.size()-1))
       std::cout << "warning in insert_" << std::endl;
 
-    //Debug: check if f has been destroyed -------------------------------------
+//Debug: check if f has been destroyed -------------------------------------
+    //The facet is not necessarily destroyed, its dual can simply be reduced
+
     Cell_handle c;
     int i,j,k;
     if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
     {
+      std::cout << "Bad facet still there. Bad_facet.star : ";
+      std::cout << bad_facet.star->index_in_star_set() << ". ";
+      std::cout << "starset size : " << this->m_starset.size() << std::endl;
+
       int index = 6 - i - j - k;
       Facet ff = bad_facet.star->make_canonical(Facet(c,index));
 
       typename K::Plane_3 fplane = bad_facet.star->triangle(ff).supporting_plane();
 
       Point_3 steiner2;
-      if(bad_facet.star->is_restricted(ff, steiner2)
-        && fplane.oriented_side(bad_facet.star->metric().transform(steiner_point))
-           == fplane.oriented_side(bad_facet.star->metric().transform(steiner2)))
+      if(bad_facet.star->is_restricted(ff, steiner2))
       {
-        //if steiner_point and steiner2 are not on the same side from ff, it's legal
-
-        Trunk::clear_conflict_zones();
-        Trunk::pop_back_star();
-
-        std::cout << "found & restricted" << std::endl;
-        if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
-        {
-          index = 6 - i - j - k;
-          ff = bad_facet.star->make_canonical(Facet(c,index));
-
-          Trunk::compute_conflict_zones(steiner2);
-          compute_exact_steiner_point(bad_facet.star, ff, need_picking_valid, steiner2);
-          pid = Trunk::insert(steiner2, true/*conditional*/, true/*surface point*/);
-        }
-
-#if 1//def ANISO_DEBUG_REFINEMENT
-        if(bad_facet.star->is_facet(v1, v2, v3, c, i, j, k))
-        {
-          index = 6 - i - j - k;
-          ff = bad_facet.star->make_canonical(Facet(c,index));
-          if(bad_facet.star->is_restricted(ff))
-          {
-            std::cout.precision(15);
-            std::cout << "Bad facet still there. Bad_facet.star : " << bad_facet.star->index_in_star_set() << ". stars : " << this->m_starset.size() << std::endl;
-            std::cout << "star's metric" << std::endl << bad_facet.star->metric().get_transformation() << std::endl;
-            std::cout << "evs : " << bad_facet.star->metric().get_max_eigenvalue() << " ";
-            std::cout << bad_facet.star->metric().get_min_eigenvalue() << " ";
-            std::cout << bad_facet.star->metric().get_third_eigenvalue() << std::endl;
-            std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
-            std::cout << "check : " << this->m_starset[v1->info()]->center_point() << std::endl;
-            std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
-            std::cout << "check : " << this->m_starset[v2->info()]->center_point() << std::endl;
-            std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
-            std::cout << "check : " << this->m_starset[v3->info()]->center_point() << std::endl;
-
-            std::cout << "\tdim = " << bad_facet.star->dimension();
-            std::cout << ", nbv = " << bad_facet.star->number_of_vertices();
-            std::cout << ", pid = " << pid;
-            std::cout << ", f(p) = " << this->m_pConstrain->side_of_constraint(steiner_point);
-            std::cout << ", picking : " << need_picking_valid << std::endl;
-            std::cout << "\tp = " << steiner_point  << " " << this->m_pConstrain->side_of_constraint(steiner_point) << std::endl;
-
-            Cell_handle useless;
-            std::cout << "checking conflicts with all three stars : ";
-            std::cout << this->m_starset[ind_v1]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v1]), useless) << " ";
-            std::cout << this->m_starset[ind_v2]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v2]), useless) << " ";
-            std::cout << this->m_starset[ind_v3]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v3]), useless) << std::endl;
-
-            std::cout << "checking needs_aabb_update in the tree of size " << this->m_aabb_tree.size() << " : ";
-            std::cout << this->m_starset[ind_v1]->bbox_needs_aabb_update() << " ";
-            std::cout << this->m_starset[ind_v2]->bbox_needs_aabb_update() << " ";
-            std::cout << this->m_starset[ind_v3]->bbox_needs_aabb_update() << std::endl;
-
-            bad_facet.star->debug_steiner_point(steiner_point, ff, true);
-
-            //pop_back_star();
-            return false;
-          }
-          else
-            std::cout << "bad facet still in but not restricted anymore" << std::endl;
-        }
+        std::cout << "Restricted with steiner2 : " << steiner2  << std::endl;
+        if(fplane.oriented_side(bad_facet.star->metric().transform(steiner_point))
+           == fplane.oriented_side(bad_facet.star->metric().transform(steiner2)))
+          std::cout << "Dual was reduced" << std::endl;
         else
-          std::cout << "Switching to exact succeeded" << std::endl;
-#endif
+          std::cout << "Dual intersects on the other side" << std::endl;
+
+        std::cout.precision(15);
+        std::cout << "star's metric" << std::endl << bad_facet.star->metric().get_transformation() << std::endl;
+        std::cout << "evs : " << bad_facet.star->metric().get_max_eigenvalue() << " ";
+        std::cout << bad_facet.star->metric().get_min_eigenvalue() << " ";
+        std::cout << bad_facet.star->metric().get_third_eigenvalue() << std::endl;
+        std::cout << "\tp"<< v1->info() <<" : " << bad_facet.star->metric().inverse_transform(v1->point()) << std::endl;
+        std::cout << "check : " << this->m_starset[v1->info()]->center_point() << std::endl;
+        std::cout << "\tp"<< v2->info() <<" : " << bad_facet.star->metric().inverse_transform(v2->point()) << std::endl;
+        std::cout << "check : " << this->m_starset[v2->info()]->center_point() << std::endl;
+        std::cout << "\tp"<< v3->info() <<" : " << bad_facet.star->metric().inverse_transform(v3->point()) << std::endl;
+        std::cout << "check : " << this->m_starset[v3->info()]->center_point() << std::endl;
+
+        std::cout << "\tdim = " << bad_facet.star->dimension();
+        std::cout << ", nbv = " << bad_facet.star->number_of_vertices();
+        std::cout << ", pid = " << pid;
+        std::cout << ", f(p) = " << this->m_pConstrain->side_of_constraint(steiner_point);
+        std::cout << ", picking : " << need_picking_valid << std::endl;
+        std::cout << "\tp = " << steiner_point  << " " << this->m_pConstrain->side_of_constraint(steiner_point) << std::endl;
+
+        Cell_handle useless;
+        std::cout << "checking conflicts with all three stars : ";
+        std::cout << this->m_starset[ind_v1]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v1]), useless) << " ";
+        std::cout << this->m_starset[ind_v2]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v2]), useless) << " ";
+        std::cout << this->m_starset[ind_v3]->is_conflicted(this->transform_to_star_point(steiner_point, this->m_starset[ind_v3]), useless) << std::endl;
+
+        std::cout << "checking needs_aabb_update in the tree of size " << this->m_aabb_tree.size() << " : ";
+        std::cout << this->m_starset[ind_v1]->bbox_needs_aabb_update() << " ";
+        std::cout << this->m_starset[ind_v2]->bbox_needs_aabb_update() << " ";
+        std::cout << this->m_starset[ind_v3]->bbox_needs_aabb_update() << std::endl;
+
+        bad_facet.star->debug_steiner_point(steiner_point, ff, true);
+
       }
+      else
+        std::cout << "bad facet still in but not restricted anymore" << std::endl;
     }
-    // --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
 
     if(this->m_starset.size()%100 == 0) // TMP
     {
