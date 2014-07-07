@@ -339,6 +339,11 @@ public:
     restricted_facets_cache.clear();
     finite_adjacent_vertices_cache.clear();
 
+    // update neighboring vertices
+    std::back_insert_iterator<Vertex_handle_vector>
+        finite_adjacent_vertices_insertor(finite_adjacent_vertices_cache);
+    Base::finite_adjacent_vertices(m_center, finite_adjacent_vertices_insertor);
+
     if(Base::dimension() == 2)
     {
       typename Base::Finite_facets_iterator fit = this->finite_facets_begin();
@@ -349,11 +354,6 @@ public:
     }
     else if(Base::dimension() > 2)
     {
-      // update neighboring vertices
-      std::back_insert_iterator<Vertex_handle_vector>
-          finite_adjacent_vertices_insertor(finite_adjacent_vertices_cache);
-      Base::finite_adjacent_vertices(m_center, finite_adjacent_vertices_insertor);
-
       // update neighboring cells
       std::back_insert_iterator<Cell_handle_vector> incident_cells_insertor(incident_cells_cache);
       Base::incident_cells(m_center, incident_cells_insertor);
