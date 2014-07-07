@@ -53,6 +53,52 @@ void dump(const Starset& stars)
 }
 
 template<typename Starset>
+void output_surface_star_off(const Starset& stars,
+                             std::ofstream& fx,
+                             typename Starset::Index i)
+{
+  typename Starset::Star_handle star = stars[i];
+  std::map<typename Starset::Index, int> match_indices;
+  int off_index = 0;
+  std::vector<typename Starset::Point_3> points;
+  std::set<Facet_ijk> output_facets;
+
+  typename Starset::Facet_set_iterator rfi = star->restricted_facets_begin();
+  typename Starset::Facet_set_iterator rfend = star->restricted_facets_end();
+  for(; rfi!=rfend; ++rfi)
+  {
+    boost::array<typename Starset::Index, 3> ids;
+    for(int i=0; i<3; i++)
+    {
+      typename Starset::Vertex_handle vi = rfi->first->vertex((rfi->second+i+1)%4);
+      ids[i] = vi->info();
+      std::pair<typename std::map<typename Starset::Index, int>::iterator, bool> inserted;
+      inserted = match_indices.insert(std::make_pair(ids[i], off_index));
+      if(inserted.second)
+      {
+        points.push_back(star->metric().inverse_transform(vi->point()));
+        off_index++;
+      }
+    }
+    output_facets.insert(Facet_ijk(ids[0], ids[1], ids[2]));
+  }
+
+  fx << "OFF" << std::endl;
+  fx << points.size() << " " << output_facets.size() << " 0" << std::endl;
+  for(unsigned int i = 0; i < points.size(); i++)
+    fx << points[i] << std::endl;
+
+  typename std::set<Facet_ijk>::iterator fit = output_facets.begin();
+  typename std::set<Facet_ijk>::iterator fitend = output_facets.end();
+  for (; fit != fitend; fit++)
+  {
+    fx << "3  " << match_indices[fit->vertices()[0] ]
+        << " "   << match_indices[fit->vertices()[1] ]
+        << " "   << match_indices[fit->vertices()[2] ] << std::endl;
+  }
+}
+
+template<typename Starset>
 void output_star_off(const Starset& stars,
                      std::ofstream& fx,
                      typename Starset::Index i)
@@ -62,7 +108,6 @@ void output_star_off(const Starset& stars,
   int off_index = 0;
   std::vector<typename Starset::Point_3> points;
   std::set<Facet_ijk> output_facets;
-  std::set<Cell_ijkl> output_cells;
 
   typename Starset::Cell_handle_handle ci = star->finite_star_cells_begin();
   typename Starset::Cell_handle_handle ciend = star->finite_star_cells_end();
@@ -85,7 +130,6 @@ void output_star_off(const Starset& stars,
       }
     }
 
-    output_cells.insert(Cell_ijkl(c));
     output_facets.insert(Facet_ijk(ids[0], ids[1], ids[2]));
     output_facets.insert(Facet_ijk(ids[0], ids[2], ids[3]));
     output_facets.insert(Facet_ijk(ids[0], ids[1], ids[3]));
@@ -93,7 +137,7 @@ void output_star_off(const Starset& stars,
   }
 
   fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_facets.size() << " " << output_cells.size() << std::endl;
+  fx << points.size() << " " << output_facets.size() << " 0" << std::endl;
   for(unsigned int i = 0; i < points.size(); i++)
     fx << points[i] << std::endl;
 
@@ -104,16 +148,6 @@ void output_star_off(const Starset& stars,
     fx << "3  " << match_indices[fit->vertices()[0] ]
         << " "   << match_indices[fit->vertices()[1] ]
         << " "   << match_indices[fit->vertices()[2] ] << std::endl;
-  }
-
-  typename std::set<Cell_ijkl>::iterator  cit = output_cells.begin();
-  typename std::set<Cell_ijkl>::iterator  citend = output_cells.end();
-  for (; cit != citend; cit++)
-  {
-    fx << "4  " << match_indices[cit->vertices()[0] ]
-        << " "   << match_indices[cit->vertices()[1] ]
-        << " "   << match_indices[cit->vertices()[2] ]
-        << " "   << match_indices[cit->vertices()[3] ] << std::endl;
   }
 }
 
