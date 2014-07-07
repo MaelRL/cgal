@@ -1650,6 +1650,9 @@ public:
     }
     clean_stars();
 
+    std::cout << "consistency of the triangulation: " << m_starset.is_consistent(true, FACETS_ONLY);
+    std::cout << " " << m_starset.is_consistent(true, CELLS_ONLY) << std::endl;
+
     std::ofstream out("resumed.mesh");
     output_medit(m_starset, out);
     std::ofstream out_facet("resumed_surf.mesh");

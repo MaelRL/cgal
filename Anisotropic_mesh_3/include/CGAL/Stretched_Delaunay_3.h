@@ -2095,9 +2095,6 @@ public:
 
   void print_restricted_facets() const
   {
-    if(Base::dimension() < 3)
-      return;
-
     std::cout << "Restricted facets of " << m_center->info() << std::endl;
     Facet_set_iterator fi = restricted_facets_begin();
     Facet_set_iterator fend = restricted_facets_end();
@@ -2109,8 +2106,11 @@ public:
       std::cout << fi->first->vertex((fi->second+2)%4)->point() << std::endl;
       std::cout << fi->first->vertex((fi->second+3)%4)->info() << " || ";
       std::cout << fi->first->vertex((fi->second+3)%4)->point() << std::endl;
-      std::cout << "second: " << fi->first->vertex(fi->second)->info() << " ";
-      std::cout << fi->first->vertex(fi->second)->point() << std::endl;
+      if(Base::dimension() == 3)
+      {
+        std::cout << "second: " << fi->first->vertex(fi->second)->info() << " ";
+        std::cout << fi->first->vertex(fi->second)->point() << std::endl;
+      }
     }
   }
 

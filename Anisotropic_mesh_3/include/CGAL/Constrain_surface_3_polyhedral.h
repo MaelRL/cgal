@@ -57,7 +57,7 @@ namespace Anisotropic_mesh_3
 
 template<typename K,
          typename Polyhedron = CGAL::Polyhedron_3<K, Enriched_items> >
-class Constrain_surface_3_polyhedral : 
+class Constrain_surface_3_polyhedral :
     public Constrain_surface_3<K>
 {
 public:
@@ -193,8 +193,6 @@ public:
         std::cout << *vit << " || " << CGAL::squared_distance(*vit, p0) << std::endl;
     }
 #endif
-    //std::cout << "intersection returns : " << intersection_points.front() << std::endl;
-
     return make_object(intersection_points.back());;
   }
 

@@ -73,13 +73,13 @@ public:
   {
     //can't test conflicts at all lower levels if we're interlacing surface
     //and mesher levels (since a facet refining point obviously encroaches a
-    //facet)
+    //facet) todo
     return derived().test_point_conflict_from_superior_(p, is_queue_updated,
                                                          need_picking_valid);
   }
 
   //this function potentially fills partially the conflict_zones:
-  //it gives which stars are in conflict (without giving the actual conflict zones)
+  //it gives which stars are in conflict (without computing the conflict hole)
   bool is_point_in_conflict(const Point& p,
                             const bool is_queue_updated = true,
                             const bool need_picking_valid = false) const

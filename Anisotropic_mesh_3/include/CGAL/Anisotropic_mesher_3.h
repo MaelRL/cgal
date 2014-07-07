@@ -54,15 +54,8 @@ public:
   //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef K                                                 KExact;
 
-
   typedef Stretched_Delaunay_3<K, KExact>                   Star;
   typedef Star*                                             Star_handle;
-  typedef typename Star::Base                               DT; // DT_3 with vertex_base_with_info
-  typedef std::vector<Star_handle>                          Star_vector;
-  typedef std::set<Star_handle>                             Star_set;
-  typedef typename Star_vector::iterator                    Star_iterator;
-  typedef typename Star::Index                              Index;
-  typedef std::set<Index>                                   Index_set;
 
   typedef Constrain_surface_3<K>                            Constrain_surface;
   typedef CGAL::Anisotropic_mesh_3::Metric_field<K>         Metric_field;
@@ -77,14 +70,7 @@ public:
 
 //Filters
   typedef CGAL::AABB_tree_bbox<K, Star>                     AABB_tree;
-  typedef CGAL::AABB_bbox_primitive<Star>                   AABB_primitive;
-
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>        Kd_tree;
-  typedef typename Kd_tree::Traits                          Kd_traits;
-  typedef typename Kd_tree::Box_query                       Kd_Box_query;
-  typedef typename Kd_tree::key_type                        Kd_point_info;
-
-  typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>        Conflict_zone;
   typedef CGAL::Anisotropic_mesh_3::Stars_conflict_zones<K> Stars_conflict_zones;
 
 //Mesher levels
@@ -96,7 +82,7 @@ public:
                                                             Cells_consistency_level;
 
 //Refinement trunk
-  typedef CGAL::Anisotropic_mesh_3::Anisotropic_refine_trunk<K>  Trunk;
+  typedef Anisotropic_refine_trunk<K>                       Trunk;
 
 //Visitors
   typedef Null_anisotropic_mesher_visitor                         Null_mesher_visitor;
