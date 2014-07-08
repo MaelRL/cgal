@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
   std::cout << "Star set has " << starset.number_of_surface_stars() << " surface vertices.\n";
 
   //iso
-//  approx = starset.compute_approximation_error(); fixme
+  approx = starset.compute_approximation_error(pdomain);
   pdomain->run_mesh_3(approx, true/*verbose*/);
 
   delete metric_field;

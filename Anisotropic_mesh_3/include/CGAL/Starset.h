@@ -3,6 +3,7 @@
 
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/helpers/combinatorics_helper.h>
+#include <CGAL/helpers/histogram_helper.h>
 
 #include <Eigen/Dense>
 
@@ -301,7 +302,7 @@ public:
     {
       if(is_infinite_vertex((*vit)->info()))
         continue;
-      if(!(get_star((*vit)->info())->is_surface_star())) //todo this is bad
+      if(!(m_stars[(*vit)->info()]->is_surface_star())) //todo this is bad
         continue;
 
       FT distortion = m_stars[(*vit)->info()]->metric().compute_distortion(star->metric());
@@ -514,6 +515,46 @@ public:
     }
 
     return avg_coh_dis/(double) nb_coh;
+  }
+
+  //approximation
+  template<typename Constrain_surface>
+  FT compute_approximation_error(const Constrain_surface* const m_pConstrain) const
+  {
+    FT sq_approx = -1e30;
+
+    std::set<Facet_ijk> done;
+
+    for(std::size_t i=0; i!=m_stars.size(); ++i)
+    {
+      Star_handle s = m_stars[i];
+
+      if(!s->is_surface_star())
+        continue;
+
+      Facet_set_iterator fit = s->restricted_facets_begin();
+      Facet_set_iterator fend = s->restricted_facets_end();
+      for(; fit != fend; ++fit)
+      {
+        Facet f = *fit;
+
+        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+        is_insert_successful = done.insert(Facet_ijk(f));
+        if(!is_insert_successful.second)
+          continue;
+
+        //todo refinement condition (cf scraps)
+
+        FT sqd = sq_distance_to_surface(*this, f, m_pConstrain);
+        sq_approx = (std::max)(sq_approx, sqd);
+      }
+    }
+    return sq_approx;
+  }
+
+  void clear()
+  {
+    m_stars.clear();
   }
 
   Starset() : m_stars() { }

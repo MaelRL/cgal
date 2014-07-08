@@ -34,6 +34,22 @@ enum Cell_histogram_type
   CELL_ANGLE
 };
 
+template <typename Starset, typename Constrain_surface>
+typename Starset::FT
+sq_distance_to_surface(const Starset& stars,
+                       const typename Starset::Facet& f,
+                       const Constrain_surface* const m_pConstrain)
+{
+  typedef typename Starset::Point_3 Point_3;
+
+  Point_3 p1 = stars[f.first->vertex((f.second + 1) % 4)->info()]->center_point();
+  Point_3 p2 = stars[f.first->vertex((f.second + 2) % 4)->info()]->center_point();
+  Point_3 p3 = stars[f.first->vertex((f.second + 3) % 4)->info()]->center_point();
+  typename Starset::FT third = 1./3.;
+  Point_3 facet_bar = CGAL::barycenter(p1, third, p2, third, p3, third);
+  return m_pConstrain->compute_sq_approximation(facet_bar);
+}
+
 template <typename Star>
 typename Star::FT
 minimum_dihedral_angle(Star* star,
@@ -242,15 +258,7 @@ void facet_histogram(const Starset& stars,
       FT val = 0.;
 
       if(hist_type == APPROXIMATION)
-      {
-        typename Starset::Point_3 cc, bf;
-        si->compute_dual_intersection(f, cc);
-        bf = CGAL::barycenter(stars[f.first->vertex((f.second+1)%4)->info()]->center_point(), 1./3.,
-                              stars[f.first->vertex((f.second+2)%4)->info()]->center_point(), 1./3.,
-                              stars[f.first->vertex((f.second+3)%4)->info()]->center_point(), 1./3.);
-        FT sqd = m_pConstrain->compute_sq_approximation(bf);
-        val = CGAL::sqrt(sqd);
-      }
+        val = CGAL::sqrt(sq_distance_to_surface(stars, f, m_pConstrain));
       else if(hist_type == FACET_DISTORTION)
       {
         int index = f.second;
