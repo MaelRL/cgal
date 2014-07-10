@@ -99,7 +99,7 @@ public:
 
   std::size_t count_restricted_facets() const
   {
-    std::set<Facet_ijk> facets;
+    Facet_ijk_unordered_set facets;
     for(unsigned int i = 0; i < m_stars.size(); i++)
     {
       Facet_set_iterator fit = m_stars[i]->restricted_facets_begin();
@@ -355,7 +355,7 @@ public:
     double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
     int nb_coh = 0, nb_incoh = 0;
 
-    std::set<Facet_ijk> done;
+    Facet_ijk_unordered_set done;
     for(std::size_t i = 0; i < m_stars.size(); i++)
     {
       Star_handle star = m_stars[i];
@@ -367,7 +367,7 @@ public:
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;
-        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+        std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
         is_insert_successful = done.insert(Facet_ijk(f));
         if(!is_insert_successful.second)
           continue;
@@ -414,7 +414,7 @@ public:
     double avg_incoh_dis = 0., min_incoh_dis = 1e30, max_incoh_dis = -1e30;
     int nb_coh = 0, nb_incoh = 0;
 
-    std::set<Cell_ijkl> done;
+    Cell_ijkl_unordered_set done;
     for(std::size_t i = 0; i < m_stars.size(); i++)
     {
       Star_handle star = m_stars[i];
@@ -429,7 +429,7 @@ public:
         if(!star->is_inside(c))
           continue;
 
-        std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
+        std::pair<typename Cell_ijkl_unordered_set::iterator, bool> is_insert_successful;
         is_insert_successful = done.insert(Cell_ijkl(c));
         if(!is_insert_successful.second)
           continue;
@@ -523,7 +523,7 @@ public:
   {
     FT sq_approx = -1e30;
 
-    std::set<Facet_ijk> done;
+    Facet_ijk_unordered_set done;
 
     for(std::size_t i=0; i!=m_stars.size(); ++i)
     {
@@ -538,7 +538,7 @@ public:
       {
         Facet f = *fit;
 
-        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+        std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
         is_insert_successful = done.insert(Facet_ijk(f));
         if(!is_insert_successful.second)
           continue;

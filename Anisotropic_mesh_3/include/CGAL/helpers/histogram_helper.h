@@ -182,7 +182,7 @@ void facet_histogram(const Starset& stars,
   std::vector<int> histogram(divisions + 1, 0);
   int count = 0;
   FT max = -1e10, min = 1e10, sum = 0.;
-  std::set<Facet_ijk> done;
+  Facet_ijk_unordered_set done;
 
   FT max_val = 0.;
   if(hist_type == APPROXIMATION)
@@ -230,7 +230,7 @@ void facet_histogram(const Starset& stars,
     {
       Facet f = *fit;
 
-      std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+      std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
       is_insert_successful = done.insert(Facet_ijk(f));
       if(!is_insert_successful.second)
         continue;
@@ -371,7 +371,7 @@ void cell_histogram(const Starset& stars,
   std::vector<int> histogram(divisions + 1, 0);
   int count = 0;
   FT max = -1e10, min = 1e10, sum = 0.;
-  std::set<Cell_ijkl> done;
+  Cell_ijkl_unordered_set done;
 
   FT max_val = 0.;
   if(hist_type == CELL_DISTORTION)
@@ -413,7 +413,7 @@ void cell_histogram(const Starset& stars,
       if(!si->is_inside(c))
         continue;
 
-      std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
+      std::pair<typename Cell_ijkl_unordered_set::iterator, bool> is_insert_successful;
       is_insert_successful = done.insert(Cell_ijkl(c));
       if(!is_insert_successful.second)
         continue;
@@ -555,7 +555,7 @@ template<typename Starset>
 void dihedral_angle_histogram(const Starset& stars,
                               const bool verbose = false)
 {
-  std::set<Cell_ijkl> done;
+  Cell_ijkl_unordered_set done;
   std::vector<int> histogram(181, 0);
   typename Starset::FT val, min_value = 1e30, max_value = -1e30;
 
@@ -572,7 +572,7 @@ void dihedral_angle_histogram(const Starset& stars,
       if(!si->is_inside(c))
         continue;
 
-      std::pair<typename std::set<Cell_ijkl>::iterator, bool> is_insert_successful;
+      std::pair<typename Cell_ijkl_unordered_set::iterator, bool> is_insert_successful;
       is_insert_successful = done.insert(Cell_ijkl(c));
       if(!is_insert_successful.second)
         continue;

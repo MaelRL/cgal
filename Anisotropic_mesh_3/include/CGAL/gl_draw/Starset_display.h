@@ -50,7 +50,7 @@ public:
     std::size_t start = draw_all ? 0 : star_id;
     std::size_t N = draw_all ? m_starset.size() : (star_id + 1);
 
-    std::set<Facet_ijk> done;
+    Facet_ijk_unordered_set done;
 
     for(std::size_t i = start; i < N; i++)
     {
@@ -64,7 +64,7 @@ public:
         for(; fit != fitend; fit++)
         {
           Facet f = *fit;
-          std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+          std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
           is_insert_successful = done.insert(Facet_ijk(f));
           if(!is_insert_successful.second)
             continue;
@@ -85,7 +85,7 @@ public:
           for(int i=0; i<4; ++i)
           {
             Facet f(cit, i);
-            std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+            std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
             is_insert_successful = done.insert(Facet_ijk(f));
             if(!is_insert_successful.second)
               continue;
@@ -330,7 +330,7 @@ public:
     std::size_t start = draw_all ? 0 : star_id;
     std::size_t N = draw_all ? m_starset.size() : (star_id + 1);
 
-    std::set<Facet_ijk> done;
+    Facet_ijk_unordered_set done;
     for(std::size_t i = start; i < N; i++)
     {
       Star_handle star = m_starset[i];
@@ -342,7 +342,7 @@ public:
       for(; fit != fend; fit++)
       {
         Facet f = *fit;
-        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+        std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
         is_insert_successful = done.insert(Facet_ijk(f));
         if(!is_insert_successful.second)
           continue;
@@ -410,7 +410,7 @@ public:
     std::size_t N = draw_all ? m_starset.size() : (star_id + 1);
     double global_max_dis = m_starset.average_facet_distortion(false /*verbose*/);
 
-    std::set<Facet_ijk> done;
+    Facet_ijk_unordered_set done;
     for(std::size_t i = start; i < N; i++)
     {
       Star_handle star = m_starset[i];
@@ -419,7 +419,7 @@ public:
       for(; fit != fitend; fit++)
       {
         Facet f = *fit;
-        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+        std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
         is_insert_successful = done.insert(Facet_ijk(f));
         if(!is_insert_successful.second)
           continue;
@@ -458,7 +458,7 @@ public:
     std::size_t start = draw_all ? 0 : star_id;
     std::size_t N = draw_all ? m_starset.size() : (star_id + 1);
 
-    std::set<Facet_ijk> done;
+    Facet_ijk_unordered_set done;
     for(std::size_t i = start; i < N; i++)
     {
       Star_handle star = m_starset[i];
@@ -470,7 +470,7 @@ public:
       for(; fit != fend; fit++)
       {
         Facet f = *fit;
-        std::pair<typename std::set<Facet_ijk>::iterator, bool> is_insert_successful;
+        std::pair<typename Facet_ijk_unordered_set::iterator, bool> is_insert_successful;
         is_insert_successful = done.insert(Facet_ijk(f));
         if(!is_insert_successful.second)
           continue;

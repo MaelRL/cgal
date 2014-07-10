@@ -61,7 +61,7 @@ void output_surface_star_off(const Starset& stars,
   std::map<typename Starset::Index, int> match_indices;
   int off_index = 0;
   std::vector<typename Starset::Point_3> points;
-  std::set<Facet_ijk> output_facets;
+  Facet_ijk_unordered_set output_facets;
 
   typename Starset::Facet_set_iterator rfi = star->restricted_facets_begin();
   typename Starset::Facet_set_iterator rfend = star->restricted_facets_end();
@@ -88,8 +88,8 @@ void output_surface_star_off(const Starset& stars,
   for(unsigned int i = 0; i < points.size(); i++)
     fx << points[i] << std::endl;
 
-  typename std::set<Facet_ijk>::iterator fit = output_facets.begin();
-  typename std::set<Facet_ijk>::iterator fitend = output_facets.end();
+  typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
+  typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
   for (; fit != fitend; fit++)
   {
     fx << "3  " << match_indices[fit->vertices()[0] ]
@@ -107,7 +107,7 @@ void output_star_off(const Starset& stars,
   std::map<typename Starset::Index, int> match_indices;
   int off_index = 0;
   std::vector<typename Starset::Point_3> points;
-  std::set<Facet_ijk> output_facets;
+  Facet_ijk_unordered_set output_facets;
 
   typename Starset::Cell_handle_handle ci = star->finite_star_cells_begin();
   typename Starset::Cell_handle_handle ciend = star->finite_star_cells_end();
@@ -141,8 +141,8 @@ void output_star_off(const Starset& stars,
   for(unsigned int i = 0; i < points.size(); i++)
     fx << points[i] << std::endl;
 
-  typename std::set<Facet_ijk>::iterator fit = output_facets.begin();
-  typename std::set<Facet_ijk>::iterator fitend = output_facets.end();
+  typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
+  typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
   for (; fit != fitend; fit++)
   {
     fx << "3  " << match_indices[fit->vertices()[0] ]
@@ -158,8 +158,8 @@ void output_off(const Starset& stars,
 {
   std::cout << "Saving as .off..." << std::endl;
   std::vector<typename Starset::Point_3> points;
-  std::set<Facet_ijk> output_facets;
-  std::set<Cell_ijkl> output_cells;
+  Facet_ijk_unordered_set output_facets;
+  Cell_ijkl_unordered_set output_cells;
   unsigned int nb_inconsistent_stars = 0;
 
   typename Starset::const_iterator it = stars.begin();
@@ -204,8 +204,8 @@ void output_off(const Starset& stars,
   for(unsigned int i = 0; i < points.size(); i++)
     fx << points[i] << std::endl;
 
-  typename std::set<Facet_ijk>::iterator fit = output_facets.begin();
-  typename std::set<Facet_ijk>::iterator fitend = output_facets.end();
+  typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
+  typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
   for (; fit != fitend; fit++)
   {
     fx << "3  " << fit->vertices()[0]
@@ -213,8 +213,8 @@ void output_off(const Starset& stars,
        << " "   << fit->vertices()[2] << std::endl;
   }
 
-  typename std::set<Cell_ijkl>::iterator  cit = output_cells.begin();
-  typename std::set<Cell_ijkl>::iterator  citend = output_cells.end();
+  typename Cell_ijkl_unordered_set::iterator  cit = output_cells.begin();
+  typename Cell_ijkl_unordered_set::iterator  citend = output_cells.end();
   for (; cit != citend; cit++)
   {
     fx << "4  " << cit->vertices()[0]
@@ -231,7 +231,7 @@ void output_surface_off(const Starset& stars,
 {
   std::cout << "Saving surface off..." << std::endl;
   std::vector<typename Starset::Point_3> points;
-  std::set<Facet_ijk> output_facets;
+  Facet_ijk_unordered_set output_facets;
   unsigned int nb_inconsistent_stars = 0;
 
   typename Starset::const_iterator si = stars.begin();
@@ -266,8 +266,8 @@ void output_surface_off(const Starset& stars,
   for(unsigned int i = 0; i < points.size(); i++)
     fx << points[i] << std::endl;
 
-  typename std::set<Facet_ijk>::iterator fit = output_facets.begin();
-  typename std::set<Facet_ijk>::iterator fitend = output_facets.end();
+  typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
+  typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
   for (; fit != fitend; fit++)
   {
     fx << "3  " << fit->vertices()[0]
@@ -286,7 +286,7 @@ void output_surface_off(const Starset& stars,
     for(int i = 0; i < (int)m_points.size(); i++)
       fx << m_points[i] << std::endl;
 
-    std::set<Cell_ijkl> output_cells;
+    Cell_ijkl_unordered_set output_cells;
     typename Starset::iterator it = stars.begin();
     typename Starset::iterator itend = stars.end();
     for(; it != itend; it++)
@@ -342,7 +342,7 @@ void output_surface_medit(const Starset& stars,
   if(fake_3D)
     fx << anchor_point << (stars.size()+1) << std::endl;
 
-  std::set<Facet_ijk> facets;
+  Facet_ijk_unordered_set facets;
   for(int i = 0; i < (int)stars.size(); i++)
   {
     typename Starset::Star_handle s = stars[i];
@@ -354,8 +354,8 @@ void output_surface_medit(const Starset& stars,
 
   fx << "Triangles" << std::endl;
   fx << (facets.size()) << std::endl;
-  typename std::set<Facet_ijk>::iterator fit = facets.begin();
-  typename std::set<Facet_ijk>::iterator fitend = facets.end();
+  typename Facet_ijk_unordered_set::iterator fit = facets.begin();
+  typename Facet_ijk_unordered_set::iterator fitend = facets.end();
   for(; fit!=fitend; fit++)
   {
     Facet_ijk f = *fit;
@@ -417,7 +417,7 @@ void output_medit(const Starset& stars,
   for(std::size_t i = 0; i < stars.size(); i++)
     fx << stars[i]->center_point() << " " << (i+1) << std::endl; //indices start at 1 in Medit
 
-  std::set<Cell_ijkl> output_cells;
+  Cell_ijkl_unordered_set output_cells;
   typename Starset::const_iterator sit = stars.begin();
   typename Starset::const_iterator sitend = stars.end();
   for(; sit != sitend; sit++)
@@ -447,8 +447,8 @@ void output_medit(const Starset& stars,
 
   fx << "Tetrahedra\n";
   fx << output_cells.size() << std::endl;
-  typename std::set<Cell_ijkl>::iterator  cit = output_cells.begin();
-  typename std::set<Cell_ijkl>::iterator  citend = output_cells.end();
+  typename Cell_ijkl_unordered_set::iterator  cit = output_cells.begin();
+  typename Cell_ijkl_unordered_set::iterator  citend = output_cells.end();
   for (; cit != citend; cit++)
   {
     Cell_ijkl c = *cit;

@@ -2,6 +2,8 @@
 #define COMBINATORICS_HELPER_H
 
 #include <boost/array.hpp>
+#include <boost/functional/hash.hpp>
+#include <boost/unordered_set.hpp>
 
 // helper for combinatorics
 
@@ -10,20 +12,20 @@ class Facet_ijk;
 class Cell_ijkl;
 
 template<int count>
-inline bool is_same_ids(int *cids, int *dids) 
+inline bool is_same_ids(int *cids, int *dids)
 {
   int t;
   for (int i = count - 1; i >= 0; i--)
   {
     for (int j = 1; j <= i; j++) //bubble sort + check on top bubble
     {
-      if (cids[j] < cids[j - 1]) 
+      if (cids[j] < cids[j - 1])
       {
         t = cids[j];
         cids[j] = cids[j - 1];
         cids[j - 1] = t;
       }
-      if (dids[j] < dids[j - 1]) 
+      if (dids[j] < dids[j - 1])
       {
         t = dids[j];
         dids[j] = dids[j - 1];
@@ -220,5 +222,50 @@ public:
     sort();
   }
 };
+
+
+template<std::size_t ssize>
+class Ordered_simplex_base_hash
+{
+public:
+  typedef Ordered_simplex_base<ssize>           Simplex;
+
+  Ordered_simplex_base_hash(){}
+
+  std::size_t operator()(const Simplex& s) const
+  {
+    return boost::hash_range(s.vertices().begin(),
+                             s.vertices().end());
+  }
+};
+
+template<std::size_t ssize>
+class Ordered_simplex_base_comparer
+{
+public:
+  typedef Ordered_simplex_base<ssize>           Simplex;
+
+  Ordered_simplex_base_comparer() { }
+  bool operator() (const Simplex& left, const Simplex& right) const
+  {
+    return std::equal(left.vertices().begin(), left.vertices().end(),
+                      right.vertices().begin());
+  }
+};
+
+typedef typename boost::unordered_set<Edge_ij,
+                                      Ordered_simplex_base_hash<2>,
+                                      Ordered_simplex_base_comparer<2> >
+                                                    Edge_ij_unordered_set;
+typedef typename boost::unordered_set<Facet_ijk,
+                                      Ordered_simplex_base_hash<3>,
+                                      Ordered_simplex_base_comparer<3> >
+                                                    Facet_ijk_unordered_set;
+typedef typename boost::unordered_set<Cell_ijkl,
+                                      Ordered_simplex_base_hash<4>,
+                                      Ordered_simplex_base_comparer<4> >
+                                                    Cell_ijkl_unordered_set;
+
+
 
 #endif
