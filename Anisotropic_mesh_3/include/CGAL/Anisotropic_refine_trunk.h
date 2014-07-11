@@ -1616,6 +1616,7 @@ public:
 #endif
       this->m_pConstrain->get_surface_points(50); // initial points are not used
       initialize_medial_axis();
+      build_aabb_tree();
     }
 
     std::ifstream in(filename);
