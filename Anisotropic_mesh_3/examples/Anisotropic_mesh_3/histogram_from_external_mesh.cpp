@@ -135,12 +135,20 @@ void fetch_mesh(const char* filename,
   {
     std::ifstream stream(filename);
     if(!stream)
+    {
       std::cerr << "Error: cannot read file " << std::endl;
+      return;
+    }
     fetch_from_off(stream, points, facets);
   }
   else if (extension == ".mesh" || extension == ".MESH")
   {
     std::ifstream stream(filename);
+    if(!stream)
+    {
+      std::cerr << "Error: cannot read file " << std::endl;
+      return;
+    }
     fetch_from_mesh(stream, points, facets, cells);
   }
 
@@ -169,7 +177,6 @@ void output_histogram(const std::vector<int>& histogram,
 void output_histogram(const std::vector<FT>& values,
                       const char* filename)
 {
-
   FT min_value = *(std::min_element(values.begin(), values.end()));
   FT max_value = *(std::max_element(values.begin(), values.end()));
   std::cout << "Outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
@@ -177,10 +184,10 @@ void output_histogram(const std::vector<FT>& values,
   int histogram_size = 1000;
   std::vector<int> histogram(histogram_size, 0);
   FT limit_val = histogram_size - 1.;
-  FT step_size = max_value / (FT) histogram_size;
+  FT step_size = (max_value - min_value) / (FT) histogram_size;
 
   for(std::size_t i=0; i<values.size(); ++i)
-    histogram[(std::min)(limit_val, std::floor(values[i]/step_size))]++;
+    histogram[(std::min)(limit_val, std::floor((values[i]-min_value)/step_size))]++;
 
   output_histogram(histogram, min_value, max_value, filename);
 }
@@ -340,7 +347,7 @@ void cell_edge_length_histogram(const std::vector<Point_3>& points,
   output_histogram(values, "histogram_cell_edge_length_external.cvs");
 }
 
-int main(int argc, char** argv)
+int main(int, char**)
 {
   std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
 
