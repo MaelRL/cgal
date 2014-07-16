@@ -349,9 +349,9 @@ public:
       }
     return false;
   }
-
   void clear(int start_id = 0, int end_id = nb_queues - 1)
   {
+    rfacets.clear();
     for(int i=start_id; i<=end_id; i++)
       queues[i]->clear();
   }

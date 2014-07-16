@@ -350,6 +350,7 @@ public:
 
   void clear(int start_id = 0, int end_id = nb_queues - 1)
   {
+    rcells.clear();
     for(int i=start_id; i<=end_id; i++)
       queues[i]->clear();
   }
@@ -380,7 +381,7 @@ public:
     t.stop();
     std::cout << "clean: " << size << " " << rcells.size() << " in " << t.time() << std::endl;
   }
-  
+
 public:
   void print_rcells()
   {
