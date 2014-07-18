@@ -19,7 +19,42 @@ public:
   typedef typename Base::Vector_3   Vector_3;
 
 public:
-  Metric yang_liu(const Point_3& p) const
+  Metric yang_liu_sphere_sin(const Point_3&p ) const
+  {
+    double x = p.x();
+
+    Vector_3 v1(2*std::cos(6*x), 1., 0.);
+    v1 = v1 / std::sqrt(v1*v1);
+    Vector_3 v2(0.,0.,1.);
+    Vector_3 v3 = CGAL::cross_product(v1, v2);
+
+    double h1 = std::sqrt(1000);
+    double h2 = std::sqrt(10);
+    double h3 = std::sqrt(10);
+
+    return this->build_metric(v1, v2, v3, h1, h2, h3);
+  }
+
+  Metric yang_liu_bumpy(const Point_3&p) const
+  {
+    double x = p.x();
+    double y = p.y();
+    double z = p.z();
+
+    double r = std::sqrt(x*x+y*y);
+
+    Vector_3 v1(x/r, y/r, 0.);
+    Vector_3 v2(-y/r, x/r, 0.);
+    Vector_3 v3(0., 0., 1.);
+
+    double h1 = 1.2 / ( 0.5 + 1 - std::exp(-0.05*(r*r - 2.56)) );
+    double h2 = h1 * (1 + 5*r);
+    double h3 = h2;
+
+    return this->build_metric(v1, v2, v3, h1, h2, h3);
+  }
+
+  Metric yang_liu_cube_shock(const Point_3& p) const
   {
     //Yang Liu 3D Metric on a [1,11]^3 cube
     double x = p.x();
@@ -138,7 +173,7 @@ public:
 */
   }
 
-  virtual void report(typename std::ofstream &fx) const 
+  virtual void report(typename std::ofstream &fx) const
   {
 
   }
