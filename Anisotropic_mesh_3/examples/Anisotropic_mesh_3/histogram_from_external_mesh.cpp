@@ -21,6 +21,7 @@ typedef K                                                    KExact;
 
 typedef typename K::FT                                       FT;
 typedef typename K::Point_3                                  Point_3;
+typedef typename K::Point_3                                  TPoint_3;
 
 typedef CGAL::Anisotropic_mesh_3::Metric_base<K>             Metric;
 typedef CGAL::Anisotropic_mesh_3::Starset<K>                 Starset;
@@ -202,16 +203,19 @@ void compute_metrics(const std::vector<Point_3>& points,
     metrics[i] = mf->compute_metric(points[i]);
 }
 
-void facet_distortion_histogram(const std::vector<int>& facets,
+void facet_distortion_histogram(const std::vector<Point_3>& points,
+                                const std::vector<int>& facets,
                                 const std::vector<Metric>& metrics)
 {
   if(facets.empty())
     return;
   std::cout << "facet distortion external histo with size: " << facets.size() << std::endl;
 
+  std::ofstream out_bb("max_distortion.bb");
+  std::vector<FT> max_dists(points.size(), 1.);
   std::vector<FT> values;
 
-  for(std::size_t i=0; i<facets.size()/3;)
+  for(std::size_t i=0; i<facets.size();)
   {
     std::vector<int> ns(3);
 
@@ -221,11 +225,19 @@ void facet_distortion_histogram(const std::vector<int>& facets,
     for(int j=0; j<3; ++j)
     {
       const Metric& m = metrics[ns[j]];
-      values.push_back(m.compute_distortion(metrics[ns[(j+1)%3]]));
-      values.push_back(m.compute_distortion(metrics[ns[(j+2)%3]]));
+      FT d1 = m.compute_distortion(metrics[ns[(j+1)%3]]);
+      values.push_back(d1);
+      FT d2 = m.compute_distortion(metrics[ns[(j+2)%3]]);
+      values.push_back(d2);
+
+      max_dists[ns[j]] = (std::max)((std::max)(max_dists[ns[j]], d1), d2);
     }
   }
   output_histogram(values, "histogram_facet_distortion_external.cvs");
+
+  out_bb << "3 1 " << points.size() << " 2" << std::endl;
+  for(std::size_t i=0; i<max_dists.size(); ++i)
+    out_bb << max_dists[i] << std::endl;
 }
 
 void facet_edge_length_histogram(const std::vector<Point_3>& points,
@@ -236,12 +248,14 @@ void facet_edge_length_histogram(const std::vector<Point_3>& points,
     return;
   std::cout << "facet edge external histo with size: " << facets.size() << std::endl;
 
+  std::ofstream out_bb("max_edge_ratio.bb");
+  std::vector<FT> max_edge_r(points.size(), 1.);
   std::vector<FT> values;
 
   Star_traits star_traits;
   typename Star_traits::Compute_squared_distance_3 csd = star_traits.compute_squared_distance_3_object();
 
-  for(std::size_t i=0; i<facets.size()/3;)
+  for(std::size_t i=0; i<facets.size();)
   {
     std::vector<int> ns(3);
     std::vector<Point_3> ps(3);
@@ -255,13 +269,20 @@ void facet_edge_length_histogram(const std::vector<Point_3>& points,
     for(int j=0; j<3; ++j)
     {
       const Metric& m = metrics[ns[j]];
-      std::vector<Point_3> tps(3);
+      std::vector<TPoint_3> tps(3);
       for(int k=0; k<3; ++k)
         tps[k] = m.transform(ps[k]);
 
-#if 0 // adjacent only
-      values.push_back(CGAL::sqrt(csd(tps[j], tps[(j+1)%3])));
-      values.push_back(CGAL::sqrt(csd(tps[j], tps[(j+2)%3])));
+#if 1 // adjacent only
+      FT l1 = CGAL::sqrt(csd(tps[j], tps[(j+1)%3]));
+      values.push_back(l1);
+      FT l2 = CGAL::sqrt(csd(tps[j], tps[(j+2)%3]));
+      values.push_back(l2);
+
+      if(l1<1.) l1 = 1./l1;
+      if(l2<1.) l2 = 1./l2;
+
+      max_edge_r[ns[j]] = (std::max)((std::max)(max_edge_r[ns[j]], l1), l2);
 #else
       values.push_back(CGAL::sqrt(csd(tps[0], tps[1])));
       values.push_back(CGAL::sqrt(csd(tps[0], tps[2])));
@@ -270,18 +291,25 @@ void facet_edge_length_histogram(const std::vector<Point_3>& points,
     }
   }
   output_histogram(values, "histogram_facet_edge_length_external.cvs");
+
+  out_bb << "3 1 " << max_edge_r.size() << " 2" << std::endl;
+  for(std::size_t i=0; i<max_edge_r.size(); ++i)
+    out_bb << max_edge_r[i] << std::endl;
 }
 
-void cell_distortion_histogram(const std::vector<int>& cells,
+void cell_distortion_histogram(const std::vector<Point_3>& points,
+                               const std::vector<int>& cells,
                                const std::vector<Metric>& metrics)
 {
   if(cells.empty())
     return;
   std::cout << "cell distortion external histo with size: " << cells.size() << std::endl;
 
+  std::ofstream out_bb("max_distortion.bb");
+  std::vector<FT> max_dists(points.size(), 1.);
   std::vector<FT> values;
 
-  for(std::size_t i=0; i<cells.size()/4;)
+  for(std::size_t i=0; i<cells.size();)
   {
     std::vector<int> ns(4);
 
@@ -291,12 +319,21 @@ void cell_distortion_histogram(const std::vector<int>& cells,
     for(int j=0; j<4; ++j)
     {
       const Metric& m = metrics[ns[j]];
-      values.push_back(m.compute_distortion(metrics[ns[(j+1)%4]]));
-      values.push_back(m.compute_distortion(metrics[ns[(j+2)%4]]));
-      values.push_back(m.compute_distortion(metrics[ns[(j+3)%4]]));
+      FT d1 = m.compute_distortion(metrics[ns[(j+1)%4]]);
+      values.push_back(d1);
+      FT d2 = m.compute_distortion(metrics[ns[(j+2)%4]]);
+      values.push_back(d2);
+      FT d3 = m.compute_distortion(metrics[ns[(j+3)%4]]);
+      values.push_back(d3);
+
+      max_dists[ns[j]] = (std::max)((std::max)((std::max)(max_dists[ns[j]], d1), d2), d3);
     }
   }
   output_histogram(values, "histogram_cell_distortion_external.cvs");
+
+  out_bb << "3 1 " << points.size() << " 2" << std::endl;
+  for(std::size_t i=0; i<max_dists.size(); ++i)
+    out_bb << max_dists[i] << std::endl;
 }
 
 void cell_edge_length_histogram(const std::vector<Point_3>& points,
@@ -307,12 +344,14 @@ void cell_edge_length_histogram(const std::vector<Point_3>& points,
     return;
   std::cout << "cell edge length external histo with size: " << cells.size() << std::endl;
 
+  std::ofstream out_bb("max_edge_ratio.bb");
+  std::vector<FT> max_edge_r(points.size(), 1.);
   std::vector<FT> values;
 
   Star_traits star_traits;
   typename Star_traits::Compute_squared_distance_3 csd = star_traits.compute_squared_distance_3_object();
 
-  for(std::size_t i=0; i<cells.size()/4;)
+  for(std::size_t i=0; i<cells.size();)
   {
     std::vector<int> ns(4);
     std::vector<Point_3> ps(4);
@@ -326,14 +365,23 @@ void cell_edge_length_histogram(const std::vector<Point_3>& points,
     for(int j=0; j<4; ++j)
     {
       const Metric& m = metrics[ns[j]];
-      std::vector<Point_3> tps(4);
+      std::vector<TPoint_3> tps(4);
       for(int k=0; k<4; ++k)
         tps[k] = m.transform(ps[k]);
 
-#if 0 // adjacent only
-      values.push_back(CGAL::sqrt(csd(tps[j], tps[(j+1)%4])));
-      values.push_back(CGAL::sqrt(csd(tps[j], tps[(j+2)%4])));
-      values.push_back(CGAL::sqrt(csd(tps[j], tps[(j+3)%4])));
+#if 1 // adjacent only
+      FT l1 = CGAL::sqrt(csd(tps[j], tps[(j+1)%4]));
+      values.push_back(l1);
+      FT l2 = CGAL::sqrt(csd(tps[j], tps[(j+2)%4]));
+      values.push_back(l2);
+      FT l3 = CGAL::sqrt(csd(tps[j], tps[(j+3)%4]));
+      values.push_back(l3);
+
+      if(l1<1.) l1 = 1./l1;
+      if(l2<1.) l2 = 1./l2;
+      if(l3<1.) l3 = 1./l3;
+
+      max_edge_r[ns[j]] = (std::max)((std::max)((std::max)(max_edge_r[ns[j]], l1), l2), l3);
 #else
       values.push_back(CGAL::sqrt(csd(tps[0], tps[1])));
       values.push_back(CGAL::sqrt(csd(tps[0], tps[2])));
@@ -345,7 +393,56 @@ void cell_edge_length_histogram(const std::vector<Point_3>& points,
     }
   }
   output_histogram(values, "histogram_cell_edge_length_external.cvs");
+
+  out_bb << "3 1 " << max_edge_r.size() << " 2" << std::endl;
+  for(std::size_t i=0; i<max_edge_r.size(); ++i)
+    out_bb << max_edge_r[i] << std::endl;
 }
+
+template<typename Metric_field>
+void cell_edge_length_histogram_midpoint_metric(const std::vector<Point_3>& points,
+                                                const std::vector<int>& cells,
+                                                const Metric_field* mf)
+{
+  if(cells.empty())
+    return;
+  std::cout << "cell edge length external midpoint metric histo with size: " << cells.size() << std::endl;
+
+  std::vector<FT> values;
+
+  Star_traits star_traits;
+  typename Star_traits::Compute_squared_distance_3 csd = star_traits.compute_squared_distance_3_object();
+
+  for(std::size_t i=0; i<cells.size();)
+  {
+    std::vector<int> ns(4);
+    std::vector<Point_3> ps(4);
+
+    for(int j=0; j<4; ++j)
+    {
+      ns[j] = cells[i++];
+      ps[j] = points[ns[j]];
+    }
+
+    for(int j=0; j<3; ++j)
+    {
+      for(int k=j+1; k<4; ++k)
+      {
+        Point_3 mid_point(0.5*(ps[j].x() + ps[k].x()),
+                          0.5*(ps[j].y() + ps[k].y()),
+                          0.5*(ps[j].z() + ps[k].z()));
+        Metric m = mf->compute_metric(mid_point);
+
+        TPoint_3 tpj = m.transform(ps[j]);
+        TPoint_3 tpk = m.transform(ps[k]);
+
+        values.push_back(CGAL::sqrt(csd(tpj, tpk)));
+      }
+    }
+  }
+  output_histogram(values, "histogram_cell_edge_length_external_midpoint_metric.cvs");
+}
+
 
 int main(int, char**)
 {
@@ -375,10 +472,11 @@ int main(int, char**)
   fetch_mesh(mesh_filename, points, facets, cells);
   compute_metrics(points, metric_field, metrics);
 
-  facet_distortion_histogram(facets, metrics);
+  facet_distortion_histogram(points, facets, metrics);
   facet_edge_length_histogram(points, facets, metrics);
-  cell_distortion_histogram(cells, metrics);
+  cell_distortion_histogram(points, cells, metrics);
   cell_edge_length_histogram(points, cells, metrics);
+  cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
 
   delete pdomain;
   delete metric_field;
