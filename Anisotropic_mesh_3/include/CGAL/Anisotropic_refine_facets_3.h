@@ -375,7 +375,6 @@ public:
     std::cout << "succeeded: " << m_pick_valid_succeeded << " || ";
     std::cout << "rejected: " << m_pick_valid_rejected << " || ";
     std::cout << "failed: " << m_pick_valid_failed << std::endl;
-    std::cout << "avg distortion: " << m_avg_dist/((double) (m_pick_valid_skipped+m_pick_valid_succeeded+m_pick_valid_failed)) << std::endl;
     std::cout << "facet pv: " << timer_pv.time() << " " << timer_pv.intervals() << std::endl;
     std::cout << "facet npv: " << timer_npv.time() << " " << timer_npv.intervals() << std::endl;
     std::cout << "facet leaking: " << m_leak_counter << std::endl;
@@ -851,7 +850,11 @@ private:
     { // get the circular set of edges/vertices around the center in 'boundary facets'
       get_cycle(local_bfacets, edges_around_c, center_id);
     }
-    else std::cerr << "Warning : in 'facets_created', no conflict zone!\n";
+    else
+    {
+      std::cout << "Warning : in 'facets_created'! ";
+      std::cout << "star is: " << star->index_in_star_set() << std::endl;
+    }
 
     // get the set (circular if dim is 3) of vertices around the center
     std::set<int> vertices_around_c;
@@ -1045,7 +1048,7 @@ private:
     bool success = (rp_status == SUITABLE_POINT);
     if(success)
       m_pick_valid_succeeded++;
-    else //POINT_IN_CONFLICT or PICK_VALID_FAILED (maybe distinguish between them?)
+    else //POINT_IN_CONFLICT or PICK_VALID_FAILED (maybe distinguish between them?) todo
       m_pick_valid_failed++;
 
 #ifdef ANISO_VERBOSE
@@ -1382,7 +1385,6 @@ public:
       vertex_with_picking_count(0),
       vertex_without_picking_count(0),
       m_leak_counter(0),
-      m_avg_dist(0.),
       timer_pv(),
       timer_npv()
   {}

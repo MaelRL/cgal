@@ -1,6 +1,9 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_REFINE_TRUNK_H
 #define CGAL_ANISOTROPIC_MESH_3_REFINE_TRUNK_H
 
+//#define ANISO_DEBUG_CZONES
+#define ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+
 #include <CGAL/Constrain_surface_3.h>
 #include <CGAL/Criteria.h>
 #include <CGAL/Metric_field.h>
@@ -11,6 +14,8 @@
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
 
 #include <CGAL/kd_tree/Kd_tree_for_star_set.h>
+
+#include <CGAL/IO/Star_set_output.h>
 
 namespace CGAL
 {
@@ -1636,14 +1641,14 @@ public:
     in >> word >> nv;
 
     std::cout << "filename: " << filename << std::endl;
-    std::cout << "resuming read from " << nv << " vertices in file" << std::endl;
+    std::cout << nv << " vertices in file" << std::endl;
 
     for(int i=0; i<nv; ++i)
     {
       in >> x >> y >> z >> useless;
       Point_3 p(x,y,z);
 
-      if(m_starset.size()< 10)
+      if(m_starset.size() < 10)
         insert(p, false /*no condition*/, !m_is_3D_level/*surface*/);
       else
       {

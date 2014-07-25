@@ -171,6 +171,7 @@ public:
 
     //TODO something more elegant
     m_facet_mesher.is_3D_level() = true;
+    m_facet_consistency_mesher.is_3D_level() = true;
 
     // ------------------------------------------------
 
@@ -211,9 +212,6 @@ public:
     std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
-
-    //TODO something more elegant
-    m_facet_consistency_mesher.is_3D_level() = true;
 
     // ------------------------------------------------
 

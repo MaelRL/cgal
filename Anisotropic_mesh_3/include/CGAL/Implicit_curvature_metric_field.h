@@ -333,7 +333,7 @@ public:
   }
 
   Implicit_curvature_metric_field(const Constrain_surface& surface_,
-                                  FT epsilon_ = 1.0, FT en_factor_ = 0.999)
+                                  FT epsilon_ = 1e-6, FT en_factor_ = 0.999)
     :
       Metric_field<K>(epsilon_, en_factor_),
       m_pConstrain(surface_)

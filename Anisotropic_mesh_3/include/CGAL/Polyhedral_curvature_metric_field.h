@@ -198,7 +198,7 @@ public:
 
   Polyhedral_curvature_metric_field(const Constrain_surface& surface_,
                                     const FT epsilon_ = 1.0,
-                                    const double& en_factor_ = 0.999)
+                                    const FT& en_factor_ = 0.999)
     :
       Base(surface_, epsilon_, en_factor_)
   {
