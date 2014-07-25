@@ -2037,8 +2037,9 @@ public:
 #endif
     if(found_vertex) // already in star
     {
-      std::cout << "Warning : simulate_insert_to_star re-inserts same point.\n";
-      return vh->info(); //
+      std::cout << "Warning : simulate_insert_to_star re-inserts same point" << std::endl;
+      std::cout << this->index_in_star_set() << " p already there: " << vh->info() << std::endl;
+      return -1;
     }
     else // in conflict
     {
@@ -2047,6 +2048,56 @@ public:
         return id;
     }
     return -1; // no conflict
+  }
+
+//Shaking
+  void shake_center(FT radius)
+  {
+    std::cout << "shaking " << index_in_star_set() << "'s center" << std::endl;
+    typename Traits::Compute_random_point_3 random =
+        traits()->compute_random_point_3_object();
+
+    Point_3 new_center;
+
+    // if surface star, get 2 random pts in a sphere and find the intersection with the surface
+    if(is_surface_star())
+    {
+      bool found_new_point = false;
+      while(!found_new_point)
+      {
+        TPoint_3 tcandidate_1 = random(center()->point(), radius);
+        TPoint_3 tcandidate_2 = random(center()->point(), radius);
+        Point_3 candidate_1 = m_metric.inverse_transform(tcandidate_1);
+        Point_3 candidate_2 = m_metric.inverse_transform(tcandidate_2);
+
+        found_new_point = constrain_segment_intersection(candidate_1, candidate_2, new_center);
+      }
+    }
+    else
+      new_center = m_metric.inverse_transform(random(center()->point(), radius));
+
+    //can't reset the metric yet, even if we wanted to
+    reset(new_center, this->index_in_star_set(), m_metric, is_surface_star());
+  }
+
+  FT shake_center()
+  {
+    // find closest point in the first ring
+    FT min_sq_dist = 1e30;
+
+    Vertex_handle_handle favit = finite_adjacent_vertices_begin();
+    Vertex_handle_handle favend = finite_adjacent_vertices_end();
+    for(; favit!=favend; ++favit)
+    {
+      Vertex_handle vit = *favit;
+      FT sq_dist = m_traits->compute_squared_distance_3_object()(center()->point(), vit->point());
+      if(sq_dist < min_sq_dist)
+        min_sq_dist = sq_dist;
+    }
+
+    FT radius = CGAL::sqrt(min_sq_dist)/3.;
+    shake_center(radius);
+    return radius;
   }
 
 // INFO ABOUT THE VERTICES / FACETS / CELLS

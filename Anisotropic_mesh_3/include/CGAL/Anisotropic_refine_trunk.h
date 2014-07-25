@@ -921,6 +921,13 @@ public:
     }
   }
 
+  void remove_from_stars(const Index& id)
+  {
+    Star_iterator sit = m_starset.begin();
+    Star_iterator sitend = m_starset.end();
+    remove_from_stars(id, sit, sitend);
+  }
+
   void pop_back_star()
   {
     Star_handle last = m_starset.back();
@@ -1259,13 +1266,13 @@ public:
   void create_star(const Point_3 &p,
                    int pid,
                    Star_handle& star,
-                   const bool surface_star) const
+                   const bool surface_star,
+                   const bool reset_star = true) const
   {
 #ifdef USE_ANISO_TIMERS
     std::clock_t start_time = clock();
 #endif
-     //TODO
-    if(1) //metric_reset
+    if(reset_star)
     {
       if(m_is_3D_level || surface_star)
       {

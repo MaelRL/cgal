@@ -129,13 +129,17 @@ public:
   //facet
   bool is_consistent(const Facet& f,
                      std::vector<bool> &inconsistent_points,
-                     const bool verbose = false) const
+                     const bool verbose = false,
+                     const Index older_stars_only = -1) const
   {
     bool retval = true;
     bool facet_told = false;
     for(int i = 1; i < 4; i++)
     {
       int index = f.first->vertex((f.second + i) % 4)->info();
+      if(older_stars_only >= 0 && index > older_stars_only)
+        continue;
+
       if(!m_stars[index]->has_facet(f))
       {
         if(verbose)
@@ -157,22 +161,27 @@ public:
   }
 
   bool is_consistent(const Facet& f,
-                     const bool verbose = false) const
+                     const bool verbose = false,
+                     const Index older_stars_only = -1) const
   {
     std::vector<bool> not_used(3);
-    return is_consistent(f, not_used, verbose);
+    return is_consistent(f, not_used, verbose, older_stars_only);
   }
 
   //cell
   bool is_consistent(Cell_handle c,
                      std::vector<bool>& inconsistent_points,
-                     const bool verbose = false) const
+                     const bool verbose = false,
+                     const Index older_stars_only = -1) const
   {
     bool retval = true;
     bool cell_told = false;
     for(int i = 0; i < 4; i++)
     {
       int index = c->vertex(i)->info();
+      if(older_stars_only >= 0 && index > older_stars_only)
+        continue;
+
       if(is_infinite_vertex<Star>(index))
         continue;
       if(!m_stars[index]->has_cell(c))
@@ -199,16 +208,18 @@ public:
   }
 
   bool is_consistent(Cell_handle c,
-                     const bool verbose = false) const
+                     const bool verbose = false,
+                     const Index older_stars_only = -1) const
   {
     std::vector<bool> not_used(4);
-    return is_consistent(c, not_used, verbose);
+    return is_consistent(c, not_used, verbose, older_stars_only);
   }
 
   //star
   bool is_consistent(Star_handle star,
                      const bool verbose = false,
-                     Consistency_check_options option = CELLS_AND_FACETS) const
+                     Consistency_check_options option = CELLS_AND_FACETS,
+                     const Index older_stars_only = -1) const
   {
     if(option != FACETS_ONLY)
     {
@@ -218,7 +229,7 @@ public:
       {
         if(!star->is_inside(*cit))
           continue;
-        if(!is_consistent(*cit, verbose))
+        if(!is_consistent(*cit, verbose, older_stars_only))
           return false;
       }
     }
@@ -228,7 +239,7 @@ public:
       Facet_set_iterator fit = star->restricted_facets_begin();
       Facet_set_iterator fitend = star->restricted_facets_end();
       for(; fit != fitend; fit++)
-        if(!is_consistent(*fit, verbose))
+        if(!is_consistent(*fit, verbose, older_stars_only))
           return false;
     }
 

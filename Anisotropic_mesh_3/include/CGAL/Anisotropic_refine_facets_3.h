@@ -1190,6 +1190,168 @@ private:
     }
   }
 
+  //Moving points
+private:
+  bool check_consistency_after_shake(Star_handle star)
+  {
+    std::cout << "let's check dem conflict mon" << std::endl;
+    Point_3 p = star->center_point(); //shaken point to be re-inserted
+    Index id = star->index_in_star_set();
+
+    std::cout << "shaken point: " << p << std::endl;
+
+    Trunk::compute_conflict_zones(p); // ignore the return value, we already know the index: id
+    this->m_stars_czones.compute_elements_needing_check();
+    if(!this->m_stars_czones.are_check_maps_empty())
+    {
+      typename std::map<Index, std::vector<Facet> >::iterator mvfit = this->m_stars_czones.m_facets_to_check.begin();
+      typename std::map<Index, std::vector<Facet> >::iterator mvfend = this->m_stars_czones.m_facets_to_check.end();
+      for(; mvfit!= mvfend; ++mvfit)
+      {
+        std::cout << "inconsistency created in star: " << mvfit->first << std::endl;
+        if(mvfit->first < id)
+        {
+          std::cout << "proposed ShakenPoint creates inconsistencies in unmodified stars" << std::endl;
+          return false;
+        }
+      }
+    }
+
+    std::cout << "fill stars with m_star_conzes:" << std::endl;
+    std::cout << this->m_stars_czones.size() << std::endl;
+
+    //fill star
+    bool reset_metric = true;
+    Trunk::create_star(p, id, star, star->is_surface_star(), reset_metric);
+
+    star->print_vertices();
+
+    std::cout << "consistency check" << std::endl;
+
+    //only check the consistency with older stars!
+    std::map<Facet_ijk, int> facets;
+    facets_created(star, facets);
+
+    std::cout << "filled facets_created: "  << facets.size() << std::endl;
+
+    typename Stars_conflict_zones::iterator czit = this->m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = this->m_stars_czones.end();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+
+      //we do not care about the consistency in 'newer' stars
+      if(i>id)
+        continue;
+
+      Star_handle si = Trunk::get_star(i);
+      facets_created(p, id, si, facets);
+    }
+
+    typename std::map<Facet_ijk, int>::iterator itf;
+    for(itf = facets.begin(); itf != facets.end(); itf++)
+    {
+      //count how many times it should be there, which is = (number of stars with index<=id)
+      int expected_count = 0;
+      for(int i=0; i<3; ++i)
+        if(itf->first[i] <= id)
+          expected_count++;
+
+      std::cout << "checks: " << (*itf).first[0] << " " << (*itf).first[1] << " " << (*itf).first[2];
+      std::cout << " and: " << (*itf).second << " " << expected_count << std::endl;
+
+      if( (*itf).second != expected_count)
+      {
+        std::cout << "fail!" << std::endl;
+        return false;
+      }
+    }
+    std::cout << "passed consistency check!" << std::endl;
+    return true;
+  }
+
+  void shake_stars()
+  {
+    std::cout << "Shake shake shake!" << std::endl;
+    std::ofstream out_med("shake_before.mesh");
+    output_surface_medit(this->m_starset, out_med);
+
+    int shake_fail_counter = 0;
+    int shake_improve_counter = 0;
+
+    int max_amount_of_tries = 1000;
+    Star_iterator sit = this->m_starset.begin();
+    Star_iterator sitend = this->m_starset.end();
+    for(; sit!=sitend; ++sit)
+    {
+      Star_handle star_i = Trunk::get_star(sit);
+      Index sid = star_i->index_in_star_set();
+
+      std::cout << "Star: " << sid << std::endl;
+
+      if(!star_i->is_surface_star()) // not shaking poles
+        continue;
+
+      //test whether we actually want to shake it
+      if(this->m_starset.is_consistent(star_i, false, FACETS_ONLY, sid))
+        continue;
+
+      std::cout << "let's shake: " << sid << " " << star_i->center_point() << std::endl;
+
+      Point_3 star_i_center_mem = star_i->center_point();
+
+      Trunk::remove_from_stars(sid); // get rid of star_i in the other stars
+      Trunk::clear_conflict_zones();
+      FT radius = star_i->shake_center();
+
+      int number_of_tries = 0;
+      while(true)
+      {
+        std::cout << "We shook to " << star_i->center_point() << std::endl;
+
+        if(check_consistency_after_shake(star_i)) // new point gives consistency with older stars
+        {
+          std::cout << "improved... sort of!" << std::endl;
+          shake_improve_counter++;
+          Trunk::perform_insertions(star_i->center_point(), sid, this->m_starset);
+          break;
+        }
+
+        std::cout << "failed " << number_of_tries+1 << std::endl;
+
+        if(++number_of_tries > max_amount_of_tries)
+        {
+          std::cout << "can't seem to find a better position, resetting" << std::endl;
+          star_i->reset(star_i_center_mem, sid, star_i->metric(), star_i->is_surface_star());
+          Trunk::compute_conflict_zones(star_i_center_mem);
+          Trunk::create_star(star_i_center_mem, sid, star_i, star_i->is_surface_star());
+          Trunk::perform_insertions(star_i_center_mem, sid, this->m_starset);
+
+          shake_fail_counter++;
+          break;
+        }
+
+        Trunk::clear_conflict_zones();
+        star_i->shake_center(radius);
+      }
+
+      std::cout << "Done with this star leaving it with dimension: " << star_i->dimension() << std::endl;
+
+      for(std::size_t i=0; i<=sid; ++i)
+        this->m_starset.is_consistent(this->m_starset[i], true, FACETS_ONLY, i);
+    }
+
+    std::cout << "finished shaking with " << shake_fail_counter << " failures ";
+    std::cout << "and " << shake_improve_counter << " success " << std::endl;
+
+    std::ofstream out_med2("shake_after.mesh");
+    output_surface_medit(this->m_starset, out_med2);
+
+    Trunk::clear_conflict_zones();
+    this->m_refine_queue.clear();
+    fill_refinement_queue();
+  }
+
 public:
   Anisotropic_refine_facets_3(Previous_lvl& previous,
                               Starset& starset_,
