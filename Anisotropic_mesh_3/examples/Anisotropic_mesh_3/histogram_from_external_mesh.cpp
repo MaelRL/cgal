@@ -443,6 +443,44 @@ void cell_edge_length_histogram_midpoint_metric(const std::vector<Point_3>& poin
   output_histogram(values, "histogram_cell_edge_length_external_midpoint_metric.cvs");
 }
 
+template<typename Metric_field>
+void cell_edge_length_histogram_simplex_metric(const std::vector<Point_3>& points,
+                                                const std::vector<int>& cells,
+                                                const Metric_field* mf)
+{
+  if(cells.empty())
+    return;
+  std::cout << "cell edge length external midpoint metric histo with size: " << cells.size() << std::endl;
+
+  std::vector<FT> values;
+
+  Star_traits star_traits;
+  typename Star_traits::Compute_squared_distance_3 csd = star_traits.compute_squared_distance_3_object();
+
+  for(std::size_t i=0; i<cells.size();)
+  {
+    std::vector<int> ns(4);
+    std::vector<Point_3> ps(4);
+
+    for(int j=0; j<4; ++j)
+    {
+      ns[j] = cells[i++];
+      ps[j] = points[ns[j]];
+    }
+
+    Point_3 simplex_center = CGAL::barycenter(ps[0], 0.25, ps[1], 0.25, ps[2], 0.25, ps[3], 025);
+    Metric simplex_metric = mf->compute_metric(simplex_center);
+
+    std::vector<Point_3> tps(4);
+    for(int j=0; j<4; ++j)
+      tps[j] = simplex_metric.transform(ps[j]);
+
+    for(int j=0; j<3; ++j)
+      for(int k=j+1; k<4; ++k)
+        values.push_back(CGAL::sqrt(csd(tps[j], tps[k])));
+  }
+  output_histogram(values, "histogram_cell_edge_length_external_simplex_metric.cvs");
+}
 
 int main(int, char**)
 {
@@ -477,6 +515,7 @@ int main(int, char**)
   cell_distortion_histogram(points, cells, metrics);
   cell_edge_length_histogram(points, cells, metrics);
   cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
+  cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
 
   delete pdomain;
   delete metric_field;
