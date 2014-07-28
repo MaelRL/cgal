@@ -294,8 +294,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>545</width>
-            <height>178</height>
+            <width>540</width>
+            <height>177</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout">
@@ -592,7 +592,7 @@
     <string>Re&amp;center scene</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+C</string>
+    <string>Shift+C</string>
    </property>
   </action>
   <action name="actionSetBackgroundColor">

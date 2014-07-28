@@ -48,6 +48,7 @@
 #include <CGAL/internal/Intersections_3/Bbox_3_Plane_3_do_intersect.h>
 #include <CGAL/internal/Intersections_3/Bbox_3_Sphere_3_do_intersect.h>
 #include <CGAL/internal/Intersections_3/Bbox_3_Triangle_3_do_intersect.h>
+#include <CGAL/internal/Intersections_3/Bbox_3_Point_3_do_intersect.h>
 
 
 #endif // CGAL_INTERSECTION_3_H
