@@ -109,10 +109,10 @@ public:
 
     derived().clear_conflict_zones();
 
-    if(pid%1000 == 0)
+    if(pid%10 == 0)
     {
       derived().clean_stars();
-      derived().refine_queue().clean();
+      //derived().refine_queue().clean();
     }
 
 #if 0//def ANISO_DEBUG_QUEUE

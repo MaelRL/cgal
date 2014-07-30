@@ -34,7 +34,7 @@ void compute_triangulation_poles(const C3T3& c3t3,
       std::cerr << "Warning : in compute_triangulation_poles ("<< pi <<") is inside" << std::endl;
       continue;
     }
-                    
+
     std::vector<Point_3> candidates;
     Point_3 pole;
     // loop (1/2) : collect circumcenters and one-side poles
@@ -58,7 +58,7 @@ void compute_triangulation_poles(const C3T3& c3t3,
     else if(CGAL::do_intersect(bbox, pole))
       *oit++ = pole;
 
-    // loop (2/2) : collect, among cc's, the other side poles 
+    // loop (2/2) : collect, among cc's, the other side poles
     Vector_3 vec(pi, pole);
     double min_scal_prod = 0.; // will be < 0
     for(std::size_t j = 0; j < candidates.size(); ++j)

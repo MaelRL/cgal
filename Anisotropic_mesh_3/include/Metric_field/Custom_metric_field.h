@@ -35,6 +35,21 @@ public:
     return this->build_metric(v1, v2, v3, h1, h2, h3);
   }
 
+  Metric yang_liu_cube_shock_1D(const Point_3&p ) const
+  {
+    double x = p.x();
+
+    double h1 = 1./(0.0025+0.2*(1-std::exp(-std::abs(x-0.6))));
+    double h2 = 5.;
+    double h3 = 5.;
+
+    Vector_3 v1(1.,0.,0.);
+    Vector_3 v2(0.,1.,0.);
+    Vector_3 v3(0.,0.,1.);
+
+    return this->build_metric(v1, v2, v3, h1, h2, h3);
+  }
+
   Metric yang_liu_bumpy(const Point_3&p) const
   {
     double x = p.x();

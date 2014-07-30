@@ -149,6 +149,23 @@ public:
     if(!next_refine_cell(bad_cell, c, need_picking_valid))
       return EMPTY_QUEUE;
 
+#ifdef ANISO_DEBUG_REFINEMENT_PP
+    Vertex_handle v0 = c->vertex(0);
+    Vertex_handle v1 = c->vertex(1);
+    Vertex_handle v2 = c->vertex(2);
+    Vertex_handle v3 = c->vertex(3);
+    Index ind_v0 = v0->info();
+    Index ind_v1 = v1->info();
+    Index ind_v2 = v2->info();
+    Index ind_v3 = v3->info();
+    std::cout << "Trying to refine : " << ind_v0 << " " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
+    std::cout << "Bad_cell belongs to: " << bad_cell->star->index_in_star_set() << " npv: " << need_picking_valid << std::endl;
+    std::cout << "\tp"<< v0->info() <<" : " << bad_cell->star->metric().inverse_transform(v0->point()) << std::endl;
+    std::cout << "\tp"<< v1->info() <<" : " << bad_cell->star->metric().inverse_transform(v1->point()) << std::endl;
+    std::cout << "\tp"<< v2->info() <<" : " << bad_cell->star->metric().inverse_transform(v2->point()) << std::endl;
+    std::cout << "\tp"<< v3->info() <<" : " << bad_cell->star->metric().inverse_transform(v3->point()) << std::endl;
+#endif
+
     //std::cout << "cell to be refined has distortion: " << this->m_starset.compute_distortion(c) << std::endl;
     //is_consistent(this->m_stars, c, false/*verbose*/, bad_cell->star->index_in_star_set());
 
@@ -190,6 +207,28 @@ public:
     Trunk::compute_conflict_zones(steiner_point);
     //same for elements needing checks
     this->m_stars_czones.compute_elements_needing_check();
+
+#ifdef ANISO_DEBUG_REFINEMENT //need public m_stars_czones
+    if(this->m_stars_czones.m_conflict_zones.find(bad_cell->star->index_in_star_set()) ==
+       this->m_stars_czones.m_conflict_zones.end())
+    {
+      std::cout << "bad cell star not in conflict with refine point" << std::endl;
+      Cell_handle useless;
+      std::cout << "check the last statment: ";
+      std::cout << bad_cell->star->is_conflicted(Trunk::transform_to_star_point(steiner_point,
+                                                                                   bad_cell->star),
+                                                 useless) << std::endl;
+      std::cout << "are bboxes being retarded? ";
+      std::cout << bad_cell->star->is_in_a_volume_delaunay_ball(Trunk::transform_to_star_point(steiner_point,
+                                                                                               bad_cell->star),
+                                                                useless) << std::endl;
+      std::cout << "even after update? ";
+      bad_cell->star->update_bbox();
+      std::cout << bad_cell->star->is_conflicted(Trunk::transform_to_star_point(steiner_point,
+                                                                                   bad_cell->star),
+                                                 useless) << std::endl;
+    }
+#endif
 
     return SUITABLE_POINT;
   }

@@ -1154,7 +1154,10 @@ public:
       if(id == -1) // no conflict
         continue;
       else if(id < (int)this_id) // already in star set
+      {
+        std::cout << "Warning in simulate_insert_to_stars" << std::endl;
         return id;
+      }
       else // to be inserted, standard configuration
       {
         //add them to the map of stars in conflict (conflict zones are not computed yet)

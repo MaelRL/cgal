@@ -436,10 +436,11 @@ public:
                            queue_type == it->queue_type &&
                            std::abs(value  - it->value) < 1e-11);
     }
-/*
+
     if(is_cell_in && !is_rest_identical)
     {
-      std::cout << "Unicity says in, but they differ: " << std::endl;
+      std::cout.precision(25);
+      std::cout << "is_cell_in : unicity says in, but they differ: " << std::endl;
       std::cout << "cell check: ";
       std::cout << cell->vertex(0)->info() << " " << cell->vertex(1)->info() << " ";
       std::cout << cell->vertex(2)->info() << " " << cell->vertex(3)->info() << std::endl;
@@ -447,8 +448,9 @@ public:
       std::cout << "stars: " << star->index_in_star_set() << " " << it->star->index_in_star_set() << std::endl;
       std::cout << "values: " << value << " " << it->value << std::endl;
       std::cout << "queue type: " << queue_type << " " << it->queue_type << std::endl;
+      std::cout.precision(8);
     }
-*/
+
     return is_cell_in;
   }
 

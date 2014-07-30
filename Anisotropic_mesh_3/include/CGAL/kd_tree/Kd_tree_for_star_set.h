@@ -63,18 +63,18 @@ public:
 public:
   typedef CGAL::Fuzzy_iso_box<Traits> Box_query;
   typedef typename Star_pmap::key_type key_type;
-  
+
 private:
   std::size_t m_insertion_buffer_max_size;
   std::vector<Point_d> m_insertion_buffer;
 
 public:
-  Kd_tree_for_star_set(const std::vector<StarHandle>& stars, 
+  Kd_tree_for_star_set(const std::vector<StarHandle>& stars,
                        const std::size_t bs = 10) :
     Base(boost::counting_iterator<int>(0),//std::size_t>(0),
          boost::counting_iterator<int>((int)stars.size()),//std::size_t>(stars.size()),
          typename Base::Splitter(),
-         Traits(Star_pmap(stars))), 
+         Traits(Star_pmap(stars))),
     m_insertion_buffer_max_size(bs),
     m_insertion_buffer() {}
 
@@ -89,13 +89,13 @@ public:
     Base::clear();
     m_insertion_buffer.clear();
   }
-  
+
   void insert(const Point_d& p)
   {
     if(m_insertion_buffer.size() >= m_insertion_buffer_max_size)
       insert_buffer();
     m_insertion_buffer.push_back(p);
-    
+
     //if(m_insertion_buffer.size() < m_insertion_buffer_max_size)
     //  m_insertion_buffer.push_back(p);
     //else
@@ -105,7 +105,7 @@ public:
     //}
   }
 
-  void remove_last() 
+  void remove_last()
   {
     m_insertion_buffer.pop_back();
     // note : the last inserted point always is in the insertion buffer
@@ -143,7 +143,7 @@ public:
 
     return Base::search(oit,q);
   }
-  
+
 }; //end class Kd_tree_for_star_set
 
 }//end namespace CGAL

@@ -437,7 +437,7 @@ public:
                            queue_type == it->queue_type &&
                            std::abs(value - it->value) < 1e-11);
     }
-/*
+
     if(is_facet_in && !is_rest_identical)
     {
       std::cout << "facet is in, but from a different star: " << std::endl;
@@ -450,7 +450,7 @@ public:
       std::cout << "values: " << value << " " << it->value << std::endl;
       std::cout << "queue type: " << queue_type << " " << it->queue_type << std::endl;
     }
-*/
+
     return is_facet_in;
   }
 

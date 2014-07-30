@@ -24,26 +24,26 @@ namespace CGAL
       typedef typename K::Object_3        Object_3;
 
     public:
-      class Construct_circumcenter_3 
+      class Construct_circumcenter_3
       {
       public:
         Construct_circumcenter_3() { }
         template<typename Point>
-        Point operator()(const Point &p, const Point &q, const Point &r, const Point &s) const 
+        Point operator()(const Point &p, const Point &q, const Point &r, const Point &s) const
         {
           typedef typename Kernel_traits<Point>::Kernel KLocal;
           typename CGAL::Robust_circumcenter_traits_3<KLocal>::Construct_circumcenter_3 o;
           return o(p,q,r,s);
         }
         template<typename Point>
-        Point operator()(const Point &p, const Point &q, const Point &r) const 
+        Point operator()(const Point &p, const Point &q, const Point &r) const
         {
           typedef typename Kernel_traits<Point>::Kernel KLocal;
           typename CGAL::Robust_circumcenter_traits_3<KLocal>::Construct_circumcenter_3 o;
           return o(p,q,r);
         }
         template<typename Point>
-        Point operator()(const Point &p, const Point &q) const 
+        Point operator()(const Point &p, const Point &q) const
         {
           typedef typename Kernel_traits<Point>::Kernel KLocal;
           typename CGAL::Robust_circumcenter_traits_3<KLocal>::Construct_circumcenter_3 o;
@@ -52,30 +52,30 @@ namespace CGAL
       };
 
     public:
-      class Compute_random_point_3 
+      class Compute_random_point_3
       {
       public:
         Compute_random_point_3() {}
 
         // returns a point in the sphere(center, radius)
-        Point_3 operator()(const Point_3 &center, const FT &radius) const 
+        Point_3 operator()(const Point_3 &center, const FT &radius) const
         {
           static CGAL::Random r;
           FT px, py, pz;
           do
-          { 
+          {
             px = r.get_double(-1.0, 1.0), py = r.get_double(-1.0, 1.0), pz = r.get_double(-1.0, 1.0);
           } while (px * px + py * py + pz * pz > 1.0);
 
-          return Point_3(center.x() + px * radius, 
-                         center.y() + py * radius, 
+          return Point_3(center.x() + px * radius,
+                         center.y() + py * radius,
                          center.z() + pz * radius);
         }
 
         // returns a point in the intersection of the ball(center, radius) and
         // the plane of the facet (i.e. in the "picking region" P_v(facet))
         // (center-normalp is the normal direction to the facet)
-        Point_3 operator()(const Point_3 &center, const Point_3 &normalp, const FT &radius) const 
+        Point_3 operator()(const Point_3 &center, const Point_3 &normalp, const FT &radius) const
         {
           static CGAL::Random r;
           FT px, py, pz;
@@ -87,16 +87,16 @@ namespace CGAL
           } while (px * px + py * py + pz * pz > 1.0);
           FT dx = px * radius, dy = py * radius, dz = pz * radius;
 
-          FT nx = normalp.x() - center.x(), 
-             ny = normalp.y() - center.y(), 
+          FT nx = normalp.x() - center.x(),
+             ny = normalp.y() - center.y(),
              nz = normalp.z() - center.z();
           FT nl = sqrt(nx * nx + ny * ny + nz * nz);
           nx /= nl, ny /= nl, nz /= nl;
-                    
+
           FT l = dx * nx + dy * ny + dz * nz;
 
-          return Point_3(center.x() + dx - nx * l, 
-                         center.y() + dy - ny * l, 
+          return Point_3(center.x() + dx - nx * l,
+                         center.y() + dy - ny * l,
                          center.z() + dz - nz * l);
         }
       };
@@ -111,7 +111,7 @@ namespace CGAL
       typedef CGAL::Cartesian_converter<KExact, K> Back_from_exact;
       To_exact to_exact;
       Back_from_exact back_from_exact;
-      
+
     public:
       Delaunay_traits_3() :
           construct_circumcenter_3_object_cache(),
@@ -120,9 +120,9 @@ namespace CGAL
       ~Delaunay_traits_3(){}
 
     public:
-      const Construct_circumcenter_3 construct_circumcenter_3_object() const 
-      { 
-        return construct_circumcenter_3_object_cache; 
+      const Construct_circumcenter_3 construct_circumcenter_3_object() const
+      {
+        return construct_circumcenter_3_object_cache;
       }
       const Construct_circumcenter_3 construct_weighted_circumcenter_3_object() const
       {
