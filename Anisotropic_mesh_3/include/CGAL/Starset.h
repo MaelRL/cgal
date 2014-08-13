@@ -260,6 +260,238 @@ public:
     return true;
   }
 
+  // vertex consistency
+  // := all vertices of a simplex must exist in all the stars of its vertices
+  bool is_vertex_consistent(const Facet& f,
+                            std::vector<bool>& inconsistent_points,
+                            const bool verbose = false)
+  {
+    bool retval = true;
+    bool facet_told = false;
+    for(int i = 1; i < 4; i++)
+    {
+      int index_i = f.first->vertex((f.second + i) % 4)->info();
+      for(int j=1; j<4; ++j)
+      {
+        if(j==i)
+          continue;
+        int index_j = f.first->vertex((f.second + j) % 4)->info();
+
+        if(!m_stars[index_i]->has_vertex(index_j))
+        {
+          if(verbose)
+          {
+            if(!facet_told)
+            {
+              m_stars[index_i]->facet_indices(f);
+              std::cout << " vertex-inconsistent : ";
+              facet_told = true;
+            }
+            std::cout << index_j << " not in S_ " << index_i << std::endl;
+          }
+          retval = false;
+          inconsistent_points[j-1] = true;
+        }
+      }
+      if(verbose && !retval) std::cout << "." << std::endl;
+    }
+    return retval;
+  }
+
+  bool is_vertex_consistent(const Facet& f,
+                            const bool verbose = false)
+  {
+    std::vector<bool> not_used(3);
+    return is_vertex_consistent(f, not_used, verbose);
+  }
+
+  bool is_vertex_consistent(const bool verbose = true)
+  {
+    std::size_t N = m_stars.size();
+    for(std::size_t i = 0; i < N; i++)
+    {
+      Star_handle star = m_stars[i];
+      Facet_set_iterator fit = star->restricted_facets_begin();
+      Facet_set_iterator fitend = star->restricted_facets_end();
+      for(; fit != fitend; fit++)
+        if(!is_vertex_consistent(*fit, verbose))
+          return false;
+    }
+    return true;
+  }
+
+  // flip consistency
+  // := simplex can be found in all the stars of its vertices (with one edge flip
+  //    allowed per vertex)
+  bool is_flip_consistent(const Facet& f,
+                          std::vector<bool>& inconsistent_points,
+                          const bool verbose = false)
+  {
+    //not very subtly at the moment
+    // !! IT ALSO REQUIRES THAT ALL THE STARS HAVE ALL THE POINTS !!
+
+    std::cout << "checking consistency of facet: ";
+    std::cout << f.first->vertex((f.second + 1) % 4)->info() << " ";
+    std::cout << f.first->vertex((f.second + 2) % 4)->info() << " ";
+    std::cout << f.first->vertex((f.second + 3) % 4)->info() << " second: ";
+    std::cout << f.first->vertex(f.second)->info() << std::endl;
+
+    std::cout << "respective sizes: ";
+    std::cout << m_stars[f.first->vertex((f.second + 1) % 4)->info()]->number_of_vertices() << " ";
+    std::cout << m_stars[f.first->vertex((f.second + 2) % 4)->info()]->number_of_vertices() << " ";
+    std::cout << m_stars[f.first->vertex((f.second + 3) % 4)->info()]->number_of_vertices() << std::endl;
+
+    for(int i=1; i<4; i++)
+    {
+      int index_i = f.first->vertex((f.second + i) % 4)->info(); // main star
+      int offset = ((i+1)>3)?((i+1)%3):i+1;
+      int index_j = f.first->vertex((f.second + offset)%4)->info();
+      offset = ((i+2)>3)?((i+2)%3):i+2;
+      int index_k = f.first->vertex((f.second + offset)%4)->info();
+      Star_handle si = m_stars[index_i];
+
+      //std::cout << "index check: @" << i << " | " << index_i << " " << index_j << " " << index_k << std::endl;
+
+      bool retval = false; // is a flip be found for si
+      bool is_sj_in_first_ring = false, is_sk_in_first_ring = false;
+
+      if(!si->is_topological_disk())
+        std::cout << si->index_in_star_set() << " not a topo disk..." << std::endl;
+
+      // Check if the facet already exists
+      Facet_set_iterator rfit = si->restricted_facets_begin();
+      Facet_set_iterator rfend = si->restricted_facets_end();
+      for(; rfit != rfend; ++rfit)
+      {
+        if(Facet_ijk(*rfit) == Facet_ijk(f))
+          retval = true;
+      }
+      if(retval) continue;
+
+      // The facet does not exist in si, we look for flips
+
+      // Check if both points are in the first ring
+      Vertex_handle_handle vit = si->finite_adjacent_vertices_begin();
+      Vertex_handle_handle vend = si->finite_adjacent_vertices_end();
+      for(; vit!=vend; ++vit)
+      {
+        Vertex_handle v = *vit;
+        if(v->info() == index_j)
+          is_sj_in_first_ring = true;
+        if(v->info() == index_k)
+          is_sk_in_first_ring = true;
+      }
+
+      // both vertices are found in the first ring, but they are not adjacent
+      // (otherwise f would be in si)
+      if(is_sj_in_first_ring && is_sk_in_first_ring)
+      {
+        //we count the vertices of the adjacent restricted facets that contain j or k
+        std::map<int, int> counter;
+        rfit = si->restricted_facets_begin();
+        for(; rfit!= rfend; ++rfit)
+        {
+          boost::array<int, 2> others;
+          Facet_ijk facet(*rfit);
+          if(facet.has(index_j, others) || facet.has(index_k, others))
+          {
+            add_to_map(others[0], counter); // add if not already in the map
+            add_to_map(others[1], counter); // increment the counter if already in the map
+          }
+        }
+
+        std::map<int, int>::iterator mit = counter.begin();
+        std::map<int, int>::iterator mend = counter.end();
+        for(; mit!=mend; ++mit)
+        {
+          if(mit->second > 2 && mit->first != index_i)
+            std::cout << "problem in the map..." << std::endl;
+
+          //the potential fourth point of the quad must be found twice
+          if(mit->second == 2 && mit->first != index_i &&
+             mit->first != index_j && mit->first != index_k)
+          {
+            std::cout << "found a flip with: " << mit->first << std::endl;
+            retval = true;
+            break;
+          }
+        }
+      }
+      else if(is_sj_in_first_ring || is_sk_in_first_ring) // only one
+      {
+        // last case: only one is in the first ring
+        int index_present = index_j; // the one in the first ring
+        int index_absent = index_k; // the one that isn't
+        if(is_sk_in_first_ring)
+          std::swap(index_present, index_absent);
+
+        int index_l1 = -1, index_l2 = -1; // potential fourth point of the quads
+
+        // Find the facets from the finite restricted adjacent facets of Si
+        // that contain p_present and note the third vertex V as facet = (si, s_present, sV)
+        rfit = si->restricted_facets_begin();
+        for(; rfit!= rfend; ++rfit)
+        {
+          int& index_l = (index_l1 == -1)? index_l1:index_l2;
+          boost::array<int, 2> others;
+          Facet_ijk facet(*rfit);
+          if(facet.has(index_j, others))
+          {
+            index_l = others[0];
+            if(index_l == index_i)
+              index_l = others[1];
+          }
+        }
+
+        //Find a cell that has a facet with P_present, P_absent and (p3 OR p4)
+        typename Star::Base::Finite_cells_iterator cit = si->finite_cells_begin();
+        typename Star::Base::Finite_cells_iterator cend = si->finite_cells_end();
+        for(;cit!=cend;++cit)
+        {
+          Cell_ijkl c(cit);
+          if(c.has(index_present) && c.has(index_l1) && c.has(index_absent))
+            retval = true;
+          if(c.has(index_present) && c.has(index_l2) && c.has(index_absent))
+            retval = true;
+
+          if(retval)
+          {
+            std::cout << "found a flip in the cells" << std::endl;
+            break;
+          }
+        }
+      }
+
+      //if neither sj or sk are found in the first ring, we can't find a flip
+
+      if(!retval)
+        return false;
+    }
+    return true;
+  }
+
+  bool is_flip_consistent(const Facet& f,
+                            const bool verbose = false)
+  {
+    std::vector<bool> not_used(3);
+    return is_flip_consistent(f, not_used, verbose);
+  }
+
+  bool is_flip_consistent(const bool verbose = true)
+  {
+    std::size_t N = m_stars.size();
+    for(std::size_t i = 0; i < N; i++)
+    {
+      Star_handle star = m_stars[i];
+      Facet_set_iterator fit = star->restricted_facets_begin();
+      Facet_set_iterator fitend = star->restricted_facets_end();
+      for(; fit != fitend; fit++)
+        if(!is_flip_consistent(*fit, verbose))
+          return false;
+    }
+    return true;
+  }
+
   // distortion
   FT compute_distortion(const Facet& f) const
   {
