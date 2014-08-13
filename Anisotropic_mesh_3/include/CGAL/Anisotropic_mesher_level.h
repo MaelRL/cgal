@@ -110,10 +110,7 @@ public:
     derived().clear_conflict_zones();
 
     if(pid%10 == 0)
-    {
       derived().clean_stars();
-      //derived().refine_queue().clean();
-    }
 
 #if 0//def ANISO_DEBUG_QUEUE
     std::cout << "Enter fill ref queues debug. Filling with all stars" << std::endl;

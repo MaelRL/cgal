@@ -697,8 +697,11 @@ void facet_edge_length_histogram(const Starset& stars,
     }
   }
 
-  std::cout << "facet edge length histogram" << std::endl;
-  std::cout << "min, max: " << min_value << " " << max_value << std::endl;
+  if(verbose)
+  {
+    std::cout << "facet edge length histogram" << std::endl;
+    std::cout << "min, max: " << min_value << " " << max_value << std::endl;
+  }
 
   output_histogram(histogram, 0., 2.0 * criteria->facet_circumradius, "histogram_facet_edge_length.cvs");
 }

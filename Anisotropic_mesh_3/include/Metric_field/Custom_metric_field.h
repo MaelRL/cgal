@@ -190,7 +190,7 @@ public:
 
   virtual void report(typename std::ofstream &fx) const
   {
-
+    fx << "type: custom" << std::endl;
   }
 
 public:

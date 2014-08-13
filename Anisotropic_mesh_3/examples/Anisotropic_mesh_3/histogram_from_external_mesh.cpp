@@ -178,8 +178,13 @@ void output_histogram(const std::vector<int>& histogram,
 void output_histogram(const std::vector<FT>& values,
                       const char* filename)
 {
+#if 0//def FORCE_MIN_MAX_VALUES
+  FT min_value = 0.30512;
+  FT max_value = 2.57682;
+#else
   FT min_value = *(std::min_element(values.begin(), values.end()));
   FT max_value = *(std::max_element(values.begin(), values.end()));
+#endif
   std::cout << "Outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
 
   int histogram_size = 1000;

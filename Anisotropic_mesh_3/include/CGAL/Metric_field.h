@@ -65,9 +65,10 @@ public:
 
   virtual Metric compute_metric(const Point_3 &p) const = 0;
 
-  Metric uniform_metric(const Point_3& p) const
+  Metric uniform_metric(const Point_3& /*p*/) const
   {
-    return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1., 1., 1., epsilon);
+    return Metric(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1),
+                  1., 1., 1., epsilon);
   }
 
   Metric build_metric(const Vector_3& v0, const Vector_3& v1, const Vector_3& v2,

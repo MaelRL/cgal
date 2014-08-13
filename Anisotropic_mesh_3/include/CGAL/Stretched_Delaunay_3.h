@@ -33,7 +33,7 @@ struct Star_index
 {
   int info_;
 
-  operator const int () const { return info_;}
+  operator int () const { return info_;}
   operator int& () { return info_;}
   Star_index& operator=(const int i)
   {

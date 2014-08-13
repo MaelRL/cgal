@@ -7,13 +7,13 @@
 
 
 namespace CGAL {
-  
+
 namespace internal {
 
   template <class K>
   bool do_intersect(const CGAL::Bbox_3& bbox,
                     const CGAL::Point_3<K>& p,
-                    const K& k)
+                    const K& /*k*/)
   {
     return bbox.xmin() <= p.x() &&   p.x() <= bbox.xmax()
       && bbox.ymin() <= p.y() &&   p.y() <= bbox.ymax()

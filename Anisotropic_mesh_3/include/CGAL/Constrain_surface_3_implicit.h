@@ -129,7 +129,7 @@ public:
   }
 
 public:
-  Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3 &ref) const
+  Object_3 intersection(const Point_3& p0, const Point_3& p1, const Point_3& /*ref*/) const
   {
 #if 0//def ANISO_IMPLICIT_INTERSECTION_STEPS
     Point_3 lp = p0, rp = p1;

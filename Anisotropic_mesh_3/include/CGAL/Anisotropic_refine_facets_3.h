@@ -206,7 +206,7 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (succesful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(rp_status == PICK_VALID_FAILED &&
+    if(0 && rp_status == PICK_VALID_FAILED &&
        bad_facet->value != m_refine_queue.queue_min_value(bad_facet->queue_type) && //nothing to do if already last
        !bad_facet->prev_rejection) // only allow one rejection
     {
@@ -463,6 +463,15 @@ private:
     //Benefits would be the cost of checking the criteria + update cost but the queues would
     //not have the exact correct priority order they should have.
 
+/* DEBUG
+    std::cout << "testing facet: ";
+    std::cout << fi->first->vertex((fi->second+1)%4)->info() << " ";
+    std::cout << fi->first->vertex((fi->second+2)%4)->info() << " ";
+    std::cout << fi->first->vertex((fi->second+3)%4)->info() << " ";
+    std::cout << fi->first->vertex(fi->second)->info() << " @ star: ";
+    std::cout << star->index_in_star_set() << std::endl;
+*/
+
     // note : if a facet is encroached, the queue will be filled from test_conflict_from_superior()
     //        the code below can be used to brute force check that no facet is encroached
     // encroachment : 0
@@ -628,6 +637,7 @@ public:
   {
     std::cout << "fill from all facets" << std::endl;
     fill_refinement_queue(this->m_starset, -1);
+    std::cout << this->number_of_stars() << " ";
     m_refine_queue.print();
   }
 

@@ -78,13 +78,13 @@ public:
   virtual std::string name() const  = 0;
   virtual FT compute_sq_approximation(const Point_3& p) const = 0;
 
-  virtual void gl_draw_intermediate_mesh_3(const Plane_3& plane) const
+  virtual void gl_draw_intermediate_mesh_3(const Plane_3&) const
   {
     std::cout << "draw intermediate mesh3: incompatible surface" << std::endl;
     return;
   }
 
-  virtual void build_colored_polyhedron(Colored_polyhedron& poly) const
+  virtual void build_colored_polyhedron(Colored_polyhedron&) const
   {
     std::cout << "build polyehdron: incompatible surface" << std::endl;
     return;

@@ -24,7 +24,7 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K>
-class Constrain_surface_3_ellipse : public Constrain_surface_3_implicit<K> 
+class Constrain_surface_3_ellipse : public Constrain_surface_3_implicit<K>
 {
 public:
   typedef Constrain_surface_3_implicit<K>  Base;
@@ -42,7 +42,7 @@ public:
   FT get_b() const { return b; }
   FT get_c() const { return c; }
 
-  virtual std::string name() const { return std::string("Implicit ellipse"); } 
+  virtual std::string name() const { return std::string("Implicit ellipse"); }
 
   FT get_bounding_radius() const { return bounding_radius; }
 
@@ -54,12 +54,12 @@ public:
     return CGAL::Bbox_3(-aa, -bb, -cc, aa, bb, cc);
   }
 
-  FT evaluate(const FT x, const FT y, const FT z) const 
+  FT evaluate(const FT x, const FT y, const FT z) const
   {
     return x*x/(a*a) + y*y/(b*b) + z*z/(c*c) - 1.0;
   }
 
-  Point_container initial_points(const int nb = 8) const 
+  Point_container initial_points(const int nb = 8) const
   {
     Point_container points;
     std::vector<Point_3> seeds;
@@ -73,13 +73,13 @@ public:
   }
 
   Constrain_surface_3_ellipse(const FT a_ = 2.0, const FT b_ = 1.0, const FT c_ = 1.0) :
-    a(a_), b(b_), c(c_)
+    Base(), a(a_), b(b_), c(c_)
   {
     bounding_radius = (std::max)((std::max)(a, b), c) * 1.1;
   }
 
   Constrain_surface_3_ellipse(const Constrain_surface_3_ellipse& e) :
-    a(e.get_a()), b(e.get_b()), c(e.get_c())
+    Base(e.error_bound), a(e.get_a()), b(e.get_b()), c(e.get_c())
   {
     bounding_radius = (std::max)((std::max)(a, b), c) * 1.1;
   }

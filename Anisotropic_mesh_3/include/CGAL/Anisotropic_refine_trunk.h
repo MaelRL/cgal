@@ -142,7 +142,7 @@ public:
   void clear()
   {
     m_conflict_zones.clear();
-    m_conflict_p = Point(1e17, 1e17, 1e17);
+    m_conflict_p = Point(1e17, 1e17, 1e17); // todo change that to something better
     m_conflict_p_id = -1;
     m_facets_to_check.clear();
     m_cells_to_check.clear();
@@ -242,6 +242,19 @@ public:
       iterator czcit = m_conflict_zones.find(indices[j]);
       if(czcit == m_conflict_zones.end())
       {
+#ifdef ANISO_DEBUG_CZONES
+        std::cout << "1. need to check @ " << indices[j] << " facet: ";
+        std::cout << f_in_sj.first->vertex((f_in_sj.second+1)%4)->info() << " ";
+        std::cout << f_in_sj.first->vertex((f_in_sj.second+2)%4)->info() << " ";
+        std::cout << f_in_sj.first->vertex((f_in_sj.second+3)%4)->info() << " ";
+        std::cout << f_in_sj.first->vertex(f_in_sj.second)->info() << std::endl;
+        std::cout << "Original facet: ";
+        std::cout << fit->first->vertex((fit->second+1)%4)->info() << " ";
+        std::cout << fit->first->vertex((fit->second+2)%4)->info() << " ";
+        std::cout << fit->first->vertex((fit->second+3)%4)->info() << " ";
+        std::cout << fit->first->vertex(fit->second)->info() << std::endl;
+        sj->print_facets();
+#endif
         m_facets_to_check[indices[j]].push_back(f_in_sj);
         continue;
       }
@@ -267,6 +280,18 @@ public:
       {
          if(is_boundary_facet_restricted_after_insertion(sj, *fhitb))
          {
+#ifdef ANISO_DEBUG_CZONES
+           std::cout << "2. need to check @ " << indices[j] << " facet: ";
+           std::cout << f_in_sj.first->vertex((f_in_sj.second+1)%4)->info() << " ";
+           std::cout << f_in_sj.first->vertex((f_in_sj.second+2)%4)->info() << " ";
+           std::cout << f_in_sj.first->vertex((f_in_sj.second+3)%4)->info() << " ";
+           std::cout << f_in_sj.first->vertex(f_in_sj.second)->info() << std::endl;
+           std::cout << "Original facet: ";
+           std::cout << fit->first->vertex((fit->second+1)%4)->info() << " ";
+           std::cout << fit->first->vertex((fit->second+2)%4)->info() << " ";
+           std::cout << fit->first->vertex((fit->second+3)%4)->info() << " ";
+           std::cout << fit->first->vertex(fit->second)->info() << std::endl;
+#endif
            m_facets_to_check[indices[j]].push_back(f_in_sj);
          }
          continue;
@@ -274,6 +299,19 @@ public:
 
       //if si's f is not found in sj's internals AND is not found in
       //sj's boundaries => add it
+
+#ifdef ANISO_DEBUG_CZONES
+      std::cout << "3. need to check @ " << indices[j] << " facet: ";
+      std::cout << f_in_sj.first->vertex((f_in_sj.second+1)%4)->info() << " ";
+      std::cout << f_in_sj.first->vertex((f_in_sj.second+2)%4)->info() << " ";
+      std::cout << f_in_sj.first->vertex((f_in_sj.second+3)%4)->info() << " ";
+      std::cout << f_in_sj.first->vertex(f_in_sj.second)->info() << std::endl;
+      std::cout << "Original facet: ";
+      std::cout << fit->first->vertex((fit->second+1)%4)->info() << " ";
+      std::cout << fit->first->vertex((fit->second+2)%4)->info() << " ";
+      std::cout << fit->first->vertex((fit->second+3)%4)->info() << " ";
+      std::cout << fit->first->vertex(fit->second)->info() << std::endl;
+#endif
       m_facets_to_check[indices[j]].push_back(f_in_sj);
     }
   }
@@ -477,6 +515,10 @@ public:
       if(m_cells_need_check)
         check_from_cells(mit, cells_counter);
     }
+
+    //TODO : std unique on both if not empty since we can have duplicates
+    //       make sure we actually have duplicates and they are actually
+    //       adjacent first..
 
 #ifdef ANISO_DEBUG_UNMODIFIED_STARS
     if(!m_facets_to_check.empty())
@@ -802,7 +844,7 @@ public:
                    third * (p1.z() + p2.z() + p3.z()));
   }
 
-  FT sq_distance_to_surface(const Facet& f, const Star_handle s) const
+  FT sq_distance_to_surface(const Facet& f, const Star_handle /*s*/) const
   {
     //Point_3 steiner;
     //s->compute_dual_intersection(f, steiner);
@@ -1329,9 +1371,6 @@ public:
     if(conan_rfacet_size != normal_rfacet_size)
     {
       std::cout << "conan wins: " << conan_rfacet_size << " " << normal_rfacet_size << std::endl;
-      std::ofstream out("star377.off");
-      this->m_starset.push_back(star);
-      output_surface_star_off<Starset>(m_starset, out, star->index_in_star_set());
       assert(1==2);
     }
 #endif
