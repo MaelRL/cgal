@@ -1365,6 +1365,86 @@ private:
     fill_refinement_queue();
   }
 
+  // removing points
+public:
+  void remove_points()
+  {
+    for(std::size_t i; i!=this->number_of_stars(); ++i)
+    {
+      Star_handle si = Trunk::get_star(i);
+      if(!this->m_starset.is_flip_consistent(si, true))
+        std::cout << "non flip-consistent star in remove points" << std::endl;
+    }
+
+    for(std::size_t i; i!=this->number_of_stars(); ++i)
+    {
+      std::cout << "removal check for i: " << i << std::endl;
+
+      Star_handle si = Trunk::get_star(i);
+      Index sid = si->index_in_star_set();
+      std::set<Index> stars_containing_si;
+
+      si->m_active = false;
+
+      Star_iterator sit2 = this->m_starset.begin();
+      Star_iterator sitend = this->m_starset.end();
+      for(; sit2!=sitend; ++sit2) // remove si from the stars that contain it
+      {
+        Vertex_handle si_in_si2;
+        Star_handle si2 = Trunk::get_star(sit2);
+        Index sid2 = si2->index_in_star_set();
+
+        if(sid2 != sid && si2->has_vertex(sid, si_in_si2))
+        {
+          //std::cout << "b: " << si2->number_of_vertices() << " ";
+
+          stars_containing_si.insert(si2->index_in_star_set());
+          si2->remove(si_in_si2);
+
+          Star_iterator sit3 = this->m_starset.begin();
+          for(; sit3!=sitend; ++sit3) // re-insert all the points (except sid)
+          {                           // to make sure si2 is the correct star
+            Star_handle si3 = Trunk::get_star(sit3);
+            if(!si3->m_active) // obviously we don't re-insert removed points...
+               continue;
+
+            si2->insert_to_star(si3->center_point(), si3->index_in_star_set(), false);
+          }
+
+          //std::cout << "a: " << si2->number_of_vertices() << std::endl;
+
+          if(!this->m_starset.is_flip_consistent(si2, true))
+          {
+            std::cout << "removal of " << sid << " in " << sid2 << " broke flip consistency" << std::endl;
+
+            //re-insert sid in the sid2 stars, re-activate it and move on to the next sid
+            si->m_active = true;
+
+            typename std::set<Index>::iterator sid_it = stars_containing_si.begin();
+            typename std::set<Index>::iterator sid_end = stars_containing_si.begin();
+            for(; sid_it!=sid_end; ++sid_it)
+            {
+              Star_handle star = this->get_star(*sid_it);
+              star->insert_to_star(si->center_point(), si->index_in_star_set(), false);
+              star->clean();
+            }
+            break; // move on to next si
+          } // !si2->is_flip_consistent()
+          si2->clean();
+        } // si2->has_vertex(sid)
+      } // sit2 loop
+    } // sit loop
+
+    int counter = 0;
+    for(std::size_t i; i!=this->number_of_stars(); ++i)
+    {
+      Star_handle si = Trunk::get_star(i);
+      if(si->m_active)
+        counter++;
+    }
+    std::cout << counter << " active stars" << std::endl;
+  }
+
 public:
   Anisotropic_refine_facets_3(Previous_lvl& previous,
                               Starset& starset_,

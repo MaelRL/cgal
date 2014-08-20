@@ -140,6 +140,8 @@ private:
   mutable Cell_handle_vector finite_incident_cells_cache;
   mutable Vertex_handle_vector finite_adjacent_vertices_cache;
 
+public:
+  mutable bool m_active; // used for removing points at the end of the process
 
 public:
   static Index infinite_vertex_index() { return index_of_infinite_vertex; }
@@ -2554,7 +2556,7 @@ public:
       incident_cells_cache(),
       finite_incident_cells_cache(),
       finite_adjacent_vertices_cache(),
-      timer_clean()
+      m_active(true)
   {
     m_center = Vertex_handle();
     m_bbox = m_pConstrain->get_bbox(); // in M_euclidean
@@ -2586,7 +2588,7 @@ public:
       incident_cells_cache(),
       finite_incident_cells_cache(),
       finite_adjacent_vertices_cache(),
-      timer_clean()
+      m_active(true)
   {
     m_center = Base::insert(m_metric.transform(centerpoint));
     m_center->info() = index;
