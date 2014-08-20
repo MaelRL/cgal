@@ -4,6 +4,8 @@
 #include <CGAL/Robust_circumcenter_traits_3.h>
 #include <CGAL/Kernel_traits.h>
 
+#include <CGAL/Random.h>
+
 namespace CGAL
 {
   namespace Anisotropic_mesh_3

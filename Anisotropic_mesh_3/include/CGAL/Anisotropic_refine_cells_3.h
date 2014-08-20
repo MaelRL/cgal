@@ -209,8 +209,8 @@ public:
     this->m_stars_czones.compute_elements_needing_check();
 
 #ifdef ANISO_DEBUG_REFINEMENT //need public m_stars_czones
-    if(this->m_stars_czones.m_conflict_zones.find(bad_cell->star->index_in_star_set()) ==
-       this->m_stars_czones.m_conflict_zones.end())
+    if(this->m_stars_czones.conflict_zones().find(bad_cell->star->index_in_star_set()) ==
+       this->m_stars_czones.conflict_zones().end())
     {
       std::cout << "bad cell star not in conflict with refine point" << std::endl;
       Cell_handle useless;

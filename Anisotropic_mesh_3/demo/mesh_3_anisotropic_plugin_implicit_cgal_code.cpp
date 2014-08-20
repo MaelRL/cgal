@@ -1,18 +1,16 @@
-#include "StarSet_type.h"
-#include "Scene_starset3_item.h"
-#include "Anisotropic_meshing_thread.h"
-#include "Anisotropic_mesh_function.h"
-#include "Implicit_surface_type.h"
-#include "anisotropic_meshing_options.h"
-
-#include <CGAL/Bbox_3.h>
-
-#include <CGAL/Metric_field.h>
+#include <CGAL/Criteria.h>
 #include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
-#include <Metric_field/Torus_metric_field.h>
+#include <CGAL/Metric_field.h>
+#include <CGAL/Random.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
-#include <Domain/Constrain_surface_3_torus.h>
+
+#include "Anisotropic_mesh_function.h"
+#include "anisotropic_meshing_options.h"
+#include "Anisotropic_meshing_thread.h"
+#include "Implicit_surface_type.h"
+#include "Scene_starset3_item.h"
+#include "StarSet_type.h"
 
 Criteria* build_criteria_and_metric(const Implicit_surface* p_domain,
                                     CGAL::Anisotropic_mesh_3::Metric_field<Kernel>*& mf,
@@ -98,5 +96,5 @@ Anisotropic_meshing_thread* cgal_code_anisotropic_mesh_3(const Implicit_surface*
   // The mesh function takes the ownership of 'criteria' and
   // 'metric_field', to release them at its destruction.
 
-  return new Anisotropic_meshing_thread(p_mesh_function, p_new_item); 
+  return new Anisotropic_meshing_thread(p_mesh_function, p_new_item);
 }

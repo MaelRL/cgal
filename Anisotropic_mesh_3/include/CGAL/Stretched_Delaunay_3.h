@@ -208,6 +208,19 @@ public:
     return false;
   }
 
+  bool has_vertex(const int i, Vertex_handle& v) const
+  {
+    typename Base::Finite_vertices_iterator vit = this->finite_vertices_begin();
+    typename Base::Finite_vertices_iterator vend = this->finite_vertices_end();
+    for(; vit != vend; vit++)
+      if(vit->info() == i)
+      {
+        v = vit;
+        return true;
+      }
+    return false;
+  }
+
   //this function checks if f is incident to the center
   bool is_in_star(const Facet& f) const
   {

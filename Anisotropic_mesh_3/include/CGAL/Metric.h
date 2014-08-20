@@ -27,13 +27,15 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_METRIC_H
 #define CGAL_ANISOTROPIC_MESH_3_METRIC_H
 
-#include <boost/algorithm/minmax_element.hpp>
 #include <CGAL/bbox.h>
+#include <CGAL/Triangle_3.h>
+
+#include <boost/algorithm/minmax_element.hpp>
+#include <Eigen/Dense>
+
 #include <iostream>
 #include <fstream>
 #include <utility>
-
-#include <Eigen/Dense>
 
 namespace CGAL
 {
@@ -102,7 +104,7 @@ public:
   }
 
   template <typename Kernel>
-  Triangle_3<Kernel> inverse_transform(const Triangle_3<Kernel>& t) const
+  CGAL::Triangle_3<Kernel> inverse_transform(const CGAL::Triangle_3<Kernel>& t) const
   {
     typename Kernel::Point_3 p = t.vertex(0);
     typename Kernel::Point_3 q = t.vertex(1);
@@ -119,7 +121,7 @@ public:
     ep = eigen_inverse_transformation * ep;
     r = Point_3(ep[0], ep[1], ep[2]);
 
-    return Triangle_3<Kernel>(p, q, r);
+    return CGAL::Triangle_3<Kernel>(p, q, r);
   }
 
   template <typename Kernel>

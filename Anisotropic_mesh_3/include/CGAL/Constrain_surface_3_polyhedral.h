@@ -18,12 +18,6 @@
 
 #include <CGAL/Cartesian.h>
 
-#include <string>
-#include <fstream>
-#include <iostream>
-#include <vector>
-#include <iterator>
-
 #include "../../demo/Polyhedron_type.h"
 
 #include <CGAL/Constrain_surface_3.h>
@@ -49,6 +43,12 @@
 
 #include <CGAL/gl_draw/drawing_helper.h>
 #include <CGAL/helpers/c3t3_polyhedron_builder.h>
+
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <string>
+#include <vector>
 
 namespace CGAL
 {

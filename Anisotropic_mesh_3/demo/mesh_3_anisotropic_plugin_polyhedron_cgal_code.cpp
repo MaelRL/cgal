@@ -1,20 +1,18 @@
-#include <CGAL/Default_configuration.h>
-
-#include "StarSet_type.h"
-#include "Scene_starset3_item.h"
-#include "Polyhedral_surface_type.h" //contains Kernel
-#include "Anisotropic_meshing_thread.h"
-#include "Anisotropic_mesh_function.h"
-#include "anisotropic_meshing_options.h"
-
-#include <CGAL/Metric_field.h>
+#include <CGAL/Criteria.h>
 #include <CGAL/Euclidean_metric_field.h>
+#include <CGAL/Metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
+#include <CGAL/Random.h>
 #include <Metric_field/External_metric_field.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
-#include <CGAL/Criteria.h>
 
-#include <CGAL/Random.h>
+#include "Anisotropic_meshing_thread.h"
+#include "anisotropic_meshing_options.h"
+#include "Anisotropic_mesh_function.h"
+#include "Polyhedral_surface_type.h" //contains Kernel
+#include "Scene_starset3_item.h"
+#include "StarSet_type.h"
+
 
 Criteria* build_criteria_and_metric(const Polyhedral_surface* const p_domain,
                                     CGAL::Anisotropic_mesh_3::Metric_field<Kernel>* & mf,

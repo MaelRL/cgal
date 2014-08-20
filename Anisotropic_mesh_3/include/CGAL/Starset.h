@@ -471,23 +471,31 @@ public:
   }
 
   bool is_flip_consistent(const Facet& f,
-                            const bool verbose = false)
+                          const bool verbose = false)
   {
     std::vector<bool> not_used(3);
     return is_flip_consistent(f, not_used, verbose);
   }
 
-  bool is_flip_consistent(const bool verbose = true)
+  bool is_flip_consistent(Star_handle star,
+                          const bool verbose = false)
+  {
+    Facet_set_iterator fit = star->restricted_facets_begin();
+    Facet_set_iterator fitend = star->restricted_facets_end();
+    for(; fit != fitend; fit++)
+      if(!is_flip_consistent(*fit, verbose))
+        return false;
+    return true;
+  }
+
+  bool is_flip_consistent(const bool verbose = false)
   {
     std::size_t N = m_stars.size();
     for(std::size_t i = 0; i < N; i++)
     {
       Star_handle star = m_stars[i];
-      Facet_set_iterator fit = star->restricted_facets_begin();
-      Facet_set_iterator fitend = star->restricted_facets_end();
-      for(; fit != fitend; fit++)
-        if(!is_flip_consistent(*fit, verbose))
-          return false;
+      if(!is_flip_consistent(star, verbose))
+        return false;
     }
     return true;
   }

@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include "Scene_c3t3_item.h"
 
 #include <CGAL_demo/Io_plugin_interface.h>
@@ -44,8 +46,8 @@ Io_c3t3_plugin::save(const Scene_item* item, QFileInfo fileInfo)
 
   QString path = fileInfo.absoluteFilePath();
   std::ofstream medit_file (qPrintable(path));
-  c3t3_item->c3t3().output_to_medit_boundary(medit_file);
-  
+  c3t3_item->c3t3().output_to_medit(medit_file,true,true);
+
   return true;
 }
 
