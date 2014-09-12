@@ -413,7 +413,7 @@ public:
   }
 
   template<typename OutputIndexIterator>
-  void finite_star_vertices(OutputIndexIterator oit)
+  void finite_star_vertices(OutputIndexIterator oit) const
   {
     std::vector<Vertex_handle> vertices;
     finite_adjacent_vertices(m_center, std::back_inserter(vertices));
@@ -1936,7 +1936,10 @@ public:
     invalidate_cache();
 
     if(verbose)
-      std::cout << "clean (old/new) @ : " << index_in_star_set() << " :: " << nbv << " " << this->number_of_vertices() << std::endl;
+    {
+      std::cout << "clean (old/new) @ : " << index_in_star_set() << " :: ";
+      std::cout << nbv << " " << this->number_of_vertices() << std::endl;
+    }
     return (nbv - backup.size());
   }
 

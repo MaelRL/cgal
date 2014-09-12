@@ -264,7 +264,7 @@ public:
   // := all vertices of a simplex must exist in all the stars of its vertices
   bool is_vertex_consistent(const Facet& f,
                             std::vector<bool>& inconsistent_points,
-                            const bool verbose = false)
+                            const bool verbose = false) const
   {
     bool retval = true;
     bool facet_told = false;
@@ -299,13 +299,13 @@ public:
   }
 
   bool is_vertex_consistent(const Facet& f,
-                            const bool verbose = false)
+                            const bool verbose = false) const
   {
     std::vector<bool> not_used(3);
     return is_vertex_consistent(f, not_used, verbose);
   }
 
-  bool is_vertex_consistent(const bool verbose = true)
+  bool is_vertex_consistent(const bool verbose = true) const
   {
     std::size_t N = m_stars.size();
     for(std::size_t i = 0; i < N; i++)
@@ -325,11 +325,12 @@ public:
   //    allowed per vertex)
   bool is_flip_consistent(const Facet& f,
                           std::vector<bool>& inconsistent_points,
-                          const bool verbose = false)
+                          const bool verbose = false) const
   {
     //not very subtly at the moment
     // !! IT ALSO REQUIRES THAT ALL THE STARS HAVE ALL THE POINTS !!
 
+/*
     std::cout << "checking consistency of facet: ";
     std::cout << f.first->vertex((f.second + 1) % 4)->info() << " ";
     std::cout << f.first->vertex((f.second + 2) % 4)->info() << " ";
@@ -340,7 +341,7 @@ public:
     std::cout << m_stars[f.first->vertex((f.second + 1) % 4)->info()]->number_of_vertices() << " ";
     std::cout << m_stars[f.first->vertex((f.second + 2) % 4)->info()]->number_of_vertices() << " ";
     std::cout << m_stars[f.first->vertex((f.second + 3) % 4)->info()]->number_of_vertices() << std::endl;
-
+*/
     for(int i=1; i<4; i++)
     {
       int index_i = f.first->vertex((f.second + i) % 4)->info(); // main star
@@ -471,14 +472,14 @@ public:
   }
 
   bool is_flip_consistent(const Facet& f,
-                          const bool verbose = false)
+                          const bool verbose = false) const
   {
     std::vector<bool> not_used(3);
     return is_flip_consistent(f, not_used, verbose);
   }
 
   bool is_flip_consistent(Star_handle star,
-                          const bool verbose = false)
+                          const bool verbose = false) const
   {
     Facet_set_iterator fit = star->restricted_facets_begin();
     Facet_set_iterator fitend = star->restricted_facets_end();
@@ -488,7 +489,7 @@ public:
     return true;
   }
 
-  bool is_flip_consistent(const bool verbose = false)
+  bool is_flip_consistent(const bool verbose = false) const
   {
     std::size_t N = m_stars.size();
     for(std::size_t i = 0; i < N; i++)
@@ -807,6 +808,27 @@ public:
   {
     m_stars.clear();
   }
+
+  void rebuild() // brute forcy
+  {
+    for(std::size_t si=0; si<m_stars.size(); ++si)
+    {
+      Star_handle star_i = m_stars[si];
+      star_i->reset();
+    }
+
+    for(std::size_t si=0; si<m_stars.size(); ++si)
+    {
+      Star_handle star_i = m_stars[si];
+      for(std::size_t sj=0; sj<m_stars.size(); ++sj)
+      {
+        Star_handle star_j = m_stars[sj];
+        star_i->insert_to_star(star_j->center_point(), sj, false/*no cond*/);
+      }
+      star_i->clean();
+    }
+  }
+
 
   Starset() : m_stars() { }
   Starset(const Star_vector& stars_) : m_stars(stars_) { }

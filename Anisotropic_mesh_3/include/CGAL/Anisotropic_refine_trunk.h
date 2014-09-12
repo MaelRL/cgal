@@ -999,7 +999,7 @@ public:
 // Pick valid point validity checks for 3D (used by cell level
 // and facet level when the cell level is active)
   void cells_created(Star_handle star,
-                      std::map<Cell_ijkl, int>& cells) const
+                     std::map<Cell_ijkl, int>& cells) const
   {
     Cell_handle_handle ci = star->finite_star_cells_begin();
     Cell_handle_handle ciend = star->finite_star_cells_end();
@@ -1072,7 +1072,7 @@ public:
     }
 
     /*
-    std::cout << "cells sum up predicts : " << std::endl;
+    std::cout << "cells sum up predicts : " << cells.size() << std::endl;
     typename std::map<Cell_ijkl, int>::iterator itc;
     for(itc = cells.begin(); itc != cells.end(); ++itc)
     {
@@ -1345,7 +1345,9 @@ public:
       for(int i=0; i<8; ++i)
       {
         Star_handle star_i = get_star(i);
-        star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false /*no condition*/);
+        star->insert_to_star(star_i->center_point(),
+                             star_i->index_in_star_set(),
+                             false /*no condition*/);
       }
     }
 #endif
@@ -1361,8 +1363,7 @@ public:
     }
 
     insert_from_kd_tree(star);
-
-    star->clean(true);
+    star->clean();
 #ifdef ANISO_DEBUG_CREATE_STAR
     star->print_vertices();
     star->print_restricted_facets();
@@ -1485,7 +1486,7 @@ public:
     return id;
   }
 
-  Index insert(const Point_3 &p,
+  Index insert(const Point_3& p,
                const bool conditional,
                const bool surface_point = false)
   {

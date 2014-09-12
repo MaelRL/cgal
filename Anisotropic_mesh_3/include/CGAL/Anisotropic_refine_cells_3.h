@@ -131,6 +131,11 @@ public:
 
     Mesher_lvl::is_active() = true;
     this->m_stars_czones.cells_need_checks() = true;
+
+    std::ofstream out("initial.mesh");
+    output_medit(this->m_starset, out);
+    std::ofstream out_off("initial.off");
+    output_off(this->m_starset, out_off);
   }
 
   bool is_algorithm_done_()
@@ -401,8 +406,7 @@ private:
     {
       if(!m_refine_queue.top(refine_cell, m_queue_ids_start, m_queue_ids_end))
       {
-        return false;
-#if 0
+#if 1
         std::cout << "it says it's empty" << std::endl;
         fill_refinement_queue(this->m_starset, -1);
         if(!m_refine_queue.top(refine_cell, m_queue_ids_start, m_queue_ids_end))
@@ -415,6 +419,8 @@ private:
           std::cout << "it LIED" << std::endl;
           continue;
         }
+#else
+        return false;
 #endif
       }
 

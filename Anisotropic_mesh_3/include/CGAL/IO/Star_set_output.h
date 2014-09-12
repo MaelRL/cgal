@@ -566,7 +566,7 @@ void output_surface_medit(const Starset &stars,
                           const bool fake_3D = false)
 {
   std::ofstream out(f);
-  return output_surface_medit(stars, f, positive_vol, fake_3D);
+  return output_surface_medit(stars, out, positive_vol, fake_3D);
 }
 
 template<typename Starset>
@@ -576,7 +576,7 @@ void output_medit(const Starset &stars,
                   const bool positive_vol = false)
 {
   std::ofstream out(f);
-  return output_medit(stars, f, consistent_only, positive_vol);
+  return output_medit(stars, out, consistent_only, positive_vol);
 }
 
 template<typename Starset>
@@ -584,7 +584,7 @@ void output_surface_voronoi(const Starset &stars,
                             const char* f)
 {
   std::ofstream out(f);
-  return output_surface_voronoi(stars, f);
+  return output_surface_voronoi(stars, out);
 }
 
 }  // Anisotropic_mesh_3

@@ -277,7 +277,8 @@ public:
 
   Metric_base(Eigen::Matrix3d eigen_transformation_)
   {
-    std::cout << "building a metric from a matrix3d with input : " << std::endl << eigen_transformation_ << std::endl;
+    //std::cout << "building a metric from a matrix3d with input : " << std::endl;
+    //std::cout << eigen_transformation_ << std::endl;
 
     construct(Vector_3(1, 0, 0), Vector_3(0, 1, 0), Vector_3(0, 0, 1), 1, 1, 1, 1e-6);
     eigen_transformation = eigen_transformation_;
@@ -285,10 +286,12 @@ public:
     bool invertible;
     double determinant;
     eigen_transformation.computeInverseAndDetWithCheck(eigen_inverse_transformation, determinant, invertible);
+/*
     if(invertible)
       std::cout << "It is invertible, and its inverse is:" << std::endl << eigen_inverse_transformation << std::endl;
     else
       std::cout << "Not invertible and determinant was : " << determinant << std::endl;
+*/
   }
 
   Metric_base(const Vector_3 &axis_x,  //normal (unit)

@@ -390,8 +390,7 @@ public:
     {
       if(!m_refine_queue.top(rfacet_it, m_queue_ids_start, m_queue_ids_end))
       {
-        return false;
-#if 0
+#if 1
         std::cout << "it says it's empty" << std::endl;
         fill_refinement_queue();
         if(!m_refine_queue.top(rfacet_it, m_queue_ids_start, m_queue_ids_end))
@@ -404,6 +403,8 @@ public:
           std::cout << "it LIED" << std::endl;
           continue;
         }
+#else
+        return false;
 #endif
       }
 
@@ -1207,7 +1208,6 @@ private:
 private:
   bool check_consistency_after_shake(Star_handle star)
   {
-    std::cout << "let's check dem conflict mon" << std::endl;
     Point_3 p = star->center_point(); //shaken point to be re-inserted
     Index id = star->index_in_star_set();
 

@@ -301,9 +301,9 @@ public:
 
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    FT rx = 0.1*(xmax-xmin);
-    FT ry = 0.1*(ymax-ymin);
-    FT rz = 0.1*(zmax-zmin);
+    FT rx = 0.05*(xmax-xmin);
+    FT ry = 0.05*(ymax-ymin);
+    FT rz = 0.05*(zmax-zmin);
     return CGAL::Bbox_3(xmin-rx, ymin-ry, zmin-rz, xmax+rx, ymax+ry, zmax+rz);
   }
 
