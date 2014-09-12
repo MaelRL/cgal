@@ -2507,9 +2507,9 @@ public:
     return (m_center != Vertex_handle()) && Base::is_valid(verbose);
   }
 
-  void reset(const Point_3 &centerpoint,
-             const int &index,
-             const Metric &metric_,
+  void reset(const Point_3& centerpoint,
+             const int index,
+             const Metric& metric_,
              const bool is_surface_star = true)
   {
     this->clear();
@@ -2522,6 +2522,25 @@ public:
 
     invalidate_cache();
   }
+
+  void reset(const Point_3& new_centerpoint)
+  {
+    Index index = m_center->info();
+
+    std::cout << "checks: " << is_surface_star() << std::endl << metric().get_transformation() << std::endl;
+
+    this->clear();
+    m_center_point = new_centerpoint;
+    m_center = Base::insert(m_metric.transform(new_centerpoint));
+    m_center->info() = index;
+    this->infinite_vertex()->info() = index_of_infinite_vertex;
+
+    std::cout << "checks@2: " << is_surface_star() << std::endl << metric().get_transformation() << std::endl;
+
+    invalidate_cache();
+  }
+
+  void reset() { reset(center_point()); }
 
   void update_metric(const Metric& metric_)
   {
