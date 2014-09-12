@@ -278,13 +278,28 @@ template<typename K>
 Eigen::Matrix3d logexp_interpolate(const std::vector<std::pair<Eigen::Matrix3d, typename K::FT> >& w_metrics)
 {
 #ifdef ANISO_DEBUG_MATRIX_OPERATIONS
-  std::cout << "interpolating " << w_metrics.size() << " matrices" << std::endl;
+  std::cout << "interpolating (logexp)" << w_metrics.size() << " matrices" << std::endl;
 #endif
   Eigen::Matrix3d log_sum = Eigen::Matrix3d::Zero();
   for(std::size_t i=0; i<w_metrics.size(); ++i)
     log_sum += matrix_log<K>(w_metrics[i].first, w_metrics[i].second);
 
   return matrix_exp<K>(log_sum); // exp(sum(alpha_i*log(Mi)) (== Prod(Mi^alpha_i) if the Mi commute)
+}
+
+template<typename K>
+Eigen::Matrix3d linear_interpolate(const std::vector<std::pair<Eigen::Matrix3d, typename K::FT> >& w_metrics)
+{
+#ifdef ANISO_DEBUG_MATRIX_OPERATIONS
+  std::cout << "interpolating (linear)" << w_metrics.size() << " matrices" << std::endl;
+#endif
+  Eigen::Matrix3d res = Eigen::Matrix3d::Zero();
+  for(std::size_t i=0; i<w_metrics.size(); ++i)
+    for(int j=0; j<3; ++j)
+      for(int k=0; k<3; ++k)
+        res(j,k) += (w_metrics[i].second) * (w_metrics[i].first)(j,k);
+
+  return res;
 }
 
 template<typename K>
