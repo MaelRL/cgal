@@ -44,11 +44,14 @@
 #endif // CGAL_TEST_SUITE and NDEBUG
 
 // Workaround to the following bug:
-//   https://bugreports.qt.nokia.com/browse/QTBUG-22829
+// https://bugreports.qt-project.org/browse/QTBUG-22829
 #ifdef Q_MOC_RUN
 // When Qt moc runs on CGAL files, do not process
 // <boost/type_traits/has_operator.hpp>
 #  define BOOST_TT_HAS_OPERATOR_HPP_INCLUDED
+// do not include <boost/random.hpp> either
+// it includes <boost/type_traits/has_binary_operator.hpp>
+#  define BOOST_RANDOM_HPP
 #endif
 
 // The following header file defines among other things  BOOST_PREVENT_MACRO_SUBSTITUTION 
@@ -383,6 +386,15 @@ using std::max;
 #    define CGAL_HAS_THREADS
 #  endif
 #endif
+
+// Support for LEDA with threads
+//   Not that, if CGAL_HAS_THREADS is defined, and you want to use LEDA,
+//   you must link with a version of LEDA libraries that support threads.
+#if defined(CGAL_HAS_THREADS) && CGAL_USE_LEDA
+#  define LEDA_MULTI_THREAD 1
+#endif
+// Support for LEDA_numbers on Windows
+#define LEDA_NUMBERS_DLL 1
 
 // Helper macros to disable macros
 #if defined(__clang__) || (BOOST_GCC >= 40600)

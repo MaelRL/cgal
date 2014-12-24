@@ -19,9 +19,20 @@ else()
   cmake_policy(VERSION 2.6)
 endif()
 
+#
+# Compatibility with CMake 3.0
+#
 if(POLICY CMP0026)
+  # Allow the LOCATION target property
+  # http://www.cmake.org/cmake/help/v3.0/policy/CMP0026.html
   cmake_policy(SET CMP0026 OLD)
 endif()
+if(POLICY CMP0042)
+  # Do not enable the use of MACOSX_RPATH
+  # http://www.cmake.org/cmake/help/v3.0/policy/CMP0042.html
+  cmake_policy(SET CMP0042 OLD)
+endif()
+
 
 #--------------------------------------------------------------------------------------------------
 #
@@ -328,11 +339,12 @@ endif()
 #   CGAL-4.2   : 10.0.1 (Nothing different in CGAL compiled libraries¹.)
 #   CGAL-4.3   : 10.0.2 (Nothing different in CGAL compiled libraries¹.)
 #   CGAL-4.4   : 10.0.3 (Nothing different in CGAL compiled libraries¹.)
-#   CGAL-4.5   : ?
-# ¹) According to abi-http://upstream-tracker.org/versions/cgal.html
+#   CGAL-4.5   : 10.0.4 (Nothing different in CGAL compiled libraries¹.)
+#   CGAL-4.6   : 11.0.0 (int->size_t in CGAL_ImageIO)
+# ¹) According to http://upstream-tracker.org/versions/cgal.html
 
-set( CGAL_SONAME_VERSION "10" )
-set( CGAL_SOVERSION      "10.0.4" )
+set( CGAL_SONAME_VERSION "11" )
+set( CGAL_SOVERSION      "11.0.0" )
 
 message( STATUS "CGAL_SONAME_VERSION=${CGAL_SONAME_VERSION}" )
 message( STATUS "CGAL_SOVERSION     =${CGAL_SOVERSION}" )

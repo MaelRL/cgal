@@ -9,6 +9,13 @@ else()
   cmake_policy(VERSION 2.6)
 endif()
 
+# Compatibility with CMake 3.0
+if(POLICY CMP0042)
+  # Do not enable the use of MACOSX_RPATH
+  # http://www.cmake.org/cmake/help/v3.0/policy/CMP0042.html
+  cmake_policy(SET CMP0042 OLD)
+endif()
+
 #option(POLYHEDRON_DEMO_ENABLE_FORWARD_DECL "In the Polyhedron demo, enable " OFF)
 #mark_as_advanced(POLYHEDRON_DEMO_ENABLE_FORWARD_DECL)
 
@@ -213,6 +220,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
   add_item(scene_points_with_normal_item Scene_points_with_normal_item.cpp Scene_points_with_normal_item.moc)
   if(GLEW_FOUND)
     target_link_libraries( scene_points_with_normal_item gl_splat ${GLEW_LIBRARIES} )
+    target_link_libraries( demo_framework gl_splat ${GLEW_LIBRARIES} )
   endif(GLEW_FOUND)
 
   foreach( lib 
@@ -293,7 +301,7 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
     polyhedron_demo_plugin(mesh_3_plugin Polyhedron_demo_mesh_3_plugin 
       Polyhedron_demo_mesh_3_plugin_cgal_code.cpp Scene_c3t3_item.moc
       ${meshingUI_FILES})
-    target_link_libraries(mesh_3_plugin scene_polyhedron_item ${QGLVIEWER_LIBRARIES} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
+    target_link_libraries(mesh_3_plugin scene_polyhedron_item scene_polygon_soup_item ${QGLVIEWER_LIBRARIES} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
   else( Boost_VERSION GREATER 103400 )
     message(STATUS "warning: the plugin mesh_3_plugin requires Boost>=1.34.1 and will not be compiled.")
   endif( Boost_VERSION GREATER 103400 )
@@ -458,6 +466,14 @@ if(CGAL_Qt4_FOUND AND QT4_FOUND AND OPENGL_FOUND AND QGLVIEWER_FOUND)
     scene_polylines_item
     NAMESPACE Polyhedron_
     APPEND FILE polyhedron_demo_targets.cmake)
+
+  if(GLEW_FOUND)
+    export(
+      TARGETS
+      gl_splat
+      NAMESPACE Polyhedron_
+      APPEND FILE polyhedron_demo_targets.cmake)
+  endif(GLEW_FOUND)
 
   configure_file(CGAL_polyhedron_demoConfig.cmake.in  CGAL_polyhedron_demoConfig.cmake)
 

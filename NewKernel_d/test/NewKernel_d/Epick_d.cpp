@@ -8,15 +8,17 @@
 #include <CGAL/NewKernel_d/Lazy_cartesian.h>
 #include <CGAL/NewKernel_d/Wrapper/Cartesian_wrap.h>
 #include <CGAL/NewKernel_d/Kernel_d_interface.h>
-#include <CGAL/Gmpq.h>
+#include <CGAL/Exact_rational.h>
 #include <CGAL/Interval_nt.h>
 #include <CGAL/use.h>
 #include <iostream>
+#include <CGAL/NewKernel_d/Types/Weighted_point.h>
+#include <cmath>
 
 //typedef CGAL::Cartesian_base_d<double,CGAL::Dimension_tag<2> > K0;
 //typedef CGAL::Cartesian_base_d<CGAL::Interval_nt_advanced,CGAL::Dimension_tag<2> > KA;
 struct KA : CGAL::Cartesian_static_filters<CGAL::Dimension_tag<2>, CGAL::Cartesian_base_d<CGAL::Interval_nt_advanced,CGAL::Dimension_tag<2>, KA>, KA> {};
-typedef CGAL::Cartesian_base_d<CGAL::Gmpq,CGAL::Dimension_tag<2> > KE;
+typedef CGAL::Cartesian_base_d<CGAL::Exact_rational,CGAL::Dimension_tag<2> > KE;
 
 struct RC: public
 CGAL::Cartesian_static_filters<CGAL::Dimension_tag<2>, // Yes, it is silly to put it there.
@@ -72,6 +74,7 @@ void test2(){
   typedef typename K1::Ray_d R;
   typedef typename K1::Iso_box_d IB;
   typedef typename K1::Flat_orientation_d FO;
+  typedef typename K1::Weighted_point_d WP;
 
   //typedef K1::Construct_point CP;
   typedef typename K1::Construct_point_d CP;
@@ -115,6 +118,17 @@ void test2(){
   typedef typename K1::Position_on_line_d PoL;
   typedef typename K1::Equal_d E;
   typedef typename K1::Squared_distance_d SD;
+  typedef typename K1::Squared_length_d SL;
+  typedef typename K1::Scalar_product_d SP;
+  typedef typename K1::Difference_of_vectors_d DV;
+  typedef typename K1::Difference_of_points_d DP;
+  typedef typename K1::Translated_point_d TP;
+  typedef typename CGAL::Get_functor<K1, CGAL::Power_center_tag>::type PC;
+  typedef typename CGAL::Get_functor<K1, CGAL::Power_distance_tag>::type PoD;
+  typedef typename K1::Weighted_point_d WP;
+  typedef typename K1::Construct_weighted_point_d CWP;
+  typedef typename K1::Point_drop_weight_d PDW;
+  typedef typename K1::Point_weight_d PW;
 
   CGAL_USE_TYPE(AT);
   CGAL_USE_TYPE(D);
@@ -168,6 +182,16 @@ void test2(){
   PoL pol Kinit(position_on_line_d_object);
   E ed Kinit(equal_d_object);
   SD sd Kinit(squared_distance_d_object);
+  SL sl Kinit(squared_length_d_object);
+  SP spr Kinit(scalar_product_d_object);
+  DV dv Kinit(difference_of_vectors_d_object);
+  DP dp Kinit(difference_of_points_d_object);
+  TP tp Kinit(translated_point_d_object);
+  PC pc (k);
+  CWP cwp Kinit(construct_weighted_point_d_object);
+  PDW pdw Kinit(point_drop_weight_d_object);
+  PW pw Kinit(point_weight_d_object);
+  PoD pod (k);
 
   CGAL_USE(bc);
   CGAL_USE(pol);
@@ -176,11 +200,12 @@ void test2(){
   CGAL_USE(cli);
   CGAL_USE(cr);
   CGAL_USE(cib);
+  using std::abs;
   P a=cp(3,4);
   assert(pd(a)==2);
   assert(pv(a)[1]==4);
   P b=vp(cv(5,6,7));
-  assert(fabs(b[0]-5./7)<.0001);
+  assert(abs(b[0]-5./7)<.0001);
   assert(lc(b,a,1));
   assert(!lc(a,b,0));
   int rr[]={3,5,2};
@@ -194,8 +219,8 @@ void test2(){
   assert(cl(a,c)==CGAL::SMALLER);
   assert(ll(b,c));
   assert(cl(c,b)==CGAL::LARGER);
-  assert(fabs(m(a,c)[0]-3)<.0001);
-  assert(fabs(m(a,c)[1]-4.5)<.0001);
+  assert(abs(m(a,c)[0]-3)<.0001);
+  assert(abs(m(a,c)[1]-4.5)<.0001);
   P d=cp(r,r+3,CGAL::Homogeneous_tag());
   S s=cs(c,d);
   std::cout << cc(a,1) << std::endl;
@@ -227,11 +252,16 @@ void test2(){
   P x4=cp(0,0);
   P x5=cp(0,-1);
   P tab2[]={x1,x2,x3,x4};
+  assert(dp(x1,x2)[1]==2);
   assert(po(tab2+0,tab2+3)==CGAL::COUNTERCLOCKWISE);
   assert(sos(tab2+0,tab2+3,x4)==CGAL::ON_POSITIVE_SIDE);
   assert(sbs(tab2+0,tab2+3,x4)==CGAL::ON_BOUNDED_SIDE);
   V y1=cv(1,-1);
+  assert(y1.squared_length()==2);
+  assert(sl(y1)==2);
   V y2=cv(3,-3);
+  assert(spr(y1,y2)==6);
+  assert(dv(y2,y1)[0]==2);
   V tab3[]={y1,y2};
   std::vector<V> v;
   std::back_insert_iterator<std::vector<V> > bii(v);
@@ -239,9 +269,9 @@ void test2(){
   assert(v.size()==1);
   assert(lr(tab3+0,tab3+2)==1);
   H h=ch(tab2+1,tab2+3);
-  assert(fabs(va(h,x2)-1)<.0001);
-  assert(fabs(va(h,x3)-1)<.0001);
-  assert(fabs(va(h,x1)+1)<.0001);
+  assert(abs(va(h,x2)-1)<.0001);
+  assert(abs(va(h,x3)-1)<.0001);
+  assert(abs(va(h,x1)+1)<.0001);
   H h2=ch(tab2+1,tab2+3,x1,CGAL::ON_POSITIVE_SIDE);
   assert(hops(h2,x1));
   assert(os(h2,x1)==CGAL::ON_POSITIVE_SIDE);
@@ -298,20 +328,35 @@ void test2(){
   Sp sp = csp(tabz+0,tabz+3);
   P cent0=cos(sp);
   P cent1=cos(tabz+0,tabz+3);
-  assert(fabs(cent0[0]-2)<.0001);
-  assert(fabs(cent0[1]+3)<.0001);
-  assert(fabs(cent1[0]-2)<.0001);
-  assert(fabs(cent1[1]+3)<.0001);
-  assert(fabs(sp.squared_radius()-25)<.0001);
+  assert(abs(cent0[0]-2)<.0001);
+  assert(abs(cent0[1]+3)<.0001);
+  assert(abs(cent1[0]-2)<.0001);
+  assert(abs(cent1[1]+3)<.0001);
+  assert(abs(sp.squared_radius()-25)<.0001);
+#if 1
+  // Fails for an exact kernel
   P psp0=ps(sp,0);
   P psp1=ps(sp,1);
   P psp2=ps(sp,2);
   assert(!ed(psp0,psp1));
   assert(!ed(psp0,psp2));
   assert(!ed(psp2,psp1));
-  assert(fabs(sd(cent0,psp0)-25)<.0001);
-  assert(fabs(sd(cent0,psp1)-25)<.0001);
-  assert(fabs(sd(cent0,psp2)-25)<.0001);
+  assert(abs(sd(cent0,psp0)-25)<.0001);
+  assert(abs(sd(cent0,psp1)-25)<.0001);
+  assert(abs(sd(cent0,psp2)-25)<.0001);
+#endif
+  P x2py1 = tp(x2,y1);
+  assert(x2py1[1]==-2);
+  WP tw[]={cwp(cp(5,0),1.5),cwp(cp(2,std::sqrt(3)),1),cwp(cp(2,-std::sqrt(3)),1)};
+  WP xw=pc(tw+0,tw+3);
+  assert(abs(pod(xw,tw[0]))<.0001);
+  assert(abs(pod(xw,tw[1]))<.0001);
+  assert(abs(pod(xw,tw[2]))<.0001);
+  assert(pdw(xw)[0]<2.95);
+  assert(pdw(xw)[0]>2.5);
+  assert(pw(xw)<2.95);
+  assert(pw(xw)>2.5);
+
   Sp un1; CGAL_USE(un1);
   H un2; CGAL_USE(un2);
   S un3; CGAL_USE(un3);
@@ -372,6 +417,7 @@ void test3(){
   typedef typename K1::Squared_distance_d SD;
   typedef typename K1::Point_dimension_d PD;
   typedef typename K1::Affinely_independent_d AI;
+  typedef typename K1::Scaled_vector_d SV;
 
   Ker k
 #if 1
@@ -388,6 +434,7 @@ void test3(){
   PO po Kinit(orientation_d_object);
   CS cs Kinit(construct_segment_d_object);
   CSE cse (k);
+  SV sv Kinit(scaled_vector_d_object);
   LI li Kinit(linearly_independent_d_object);
   SOS sos Kinit(side_of_oriented_sphere_d_object);
   SBS sbs Kinit(side_of_bounded_sphere_d_object);
@@ -402,6 +449,7 @@ void test3(){
   SD sd Kinit(squared_distance_d_object);
   PD pd Kinit(point_dimension_d_object);
   AI ai Kinit(affinely_independent_d_object);
+  using std::abs;
   P a; // Triangulation needs this :-(
   a=cp(2,3,4);
   assert(pd(a)==3);
@@ -425,7 +473,7 @@ void test3(){
     std::cout << *i << ' ';
   std::cout << '\n';
   P e=cp(-2,3,0);
-  assert(fabs(sd(e,a)-32)<.0001);
+  assert(abs(sd(e,a)-32)<.0001);
   P tab[]={a,b,c,d,e};
   std::cout << po (&tab[0],tab+4) << ' ';
   std::cout << sos(&tab[0],tab+5) << ' ';
@@ -447,6 +495,7 @@ void test3(){
   assert(!cah(y+0,y+2,y[2]));
   assert( ai(y+0,y+3));
   assert(!ai(y+0,y+4));
+  assert(sv(yv[0],3)[1]==6);
   FO fo3=cfo(&y[0],y+3);
   assert(fo3.rest.size()==1 && fo3.rest[0]!=3);
   std::cout << fo3;
@@ -477,6 +526,7 @@ void test3(){
   P x4=cp(0,0,1);
   P x5=cp(0,0,0);
   P x6=cp(0,0,-1);
+  assert(!ed(x1,x2));
   P tab2[]={x1,x2,x3,x4,x5};
   assert(cis(tab2+0,tab2+4,x5));
   assert(po(tab2+0,tab2+4)==CGAL::POSITIVE);
@@ -524,6 +574,26 @@ void test3(){
   assert(ifsos(fozn, tz+0, tz+3, tz[4]) == CGAL::ON_NEGATIVE_SIDE);
   assert(ifsos(fozp, tz+0, tz+3, tz[5]) == CGAL::ON_NEGATIVE_SIDE);
   assert(ifsos(fozn, tz+0, tz+3, tz[5]) == CGAL::ON_POSITIVE_SIDE);
+
+  typedef typename K1::Weighted_point_d WP;
+  typedef typename K1::Construct_weighted_point_d CWP;
+  typedef typename K1::Point_drop_weight_d PDW;
+  typedef typename K1::Point_weight_d PW;
+  typedef typename K1::Power_test_d PT;
+  typedef typename K1::In_flat_power_test_d IFPT;
+  CWP cwp Kinit(construct_weighted_point_d_object);
+  PDW pdw Kinit(point_drop_weight_d_object);
+  PW pw Kinit(point_weight_d_object);
+  PT pt Kinit(power_test_d_object);
+  IFPT ifpt Kinit(in_flat_power_test_d_object);
+  WP wp;
+  wp = cwp (x1, 2);
+  WP xw6 = cwp (x6, 0);
+  assert (pw(wp) == 2);
+  assert (ed(pdw(wp), x1));
+  WP tabw[]={cwp(x1,0),cwp(x2,0),cwp(x3,0),cwp(x4,0),cwp(x5,0)};
+  assert(pt(tabw+0,tabw+4,tabw[4])==CGAL::ON_POSITIVE_SIDE);
+  assert(ifpt(fo4,tabw+0,tabw+3,xw6)==CGAL::ON_POSITIVE_SIDE);
 }
 template struct CGAL::Epick_d<CGAL::Dimension_tag<2> >;
 template struct CGAL::Epick_d<CGAL::Dimension_tag<3> >;

@@ -15,7 +15,7 @@
 // $URL$
 // $Id$
 //
-// Author(s)     : Laurent Rineau, Stéphane Tayeb
+// Author(s)     : Laurent Rineau, StÃ©phane Tayeb
 
 #ifndef CGAL_MESH_3_REFINE_CELLS_3_H
 #define CGAL_MESH_3_REFINE_CELLS_3_H
@@ -632,7 +632,7 @@ scan_triangulation_impl()
   typedef typename Tr::Finite_cells_iterator Finite_cell_iterator;
 
 #ifdef CGAL_MESH_3_PROFILING
-  WallClockTimer t;
+  Wall_clock_timer t;
 #endif
 
 

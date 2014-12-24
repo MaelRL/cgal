@@ -776,7 +776,7 @@ private:
 #ifdef CGAL_LINKED_WITH_TBB
   /// Removes facet from refinement queue
   // Parallel: it's always lazy, so do nothing
-  void remove_bad_facet(Facet& facet, Parallel_tag) {}
+  void remove_bad_facet(Facet&, Parallel_tag) {}
 #endif // CGAL_LINKED_WITH_TBB
 
   /**
@@ -882,7 +882,7 @@ scan_triangulation_impl()
   typedef typename Tr::Finite_facets_iterator Finite_facet_iterator;
 
 #ifdef CGAL_MESH_3_PROFILING
-  WallClockTimer t;
+  Wall_clock_timer t;
 #endif
 
 #ifdef CGAL_MESH_3_VERY_VERBOSE
