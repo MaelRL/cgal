@@ -377,7 +377,7 @@ int main(int, char**)
   //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
   Custom_metric_field* metric_field = new Custom_metric_field();
 
-  const char* mesh_filename = "KIRBY.mesh";
+  const char* mesh_filename = "bambimboum.mesh";
 
   fetch_mesh(mesh_filename, points, faces);
   compute_metrics(points, metric_field, metrics);

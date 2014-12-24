@@ -110,7 +110,8 @@ void output_off(const Starset& stars,
 template<typename Starset>
 void output_medit(const Starset& stars,
                   std::ofstream& fx,
-                  const bool consistent_only = true)
+                  const bool consistent_only = false,
+                  const std::set<Facet_ijk>& ghost_faces = std::set<Facet_ijk>())
 {
   std::cout << "Saving medit... @ " << stars.size() << std::endl;
   unsigned int nb_inconsistent_stars = 0;
@@ -137,6 +138,10 @@ void output_medit(const Starset& stars,
       typename Starset::Face_handle fh = *fit;
       //if(!star->is_inside(fh))
       //  continue;
+
+      if(ghost_faces.find(Facet_ijk(fh)) != ghost_faces.end() )
+        continue;
+
       if(!consistent_only || stars.is_consistent(fh))
       {
         Facet_ijk face(fh);

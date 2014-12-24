@@ -44,15 +44,27 @@ struct Star_index
 
 template<typename K, typename KExact = K>
 class Stretched_Delaunay_2
+#ifdef CGAL_USE_BASIC_ANISO
     : public CGAL::Delaunay_triangulation_2<
-    Delaunay_traits_2<K, KExact>,
-    CGAL::Triangulation_data_structure_2<
-    CGAL::Triangulation_vertex_base_with_info_2<
-    Star_index,
-    Delaunay_traits_2<K, KExact> >,
-    CGAL::Triangulation_face_base_with_domain_info_2<
-    Delaunay_traits_2<K, KExact>,
-    Domain_2<K> > > >
+                    Delaunay_traits_2<K, KExact>,
+                    CGAL::Triangulation_data_structure_2<
+                      CGAL::Triangulation_vertex_base_with_info_2<
+                        Star_index,
+                        Delaunay_traits_2<K, KExact> >,
+                      CGAL::Triangulation_face_base_with_domain_info_2<
+                        Delaunay_traits_2<K, KExact>,
+                        Domain_2<K> > > >
+#else
+    : public CGAL::Constrained_Delaunay_triangulation_2<
+                    Delaunay_traits_2<K, KExact>,
+                    CGAL::Triangulation_data_structure_2<
+                      CGAL::Triangulation_vertex_base_with_info_2<
+                        Star_index,
+                        Delaunay_traits_2<K, KExact> >,
+                      CGAL::Triangulation_face_base_with_domain_info_2<
+                        Delaunay_traits_2<K, KExact>,
+                        Domain_2<K> > > >
+#endif
 {
   typedef Stretched_Delaunay_2<K, KExact>                       Self;
 public:
@@ -65,7 +77,12 @@ public:
   CGAL::Triangulation_face_base_with_domain_info_2<
   Traits, Domain_2<K> >
   >                                                     DS;
+
+#ifdef CGAL_USE_BASIC_ANISO
   typedef CGAL::Delaunay_triangulation_2<Traits, DS>            Base;
+#else
+  typedef CGAL::Constrained_Delaunay_triangulation_2<Traits, DS> Base;
+#endif
 
   typedef int Index;
 

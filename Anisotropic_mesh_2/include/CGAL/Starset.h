@@ -362,6 +362,308 @@ public:
     }
   }
 
+  struct DIST_POINT
+  {
+    FT dist;
+    std::size_t id;
+
+    DIST_POINT(FT dist_, std::size_t id_):dist(dist_), id(id_)
+    { }
+  };
+
+
+  struct Dist_point_compator
+  {
+    bool operator()(DIST_POINT left,
+                    DIST_POINT right)
+    {
+      return left.dist < right.dist;
+    }
+
+    Dist_point_compator(){}
+  };
+
+  bool constrain_test(const std::size_t source, // segment's source
+                      const std::size_t target, // segment's target
+                      const std::set<Facet_ijk>& ghost_faces,
+                      std::vector<std::size_t>& constraints,
+                      const bool reject = true)
+  {
+    Point_2 p = m_stars[source]->center_point();
+    Point_2 pi = m_stars[target]->center_point();
+    Segment s(p, pi);
+
+    std::cout << "constrain testing with : " << source << " ---> " << target << std::endl;
+    std::cout << "constrain testing with : " << p << " [[[[ " << pi << std::endl;
+
+    std::size_t count = 0; // count the number of times it appears as an edge in the existing faces
+
+    for(std::size_t sj=0; sj<m_stars.size(); ++sj)
+    {
+      Star_handle star_j = m_stars[sj];
+      Face_handle_handle fit = star_j->finite_adjacent_faces_begin();
+      Face_handle_handle fend = star_j->finite_adjacent_faces_end();
+      for(; fit!=fend; fit++)
+      {
+        Face_handle fh = *fit;
+        Facet_ijk f(fh);
+        if(ghost_faces.find(f) != ghost_faces.end()) // ignoring false faces
+          continue;
+
+        if(f.has(source) && f.has(target)) // intersection is an edge
+        {
+          count++;
+          continue;
+        }
+
+        Point_2 p0 = star_j->metric().inverse_transform(fh->vertex(0)->point());
+        Point_2 p1 = star_j->metric().inverse_transform(fh->vertex(1)->point());
+        Point_2 p2 = star_j->metric().inverse_transform(fh->vertex(2)->point());
+
+        Triangle t(p0,p1,p2);
+        CGAL::Object obj = CGAL::intersection(s, t);
+
+        Point_2 p_test;
+        if(CGAL::assign(p_test, obj) &&
+           CGAL::squared_distance(p_test, p)>1e-10 &&
+           CGAL::squared_distance(p_test, pi)>1e-10)
+        {
+          std::cout.precision(20);
+          std::cout << "fail p test : "  << p_test << std::endl;
+          return false;
+        }
+        Segment s_test;
+        if(CGAL::assign(s_test, obj) &&
+           ((CGAL::squared_distance(s_test.source(), p)>1e-10 &&
+             CGAL::squared_distance(s_test.source(), pi)>1e-10) ||
+            (CGAL::squared_distance(s_test.target(), p)>1e-10 &&
+             CGAL::squared_distance(s_test.target(), pi)>1e-10)))
+        {
+          std::cout.precision(20);
+          std::cout << "fail s test : " <<  sj << " " << s_test.source() << " ||| " << s_test.target() << std::endl;
+          std::cout << "face points: " << p0 << " ~~ " << p1 << " ~~ " << p2 << std::endl;
+          return false;
+        }
+      }
+    }
+
+    CGAL_assertion(count < 3);
+
+    if(reject && count==2) // edge is found in two triangles -> ignore
+      return false;
+
+    if(reject && count == 1) // add it as a constraint
+      constraints.push_back(target);
+
+    return true;
+  }
+
+  bool constrain_test(const Star_handle star,
+                      const Face_handle& fh,
+                      const std::set<Facet_ijk>& ghost_faces)
+  {
+    std::cout << "heh" << std::endl;
+    std::vector<std::size_t> extremities;
+    for(int i=0;i<3;++i)
+    {
+      if(star->index_in_star_set() != fh->vertex(i)->info())
+        extremities.push_back(fh->vertex(i)->info());
+    }
+    CGAL_assertion(extremities.size() == 2);
+    std::vector<std::size_t> useless_list;
+    return constrain_test(extremities[0], extremities[1], ghost_faces, useless_list, false);
+  }
+
+  void constrain()
+  {
+    for(std::size_t si=0; si<m_stars.size(); ++si)
+      m_stars[si]->reset();
+
+    //pick the star with the highest anisotropy ratio
+    std::size_t next_star = 0;
+    FT max_ratio = -1e30;
+    for(std::size_t si=0; si<m_stars.size(); ++si)
+    {
+      Star_handle star_i = m_stars[si];
+      FT ratio = star_i->metric().get_max_eigenvalue() / star_i->metric().get_min_eigenvalue();
+      if(ratio > max_ratio)
+      {
+        max_ratio = ratio;
+        next_star = si;
+      }
+    }
+
+    //build the stars
+    std::set<Facet_ijk> ghost_faces; //facets that do not (really) exist
+    typename std::multiset<DIST_POINT, Dist_point_compator> next_stars;
+    std::list<std::size_t> queue;
+    std::vector<bool> is_star_built(m_stars.size(), false);
+    std::size_t stars_left = m_stars.size();
+    while(stars_left)
+    {
+      std::cout << stars_left << " stars left (" << m_stars.size()-stars_left << ")" << std::endl;
+      std::cout << "next star: " << next_star << " cp: " << m_stars[next_star]->center_point() << std::endl;
+
+      Star_handle star = m_stars[next_star];
+
+      //compute points available
+      std::vector<std::size_t> available_points;
+      std::vector<std::size_t> constraints;
+      for(std::size_t si=0; si<m_stars.size(); ++si)
+      {
+        if(si == next_star || is_star_built[si])
+          continue;
+
+        if(constrain_test(next_star, si, ghost_faces, constraints, true))
+          available_points.push_back(si);
+      }
+
+      std::cout << available_points.size() << " available points and ";
+      std::cout << constraints.size() << " constraints : ";
+      for(int i=0; i<constraints.size(); ++i)
+        std::cout << constraints[i] << " ";
+      std::cout << std::endl;
+
+      for(std::size_t i=0; i<available_points.size(); ++i)
+      {
+        Star_handle star_i = m_stars[available_points[i]];
+        Point_2 pi = star_i->center_point();
+        Vertex_handle vh = star->insert_to_star(pi, available_points[i], false);
+        vh->info() = available_points[i];
+
+        if(std::find(constraints.begin(), constraints.end(), vh->info()) != constraints.end())
+        {
+          std::cout << "found: " << vh->info() << std::endl;
+          std::cout << "constraining: " << star->center()->info() << " " << vh->info() << std::endl;
+          star->insert_constraint(star->center(), vh);
+        }
+      }
+
+      is_star_built[next_star] = true;
+      stars_left--;
+      star->clean();
+
+      //re-insert constrains after clean
+      typename Star::Finite_vertices_iterator vit = star->finite_vertices_begin();
+      typename Star::Finite_vertices_iterator vend = star->finite_vertices_end();
+      for(; vit != vend; vit++)
+      {
+        if(std::find(constraints.begin(), constraints.end(), vit->info()) != constraints.end())
+        {
+          std::cout << "found: " << vit->info() << std::endl;
+          std::cout << "constraining: " << star->center()->info() << " " << vit->info() << std::endl;
+          star->insert_constraint(star->center(), vit);
+        }
+      }
+
+      std::cout << "built: " << star->index_in_star_set() << std::endl;
+      std::cout << "it has "<< star->number_of_vertices() << " vertices and ";
+      std::cout << star->number_of_faces() << " faces" << std::endl;
+      star->print_vertices();
+      star->print_faces();
+
+      std::ostringstream str;
+      str << "constrain_" << m_stars.size()-stars_left << ".mesh" << std::ends;
+      std::ofstream out(str.str().c_str());
+      output_medit(*this, out, false, ghost_faces);
+
+      //find the ghost faces of the new star
+      Face_handle_handle fit = star->finite_adjacent_faces_begin();
+      Face_handle_handle fend = star->finite_adjacent_faces_end();
+      for(; fit!=fend; fit++)
+      {
+        Face_handle fh = *fit;
+        if(!constrain_test(star, fh, ghost_faces))
+          ghost_faces.insert(Facet_ijk(fh));
+      }
+
+      std::cout << ghost_faces.size() << " ghosts, spooky!" << std::endl;
+
+      //find the next star to build
+#if 0
+      vit = star->finite_vertices_begin();
+      for(; vit != vend; vit++)
+      {
+        Star_handle star_i = m_stars[vit->info()];
+        FT gamma = star->metric().compute_distortion(star_i->metric());
+        std::cout << "compute distortion with: " << vit->info() << " " << gamma << std::endl;
+        DIST_POINT dp(gamma, vit->info());
+        next_stars.insert(dp);
+      }
+      std::cout << next_stars.size() << " stars to pick from" << std::endl;
+
+      bool found = false;
+      while(!found && !next_stars.empty())
+      {
+        next_star = next_stars.begin()->id;
+        next_stars.erase(next_stars.begin());
+        if(!is_star_built[next_star])
+          found = true;
+      }
+      CGAL_assertion(found == true || (next_stars.empty() && stars_left==0));
+#else
+      vit = star->finite_vertices_begin();
+      for(; vit != vend; vit++)
+      {
+        queue.push_back(vit->info());
+      }
+      std::cout << queue.size() << " stars to pick from" << std::endl;
+
+      bool found = false;
+      while(!found && !queue.empty())
+      {
+        next_star = queue.front();
+        queue.pop_front();
+        std::cout << "next star: " << next_star << std::endl;
+        std::cout << queue.size() << " stars to pick from" << std::endl;
+        if(!is_star_built[next_star])
+          found = true;
+      }
+      CGAL_assertion(found == true || (queue.empty() && stars_left==0));
+#endif
+
+    }
+
+    //output
+    std::cout << "consistency: " << is_consistent(true) << std::endl;
+    std::ofstream out("constrain.mesh");
+    output_medit(*this, out, false, ghost_faces);
+  }
+
+  void draw_metric_vector_field()
+  {
+    FT e0, e1;
+    Vector_2 v0, v1;
+
+    std::ofstream min_vector_field_os("vector_field_min.polylines.cgal");
+    std::ofstream max_vector_field_os("vector_field_max.polylines.cgal");
+
+    for(std::size_t sj=0; sj<m_stars.size(); ++sj)
+    {
+      Star_handle star_j = m_stars[sj];
+      Eigen::Matrix2d m = star_j->metric().get_mat();
+
+      get_eigen_vecs_and_vals<K>(m, v0, v1, e0, e1);
+
+      e0 = 1./std::sqrt(std::abs(e0));
+      e1 = 1./std::sqrt(std::abs(e1));
+
+      Point_2 pj = star_j->center_point();
+      FT scale = 0.1;
+
+      if(e0>e1)
+      {
+        max_vector_field_os << "2 " << pj << " 0 " << (pj+scale*e0*v0) << " 0 " << std::endl;
+        min_vector_field_os << "2 " << pj << " 0 " << (pj+scale*e1*v1) << " 0 " << std::endl;
+      }
+      else
+      {
+        max_vector_field_os << "2 " << pj << " 0 " << (pj+scale*e1*v1) << " 0 " << std::endl;
+        min_vector_field_os << "2 " << pj << " 0 " << (pj+scale*e0*v0) << " 0 " << std::endl;
+      }
+    }
+  }
+
   Starset() : m_stars() { }
   Starset(const Star_vector& stars_) : m_stars(stars_) { }
 

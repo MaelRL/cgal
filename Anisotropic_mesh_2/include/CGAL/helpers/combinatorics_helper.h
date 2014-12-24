@@ -55,7 +55,6 @@ void add_to_map(const Element& e, OneMap& m)
     (is_insert_successful.first)->second += 1; // m[e] += 1
 }
 
-
 template<std::size_t ssize>
 class Ordered_simplex_base
 {

@@ -79,6 +79,18 @@ int main(int argc, char** argv)
   std::ofstream out("bambimboum.mesh");
   output_medit(starset, out, false);
 
+  starset.draw_metric_vector_field();
+#else
+// IF YOU WANT TO CONSTRAIN STARS (sweep)
+//  starset.constrain();
+//  face_edge_length_histogram(starset);
+
+// IF YOU WANT TO RESUME FROM AN EXISTING MESH
+  std::cout << "resuming!" << std::endl;
+  starset.clear();
+  mesher.resume_from_mesh_file("resume_in.mesh");
+#endif
+
   delete metric_field;
   delete pdomain;
   delete criteria;
