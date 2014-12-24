@@ -3,6 +3,8 @@
 #include <CGAL/Stretched_Delaunay_2.h>
 #include <CGAL/Anisotropic_mesher_2.h>
 
+#include <CGAL/helpers/histogram_helper.h>
+
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
 
@@ -20,7 +22,7 @@ typedef typename Star::Point_2                               Point_2;
 
 int main(int argc, char** argv)
 {
-  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
+//  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
 
   std::streambuf * old = std::cout.rdbuf();
   //std::cout.rdbuf(0);
@@ -31,15 +33,15 @@ int main(int argc, char** argv)
   int n = 1;
 
 //geometry
-  FT a = (argc > n) ? atof(argv[n++]) : 2.;
-  FT b = (argc > n) ? atof(argv[n++]) : 2.;
-  Point_2 offset(0.,0.);
+  FT a = (argc > n) ? atof(argv[n++]) : 0.5; // half the side
+  FT b = (argc > n) ? atof(argv[n++]) : 0.5;
+  Point_2 offset(1.,1.);
 
 //metric field
   FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
 //face criteria
-  FT f_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
+  FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
   FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
 
 //misc
@@ -59,14 +61,15 @@ int main(int argc, char** argv)
   Rectangle_domain<K>* pdomain = new Rectangle_domain<K>(a, b, offset);
 
   //----------- pick a metric field! ----
-//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(1., 10.);
-  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>(epsilon);
+  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(5., 1.);
+  //Custom_metric_field<K>* metric_field = new Custom_metric_field<K>(epsilon);
 
   Starset<K> starset;
 
   //----------- pick a mesher! -----------
   Anisotropic_mesher_2<K> mesher(starset, pdomain, criteria, metric_field);
 
+#if 0
   double elapsed_time = mesher.refine_mesh();
 
   std::cout.rdbuf(old);

@@ -2,6 +2,7 @@
 #define CGAL_TRIANGULATION_FACE_BASE_WITH_DOMAIN_INFO_2_H
 
 #include <CGAL/Delaunay_mesh_face_base_2.h>
+#include <CGAL/Cartesian_converter.h>
 
 namespace CGAL
 {

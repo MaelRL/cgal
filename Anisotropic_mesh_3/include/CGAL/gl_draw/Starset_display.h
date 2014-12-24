@@ -546,7 +546,10 @@ public:
 
         if(is_above_plane<K>(plane, pa, pb, pc))
         {
-          gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 227,27,27);
+          if(m_starset.is_flip_consistent(f, inconsistent_points))
+            gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 112,89,227);
+          else
+            gl_draw_triangle<K>(pa,pb,pc,EDGES_AND_FACES, 46,23,163);
 
           FT m_x = (1./3.)*(pa.x()+pb.x()+pc.x());
           FT m_y = (1./3.)*(pa.y()+pb.y()+pc.y());

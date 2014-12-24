@@ -19,8 +19,35 @@ public:
   typedef typename Base::Vector_2   Vector_2;
 
 public:
+  Metric radial_shock(const Point_2& p) const
+  {
+    FT x = p.x();
+
+    if(x == 0)
+    {
+      return Metric();
+    }
+
+    FT y = p.y();
+
+    FT r = x*x+y*y;
+    FT nx = x/std::sqrt(r);
+    FT ny = y/std::sqrt(r);
+
+    Vector_2 v1(-ny, nx);
+    Vector_2 v2(nx, ny);
+
+    FT s = std::sin(r/5.);
+    FT c = std::cos(r/5.);
+
+    FT e1 = (-5*s-2*r*(c-3*s*s))/std::pow(r*s*s,1./5.) ;
+    FT e2 = s/std::sqrt(r*s*s);
+
+    return this->build_metric(v1, v2, std::sqrt(e1), std::sqrt(e2));
+  }
+
   Metric hyberbolic_shock(const Point_2 &p,
-                          const FT delta = 0.6) const
+                          const FT delta = 0.1) const
   {
     FT x = p.x();
     FT y = p.y();
@@ -55,6 +82,8 @@ public:
 
   Metric yang_liu_cube_shock(const Point_2& p) const
   {
+    double h = 0.3;
+
     //Yang Liu 3D Metric on a [1,11]^2 cube
     double x = p.x();
     double y = p.y();
@@ -75,34 +104,50 @@ public:
     Vector_2 v1(x, y);
     Vector_2 v2(-y, x);
 
-    return this->build_metric(v1, v2, 1./h1, 1./h2);
+    return this->build_metric(v1, v2, 1./(h*h1), 1./(h*h2));
   }
 
   virtual Metric compute_metric(const Point_2 &p) const
   {
-    return hyberbolic_shock(p);
-    return yang_liu_cube_shock(p);
-    return yang_liu_cube_shock_1D(p);
+//    return hyberbolic_shock(p);
+//    return yang_liu_cube_shock(p);
+//    return yang_liu_cube_shock_1D(p);
 
     FT denom = std::sqrt(9.); // = ratio at x=+/-1
     double h = 1.0;
+    double x = p.x();
+    double y = p.y();
+
+    return this->build_metric(Vector_2(1, 0), // for DU WANG, Transf2
+                              Vector_2(0, 1),
+                              std::sqrt(1./(x*x*x*x) + 4./(x*x*x*x*x*x)),
+                              std::sqrt(9.*y*y*y*y+4.*y*y));
+    return this->build_metric(Vector_2(1, 0), // for TC
+                              Vector_2(0, 1),
+                              1./(h*x), y/(h));
+    return this->build_metric(Vector_2(1, 0), // for DU WANG, Transf1
+                              Vector_2(0, 1),
+                              std::sqrt(1./(x*x*x*x) + 1./(x*x*x*x*x*x)),
+                              std::sqrt(9.*y*y*y*y+y*y));
+    return this->build_metric(Vector_2(1, 0), // for DU WANG, Transf3s
+                              Vector_2(0, 1),
+                              std::sqrt(1. + 4./(x*x*x*x*x*x)),
+                              std::sqrt(1.+4.*std::exp(4*y)));
 
     //linear interpolation
-    /*
     return this->build_metric(Vector_2(1, 0),
                               Vector_2(0, 1),
-                              1./((denom*std::abs(p.x())+(1-std::abs(p.x())))*h), 1./h);
-    */
+                              1./((denom*std::abs(x)+(1-std::abs(x)))*h), 1./h);
 
     //logexp 1D
     return this->build_metric(Vector_2(1, 0),
                               Vector_2(0, 1),
-                              std::pow(1./denom, std::abs(p.x()))/h, 1./h);
+                              std::pow(1./denom, std::abs(x))/h, 1./h);
 
     //logexp 1D extended into uniform
     return this->build_metric(Vector_2(1, 0),
                               Vector_2(0, 1),
-                              std::max(std::pow(1./denom, std::abs(p.x())),1./denom), 1.);
+                              std::max(std::pow(1./denom, std::abs(x)),1./denom), 1.);
   }
 
   virtual void report(typename std::ofstream &fx) const

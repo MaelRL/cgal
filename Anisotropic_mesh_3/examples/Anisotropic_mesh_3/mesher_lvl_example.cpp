@@ -51,16 +51,16 @@ int main(int argc, char** argv)
 
 //facet criteria
   FT approx = (argc > n) ? atof(argv[n++]) : 1e10;
-  FT gamma = (argc > n) ? atof(argv[n++]) : 1.5;
-  FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   FT f_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
+  FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
 
 //cell criteria
-  FT sliverity = (argc > n) ? atof(argv[n++]) : 0.2;
-  FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   FT c_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
+  FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
+  FT sliverity = (argc > n) ? atof(argv[n++]) : 0.3;
 
 //misc
+  FT gamma = (argc > n) ? atof(argv[n++]) : 1.5;
   FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
   FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
@@ -96,17 +96,13 @@ int main(int argc, char** argv)
   mesher.report();
 
   std::ofstream out("bambimboum.mesh");
-  output_medit(starset, out);
+  output_medit(starset, out, false);
   std::ofstream out_facet("bambimboum_surf.mesh");
   output_surface_medit(starset, out_facet);
-  std::ofstream out_off("bambimboum.off");
-  output_off(starset, out_off);
-  std::ofstream out_surface_off("bambimboum_surf.off");
-  output_surface_off(starset, out_surface_off);
 
-  delete criteria;
-  delete pdomain;
   delete metric_field;
+  delete pdomain;
+  delete criteria;
 
   return 0;
 }

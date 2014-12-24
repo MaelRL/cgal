@@ -732,6 +732,14 @@ public:
 
 #ifdef ANISO_APPROXIMATE_SPHERE_BBOX
       double radius = sqrt(squared_radius);
+#ifdef ANISO_DEBUG_BBOX
+      std::cout << "computing circumcenter with points: " << std::endl;
+      std::cout << (*ci)->vertex(0)->info() << " " << (*ci)->vertex(0)->point() << std::endl;
+      std::cout << (*ci)->vertex(1)->info() << " " << (*ci)->vertex(1)->point() << std::endl;
+      std::cout << (*ci)->vertex(2)->info() << " " << (*ci)->vertex(2)->point() << std::endl;
+      std::cout << (*ci)->vertex(3)->info() << " " << (*ci)->vertex(3)->point() << std::endl;
+      std::cout << "cc: " << cc << " radius is: " << radius << std::endl;
+#endif
       Bbox bbs(cc.x()-radius, cc.y()-radius, cc.z()-radius,
               cc.x()+radius, cc.y()+radius, cc.z()+radius);
       bb = bb + bbs;

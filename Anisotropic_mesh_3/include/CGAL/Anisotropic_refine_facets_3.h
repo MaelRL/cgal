@@ -572,9 +572,11 @@ private:
       }
     }
 
-    // consistency : 5
+    // custom consistency : 5
+#ifdef ANISO_USE_CUSTOM_CONSISTENCY
     if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
-       !this->m_starset.is_consistent(*fi))
+//       !this->m_starset.is_vertex_consistent(*fi))
+       !this->m_starset.is_flip_consistent(*fi))
     {
       FT vol = star->compute_volume(*fi);
       if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, vol, 5))
@@ -594,6 +596,32 @@ private:
         }
       }
     }
+#endif
+
+#ifdef ANISO_USE_CONSISTENCY
+    // consistency : 6
+    if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
+       !this->m_starset.is_consistent(*fi))
+    {
+      FT vol = star->compute_volume(*fi);
+      if(!check_if_in || !m_refine_queue.is_facet_in(star, *fi, vol, 6))
+      {
+        m_refine_queue.push(star, *fi, vol, 6, force_push);
+        if(check_if_in)
+        {
+          std::cout << "not already in 6" << std::endl;
+          std::cout << "star : " << star->index_in_star_set();
+          std::cout << " || ids: ";
+          std::cout << fi->first->vertex((fi->second+1)%4)->info() << " ";
+          std::cout << fi->first->vertex((fi->second+2)%4)->info() << " ";
+          std::cout << fi->first->vertex((fi->second+3)%4)->info() << std::endl;
+
+          std::cout << "star vertices:" << std::endl;
+          star->print_vertices();
+        }
+      }
+    }
+#endif
   }
 
 public:

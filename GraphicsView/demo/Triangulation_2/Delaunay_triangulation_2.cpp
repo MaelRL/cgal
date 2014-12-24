@@ -24,7 +24,7 @@
 
 // for viewportsBbox
 #include <CGAL/Qt/utility.h>
-  
+
 // the two base classes
 #include "ui_Delaunay_triangulation_2.h"
 #include <CGAL/Qt/DemosMainWindow.h>

@@ -119,6 +119,7 @@ public:
     fill_refinement_queue();
     Mesher_lvl::is_active() = true;
 
+/*
     Star_iterator sit = this->m_starset.begin();
     Star_iterator sitend = this->m_starset.end();
     for(; sit!=sitend; ++sit)
@@ -127,6 +128,7 @@ public:
       star->print_vertices();
       star->print_faces();
     }
+*/
 
     std::ofstream out("initial.mesh");
     output_medit(this->m_starset, out);

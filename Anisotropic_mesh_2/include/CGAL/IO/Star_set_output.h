@@ -55,7 +55,7 @@ void dump(const Starset& stars)
 template<typename Starset>
 void output_off(const Starset& stars,
                 std::ofstream& fx,
-                const bool consistent_only = true)
+                const bool consistent_only = false)
 {
   std::cout << "Saving as .off..." << std::endl;
   std::vector<typename Starset::Point_2> points;
@@ -93,7 +93,7 @@ void output_off(const Starset& stars,
     std::cout << "Warning OFF : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 
   fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_faces.size() << " " << std::endl;
+  fx << points.size() << " " << output_faces.size() << " 0" << std::endl;
   for(unsigned int i = 0; i < points.size(); i++)
     fx << points[i] << std::endl;
 
@@ -160,7 +160,7 @@ void output_medit(const Starset& stars,
     int n0 = f.vertices()[0];
     int n1 = f.vertices()[1];
     int n2 = f.vertices()[2];
-    fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << " 1" << std::endl;
+    fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " 1" << std::endl;
   }
   fx << "End" << std::endl;
 
@@ -171,7 +171,7 @@ void output_medit(const Starset& stars,
 template<typename Starset>
 void output_off(const Starset &stars,
                 const char* f,
-                const bool consistent_only = true)
+                const bool consistent_only = false)
 {
   std::ofstream out(f);
   return output_off(stars, out, consistent_only);
@@ -180,11 +180,10 @@ void output_off(const Starset &stars,
 template<typename Starset>
 void output_medit(const Starset &stars,
                   const char* f,
-                  const bool consistent_only = true,
-                  const bool positive_vol = false)
+                  const bool consistent_only = false)
 {
   std::ofstream out(f);
-  return output_medit(stars, out, consistent_only, positive_vol);
+  return output_medit(stars, out, consistent_only);
 }
 
 }  // Anisotropic_mesh_2

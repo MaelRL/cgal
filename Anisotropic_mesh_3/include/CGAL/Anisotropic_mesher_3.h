@@ -294,7 +294,7 @@ public:
                     m_aabb_tree, m_kd_tree, m_star_czones, m_cell_refine_queue, 0, 4),
       m_facet_consistency_mesher(m_cell_mesher, m_starset, pconstrain_, criteria_,
                                  metric_field_, m_aabb_tree, m_kd_tree, m_star_czones,
-                                 m_facet_refine_queue, 5, 5),
+                                 m_facet_refine_queue, 5, 6),
       m_cell_consistency_mesher(m_facet_consistency_mesher, m_starset, pconstrain_,
                                 criteria_, metric_field_, m_aabb_tree, m_kd_tree,
                                 m_star_czones, m_cell_refine_queue, 5, 5),

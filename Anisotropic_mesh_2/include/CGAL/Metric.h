@@ -204,7 +204,7 @@ public:
 
   Metric_base()
   {
-    construct(Vector_2(1, 0, 0), Vector_2(0, 1, 0), 1, 1, 1e-6);
+    construct(Vector_2(1, 0), Vector_2(0, 1), 1, 1, 1e-6);
   }
 
   Metric_base(Eigen::Matrix2d eigen_transformation_)
@@ -212,7 +212,7 @@ public:
     //std::cout << "building a metric from a Matrix2d with input : " << std::endl;
     //std::cout << eigen_transformation_ << std::endl;
 
-    construct(Vector_2(1, 0, 0), Vector_2(0, 1, 0), 1, 1, 1e-6);
+    construct(Vector_2(1, 0), Vector_2(0, 1), 1, 1, 1e-6);
     eigen_transformation = eigen_transformation_;
 
     bool invertible;

@@ -164,7 +164,7 @@ public:
 
   void resume_from_mesh_file(const char* filename)
   {
-    //todo
+    m_face_consistency_mesher.resume_from_mesh_file(filename);
   }
 
   // Step-by-step methods

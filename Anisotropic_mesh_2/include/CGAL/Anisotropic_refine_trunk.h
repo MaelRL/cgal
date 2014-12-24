@@ -930,7 +930,7 @@ public:
     std::ifstream in(filename);
     std::string word;
     int useless, nv;
-    FT x,y,z;
+    FT x,y;
 
     in >> word >> useless; //MeshVersionFormatted i
     in >> word >> useless; //Dimension d
@@ -943,16 +943,7 @@ public:
     {
       in >> x >> y >> useless;
       Point_2 p(x,y);
-
-      if(m_starset.size() < 10)
-        insert(p, false /*no condition*/);
-      else
-      {
-        compute_conflict_zones(p);
-        m_stars_czones.compute_elements_needing_check();
-        insert(p, true);
-      }
-      clear_conflict_zones();
+      insert(p, false /*no condition*/);
     }
     clean_stars();
 
@@ -961,8 +952,6 @@ public:
 
     std::ofstream out("resumed.mesh");
     output_medit(m_starset, out);
-    std::ofstream out_face("resumed_surf.mesh");
-    output_surface_medit(m_starset, out_face);
   }
 
 protected:

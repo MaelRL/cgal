@@ -361,6 +361,7 @@ public:
     std::cout << this->m_starset.is_consistent(true /*verbose*/, CELLS_ONLY) << std::endl;
     all_cell_histograms(this->m_starset, this->m_criteria);
     std::cout << "CELL pick_valid stats: " << std::endl;
+    std::cout << "tried: " << m_pick_valid_points_tried << " || ";
     std::cout << "skipped: " << m_pick_valid_skipped << " || ";
     std::cout << "skipped (due to conflicts): " << m_pick_valid_skipped_due_to_conflict << " || ";
     std::cout << "succeeded: " << m_pick_valid_succeeded << " || ";
@@ -801,6 +802,12 @@ private:
       }
       return SUITABLE_POINT;
     }
+  }
+
+public:
+  void attempt_consistency()
+  {
+    return Trunk::attempt_consistency(CELLS_ONLY);
   }
 
 public:

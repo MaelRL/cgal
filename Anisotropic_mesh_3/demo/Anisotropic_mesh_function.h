@@ -96,6 +96,8 @@ launch()
   {
     m_amesher->one_step();
   }
+
+  m_amesher->report();
 }
 
 

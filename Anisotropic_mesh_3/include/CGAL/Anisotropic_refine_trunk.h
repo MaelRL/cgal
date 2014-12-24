@@ -1170,7 +1170,6 @@ public:
     create_star(p, id, new_star, new_star->is_surface_star());
 
     bool is = check_consistency_and_sliverity(to_be_refined, new_star, sq_radiusbound);
-
     if(!is)
       new_star->invalidate();
 
@@ -1334,6 +1333,48 @@ public:
         star->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
       }
     }
+
+#ifdef ANISO_BRUTE_FORCE_CREATE_STAR
+    Star_iterator csit = m_starset.begin();
+    Star_iterator csend = m_starset.end();
+    for(; csit!=csend; ++csit)
+    {
+      Star_handle si = get_star(csit);
+      star->insert_to_star(si->center_point(), si->index_in_star_set(), false);
+      si->insert_to_star(star->center_point(), star->index_in_star_set(), false);
+    }
+    return;
+#endif
+
+#ifdef ANISO_DEBUG_CREATE_STAR
+    std::cout << "INSERT POINT : BRÜTEST FORCE" << std::endl;
+
+    Star_handle star_check = new Star(m_criteria, m_pConstrain,
+                                      surface_star, m_is_3D_level);
+
+    if(m_is_3D_level || surface_star)
+    {
+      Metric m_p = metric_field()->compute_metric(p);
+      star_check->reset(p, pid, m_p, surface_star);
+    }
+    else
+      star_check->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
+
+    Star_iterator csit = m_starset.begin();
+    Star_iterator csend = m_starset.end();
+    for(; csit!=csend; ++csit)
+    {
+      Star_handle si = get_star(csit);
+      star_check->insert_to_star(si->center_point(), si->index_in_star_set(), false);
+    }
+
+    int crfacet_size = star_check->count_restricted_facets();
+    star_check->clean(true);
+    star_check->print_vertices();
+    star_check->print_restricted_facets();
+    star_check->clear();
+    delete star_check;
+#endif
 
     if(m_stars_czones.is_empty())
       std::cout << "Warning: empty conflict map at the creation of the new star" << std::endl;

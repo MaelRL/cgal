@@ -250,14 +250,20 @@ public:
   bool is_consistent(const bool verbose = true,
                      Consistency_check_options option = CELLS_AND_FACETS) const
   {
+    bool retval = true;
+    int counter = 0;
     std::size_t N = m_stars.size();
     for(std::size_t i = 0; i < N; i++)
     {
       Star_handle star = m_stars[i];
       if(!is_consistent(star, verbose, option))
-        return false;
+      {
+        retval = false;
+        counter++;
+      }
     }
-    return true;
+    std::cout << counter << " inconsistent stars" << std::endl;
+    return retval;
   }
 
   // vertex consistency

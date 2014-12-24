@@ -161,7 +161,7 @@ void output_histogram(const std::vector<int>& histogram,
   }
 }
 
-void output_histogram(const std::vector<FT>& values,
+void output_histogram(std::vector<FT>& values,
                       const char* filename)
 {
 #if 0//def FORCE_MIN_MAX_VALUES
@@ -194,24 +194,24 @@ void compute_metrics(const std::vector<Point_2>& points,
     metrics[i] = mf->compute_metric(points[i]);
 }
 
-void facet_distortion_histogram(const std::vector<Point_2>& points,
-                                const std::vector<int>& facets,
-                                const std::vector<Metric>& metrics)
+void face_distortion_histogram(const std::vector<Point_2>& points,
+                               const std::vector<int>& faces,
+                               const std::vector<Metric>& metrics)
 {
-  if(facets.empty())
+  if(faces.empty())
     return;
-  std::cout << "facet distortion external histo with size: " << facets.size() << std::endl;
+  std::cout << "face distortion external histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb("max_distortion.bb");
   std::vector<FT> max_dists(points.size(), 1.);
   std::vector<FT> values;
 
-  for(std::size_t i=0; i<facets.size();)
+  for(std::size_t i=0; i<faces.size();)
   {
     std::vector<int> ns(3);
 
     for(int j=0; j<3; ++j)
-      ns[j] = facets[i++];
+      ns[j] = faces[i++];
 
     for(int j=0; j<3; ++j)
     {
@@ -224,36 +224,108 @@ void facet_distortion_histogram(const std::vector<Point_2>& points,
       max_dists[ns[j]] = (std::max)((std::max)(max_dists[ns[j]], d1), d2);
     }
   }
-  output_histogram(values, "histogram_facet_distortion_external.cvs");
+  output_histogram(values, "histogram_face_distortion_external.cvs");
 
-  out_bb << "3 1 " << points.size() << " 2" << std::endl;
+  out_bb << "2 1 " << points.size() << " 2" << std::endl;
   for(std::size_t i=0; i<max_dists.size(); ++i)
     out_bb << max_dists[i] << std::endl;
 }
 
-void facet_edge_length_histogram(const std::vector<Point_2>& points,
-                                 const std::vector<int>& facets,
-                                 const std::vector<Metric>& metrics)
+FT element_quality(const Metric& m,
+                   const Point_2& p1,
+                   const Point_2& p2,
+                   const Point_2& p3)
 {
-  if(facets.empty())
+  TPoint_2 tp1 = m.transform(p1);
+  TPoint_2 tp2 = m.transform(p2);
+  TPoint_2 tp3 = m.transform(p3);
+
+  Star_traits star_traits;
+  typename Star_traits::Compute_squared_distance_2 sqd =
+      star_traits.compute_squared_distance_2_object();
+  FT alpha = 4.*std::sqrt(3.);
+  FT A = std::abs(K::Compute_area_2()(tp1, tp2, tp3));
+  FT sq_a = sqd(tp1, tp2);
+  FT sq_b = sqd(tp1, tp3);
+  FT sq_c = sqd(tp2, tp3);
+
+//Frey
+  //FT quality = alpha*A/(sq_a+sq_b+sq_c);
+//Zhong
+  FT a = CGAL::sqrt(sq_a);
+  FT b = CGAL::sqrt(sq_b);
+  FT c = CGAL::sqrt(sq_c);
+  FT h = (std::max)((std::max)(a,b),c);
+  FT p = a+b+c;
+  FT quality = alpha*A/(p*h);
+
+  return quality;
+}
+
+void face_quality_histogram(const std::vector<Point_2>& points,
+                            const std::vector<int>& faces,
+                            const std::vector<Metric>& metrics)
+{
+  if(faces.empty())
     return;
-  std::cout << "facet edge external histo with size: " << facets.size() << std::endl;
+  std::cout << "face quality external histo with size: " << faces.size() << std::endl;
+
+  std::ofstream out_bb("min_quality.bb");
+  std::vector<FT> min_quals(faces.size()/3, 1.);
+  std::vector<FT> values;
+
+  for(std::size_t i=0; i<faces.size();)
+  {
+    int face_n = i/3;
+    std::vector<int> ns(3);
+
+    for(int j=0; j<3; ++j)
+      ns[j] = faces[i++];
+
+    if(points[ns[0]].x() > 2. || points[ns[0]].x() < -2. || points[ns[0]].y() > 2. || points[ns[0]].y() < -2. ||
+       points[ns[1]].x() > 2. || points[ns[1]].x() < -2. || points[ns[1]].y() > 2. || points[ns[1]].y() < -2. ||
+       points[ns[2]].x() > 2. || points[ns[2]].x() < -2. || points[ns[2]].y() > 2. || points[ns[2]].y() < -2.)
+      continue;
+
+    for(int j=0; j<3; ++j)
+    {
+      const Metric& m = metrics[ns[j]];
+      FT q = element_quality(m, points[ns[0]], points[ns[1]], points[ns[2]]);
+      values.push_back(q);
+      min_quals[face_n] = (std::min)(min_quals[face_n], q);
+    }
+  }
+  output_histogram(values, "histogram_face_quality_external.cvs");
+
+  out_bb << "2 1 " << faces.size() << " 1" << std::endl;
+  for(std::size_t i=0; i<min_quals.size(); ++i)
+    out_bb << min_quals[i] << std::endl;
+}
+
+void face_edge_length_histogram(const std::vector<Point_2>& points,
+                                const std::vector<int>& faces,
+                                const std::vector<Metric>& metrics)
+{
+  if(faces.empty())
+    return;
+  std::cout << "face edge external histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb("max_edge_ratio.bb");
   std::vector<FT> max_edge_r(points.size(), 1.);
   std::vector<FT> values;
 
   Star_traits star_traits;
-  typename Star_traits::Compute_squared_distance_2 csd = star_traits.compute_squared_distance_2_object();
+  typename Star_traits::Compute_squared_distance_2 csd =
+      star_traits.compute_squared_distance_2_object();
 
-  for(std::size_t i=0; i<facets.size();)
+  for(std::size_t i=0; i<faces.size();)
   {
     std::vector<int> ns(3);
     std::vector<Point_2> ps(3);
 
     for(int j=0; j<3; ++j)
     {
-      ns[j] = facets[i++];
+      ns[j] = faces[i++];
       ps[j] = points[ns[j]];
     }
 
@@ -266,12 +338,17 @@ void facet_edge_length_histogram(const std::vector<Point_2>& points,
 
 #if 1 // adjacent only
       FT l1 = CGAL::sqrt(csd(tps[j], tps[(j+1)%3]));
-      values.push_back(l1);
       FT l2 = CGAL::sqrt(csd(tps[j], tps[(j+2)%3]));
-      values.push_back(l2);
 
-      if(l1<1.) l1 = 1./l1;
-      if(l2<1.) l2 = 1./l2;
+      FT r0 = 1.0;
+
+      if(l1<r0) l1 = r0/l1;
+      if(l2<r0) l2 = r0/l2;
+      if(l1>10) l1 = 10;
+      if(l2>10) l2 = 10;
+
+      values.push_back(l1);
+      values.push_back(l2);
 
       max_edge_r[ns[j]] = (std::max)((std::max)(max_edge_r[ns[j]], l1), l2);
 #else
@@ -281,32 +358,33 @@ void facet_edge_length_histogram(const std::vector<Point_2>& points,
 #endif
     }
   }
-  output_histogram(values, "histogram_facet_edge_length_external.cvs");
+  output_histogram(values, "histogram_face_edge_length_external.cvs");
 
-  out_bb << "3 1 " << max_edge_r.size() << " 2" << std::endl;
+  out_bb << "2 1 " << points.size() << " 2" << std::endl;
   for(std::size_t i=0; i<max_edge_r.size(); ++i)
     out_bb << max_edge_r[i] << std::endl;
 }
 
 int main(int, char**)
 {
-  std::freopen("wutt.txt", "w", stdout); //all output is written in "wut.txt"
+//  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
 
   std::vector<Point_2> points;
-  std::vector<int> facets;
+  std::vector<int> faces;
   std::vector<Metric> metrics;
 
   //----------- pick a metric field! ----
-//  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
+  //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
   Custom_metric_field* metric_field = new Custom_metric_field();
 
-  const char* mesh_filename = "bambimboum.mesh";
+  const char* mesh_filename = "KIRBY.mesh";
 
-  fetch_mesh(mesh_filename, points, facets);
+  fetch_mesh(mesh_filename, points, faces);
   compute_metrics(points, metric_field, metrics);
 
-  facet_distortion_histogram(points, facets, metrics);
-  facet_edge_length_histogram(points, facets, metrics);
+  face_distortion_histogram(points, faces, metrics);
+  face_quality_histogram(points, faces, metrics);
+  face_edge_length_histogram(points, faces, metrics);
 
   delete metric_field;
 

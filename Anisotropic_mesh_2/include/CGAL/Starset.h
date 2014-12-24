@@ -2,11 +2,13 @@
 #define CGAL_ANISOTROPIC_MESH_2_STARSET_H
 
 #include <CGAL/Stretched_Delaunay_2.h>
+#include <CGAL/helpers/metric_helper.h>
 
 #include <Eigen/Dense>
 
 #include <iostream>
 #include <fstream>
+#include <queue>
 #include <utility>
 
 namespace CGAL
@@ -47,6 +49,8 @@ public:
   typedef typename Star::Point_2                        Point_2;
   typedef typename Star::TPoint_2                       TPoint_2;
   typedef typename Star::Vector_2                       Vector_2;
+  typedef typename Star::Segment                        Segment;
+  typedef typename Star::Triangle                       Triangle;
 
   typedef typename Star_vector::const_iterator          const_iterator;
   typedef typename Star_vector::iterator                iterator;

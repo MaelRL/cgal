@@ -158,8 +158,8 @@ public:
   typedef typename K::Point_2                               Point_2;
 
   typedef Refine_face<K, KExact>                            Rface;
-  typedef Refine_face_comparer<K, KExact>                    Rface_comparer;
-  typedef Refine_face_iterator_comparer<K, KExact>         Rface_it_comparer;
+  typedef Refine_face_comparer<K, KExact>                   Rface_comparer;
+  typedef Refine_face_iterator_comparer<K, KExact>          Rface_it_comparer;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
   typedef typename boost::unordered_set<Rface,

@@ -178,14 +178,15 @@ public:
   typedef typename Rfacet::Facet                            Facet;
 
 public:
-  static const int nb_queues = 6;
+  static const int nb_queues = 7;
   static const int encroachment_queue = 0;
   static const int over_distortion_queue = 1;
   static const int over_circumradius_queue = 2;
   static const int over_approximation_queue = 3;
   static const int bad_shape_queue = 4;
   static const int start_pick_valid = 5;
-  static const int inconsistent_queue = 5;
+  static const int custom_inconsistent_queue = 5;
+  static const int inconsistent_queue = 6;
 
   //rfacets: set of the facets needing refinement. Avoids having the same facet (i,j,k)
   //         in different queues (either due to diff values, star or queue_type).
@@ -202,7 +203,8 @@ private:
   Queue over_circumradii;
   Queue over_approximation;
   Queue bad_shapes;
-  Queue inconsistents;
+  Queue custom_inconsistent;
+  Queue inconsistent;
 
 private:
   void update_rfacet(Rfacet_set_iterator& rfacet_it,
@@ -463,14 +465,16 @@ public:
       over_circumradii(Rfacet_it_comparer()),
       over_approximation(Rfacet_it_comparer()),
       bad_shapes(Rfacet_it_comparer()),
-      inconsistents(Rfacet_it_comparer())
+      custom_inconsistent(Rfacet_it_comparer()),
+      inconsistent(Rfacet_it_comparer())
   {
     queues[encroachment_queue] = &encroachments;
     queues[over_distortion_queue] = &over_distortions;
     queues[over_circumradius_queue] = &over_circumradii;
     queues[over_approximation_queue] = &over_approximation;
     queues[bad_shape_queue] = &bad_shapes;
-    queues[inconsistent_queue] = &inconsistents;
+    queues[custom_inconsistent_queue] = &custom_inconsistent;
+    queues[inconsistent_queue] = &inconsistent;
   }
 }; // Facet_refine_queue
 
