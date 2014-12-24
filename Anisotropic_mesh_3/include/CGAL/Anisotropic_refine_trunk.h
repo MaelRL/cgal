@@ -1773,6 +1773,117 @@ protected:
     }
   }
 
+protected:
+  //Attempt consistency by starting from an isotropic mesh and
+  //progressively increasing anisotropy
+  void attempt_consistency(Consistency_check_options c_opts)
+  {
+    std::cout << "attempt consistency" << std::endl;
+
+    int const pass_n = 1;
+    std::vector<double> coeff(number_of_stars(), 0.);
+    std::vector<double> consistent_at_last_pass(number_of_stars(), true);
+    std::vector<Eigen::Matrix3d> memory(number_of_stars());
+    double var = 0.1;
+
+    for(int i=0; i<pass_n; ++i)
+    {
+      std::cout << "i: " << i << std::endl;
+
+      for(std::size_t si=0; si<number_of_stars(); ++si)
+      {
+        Star_handle star_i = get_star(si);
+        if(i==0)
+        {
+          memory[si] = star_i->metric().get_transformation();
+          std::cout << memory[si] << std::endl;
+        }
+
+        double alpha = coeff[si];
+        if(consistent_at_last_pass[si])
+          alpha += var;
+        else
+          alpha -= var;
+
+        alpha = std::max(alpha, 0.);
+        alpha = std::min(alpha, 1.);
+// -----------
+        assert(alpha >= 0 && alpha <= 1);
+        std::cout << "si: " << si << " alpha: " << coeff[si] << " " << alpha << " c: ";
+        std::cout << consistent_at_last_pass[si] << std::endl;
+// -----------
+        coeff[si] = alpha;
+
+        std::vector<std::pair<Eigen::Matrix3d, double> > w_m;
+        w_m.push_back(std::make_pair(memory[si], alpha));
+        w_m.push_back(std::make_pair(Eigen::Matrix3d::Identity(), 1.-alpha));
+        Eigen::Matrix3d mi = linear_interpolate<K>(w_m);
+
+        std::cout << mi << std::endl;
+
+        Point_3 const pi = star_i->center_point();
+        Metric const Mi(mi);
+        bool const bi = star_i->is_surface_star();
+
+        star_i->reset(pi, si, Mi, bi);
+
+        for(std::size_t sj=0.; sj<number_of_stars(); ++sj)
+        {
+          Star_handle star_j = get_star(sj);
+          star_i->insert_to_star(star_j->center_point(), sj, false/*no cond*/);
+        }
+        star_i->clean();
+      }
+
+      int count = 0;
+      for(std::size_t si=0.; si<number_of_stars(); ++si)
+      {
+        // ONLY CHECKS CELL CONSISTENCY !!!
+
+        bool is_c = true;
+        Star_handle star_i = get_star(si);
+        Cell_handle_handle cit = star_i->finite_star_cells_begin();
+        Cell_handle_handle citend = star_i->finite_star_cells_end();
+        for(; cit != citend; cit++)
+        {
+          if(!star_i->is_inside(*cit))
+            continue;
+          if(!m_starset.is_consistent(*cit, true/*verbose*/))
+          {
+            is_c = false;
+            break;
+          }
+        }
+
+        if(!is_c) //might be a quasi-cosphericity, let's move the point
+        {
+          Cell_handle c = *cit;
+          Index i0 = c->vertex(0)->info();
+          Star_handle star_0 = get_star(i0);
+
+          int max_shake = 100;
+          int shake_n = 0;
+          while(max_shake > shake_n++ &&
+                !m_starset.is_consistent(star_i, true/*verbose*/, c_opts, i0))
+          {
+            star_0->shake_center();
+            std::cout << "shake : " << i0 << std::endl;
+            star_0->reset();
+
+            m_starset.rebuild();
+          }
+        }
+
+        if(!is_c) ++count;
+        consistent_at_last_pass[si] = is_c;
+      }
+      std::cout << "inconsistent stars: " << count << std::endl;
+
+      std::ofstream out("bambimboum_c.mesh");
+      output_medit(m_starset, out, false);
+    }
+  }
+
 //Constructors
 public:
   Anisotropic_refine_trunk(Starset& starset_,
