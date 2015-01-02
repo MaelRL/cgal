@@ -37,6 +37,7 @@ typedef typename Eigen::Matrix<double, D, D>                     MatrixD;
 
 typedef typename TDS::Vertex                                     Vertex;
 typedef typename TDS::Vertex_handle                              Vertex_handle;
+typedef typename TDS::Face                                       Face;
 typedef typename TDS::Full_cell_handle                           Full_cell_handle;
 typedef typename TDS::Full_cell::Vertex_handle_iterator          Vertex_h_iterator;
 
@@ -47,6 +48,14 @@ typedef typename RTriangulation::Finite_vertex_iterator          Finite_vertex_i
 typedef typename RTriangulation::Finite_full_cell_const_iterator Finite_full_cell_const_iterator;
 typedef typename RTriangulation::Finite_vertex_const_iterator    Finite_vertex_const_iterator;
 typedef typename RTriangulation::Vertex_const_handle             Vertex_const_handle;
+
+std::ostream& operator<<(std::ostream& out, const Bare_point& p)
+{
+  for(int i=0; i<D; ++i)
+    out << p[i] << " ";
+  out << std::endl;
+  return out;
+}
 
 struct Simplex
 {
@@ -71,6 +80,20 @@ struct Simplex
     return vertices.size() < t.vertices.size();
   }
 };
+
+// check if a simplex in R^D is degenerated in R^d
+bool is_simplex_degenerated_in_Rd(const Simplex& s,
+                                  const std::vector<Pointd>& points)
+{
+  Matrixd m;
+
+  for(int i=0; i<d; ++i)
+    for(int j=0; j<d; ++j)
+      m(i,j) = points[s.vertices[i+1]](j)-points[s.vertices[0]](j);
+
+  return (std::abs(m.determinant()) < 1e-10);
+}
+
 
 FT norm(const Point_d& p) // squared norm, actually
 {
@@ -313,7 +336,8 @@ bool is_support_intersecting(const Simplex& fs,
   else
   {
     std::cout << "null det" << std::endl;
-    sol = construct_bp(to_Q(points[fs.vertices[0]]));
+    sol = construct_bp(to_Q(points[fs.vertices[1]]));
+    //there is always two vertices, and taking the "0" creates degeneracies
     return false;
   }
 }
@@ -511,6 +535,9 @@ bool newton(const Simplex& fs,
 //    std::cout << "new jacobian determinant : " << jac.determinant() << std::endl;
   }
 
+  if(count==max)
+    std::cout << "didn't converge in " << max << " iterations" << std::endl;
+
   VectorD vsolD = to_Q(vsol);
   sol = construct_bp(vsolD);
   std::cout << "final solution : " << vsolD.transpose() << std::endl;
@@ -528,13 +555,18 @@ bool is_intersection_point_in_power_cell(const Bare_point& sol,
   typename K::Squared_distance_d csd =
       rt.geom_traits().squared_distance_d_object();
 
-  std::vector<FT> distances;
-  for(int i=0; i<(d+1); ++i)
+  const Weighted_point& wp0 = wpoints[fs.vertices[0]];
+  FT sq_d = csd(sol, wp0.point()) - wp0.weight();
+  for(int i=0; i<d; i++)
   {
-    std::size_t id = (fs.vertices)[i];
+    std::size_t id = (fs.vertices)[i+1];
     const Weighted_point& wp = wpoints[id];
-    FT d = csd(sol, wp.point()) - wp.weight();
-    distances.push_back(d);
+    FT sq_dd = csd(sol, wp.point()) - wp.weight();
+    if(std::abs(sq_d-sq_dd)/sq_d > 1e-5)
+    {
+      std::cout.precision(20);
+      std::cout << "WARNING: dds don't agree (sol isn't in the dual) " << sq_d << " " << sq_dd << std::endl;
+    }
   }
 
   Finite_vertex_const_iterator fvit = rt.finite_vertices_begin();
@@ -544,16 +576,11 @@ bool is_intersection_point_in_power_cell(const Bare_point& sol,
     if(fs.has(n))
       continue;
 
-    FT dv = csd(sol, fvit->point().point()) - fvit->point().weight();
-    for(int j=0; j<(d+1); ++j)
+    FT sq_dv = csd(sol, fvit->point().point()) - fvit->point().weight();
+    if(std::abs(sq_dv-sq_d)/sq_d>1e-5 && sq_dv < sq_d) // not in the power cell of Pi
     {
-      Weighted_point wi = wpoints[fs.vertices[j]];
-      FT di = csd(sol, wi.point()) - wi.weight();
-      if(dv < di) // not in the power cell of Pi
-      {
-        std::cout << "closer : " << n << " " << di << std::endl;
-        return false;
-      }
+      std::cout << "closer : " << n << " " << sq_dv << " ref: " << sq_d << std::endl;
+      return false;
     }
   }
   return true;
@@ -686,10 +713,9 @@ void add_to_map(const Element& e, OneMap& m)
     (is_insert_successful.first)->second += 1; // m[e] += 1
 }
 
-void compute_restricted_facets(const RTriangulation& t,
+void compute_restricted_facets(const RTriangulation& rt,
                                const std::vector<Pointd>& points,
-                               const std::vector<Weighted_point>& wpoints,
-                               const RTriangulation& rt)
+                               const std::vector<Weighted_point>& wpoints)
 {
   std::map<Simplex, int> faces_to_draw;
   std::vector<Simplex> faces;
@@ -697,31 +723,67 @@ void compute_restricted_facets(const RTriangulation& t,
   //loop over vertices and loop over incident full cells of said vertices
   //to count faces d+1 times (if they are consistent)
 
-  Finite_vertex_const_iterator vhit = t.finite_vertices_begin();
-  Finite_vertex_const_iterator vhitend = t.finite_vertices_end();
+  Finite_vertex_const_iterator vhit = rt.finite_vertices_begin();
+  Finite_vertex_const_iterator vhitend = rt.finite_vertices_end();
   for(; vhit!=vhitend; ++vhit)
   {
-    std::vector<Full_cell_handle> cells;
-    std::back_insert_iterator<std::vector<Full_cell_handle> > out(cells);
-    t.incident_full_cells(vhit.base(), out);
+    std::cout << "considering: " << vhit->data() << std::endl;
 
-    typename std::vector<Full_cell_handle>::iterator ffcit = cells.begin();
-    typename std::vector<Full_cell_handle>::iterator ffcend = cells.end();
-    std::cout << t.number_of_finite_full_cells() << " cells " << std::endl;
-    for(; ffcit!=ffcend; ++ffcit)
+    std::vector<Face> ffaces;
+    std::back_insert_iterator<std::vector<Face> > out(ffaces);
+    rt.incident_faces(vhit.base(), d, out);
+
+    //remove Simplex class and use Face everywhere todo
+    typename std::vector<Face>::iterator fit = ffaces.begin();
+    typename std::vector<Face>::iterator fend = ffaces.end();
+    for(; fit!=fend; ++fit)
     {
-      assert((*ffcit)->is_valid());
-      if(!t.is_infinite(*ffcit))
-        get_faces_in_cell(ffcit, faces, rt);
+      Simplex fs;
+
+      if(rt.is_infinite(*fit))
+        continue;
+
+      std::cout << "f: ";
+      for(int j=0; j<(d+1); ++j)
+      {
+        std::cout << fit->vertex(j)->data() << " ";
+        fs.vertices.push_back(fit->vertex(j)->data());
+      }
+      std::cout << std::endl;
+
+      assert(fs.vertices.size() == d+1);
+      faces.push_back(fs);
     }
   }
 
+//    std::vector<Full_cell_handle> cells;
+//    std::back_insert_iterator<std::vector<Full_cell_handle> > out(cells);
+//    rt.incident_full_cells(vhit.base(), out);
+//    typename std::vector<Full_cell_handle>::iterator ffcit = cells.begin();
+//    typename std::vector<Full_cell_handle>::iterator ffcend = cells.end();
+//    std::cout << "considering " << cells.size() << " cells " << std::endl;
+//    for(; ffcit!=ffcend; ++ffcit)
+//    {
+//      assert((*ffcit)->is_valid());
+//      if(!rt.is_infinite(*ffcit))
+//        get_faces_in_cell(ffcit, faces, rt);
+//    }
+
   for(std::size_t i=0; i<faces.size(); ++i)
   {
+    //avoiding the generate case of a d-face in R^D being flat in R^d
+    if(is_simplex_degenerated_in_Rd(faces[i], points))
+      continue;
+
+    std::sort(faces[i].vertices.begin(), faces[i].vertices.end());
     if(is_face_restricted(faces[i], points, wpoints, rt))
-    {
       add_to_map(faces[i], faces_to_draw);
-      std::cout << "added one to map : " << faces_to_draw.size() << std::endl;
+    else
+    {
+      std::cout << "non degenerate, non restricted: " ;
+      std::cout << faces[i].vertices[0] << " ";
+      std::cout << faces[i].vertices[1] << " ";
+      std::cout << faces[i].vertices[2] << std::endl;
     }
   }
 
@@ -763,7 +825,7 @@ int main(int, char **)
   std::cout << " done in " << cost.time() << " seconds." << std::endl;
 
   std::cout << "computing restricting facets" << std::endl;
-  compute_restricted_facets(rt, points, wpoints, rt);
+  compute_restricted_facets(rt, points, wpoints);
 
   return 0;
 }
