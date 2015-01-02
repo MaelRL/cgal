@@ -57,7 +57,7 @@ void output_off(const Starset& stars,
                 std::ofstream& fx,
                 const bool consistent_only = false)
 {
-  std::cout << "Saving as .off..." << std::endl;
+  std::cout << "Saving as .off... @ " << stars.size() << std::endl;
   std::vector<typename Starset::Point_2> points;
   Facet_ijk_unordered_set output_faces;
   unsigned int nb_inconsistent_stars = 0;
@@ -74,8 +74,8 @@ void output_off(const Starset& stars,
     for(; fit!=fend; ++fit)
     {
       typename Starset::Face_handle fh = *fit;
-      if(!star->is_inside(fh))
-        continue;
+//      if(!star->is_inside(fh))
+//        continue;
       if(!consistent_only || stars.is_consistent(fh))
       {
         Facet_ijk face(fh);
@@ -95,7 +95,7 @@ void output_off(const Starset& stars,
   fx << "OFF" << std::endl;
   fx << points.size() << " " << output_faces.size() << " 0" << std::endl;
   for(unsigned int i = 0; i < points.size(); i++)
-    fx << points[i] << std::endl;
+    fx << points[i] << " 0" << std::endl;
 
   typename Facet_ijk_unordered_set::iterator fit = output_faces.begin();
   typename Facet_ijk_unordered_set::iterator fitend = output_faces.end();

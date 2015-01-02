@@ -952,6 +952,9 @@ public:
 
     std::ofstream out("resumed.mesh");
     output_medit(m_starset, out);
+    std::ofstream outoff("resumed.off");
+    output_off(m_starset, outoff);
+
   }
 
 protected:
