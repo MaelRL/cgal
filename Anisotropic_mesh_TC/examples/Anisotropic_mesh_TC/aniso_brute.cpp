@@ -351,8 +351,8 @@ struct H // hyperplanes describing the dual and error computation
   {
     VectorD s_on_Q = to_Q(s);
 
-    std::cout << "eval H. Point: " << s_on_Q.transpose() << std::endl;
-    std::cout << "from init: " << s.transpose() << std::endl;
+//std::cout << "eval H. Point: " << s_on_Q.transpose() << std::endl;
+//std::cout << "from init: " << s.transpose() << std::endl;
 
     Traits t;
     typename K::Squared_distance_d csd = t.squared_distance_d_object();
@@ -362,7 +362,7 @@ struct H // hyperplanes describing the dual and error computation
       std::size_t id = (fs.vertices)[i];
       const Weighted_point& wi = wpoints[id];
       FT di = csd(sQp, wi.point()) - wi.weight();
-      std::cout << "dist² sQp " << id << " : "  << di << std::endl;
+//std::cout << "dist² sQp " << id << " : "  << di << std::endl;
     }
 
     Vectord ret = Vectord::Zero();
@@ -376,7 +376,7 @@ struct H // hyperplanes describing the dual and error computation
         ret(i) += wp0.point()[j]*wp0.point()[j] - wi.point()[j]*wi.point()[j];
       }
       ret(i) += wi.weight() - wp0.weight();
-      std::cout << "ret: " << i << " " << ret(i) << std::endl;
+//std::cout << "ret: " << i << " " << ret(i) << std::endl;
     }
 
     return ret;
@@ -400,20 +400,22 @@ struct J // Jacobian
 
   Matrixd operator()(const Vectord& s) const
   {
-    std::cout << "computing J for: " << s.transpose() << std::endl;
+//std::cout << "computing J for: " << s.transpose() << std::endl;
 
     Matrixd m;
     Weighted_point wp0 = wpoints[fs.vertices[0]];
+//std::cout << "wp0: " << fs.vertices[0] << " || " << wp0.point();
 
     //the easy coefficients : those in the part x y z of \tilde{P}
     for(int i=0; i<d; ++i)
     {
       Weighted_point wpi = wpoints[fs.vertices[i+1]];
+//std::cout << "wpi: " << fs.vertices[i+1] << " || " << wpi.point();
       for(int j=0; j<d; ++j) // x y z...
         m(i,j) = 2.*(wpi.point()[j] - wp0.point()[j]);
     }
 
-    std::cout << "after ez, J: " << std::endl << m << std::endl;
+//std::cout << "after ez, J: " << std::endl << m << std::endl;
 
     // and now for the hard part: x² xy xz y² yz z² etc...
     for(int l=0; l<d; ++l) // lines of m (the function)
@@ -441,7 +443,7 @@ struct J // Jacobian
 
           assert(d+count < D);
           // "+d" since we've added the easy part already (the d first)
-          std::cout << "lc: " << l << " " << c << " " << 2.*(wpl.point()[d+count]-wp0.point()[d+count])*coeff << std::endl;
+//std::cout << "lc: " << l << " " << c << " " << 2.*(wpl.point()[d+count]-wp0.point()[d+count])*coeff << std::endl;
           m(l, c) += 2.*(wpl.point()[d+count]-wp0.point()[d+count])*coeff;
 
           j++; count++; // switch from x_i*x_j to x_i*x_{j+1}
@@ -452,7 +454,7 @@ struct J // Jacobian
         }
       }
     }
-    std::cout << "new J: " << std::endl << m << std::endl;
+//std::cout << "new J: " << std::endl << m << std::endl;
 
 #ifdef nothing //debug stuff with the formulas for d=1, d=2
     VectorD p,q,r;
@@ -521,18 +523,18 @@ bool newton(const Simplex& fs,
   Vectord h_err = h(vsol);
   Matrixd jac = j(vsol);
 
-  std::cout << "init error : " << h_err.norm() << std::endl;
-  std::cout << "init jac: " << jac << " det: " << jac.determinant() << std::endl;
+//std::cout << "init error : " << h_err.norm() << std::endl;
+//std::cout << "init jac: " << jac << " det: " << jac.determinant() << std::endl;
   while(h_err.norm() > err && ++count < max)
   {
-    std::cout << "removing: " << (jac.inverse()*h_err).transpose() << std::endl;
+//std::cout << "removing: " << (jac.inverse()*h_err).transpose() << std::endl;
     vsol = vsol - jac.inverse()*h(vsol);
-    std::cout << "new point : " << vsol.transpose() << std::endl;
+//std::cout << "new point : " << vsol.transpose() << std::endl;
 
     jac = j(vsol);
     h_err = h(vsol);
-//    std::cout << "new norm : " << h(vsol).norm() << std::endl;
-//    std::cout << "new jacobian determinant : " << jac.determinant() << std::endl;
+//std::cout << "new norm : " << h(vsol).norm() << std::endl;
+//std::cout << "new jacobian determinant : " << jac.determinant() << std::endl;
   }
 
   if(count==max)
@@ -629,10 +631,14 @@ void get_faces_in_cell(typename std::vector<Full_cell_handle>::iterator chit,
 
   for(; !combi.finished(); combi++)
   {
-    std::cout << "combi" << std::endl;
+    std::cout << "combi ";
     Simplex fs;
     for(int j=0; j<(d+1); ++j)
+    {
+      std::cout << ch->vertex(combi[j])->data() << " ";
       fs.vertices.push_back(ch->vertex(combi[j])->data());
+    }
+    std::cout << std::endl;
     assert(fs.vertices.size() == d+1);
     faces.push_back(fs);
   }
@@ -689,6 +695,7 @@ void draw_stuff(const std::map<Simplex, int>& faces_to_draw,
   std::map<Simplex, int>::const_iterator itend = faces_to_draw.end();
   for(; it!=itend; ++it)
   {
+    std::cout << "itsecond: " << it->second << " (";
     if(it->second != d+1)
       inconsistencies_count++;
 
@@ -696,8 +703,12 @@ void draw_stuff(const std::map<Simplex, int>& faces_to_draw,
     std::vector<std::size_t>::const_iterator it2end = it->first.vertices.end();
     out << d+1 << " ";
     for(; it2!=it2end; ++it2)
+    {
       out << *it2 << " ";
+      std::cout << *it2 << " ";
+    }
     out << std::endl;
+    std::cout << ")" << std::endl;
   }
 #endif
 
@@ -787,6 +798,8 @@ void compute_restricted_facets(const RTriangulation& rt,
     }
   }
 
+  std::cout << "total faces (restricted) " << faces.size() << " (" << faces_to_draw.size() << ")" << std::endl;
+
   std::cout << "drawing stuff: " << faces_to_draw.size() << std::endl;
   draw_stuff(faces_to_draw, points);
 }
@@ -823,6 +836,8 @@ int main(int, char **)
   }
 
   std::cout << " done in " << cost.time() << " seconds." << std::endl;
+  std::cout << "finite cells: " << rt.number_of_finite_full_cells() << std::endl;
+  std::cout << "dim rt: " << rt.current_dimension() << std::endl;
 
   std::cout << "computing restricting facets" << std::endl;
   compute_restricted_facets(rt, points, wpoints);
