@@ -299,7 +299,7 @@ public:
     const Vertex_handle hint)
   {
     CGAL_assertion( Vertex_handle() != hint );
-    return insert_if_in_star(p, hint->full_cell());
+    return insert_if_in_star(p, star_center, hint->full_cell());
   }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - GATHERING CONFLICTING SIMPLICES
@@ -799,8 +799,9 @@ Regular_triangulation<RTTraits, TDS>
   reset_flat_orientation();
   if( 1 <= current_dimension() )
   {
-    // FIXME: infinite vertex is NOT at index 0 a priori.
-    Full_cell_handle s = infinite_vertex()->full_cell()->neighbor(0);
+    Full_cell_handle inf_v_cell = infinite_vertex()->full_cell();
+    int inf_v_index = inf_v_cell->index(infinite_vertex());
+    Full_cell_handle s = inf_v_cell->neighbor(inf_v_index);
     Orientation o = orientation(s);
     CGAL_assertion( ZERO != o );
     if( NEGATIVE == o )
@@ -823,9 +824,23 @@ Regular_triangulation<RTTraits, TDS>
     case Base::ON_VERTEX:
     {
       Vertex_handle v = s->vertex(f.index(0));
-      v->set_point(p);
-      return v;
-      break;
+      typename RTTraits::Point_weight_d pw =
+        geom_traits().point_weight_d_object();
+      
+      if (pw(p) == pw(v->point()))
+        return v;
+      // If dim == 0 and the new point has a bigger weight, 
+      // we replace the point
+      else if (current_dimension() == 0)
+      {
+        if (pw(p) > pw(v->point()))
+          v->set_point(p);
+        else
+          return v;
+      }
+      // Otherwise, we apply the "normal" algorithm
+
+      // !NO break here!
     }
     default:
       if( 1 == current_dimension() )
@@ -858,8 +873,9 @@ Regular_triangulation<RTTraits, TDS>
   v->set_point(p);
   if( current_dimension() >= 1 )
   {
-    // FIXME: infinite vertex is NOT at index 0 a priori.
-    Full_cell_handle s = infinite_vertex()->full_cell()->neighbor(0);
+    Full_cell_handle inf_v_cell = infinite_vertex()->full_cell();
+    int inf_v_index = inf_v_cell->index(infinite_vertex());
+    Full_cell_handle s = inf_v_cell->neighbor(inf_v_index);
     Orientation o = orientation(s);
     CGAL_assertion( ZERO != o );
       if( NEGATIVE == o )
@@ -884,9 +900,22 @@ Regular_triangulation<RTTraits, TDS>
     case Base::ON_VERTEX:
     {
       Vertex_handle v = s->vertex(f.index(0));
-      v->set_point(p);
-      return v;
-      break;
+      typename RTTraits::Point_weight_d pw =
+        geom_traits().point_weight_d_object();
+      if (pw(p) == pw(v->point()))
+        return v;
+      // If dim == 0 and the new point has a bigger weight, 
+      // we replace the point
+      else if (current_dimension() == 0)
+      {
+        if (pw(p) > pw(v->point()))
+          v->set_point(p);
+        else
+          return v;
+      }
+      // Otherwise, we apply the "normal" algorithm
+
+      // !NO break here!
     }
     default:
     {
@@ -921,26 +950,26 @@ Regular_triangulation<RTTraits, TDS>
 {
   typedef std::vector<Full_cell_handle> Full_cell_h_vector;
 
-  bool is_in_conflict = true;
+  bool in_conflict;
   if( current_dimension() < maximal_dimension() )
   {
     Conflict_pred_in_subspace c(
       *this, p, 
       coaffine_orientation_predicate(), 
       power_test_in_flat_predicate());
-    is_in_conflict = c(s);
+    in_conflict = c(s);
   }
   else
   {
     Orientation_d ori = geom_traits().orientation_d_object();
     Power_test_d side = geom_traits().power_test_d_object();
     Conflict_pred_in_fullspace c(*this, p, ori, side);
-    is_in_conflict = c(s);
+    in_conflict = c(s);
   }
 
   // If p is not in conflict with s, then p is hidden
   // => we don't insert it
-  if (!is_in_conflict)
+  if (!in_conflict)
   {
     m_hidden_points.push_back(p);
     return Vertex_handle();
