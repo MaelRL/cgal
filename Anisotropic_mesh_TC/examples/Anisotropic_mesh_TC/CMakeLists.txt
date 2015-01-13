@@ -33,6 +33,7 @@ if ( CGAL_FOUND )
   endif()
 
   create_single_source_cgal_program("aniso_brute.cpp")
+  create_single_source_cgal_program("tests.cpp")
 
 else()  
     message(STATUS "This program requires the CGAL library, and will not be compiled.")
