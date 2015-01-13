@@ -827,6 +827,89 @@ void compute_restricted_facets(const RTriangulation& rt,
 
   std::cout << "drawing stuff: " << simplices_to_draw.size() << std::endl;
   draw_stuff(simplices_to_draw, points);
+}
+
+void refine_biggest_face(RTriangulation& rt,
+                         std::vector<Pointd>& points,
+                         std::vector<Weighted_point>& wpoints)
+{
+  std::cout << "refine biggest" << std::endl;
+
+  std::vector<Simplex> faces;
+
+  //find biggest face
+  Finite_full_cell_iterator ffcit = rt.finite_full_cells_begin();
+  Finite_full_cell_iterator ffcend = rt.finite_full_cells_end();
+  for(; ffcit!=ffcend; ++ffcit)
+  {
+    assert(ffcit->is_valid());
+    get_faces_in_cell(ffcit, faces, rt);
+  }
+
+  std::cout << faces.size() << " faces" << std::endl;
+
+  Bare_point sol;
+  bool found = false;
+  while(!found && !faces.empty())
+  {
+    int id = -1;
+    FT max = -1e30;
+    for(std::size_t i=0; i<faces.size(); ++i)
+    {
+      FT v = size_of_simplex(faces[i], points);
+      std::cout << "new v: " << v << std::endl;
+      if(v > max)
+      {
+        id = i;
+        max = v;
+      }
+    }
+
+    std::cout << "max: " << id << " max: " << max << " || ";
+    std::cout << faces[id][0] << " ";
+    std::cout << faces[id][1] << " ";
+    std::cout << faces[id][2] << std::endl;
+
+    //refine biggest face
+    //  if(is_support_intersecting(tr, points, wpoints, sol))
+    if(newton(faces[id], points, wpoints, sol))
+    {
+      if(is_intersection_point_in_power_cell(sol, faces[id], wpoints, rt))
+      {
+
+        if(sol[0] < 1 || sol[0] > 2 || sol[1] < 1 || sol[1] > 2)
+        {
+          std::cout << "outside" << std::endl;
+          faces.erase(faces.begin()+id);
+          continue;
+        }
+
+        std::cout << "all good: point is computed" << std::endl;
+        found = true;
+      }
+      else
+      {
+        faces.erase(faces.begin()+id);
+        std::cout << "point not in power cell! " << faces.size() << " left" << std::endl;
+      }
+    }
+    else
+      std::cout << "no newton..." << std::endl;
+  }
+
+  if(faces.empty())
+  {
+    std::cout << "nothing to refine!" << std::endl;
+    return;
+  }
+
+  Pointd p = get_pointd_from_RD(sol);
+  Weighted_point wp = compute_wpoint(rt, p);
+
+  points.push_back(p);
+  wpoints.push_back(wp);
+  RTriangulation::Vertex_handle v = rt.insert(wp);
+  v->data() = rt.number_of_vertices()-1;
 
 }
 
