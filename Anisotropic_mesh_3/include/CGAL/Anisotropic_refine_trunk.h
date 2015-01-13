@@ -1179,6 +1179,9 @@ public:
 //Conflict zones
   Index simulate_insert_to_stars(const Point_3& p) const
   {
+    int s_in_conflict = 0.;
+    std::set<Cell_ijkl> cell_set;
+
     Index this_id = static_cast<Index>(number_of_stars());
 
     // find conflicted stars

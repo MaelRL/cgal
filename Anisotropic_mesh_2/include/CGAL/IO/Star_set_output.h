@@ -69,8 +69,8 @@ void output_off(const Starset& stars,
     typename Starset::Star_handle star = *it;
     points.push_back(star->center_point());
 
-    typename Starset::Face_handle_handle fit = star->finite_adjacent_faces_begin();
-    typename Starset::Face_handle_handle fend = star->finite_adjacent_faces_end();
+    typename Starset::Face_handle_handle fit = star->finite_incident_faces_begin();
+    typename Starset::Face_handle_handle fend = star->finite_incident_faces_end();
     for(; fit!=fend; ++fit)
     {
       typename Starset::Face_handle fh = *fit;
@@ -131,8 +131,8 @@ void output_medit(const Starset& stars,
   {
     typename Starset::Star_handle star = *sit;
 
-    typename Starset::Face_handle_handle fit = star->finite_adjacent_faces_begin();
-    typename Starset::Face_handle_handle fend = star->finite_adjacent_faces_end();
+    typename Starset::Face_handle_handle fit = star->finite_incident_faces_begin();
+    typename Starset::Face_handle_handle fend = star->finite_incident_faces_end();
     for(; fit!=fend; ++fit)
     {
       typename Starset::Face_handle fh = *fit;

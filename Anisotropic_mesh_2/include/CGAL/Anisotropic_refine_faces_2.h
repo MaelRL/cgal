@@ -564,8 +564,8 @@ private:
     {
       Star_handle star = Trunk::get_star(si);
 
-      Face_handle_handle fit = star->finite_adjacent_faces_begin();
-      Face_handle_handle fend = star->finite_adjacent_faces_end();
+      Face_handle_handle fit = star->finite_incident_faces_begin();
+      Face_handle_handle fend = star->finite_incident_faces_end();
       for (; fit!=fend; fit++)
       {
         Face_handle fh = *fit;
@@ -626,8 +626,8 @@ private:
   void faces_created(Star_handle star,
                      std::map<Facet_ijk, int>& faces) const
   {
-    Face_handle_handle fit = star->finite_adjacent_faces_begin();
-    Face_handle_handle fend = star->finite_adjacent_faces_end();
+    Face_handle_handle fit = star->finite_incident_faces_begin();
+    Face_handle_handle fend = star->finite_incident_faces_end();
     for(; fit!=fend; fit++)
       add_to_map(Facet_ijk(*fit), faces);
   }

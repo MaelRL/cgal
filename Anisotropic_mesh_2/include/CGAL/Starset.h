@@ -138,8 +138,8 @@ public:
                      const bool verbose = false,
                      Consistency_check_options option = FACES_ONLY) const
   {
-    typename Star::Face_handle_handle fit = star->finite_adjacent_faces_begin();
-    typename Star::Face_handle_handle fend = star->finite_adjacent_faces_end();
+    typename Star::Face_handle_handle fit = star->finite_incident_faces_begin();
+    typename Star::Face_handle_handle fend = star->finite_incident_faces_end();
     for(; fit!=fend; fit++)
       if(!is_consistent(*fit, verbose))
         return false;
@@ -208,8 +208,8 @@ public:
       if(!s->is_surface_star())
         continue;
       std::cout << "  " << i << " : ";
-      typename Star::Face_handle_handle fit = s->finite_adjacent_faces_begin();
-      typename Star::Face_handle_handle fend = s->finite_adjacent_faces_end();
+      typename Star::Face_handle_handle fit = s->finite_incident_faces_begin();
+      typename Star::Face_handle_handle fend = s->finite_incident_faces_end();
       for(; fit!=fend; ++fit)
       {
         std::cout << "(";
@@ -247,8 +247,8 @@ public:
       if(!star->is_surface_star())
         continue;
 
-      typename Star::Face_handle_handle fit = star->finite_adjacent_faces_begin();
-      typename Star::Face_handle_handle fend = star->finite_adjacent_faces_end();
+      typename Star::Face_handle_handle fit = star->finite_incident_faces_begin();
+      typename Star::Face_handle_handle fend = star->finite_incident_faces_end();
       for(; fit!=fend; fit++)
       {
         Face_handle fh = *fit;
@@ -401,8 +401,8 @@ public:
     for(std::size_t sj=0; sj<m_stars.size(); ++sj)
     {
       Star_handle star_j = m_stars[sj];
-      Face_handle_handle fit = star_j->finite_adjacent_faces_begin();
-      Face_handle_handle fend = star_j->finite_adjacent_faces_end();
+      Face_handle_handle fit = star_j->finite_incident_faces_begin();
+      Face_handle_handle fend = star_j->finite_incident_faces_end();
       for(; fit!=fend; fit++)
       {
         Face_handle fh = *fit;
@@ -568,8 +568,8 @@ public:
       output_medit(*this, out, false, ghost_faces);
 
       //find the ghost faces of the new star
-      Face_handle_handle fit = star->finite_adjacent_faces_begin();
-      Face_handle_handle fend = star->finite_adjacent_faces_end();
+      Face_handle_handle fit = star->finite_incident_faces_begin();
+      Face_handle_handle fend = star->finite_incident_faces_end();
       for(; fit!=fend; fit++)
       {
         Face_handle fh = *fit;

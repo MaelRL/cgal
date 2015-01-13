@@ -23,6 +23,10 @@ typedef typename Star::Traits                                Traits;
 
 typedef typename Eigen::Matrix<double, 5, 1>                 Vector5d;
 
+const FT offset_x = 1.;
+const FT offset_y = 1.;
+const FT grid_side = 5.;
+
 Vector5d compute_hat(const Point_2& p,
                      const Metric& m)
 {
@@ -59,14 +63,14 @@ void build_seeds(std::vector<Point_2>& seeds,
                  const Metric_field& mf)
 {
   srand (0);
+
   for(unsigned int i=0; i<seeds.size(); ++i)
   {
-    double r_x = 5.*((double) rand() / (RAND_MAX))+0.01; // HERE -------------
-    double r_y = 5.*((double) rand() / (RAND_MAX))+0.01;
-
-    std::cout << r_x << " " << r_y << std::endl;
-
+    double r_x = offset_x + grid_side * ((double) rand() / (RAND_MAX));
+    double r_y = offset_y + grid_side * ((double) rand() / (RAND_MAX));
     seeds[i] = Point_2(r_x, r_y);
+    std::cout << "Seeds i: " << i << " " << seeds[i].x() << " " << seeds[i].y() << std::endl;
+
     seeds_m[i] = mf->compute_metric(seeds[i]);
     R5seeds[i] = compute_hat(seeds[i], seeds_m[i]);
     sqws[i] = R5seeds[i].norm()*R5seeds[i].norm() - seeds[i].x()*R5seeds[i](0)
@@ -85,10 +89,11 @@ int main(int, char**)
   std::srand(0);
 
   double n = 1000.; // number of points per side
-  double a = 5.; // length of the side  HERE ----------------------------------
+  double a = grid_side; // length of the side
   double step = a/n;
   double sq_n = n*n;
   double tri_n = 2*(n-1)*(n-1);
+  unsigned int seed_n = 20;
   std::size_t counter = 0;
   Traits* traits = new Traits();
   typename Star::Traits::Compute_squared_distance_2 csd =
@@ -110,7 +115,6 @@ int main(int, char**)
   Metric m_c = metric_field->compute_metric(center);
   Vector5d m_hat(compute_hat(center, m_c));
 
-  unsigned int seed_n = 50000;
   std::vector<Point_2> seeds(seed_n);
   std::vector<Vector5d> R5seeds(seed_n);
   std::vector<Metric> seeds_m(seed_n);
@@ -123,7 +127,7 @@ int main(int, char**)
     for(unsigned int j=0; j<n ;++j)
     {
       //filling from bot left to top right
-      Point_2 p(j*step+0.01, i*step+0.01);  // HERE ---------------------------
+      Point_2 p(offset_x+j*step, offset_y+i*step);
       out << p.x() << " " << p.y() << " " << ++counter << std::endl;
 
       Metric m_p = metric_field->compute_metric(p);
@@ -155,7 +159,11 @@ int main(int, char**)
           min_id = i;
         }
       }
-      out_bb << ((double) min_id+1) / (double) seed_n  << std::endl;
+
+      if(min < 10*step*step) // closer to a seed than another point of the grid (sort of)
+        min_id = seed_n;
+
+      out_bb << min_id*min_id * ((double) min_id+1) / (double) seed_n  << std::endl;
     }
   }
 

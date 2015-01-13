@@ -24,7 +24,7 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K>
-class Euclidean_metric_field : public Metric_field<K> 
+class Euclidean_metric_field : public Metric_field<K>
 {
 public:
   typedef Metric_field<K>           Base;
@@ -50,14 +50,14 @@ public:
   }
 
   // this function is used to report the setting of the metric
-  virtual void report(typename std::ofstream &fx) const 
+  virtual void report(typename std::ofstream &fx) const
   {
     fx << "type: euclidean" << std::endl;
   }
 
 public:
-  Euclidean_metric_field(const double& a = 1., 
-                         const double& b = 1., 
+  Euclidean_metric_field(const double& a = 1.,
+                         const double& b = 1.,
                          const double& c = 1.,
                          FT epsilon_ = 1e-6,
                          const double& en_factor = 0.999)

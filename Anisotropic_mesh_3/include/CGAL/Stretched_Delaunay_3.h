@@ -1129,18 +1129,6 @@ public:
       return is_in_a_volume_delaunay_ball(tp, in_which_cell);
   }
 
-  {
-
-    typename Traits::Compute_squared_distance_3 csd
-      = m_traits->compute_squared_distance_3_object();
-
-
-    {
-    }
-    {
-    }
-  }
-
   template<typename BFacetsOutputIterator,
            typename CellsOutputIterator,
            typename IFacetsOutputIterator>

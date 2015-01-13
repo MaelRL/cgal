@@ -141,7 +141,7 @@ private:
 
   mutable bool is_cache_dirty;
   mutable Vertex_handle_vector finite_adjacent_vertices_cache;
-  mutable Face_handle_vector finite_adjacent_faces_cache;
+  mutable Face_handle_vector finite_incident_faces_cache;
 
 public:
   mutable bool m_active; // used for removing points at the end of the process
@@ -229,8 +229,8 @@ public:
 
   bool has_face(const Face_handle& fh) const
   {
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for(; fit!=fend; fit++)
       if(Facet_ijk(*fit) == Facet_ijk(fh))
         return true;
@@ -240,8 +240,8 @@ public:
   bool has_face(const Facet_ijk& f, Face_handle& fh) const
   {
     boost::array<int, 3> dids;
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for (; fit!=fend; fit++)
     {
       Face_handle fhi = *fit;
@@ -260,8 +260,8 @@ public:
   bool has_face(int *cids, Face_handle& fh) const
   {
     int dids[3];
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for (; fit != fend; fit++)
     {
       Face_handle fhi = *fit;
@@ -285,7 +285,7 @@ public:
 
     CGAL_PROFILER("[update_star_caches]");
     finite_adjacent_vertices_cache.clear();
-    finite_adjacent_faces_cache.clear();
+    finite_incident_faces_cache.clear();
 
     // update neighboring vertices
     typename Base::Vertex_circulator vc = Base::incident_vertices(m_center), done_v(vc);
@@ -305,7 +305,7 @@ public:
       do
       {
         if(!is_infinite_face(fc))
-          finite_adjacent_faces_cache.push_back(fc);
+          finite_incident_faces_cache.push_back(fc);
       }
       while(++fc!=done_f);
     }
@@ -335,14 +335,14 @@ public:
     return finite_adjacent_vertices_cache.end();
   }
 
-  inline Face_handle_handle finite_adjacent_faces_begin() const
+  inline Face_handle_handle finite_incident_faces_begin() const
   {
     update_star_caches();
-    return finite_adjacent_faces_cache.begin();
+    return finite_incident_faces_cache.begin();
   }
-  inline Face_handle_handle finite_adjacent_faces_end() const
+  inline Face_handle_handle finite_incident_faces_end() const
   {
-    return finite_adjacent_faces_cache.end();
+    return finite_incident_faces_cache.end();
   }
 
 public:
@@ -370,8 +370,8 @@ public:
       return;
 
     CGAL_PROFILER("[Update is_topological_disk]");
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     if(fit == fend) // no faces
     {
       m_is_topological_disk = false;
@@ -536,8 +536,8 @@ public:
         = m_traits->compute_squared_distance_2_object();
 
     Bbox bb = m_center->point().bbox();
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for(; fit != fend; fit++)
     {
       Face_handle fh = *fit;
@@ -648,8 +648,8 @@ public:
                                     Face_handle& in_which_face) const
   {
     CGAL_PROFILER("[is_in_a_volume_delaunay_ball]");
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for(; fit!=fend; fit++)
     {
       Face_handle fh = *fit;
@@ -777,7 +777,7 @@ public:
     m_center->info() = backup[0].second;
     //other vertices
     for(std::size_t i = 1; i < backup.size(); i++)
-      insert(backup[i].first)->info() = backup[i].second;
+      Base::insert(backup[i].first)->info() = backup[i].second;
 
     invalidate_cache();
 
@@ -902,8 +902,8 @@ public:
     std::cout << " vertices ("<<(this->number_of_vertices())<<" v.)\t (";
     typename std::set<Vertex_handle> vertices;
 
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for(; fit!=fend; fit++)
     {
       Face_handle fh = *fit;
@@ -930,8 +930,8 @@ public:
   void print_faces() const
   {
     std::cout << "\t Star_" << index_in_star_set() << " faces :\n";
-    Face_handle_handle fit = finite_adjacent_faces_begin();
-    Face_handle_handle fend = finite_adjacent_faces_end();
+    Face_handle_handle fit = finite_incident_faces_begin();
+    Face_handle_handle fend = finite_incident_faces_end();
     for(; fit!=fend; ++fit)
     {
       Face_handle fh = *fit;
@@ -1023,7 +1023,7 @@ public:
       m_metric_needs_update(false),
       is_cache_dirty(true),
       finite_adjacent_vertices_cache(),
-      finite_adjacent_faces_cache(),
+      finite_incident_faces_cache(),
       m_active(true)
   {
     m_center = Vertex_handle();
@@ -1048,7 +1048,7 @@ public:
       m_metric_needs_update(false),
       is_cache_dirty(true),
       finite_adjacent_vertices_cache(),
-      finite_adjacent_faces_cache(),
+      finite_incident_faces_cache(),
       m_active(true)
   {
     m_center = Base::insert(m_metric.transform(centerpoint));
