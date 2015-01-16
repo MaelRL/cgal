@@ -85,11 +85,11 @@ public:
 
     for(int i=0; i<Dim::value; ++i)
       for(int j=0; j<Dim::value; ++j)
-        eigen_m(i,j) = coord(evecs[i],j);
+        eigen_m(i,j) = coord(evecs[j], i);
 
     E_Matrix eigen_diag = E_Matrix::Zero();
     for(int i=0; i<Dim::value; ++i)
-      eigen_diag(i, i) = evals[i];
+      eigen_diag(i, i) = (std::max)(epsilon, std::abs(evals[i]));
 
     E_Matrix eigen_mtransp = eigen_m.transpose();
     eigen_transformation = eigen_m * eigen_diag * eigen_mtransp;
