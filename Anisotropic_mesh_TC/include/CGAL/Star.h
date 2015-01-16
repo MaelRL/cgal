@@ -27,6 +27,7 @@ class Tangent_star
                                         std::size_t> > >
 {
   typedef Tangent_star<Kd, KD>                                     Self;
+  typedef Self*                                                    Star_handle;
 
 public:
   typedef CGAL::Regular_triangulation_euclidean_traits<Kd>         Traits;
@@ -67,12 +68,16 @@ public:
 
   typedef typename Metric::E_Matrix                                E_Matrix_d;
   typedef typename Metric::E_Vector                                E_Vector_d;
+  typedef Eigen::Matrix<FT, DDim::value, DDim::value>              E_Matrix_D;
   typedef Eigen::Matrix<FT, DDim::value, 1>                        E_Vector_D;
   typedef Eigen::Matrix<FT, DDim::value, dDim::value>              E_Matrix_Dd;
 
   // members
   Traits* m_traits;
   Metric m_metric; // metric at m_center
+
+  mutable bool is_tsb_init;
+  mutable Tangent_space_basis m_tsb;
 
   Point_d m_center; // base point
   Point_D m_center_Q; // ... transformed to Q (the paraboloid)
@@ -90,6 +95,7 @@ public:
   // get/set etc. --------------------------------------------------------------
   const int d() const { return dDim::value; }
   const int D() const { return DDim::value; }
+  const Index index() const { return m_center_v->data(); }
 
   const Point_d& center_point() const { return m_center; }
 
@@ -108,7 +114,7 @@ public:
     m_incident_full_cells_cache.clear();
     m_finite_incident_full_cells_cache.clear();
 
-    // update adjacent vertices todo (need to add it to the tds...)
+    // update adjacent vertices todo (need to add it to TDS_d...)
 //    std::back_insert_iterator<Vertex_handle_vector>
 //        finite_adjacent_vertices_insertor(m_finite_adjacent_vertices_cache);
 //    Base::finite_adjacent_vertices(m_center_v, finite_adjacent_vertices_insertor);
@@ -163,12 +169,11 @@ public:
   }
 
   // tangent space functions ---------------------------------------------------
-  Tangent_space_basis compute_tangent_space_basis() const
+  void compute_tangent_space_basis() const
   {
     // a basis of the tangent space is given by the partial derivatives
     // of the paraboloid's parametrization evaluated at m_center
 
-    Tangent_space_basis tsb;
     E_Matrix_Dd tsb_m = E_Matrix_Dd::Zero();
 
     // 'first' part : x y z etc. derivates
@@ -195,9 +200,19 @@ public:
       }
     }
 
-    typename KD::Construct_vector_d constr_vec = KD().construct_vector_d_object();
-    for(int i=0; i<d(); ++i)
-      tsb.push_back(constr_vec(D(), tsb_m.col(i).data(), tsb_m.col(i).data() + D()));
+//GRAM SCHMIDT ------------------------------------- todo check that it is needed
+    FT nu = (tsb_m.col(0)).norm();
+    std::cout << "nu: " << nu << std::endl;
+    FT sp = tsb_m.col(0).dot(tsb_m.col(1));
+    tsb_m.col(0) /= nu; // norming first => only dividing by nu below (instead of nu²)
+    tsb_m.col(1) -= sp/nu*tsb_m.col(0);
+
+    FT nv = (tsb_m.col(1)).norm();
+    tsb_m.col(1) /= nv;
+
+    std::cout << tsb_m.col(0).norm() << " " << tsb_m.col(1).norm() << std::endl;
+    std::cout << tsb_m.col(0).dot(tsb_m.col(1)) << std::endl;
+// ----------------------------------------
 
     std::cout << "tsb_m @ : ";
     std::cout << m_center_Q[0] << " " << m_center_Q[1] << " ";
@@ -205,7 +220,9 @@ public:
     std::cout << m_center_Q[4] << std::endl;
     std::cout << std::endl << tsb_m << std::endl;
 
-    return tsb;
+    typename KD::Construct_vector_d constr_vec = KD().construct_vector_d_object();
+    for(int i=0; i<d(); ++i)
+      m_tsb[i] = (constr_vec(D(), tsb_m.col(i).data(), tsb_m.col(i).data() + D()));
   }
 
   // transformations -----------------------------------------------------------
@@ -309,19 +326,24 @@ public:
   // from R^d to R^D on the tangent plane
   WPoint_d to_T(const Point_d& p) const
   {
+    if(!is_tsb_init)
+    {
+      compute_tangent_space_basis();
+      is_tsb_init = true;
+    }
+
     WPoint_D p_on_S(to_S(p));
 
     std::cout << "p: " << p[0] << " " << p[1] << std::endl;
     std::cout << "mq: " << m_center_Q[0] << " " << m_center_Q[1] << " " << m_center_Q[2] << " " << m_center_Q[3] << " " << m_center_Q[4] << std::endl;
     std::cout << "ps: " << p_on_S.point()[0] << " " << p_on_S.point()[1] << " " << p_on_S.point()[2] << " " << p_on_S.point()[3] << " " << p_on_S.point()[4] << " w: " << p_on_S.weight() << std::endl;
 
-    Tangent_space_basis tsb = compute_tangent_space_basis();
     typename KD::Scalar_product_d inner_pdct =
       KD().scalar_product_d_object();
     typename KD::Difference_of_points_d diff_points =
       KD().difference_of_points_d_object();
 
-    Vector_D v = diff_points(m_center_Q, p_on_S.point());
+    Vector_D v = diff_points(p_on_S.point(), m_center_Q);
 
     std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
 
@@ -334,18 +356,19 @@ public:
     for(std::size_t i=0 ;i<d() ;++i)
     {
       // Compute the inner product p * ts[i]
-      FT coord = inner_pdct(v, tsb[i]);
+      FT coord = inner_pdct(v, m_tsb[i]);
       coords.push_back(coord);
 
       // p_proj += coord * v;
       for(int j=0 ; j<D(); ++j)
-        p_proj[j] += coord * tsb[i][j];
+        p_proj[j] += coord * m_tsb[i][j];
     }
 
     std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
 
     Point_D projected_pt(D(), p_proj.begin(), p_proj.end());
-    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " " << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
+    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
+    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
 
     typename KD::Squared_distance_d sqdist = KD().squared_distance_d_object();
     std::cout << "sqdist: " << sqdist(p_on_S.point(), projected_pt) << std::endl;
@@ -454,6 +477,8 @@ public:
     :
       Base(dDim::value, *(m_traits = new Traits())),
       m_metric(metric_),
+      is_tsb_init(false),
+      m_tsb(d()),
       m_center(center_point),
       m_center_Q(to_Q(center_point)),
       m_center_S(to_S(center_point)),
