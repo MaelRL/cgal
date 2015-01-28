@@ -1,11 +1,11 @@
 #ifndef CGAL_ANISOTROPIC_MESH_TC_STAR
 #define CGAL_ANISOTROPIC_MESH_TC_STAR
 
-#include <CGAL/Metric.h>
 #include <CGAL/Metric_field.h>
 
 #include <CGAL/Regular_triangulation.h>
 #include <CGAL/Regular_triangulation_euclidean_traits.h>
+#include <CGAL/Full_cell_refine_queue.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
 
@@ -24,22 +24,19 @@ class Tangent_star
                                   typename Kd::Dimension,
                                   CGAL::Triangulation_vertex<
                                         CGAL::Regular_triangulation_euclidean_traits<Kd>,
-                                        std::size_t> > >
+                                        std::size_t>,
+                                  CGAL::Triangulation_full_cell<
+                                        CGAL::Regular_triangulation_euclidean_traits<Kd>,
+                                        std::pair<typename Kd::Point_d, bool> > > >
 {
   typedef Tangent_star<Kd, KD>                                     Self;
   typedef Self*                                                    Star_handle;
 
 public:
-  typedef CGAL::Regular_triangulation_euclidean_traits<Kd>         Traits;
-  typedef typename CGAL::Triangulation_data_structure<typename Kd::Dimension,
-          CGAL::Triangulation_vertex<Traits, std::size_t> >        TDS;
-  typedef CGAL::Regular_triangulation<Traits, TDS>                 Base;
-
   typedef int                                                      Index;
 
   typedef typename Kd::Dimension                                   dDim;
   typedef typename KD::Dimension                                   DDim;
-
   typedef typename Kd::FT                                          FT;
   typedef typename Kd::Point_d                                     Point_d;
   typedef typename Kd::Weighted_point_d                            WPoint_d;
@@ -47,12 +44,19 @@ public:
   typedef typename KD::Point_d                                     Point_D;
   typedef typename KD::Weighted_point_d                            WPoint_D;
   typedef typename KD::Vector_d                                    Vector_D;
-
   typedef std::vector<Vector_D>                                    Tangent_space_basis;
+
+  typedef CGAL::Regular_triangulation_euclidean_traits<Kd>         Traits;
+  typedef typename CGAL::Triangulation_data_structure<typename Kd::Dimension,
+          CGAL::Triangulation_vertex<Traits, std::size_t>,
+          CGAL::Triangulation_full_cell<Traits, std::pair<Point_d, bool> > >
+                                                                   TDS;
+  typedef CGAL::Regular_triangulation<Traits, TDS>                 Base;
 
   typedef typename TDS::Vertex                                     Vertex;
   typedef typename TDS::Face                                       Face;
   typedef typename TDS::Full_cell                                  Full_cell;
+
   typedef typename TDS::Vertex_handle                              Vertex_handle;
   typedef typename TDS::Full_cell_handle                           Full_cell_handle;
   typedef typename TDS::Full_cell::Vertex_handle_iterator          Vertex_h_iterator;
@@ -71,6 +75,8 @@ public:
   typedef Eigen::Matrix<FT, DDim::value, DDim::value>              E_Matrix_D;
   typedef Eigen::Matrix<FT, DDim::value, 1>                        E_Vector_D;
   typedef Eigen::Matrix<FT, DDim::value, dDim::value>              E_Matrix_Dd;
+
+  typedef Ordered_simplex_base<dDim::value+1>                      Simplex;
 
   // members
   Traits* m_traits;
@@ -98,6 +104,7 @@ public:
   const Index index() const { return m_center_v->data(); }
 
   const Point_d& center_point() const { return m_center; }
+  const Metric& metric() const { return m_metric; }
 
   // cache related functions ---------------------------------------------------
   void invalidate_cache()
@@ -380,23 +387,58 @@ public:
     );
   }
 
-  // Has_
-  bool has_cell(const Full_cell_handle& fch)
+  // Has -----------------------------------------------------------------------
+  bool has_cell(Full_cell_handle& fch,
+                const boost::array<int, dDim::value+1>& a) const
   {
     const std::size_t d = dDim::value+1;
     int cids[d], dids[d];
     for(int i=0; i<d; i++)
-      cids[i] = fch->vertex(i)->data();
+      cids[i] = a[i];
 
-    Full_cell_handle_iterator ci = incident_full_cells_begin();
-    Full_cell_handle_iterator cend = incident_full_cells_end();
+    Full_cell_handle_iterator ci = finite_incident_full_cells_begin();
+    Full_cell_handle_iterator cend = finite_incident_full_cells_end();
     for(; ci!=cend; ci++)
     {
+      if((*ci)->maximal_dimension() < (d-1))
+        continue;
       for(int i=0; i<d; i++)
         dids[i] = (*ci)->vertex(i)->data();
       if(is_same_ids<d>(cids, dids))
+      {
+        fch = *ci;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool has_cell(const Full_cell_handle& fch) const
+  {
+    const std::size_t dp1 = dDim::value+1;
+    int cids[dp1], dids[dp1];
+    for(int i=0; i<dp1; i++)
+      cids[i] = fch->vertex(i)->data();
+
+    Full_cell_handle_iterator ci = finite_incident_full_cells_begin();
+    Full_cell_handle_iterator cend = finite_incident_full_cells_end();
+    for(; ci!=cend; ci++)
+    {
+      if((*ci)->maximal_dimension() < dDim::value)
+        continue;
+      for(int i=0; i<dp1; i++)
+        dids[i] = (*ci)->vertex(i)->data();
+      if(is_same_ids<dp1>(cids, dids))
         return true;
     }
+    return false;
+  }
+
+  bool has(const std::vector<Star_handle>& cell, const std::size_t n) const
+  {
+    for(std::size_t i=0; i<cell.size(); ++i)
+      if(cell[i]->index() == n)
+        return true;
     return false;
   }
 
