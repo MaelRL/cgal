@@ -42,28 +42,33 @@ int get_simplices_to_draw(const Starset& stars,
                           const bool consistent_only = false)
 {
   const std::size_t d = Starset::dDim::value;
-  unsigned int nb_inconsistent_stars = 0;
+  unsigned int nb_inconsistent_cells = 0;
 
   typename Starset::const_iterator it = stars.begin();
   typename Starset::const_iterator itend = stars.end();
   for (; it != itend; ++it)
   {
     typename Starset::Star_handle star = *it;
-
-    std::cout << "Star: " << star->m_center_v->data() << std::endl;
+//    std::cout << "Star: " << star->m_center_v->data() << std::endl;
 
     typename Starset::Full_cell_handle_iterator fchi = star->finite_incident_full_cells_begin();
     typename Starset::Full_cell_handle_iterator fend = star->finite_incident_full_cells_end();
     for(; fchi!=fend; ++fchi)
     {
       typename Starset::Full_cell_handle fch = *fchi;
+//      if(!fch->data().second)
+//        continue;
 
-      std::cout << "     ----" << std::endl;
-      std::cout << "cell max dim " << fch->maximal_dimension() << std::endl;
+//      std::cout << "     ----" << std::endl;
+//      std::cout << "cell max dim " << fch->maximal_dimension() << std::endl;
 
 //      if(!star->is_inside(fch))
 //        continue;
-      if(!consistent_only || stars.is_consistent(fch))
+      bool is_consistent = stars.is_consistent(fch, true);
+      if(!is_consistent)
+        nb_inconsistent_cells++;
+
+      if(!consistent_only || is_consistent)
       {
         boost::array<int, d+1> ids;
 
@@ -73,22 +78,17 @@ int get_simplices_to_draw(const Starset& stars,
         for(; v!=vend; ++v)
         {
           typename Starset::Vertex_handle vh = *v;
-          std::cout << vh->data() << " ";
+//          std::cout << vh->data() << " ";
           ids[id++] = vh->data();
         }
-        std::cout << std::endl;
+//        std::cout << std::endl;
 
         Ordered_simplex_base<d+1> cell(ids);
         output_cells.insert(cell);
       }
-      else
-      {
-        nb_inconsistent_stars++;
-        break;
-      }
     }
   }
-  return nb_inconsistent_stars;
+  return nb_inconsistent_cells;
 }
 
 template<typename Starset>
@@ -97,15 +97,16 @@ void output_off(const Starset& stars,
                 const bool consistent_only = false)
 {
   std::cout << "Saving as .off... @ " << stars.size() << std::endl;
+  std::cerr << "Saving as .off... @ " << stars.size() << std::endl;
 
   const std::size_t d = Starset::dDim::value;
   typedef typename Simplex_unordered_set<d+1>::type Cell_unordered_set;
   Cell_unordered_set output_cells;
-  unsigned int nb_inconsistent_stars =
+  unsigned int nb_inconsistent_cells =
       get_simplices_to_draw(stars, output_cells, consistent_only);
 
-  if(nb_inconsistent_stars > 0)
-    std::cout << "Warning OFF : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
+  if(nb_inconsistent_cells > 0)
+    std::cout << "Warning OFF : there are " << nb_inconsistent_cells << " inconsistent cells in the ouput mesh.\n";
 
   int tri_per_simplex = (d+1)*d*(d-1)/6.; // 3 from d+1
   int tn = tri_per_simplex * output_cells.size();
@@ -142,11 +143,11 @@ void output_medit(const Starset& stars,
   const std::size_t d = Starset::dDim::value;
   typedef typename Simplex_unordered_set<d+1>::type Cell_unordered_set;
   Cell_unordered_set output_cells;
-  unsigned int nb_inconsistent_stars =
+  unsigned int nb_inconsistent_cells =
       get_simplices_to_draw(stars, output_cells, consistent_only);
 
-  if(nb_inconsistent_stars > 0)
-    std::cout << "Warning OFF : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
+  if(nb_inconsistent_cells > 0)
+    std::cout << "Warning Medit : there are " << nb_inconsistent_cells << " inconsistent cells in the ouput mesh.\n";
 
   fx << "MeshVersionFormatted 1\n";
   fx << "Dimension " << d << std::endl;
