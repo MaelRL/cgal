@@ -3,6 +3,7 @@
 
 #include <CGAL/Star.h>
 #include <CGAL/helpers/metric_helper.h>
+#include <CGAL/Metric_field.h>
 
 #include <Eigen/Dense>
 
@@ -42,6 +43,7 @@ public:
   typedef typename Star::Traits                           Traits;
   typedef typename Star::FT                               FT;
   typedef typename Star::Point_d                          Point_d;
+  typedef typename Star::Point_D                          Point_D;
   typedef typename Star::Vertex                           Vertex;
   typedef typename Star::Vertex_handle                    Vertex_handle;
   typedef typename Star::Vertex_h_iterator                Vertex_h_iterator;
@@ -56,11 +58,14 @@ public:
   typedef typename Star_vector::const_iterator            const_iterator;
   typedef typename Star_vector::iterator                  iterator;
 
+  typedef Metric_field<Kd>*                               MF;
+
 protected:
   Star_vector m_stars;
+  MF m_mf;
 
 public:
-  Star_vector& star_vector() { return m_stars; }
+  const Star_vector& stars() const { return m_stars; }
 
   typename Star_vector::const_iterator begin() const { return m_stars.begin(); }
   typename Star_vector::iterator begin() { return m_stars.begin(); }
@@ -195,6 +200,12 @@ public:
     m_stars.clear();
   }
 
+  void update_caches()
+  {
+    for(std::size_t si=0; si<m_stars.size(); ++si)
+      m_stars[si]->update_star_caches();
+  }
+
   void rebuild() // brute forcy
   {
     //todo repair the commented parts
@@ -218,8 +229,55 @@ public:
     }
   }
 
+  // Criteria ------------------------------------------------------------------
+  FT compute_circumradius(const Full_cell_handle fch) const
+  {
+    const int d = Star::dDim::value;
+    if(fch->maximal_dimension() != d)
+      std::cout << "trouble ahead..." << std::endl;
+
+    assert(fch->data().second); // make sure the cell circumcenter has been computed
+    const Point_d& c = fch->data().first;
+
+    //compute distance between m_center and c IN THE METRIC OF M_CENTER
+    Eigen::Matrix<FT,d,1> v;
+
+    //looping just to make sure the point is eq to all (in their respective metrics)
+    FT dist = 0.;
+    for(int i=0; i<=d; ++i)
+    {
+      Point_d pi = m_stars[fch->vertex(i)->data()]->m_center;
+      for(int j=0; j<d; ++j)
+        v(j) = c[j]-pi[j];
+
+      v = m_stars[fch->vertex(i)->data()]->metric().get_transformation() * v;
+      dist  = std::sqrt(v.transpose() * v);
+      std::cout << "metric dist: " << fch->vertex(i)->data() << " " << dist << std::endl;
+    }
+    return dist;
+  }
+
+  FT compute_volume(const Full_cell_handle fch) const
+  {
+    const int d = Star::dDim::value;
+    FT den = 1./(FT) fact(d);
+    Eigen::Matrix<FT,d,d> m;
+    for(int i=0; i<d; ++i)
+    {
+      Point_d v0 = fch->vertex(0)->point().point();
+      for(int j=0; j<d; ++j)
+      {
+        Point_d vj = fch->vertex(j+1)->point().point();
+        m(i,j) = vj[i]-v0[i];
+      }
+    }
+    return std::abs(den * m.determinant());
+  }
+
   Starset() : m_stars() { }
   Starset(const Star_vector& stars_) : m_stars(stars_) { }
+
+  Starset(const MF mf_) : m_stars(), m_mf(mf_) { }
 
 private:
   Starset(const Self& src);

@@ -37,14 +37,14 @@ inline bool is_same_ids(int *cids, int *dids)
   return true;
 }
 
-//template<typename Cell_handle>
-//inline bool is_same(const Cell_handle &c, int *vertices)
-//{
-//  int cids[4];
-//  for (int i = 0; i < 4; i++)
-//    cids[i] = c->vertex(i)->info();
-//  return is_same_ids<4>(cids, vertices);
-//}
+template<typename I>
+I fact(const I n)
+{
+  int sum = 1;
+  for(std::size_t i=2; i<=n; ++i)
+    sum *= i;
+  return sum;
+}
 
 template<typename Element, typename OneMap>
 void add_to_map(const Element& e, OneMap& m)
@@ -165,7 +165,6 @@ public :
 template<std::size_t ssize>
 std::ostream& operator<<(std::ostream& os, const Ordered_simplex_base<ssize>& s)
 {
-  os << ssize << " ";
   for(std::size_t i=0; i<ssize; ++i)
     os << s.vertex(i) << " ";
   os << std::endl;

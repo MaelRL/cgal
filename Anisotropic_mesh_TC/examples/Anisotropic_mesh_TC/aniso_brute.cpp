@@ -27,7 +27,7 @@ typedef K::Point_d                                               Point_d;
 typedef typename K::FT                                           FT;
 typedef CGAL::Regular_triangulation_euclidean_traits<K>          Traits;
 typedef typename CGAL::Triangulation_data_structure<typename K::Dimension,
-CGAL::Triangulation_vertex<Traits, std::size_t> >  TDS;
+CGAL::Triangulation_vertex<Traits, std::size_t> >                TDS;
 typedef CGAL::Regular_triangulation<Traits, TDS>                 RTriangulation;
 
 typedef typename K::Vector_d                                     Vector;
@@ -65,19 +65,11 @@ std::ostream& operator<<(std::ostream& out, const Bare_point& p)
   return out;
 }
 
-FT fact(std::size_t n)
-{
-  int sum = 1;
-  for(std::size_t i=2; i<=n; ++i)
-    sum *= i;
-  return sum;
-}
-
-FT size_of_simplex(const Simplex& s,
-                   const std::vector<Pointd>& points)
+FT volume(const Simplex& s,
+          const std::vector<Pointd>& points)
 {
   assert(s.size() == d+1);
-  FT den = 1./fact(d);
+  FT den = 1./(FT) fact(d);
   Matrixd m;
   for(int i=0; i<d; ++i)
   {
@@ -856,7 +848,7 @@ void refine_biggest_face(RTriangulation& rt,
     FT max = -1e30;
     for(std::size_t i=0; i<faces.size(); ++i)
     {
-      FT v = size_of_simplex(faces[i], points);
+      FT v = volume(faces[i], points);
       std::cout << "new v: " << v << std::endl;
       if(v > max)
       {
