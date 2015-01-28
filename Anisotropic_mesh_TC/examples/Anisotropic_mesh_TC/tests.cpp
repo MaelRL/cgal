@@ -1,6 +1,7 @@
 #include <CGAL/Epick_d.h>
 
 #include <CGAL/Metric_field.h>
+#include <CGAL/Full_cell_refine_queue.h>
 #include <CGAL/Star.h>
 #include <CGAL/Starset.h>
 
@@ -25,6 +26,9 @@ typedef Star*                                           Star_handle;
 typedef typename Star::FT                               FT;
 typedef typename Star::Point_d                          Point_d;
 typedef typename Star::Point_D                          Point_D;
+
+typedef Full_cell_refine_queue<Kd, KD>                  Queue;
+typedef typename Queue::Rfcell_set_iterator             Queue_iterator;
 
 void test_transformations(const Star_handle star)
 {
@@ -69,6 +73,190 @@ void read_points(std::vector<Point_d>& points)
   std::cout << points.size() << " points" << std::endl;
 }
 
+bool is_simplex_degenerated_in_Rd(const typename Star::Full_cell_handle fch)
+{
+  const int d = Star::dDim::value;
+  Eigen::Matrix<double, d, d> m;
+
+  for(int i=0; i<d; ++i)
+    for(int j=0; j<d; ++j)
+      m(i,j) = fch->vertex(i+1)->point().point()[j]-fch->vertex(0)->point().point()[j];
+
+  return (std::abs(m.determinant()) < 1e-5); //fixme not scalable
+}
+
+bool compute_dual(const typename Star::Full_cell_handle fch,
+                  const Star_handle star,
+                  const Starset<Kd, KD>& starset)
+{
+  std::vector<Star_handle> cell;
+  for(int i=0; i<=d; ++i)
+    cell.push_back(starset[fch->vertex(i)->data()]);
+
+  Point_D ponQ;
+  if(star->compute_dual_intersection(ponQ, cell, starset.stars()))
+  {
+    Point_d p = star->from_Q(ponQ);
+    if(p[0] < -0.5 || p[0] > 0.5) return false;
+    if(p[1] < -0.5 || p[1] > 0.5) return false;
+
+    fch->data().first = Kd().construct_point_d_object()(d, p.begin(), p.end());
+    fch->data().second = true;
+    return true;
+  }
+  fch->data().second = false;
+  return false;
+}
+
+//domain check (TODO move it to an independant file like for the starsets)
+bool is_inside(const typename Star::Full_cell_handle fch,
+               const Star_handle star,
+               const Starset<Kd, KD>& starset)
+{
+  std::cout << "is inside @ " << star->index() << " (";
+  std::cout << fch->vertex(0)->data() << " ";
+  std::cout << fch->vertex(1)->data() << " ";
+  std::cout << fch->vertex(2)->data() << ") " << std::endl;
+
+  if(!compute_dual(fch, star, starset))
+    return false;
+  return true;
+}
+
+template<typename Starset>
+void test_fch(const Starset& starset,
+              const Star_handle star,
+              const typename Starset::Full_cell_handle fch,
+              Full_cell_refine_queue<Kd, KD>& refine_queue)
+{
+  std::cout << "test fch: ";
+  std::cout << fch->vertex(0)->data() << " ";
+  std::cout << fch->vertex(1)->data() << " ";
+  std::cout << fch->vertex(2)->data() << std::endl;
+
+  FT r0 = 0.01;
+  FT over_circumradius = starset.compute_circumradius(fch) - r0;
+  if(over_circumradius > 0.)
+  {
+    std::cout << "push size: " << over_circumradius << std::endl;
+    refine_queue.push(star, fch, over_circumradius, 0);
+    return;
+  }
+
+  if(!starset.is_consistent(fch))
+  {
+    std::cout << "push inconsistency" << std::endl;
+    FT vol = starset.compute_volume(fch);
+    refine_queue.push(star, fch, vol, 1);
+  }
+  std::cout << "end test fch" << std::endl;
+}
+
+void fill_refinement_queue(const Starset<Kd, KD>& starset,
+                           Full_cell_refine_queue<Kd, KD>& queue)
+{
+  typedef Starset<Kd, KD> Starset;
+  typename Starset::const_iterator si = starset.begin();
+  typename Starset::const_iterator siend = starset.end();
+  for (; si != siend; si++)
+  {
+    Star_handle star = *si;
+    std::cout << "fill @ " << star->index() << std::endl;
+
+    typename Starset::Full_cell_handle_iterator fchi = star->finite_incident_full_cells_begin();
+    typename Starset::Full_cell_handle_iterator fend = star->finite_incident_full_cells_end();
+    for(; fchi!=fend; ++fchi)
+    {
+      typename Starset::Full_cell_handle fch = *fchi;
+      if(!is_simplex_degenerated_in_Rd(fch) &&
+         is_inside(fch, star, starset))
+        test_fch(starset, star, fch, queue);
+    }
+  }
+
+  std::cout << "nstars: " << starset.size() << std::endl;
+  queue.print_queues();
+  assert(starset.size()!=20);
+}
+
+bool next_refine_cell(Queue_iterator& it,
+                      typename Star::Full_cell_handle& fch, // unused atm
+                      Queue& queue,
+                      const Starset<Kd,KD>& starset)
+{
+  std::cout << "next refine cell" << std::endl;
+  while(true)
+  {
+    if(!queue.top(it))
+    {
+      std::cout << "empty queue at face pop time..." << std::endl;
+      return false;
+    }
+
+    if(it->star->has_cell(fch, it->full_cell.vertices()))
+    {
+      //recompute the refinement point for fch, overkill, but to be safe
+      if(compute_dual(fch, it->star, starset))
+        return true;
+      else
+        queue.pop();
+    }
+    else
+      queue.pop();
+  }
+}
+
+bool refine(Starset<Kd, KD>& starset)
+{
+  Queue queue;
+  fill_refinement_queue(starset, queue);
+
+  while(!queue.empty() && starset.size()<100)
+  {
+    Queue_iterator rfsit;
+    typename Star::Full_cell_handle fch;
+    next_refine_cell(rfsit, fch, queue, starset);
+    std::cout << "refine: " << std::endl << *rfsit << std::endl;
+
+    assert(fch->data().second); // make sure the cell's circumcenter has been computed
+    const Point_d& ref = fch->data().first;
+
+// VERBOSE
+    std::cout << "INSERT IN STARS: " << ref[0] << " " << ref[1] << std::endl;
+    for(int i=0; i<=d; ++i)
+    {
+      typename Star::E_Vector_d v;
+      Point_d pi = starset[fch->vertex(i)->data()]->m_center;
+      for(int j=0; j<d; ++j)
+        v(j) = ref[j]-pi[j];
+
+      v = starset[fch->vertex(i)->data()]->metric().get_transformation() * v;
+      FT dist  = std::sqrt(v.transpose() * v);
+      std::cout << "metric dist: " << fch->vertex(i)->data() << " " << dist << std::endl;
+    }
+// VERBOSE
+
+    starset.insert_in_stars(ref);
+    if(rfsit->star->has_cell(fch, rfsit->full_cell.vertices()))
+    {
+      std::cout << rfsit->star->index() << " star has cell unbroken by refinement point ";
+      std::cout << fch->vertex(0)->data() << " ";
+      std::cout << fch->vertex(1)->data() << " ";
+      std::cout << fch->vertex(2)->data() << std::endl;
+      //assert(0);
+    }
+
+    std::ofstream outm("aniso_TC.mesh");
+    output_medit(starset, outm);
+    assert(starset.size() != 36);
+
+    queue.clear(); // should be only "pop"
+    fill_refinement_queue(starset, queue);
+    std::cout << "queue size: " << queue.count() << std::endl;
+  }
+  return true;
+}
+
 int main(int, char **)
 {
   //std::freopen("log.txt", "w", stdout); // redirect std::cout to log.txt
@@ -79,7 +267,7 @@ int main(int, char **)
   std::vector<Point_d> points;
   read_points(points);
 
-  Starset<Kd, KD> starset;
+  Starset<Kd, KD> starset(mf);
 
   for(std::size_t i=0; i<points.size(); ++i)
   {
@@ -88,6 +276,7 @@ int main(int, char **)
   }
 
   starset.rebuild();
+  refine(starset);
 
   std::ofstream out("aniso_TC.off");
   output_off(starset, out);

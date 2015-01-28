@@ -446,9 +446,7 @@ public:
   Vertex_handle insert_if_in_star(const Point_d& p,
                                   const Index& index_)
   {
-    WPoint_D pp = to_S(p);
-    Vertex_handle vh = Base::insert(to_T(p));
-//    Vertex_handle vh = Base::insert_if_in_star(to_T(p), m_center_v);
+    Vertex_handle vh = Base::insert_if_in_star(to_T(p), m_center_v);
     if(vh != Vertex_handle())
       vh->data() = index_;
     invalidate_cache();
@@ -459,14 +457,15 @@ public:
                                const Index& index,
                                const bool conditional = false)
   {
-    // if(conditional) // todo
-    // else
-    Vertex_handle v = Base::insert(to_T(p), m_center_v);
-    if(v != Vertex_handle())
-      v->data() = index;
-    invalidate_cache();
-    this->is_valid(true);
+    Vertex_handle vh;
+    if(conditional)
+      vh = insert_if_in_star(p, index);
+    else
+      vh = Base::insert(to_T(p), m_center_v);
+    if(vh != Vertex_handle())
+      vh->data() = index;
 
+    invalidate_cache();
     std::cout << "INSERT : " << index << " IN STAR " << m_center_v->data() << std::endl;
     std::cout << "finite cells: " << this->number_of_finite_full_cells() << std::endl;
     std::cout << "dim rt: " << this->current_dimension() << std::endl;

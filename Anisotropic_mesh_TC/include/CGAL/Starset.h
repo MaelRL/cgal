@@ -229,6 +229,17 @@ public:
     }
   }
 
+  void insert_in_stars(const Point_d& p)
+  {
+    Star_handle s = new Star(p, m_stars.size(), m_mf->compute_metric(p));
+    for(std::size_t i=0; i<m_stars.size(); ++i)
+    {
+      m_stars[i]->insert_to_star(s->m_center, s->index(), false/*no cond*/);
+      s->insert_to_star(m_stars[i]->m_center, m_stars[i]->index(), false);
+    }
+    m_stars.push_back(s);
+  }
+
   // Criteria ------------------------------------------------------------------
   FT compute_circumradius(const Full_cell_handle fch) const
   {
