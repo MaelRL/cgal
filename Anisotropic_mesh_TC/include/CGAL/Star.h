@@ -740,6 +740,18 @@ public:
     return true;
   }
 
+  void tinker_jacobian(E_Matrix_d& m, const E_Vector_d& h) const
+  {
+    //we add a diagonal matrix of the form delta*f_i(x) to J to avoid |J| ~ 0
+    E_Matrix_d m2 = E_Matrix_d::Zero();
+    for(int i=0; i<d(); ++i)
+    {
+      m2(i,i) = m(i,i)/std::abs(m(i,i)); // sign
+      m2(i,i) *= h(i);
+    }
+
+    m += m2;
+  }
 
   bool newton(Point_D& sol_on_Q,
               const std::vector<Star_handle>& cell,
@@ -761,7 +773,9 @@ public:
     int max = 1e3, count = 0;
     E_Vector_d h_err = h(vsol);
     E_Matrix_d jac = j(vsol);
-+
+
+    tinker_jacobian(jac, h_err);
+
     E_Vector_d previous_vsol = vsol;
     FT step = 1e30;
 
@@ -780,6 +794,7 @@ public:
       jac = j(vsol);
       h_err = h(vsol);
 //      std::cout << "J det (no tinkerino): " << jac.determinant() << " ";
+      tinker_jacobian(jac, h_err);
 
       step = (vsol-previous_vsol).norm();
 

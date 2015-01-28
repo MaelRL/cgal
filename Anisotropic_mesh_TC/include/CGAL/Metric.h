@@ -26,7 +26,6 @@ public:
 private:
   E_Matrix eigen_transformation, eigen_inverse_transformation;
 
-  // no sense in dim d
   std::vector<FT> evals;
   std::vector<Vector_d> evecs;
 

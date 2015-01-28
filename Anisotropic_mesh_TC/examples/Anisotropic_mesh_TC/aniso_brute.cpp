@@ -350,8 +350,6 @@ bool is_support_intersecting(const Simplex& fs,
   else
   {
     std::cout << "null det" << std::endl;
-    sol = construct_bp(to_Q(points[fs[1]]));
-    //there is always two vertices, and taking the "0" creates degeneracies
     return false;
   }
 }
@@ -520,6 +518,19 @@ struct J // Jacobian
   { }
 };
 
+void tinker_jacobian(Matrixd& m, const Vectord& h)
+{
+  //we add a diagonal matrix of the form delta*f_i(x) to J to avoid |J| ~ 0
+  Matrixd m2 = Matrixd::Zero();
+  for(int i=0; i<d; ++i)
+  {
+    m2(i,i) = m(i,i)/std::abs(m(i,i)); // sign
+    m2(i,i) *= h(i);
+  }
+
+  m += m2;
+}
+
 bool newton(const Simplex& fs,
             const std::vector<Pointd>& points,
             const std::vector<Weighted_point>& wpoints,
@@ -527,7 +538,9 @@ bool newton(const Simplex& fs,
 {
   std::cout << "NEWTON START ------" << std::endl;
 
-  is_support_intersecting(fs, points, wpoints, sol); // get the approximation
+  if(!is_support_intersecting(fs, points, wpoints, sol)) // get the approximation
+    return false;
+
   Vectord vsol;
   for(int i=0; i<d; ++i)
     vsol(i) = sol[i];  // ugly 'projection' on the paraboloid
@@ -540,6 +553,7 @@ bool newton(const Simplex& fs,
   int max = 100, count = 0;
   Vectord h_err = h(vsol);
   Matrixd jac = j(vsol);
+  tinker_jacobian(jac, h_err);
 
 //std::cout << "init error : " << h_err.norm() << std::endl;
 //std::cout << "init jac: " << jac << " det: " << jac.determinant() << std::endl;
@@ -551,12 +565,16 @@ bool newton(const Simplex& fs,
 
     jac = j(vsol);
     h_err = h(vsol);
+    tinker_jacobian(jac, h_err);
 //std::cout << "new norm : " << h(vsol).norm() << std::endl;
 //std::cout << "new jacobian determinant : " << jac.determinant() << std::endl;
   }
 
   if(count==max)
+  {
     std::cout << "didn't converge in " << max << " iterations" << std::endl;
+    return false;
+  }
 
   VectorD vsolD = to_Q(vsol);
   sol = construct_bp(vsolD);
@@ -614,9 +632,7 @@ bool is_face_restricted(const Simplex& fs,
   Bare_point sol;
   //  if(is_support_intersecting(tr, points, wpoints, sol))
   if(newton(fs, points, wpoints, sol))
-  {
     return is_intersection_point_in_power_cell(sol, fs, wpoints, rt);
-  }
   return false;
 }
 
