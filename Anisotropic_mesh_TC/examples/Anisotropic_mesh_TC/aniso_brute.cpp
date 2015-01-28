@@ -600,7 +600,7 @@ bool is_intersection_point_in_power_cell(const Bare_point& sol,
     std::size_t id = fs[i+1];
     const Weighted_point& wp = wpoints[id];
     FT sq_dd = csd(sol, wp.point()) - wp.weight();
-    if(std::abs(sq_d-sq_dd)/sq_d > 1e-5)
+    if(std::abs(sq_d-sq_dd)/sq_d > 1e-5) // sq_d might be null, I guess... fixme (and the other /sq_d too)
     {
       std::cout.precision(20);
       std::cout << "WARNING: dds don't agree (sol isn't in the dual) " << sq_d << " " << sq_dd << std::endl;

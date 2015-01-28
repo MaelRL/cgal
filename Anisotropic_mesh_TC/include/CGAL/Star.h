@@ -175,6 +175,14 @@ public:
     return m_finite_incident_full_cells_cache.end();
   }
 
+  bool is_topological_ball() const
+  {
+    // 2 things to do : verify no d-2 with more than 2 (d-1) on the border
+
+    // verify there's only one umbrella
+    return false;
+  }
+
   // tangent space functions ---------------------------------------------------
   void compute_tangent_space_basis() const
   {
@@ -209,7 +217,6 @@ public:
 
 //GRAM SCHMIDT ------------------------------------- todo check that it is needed
     FT nu = (tsb_m.col(0)).norm();
-    std::cout << "nu: " << nu << std::endl;
     FT sp = tsb_m.col(0).dot(tsb_m.col(1));
     tsb_m.col(0) /= nu; // norming first => only dividing by nu below (instead of nu²)
     tsb_m.col(1) -= sp/nu*tsb_m.col(0);
@@ -289,7 +296,6 @@ public:
   WPoint_D to_S(const Point_d& p) const
   {
 //    std::cout << "p: " << p[0] << " " << p[1] << std::endl;
-
     const E_Matrix_d m = m_metric.get_mat();
     E_Vector_d e_p, p_bar;
 
@@ -901,7 +907,7 @@ public:
     m_center_v->data() = index_;
     this->infinite_vertex()->data() = index_of_infinite_vertex;
 
-    std::cout << "init" << std::endl;
+    std::cout << "End new star constructor" << std::endl;
     std::cout << "finite cells: " << this->number_of_finite_full_cells() << std::endl;
     std::cout << "dim rt: " << this-> current_dimension() << std::endl;
   }

@@ -23,9 +23,9 @@ typedef typename Star::Traits                                Traits;
 
 typedef typename Eigen::Matrix<double, 5, 1>                 Vector5d;
 
-const FT offset_x = 1.;
-const FT offset_y = 1.;
-const FT grid_side = 5.;
+const FT offset_x = -0.55; // offset is the bottom left point
+const FT offset_y = -0.55; // todo normalize this with aniso_mesh_2's rectangle
+const FT grid_side = 1.1; // whose offset is the center of the rectangle...
 
 Vector5d compute_hat(const Point_2& p,
                      const Metric& m)
@@ -182,5 +182,6 @@ int main(int, char**)
       out << id1 << " " << id3 << " " << id4 << " 1" << std::endl;
     }
   }
+
   out << "End" << std::endl;
 }

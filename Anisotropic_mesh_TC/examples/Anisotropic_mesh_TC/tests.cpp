@@ -12,7 +12,6 @@
 
 #include <fstream>
 
-#define dim_3
 const int d = 3;
 const int D = 9;
 

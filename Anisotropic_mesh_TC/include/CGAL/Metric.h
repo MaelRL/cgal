@@ -117,9 +117,9 @@ public:
 
 public:
   friend
-  std::ostream& operator<<(std::ostream& out, const Metric_base& x)
+  std::ostream& operator<<(std::ostream& out, const Metric_base& m)
   {
-    out << "M  = " << x.eigen_transformation << std::endl;
+    out << "M  = " << m.eigen_transformation << std::endl;
     return out;
   }
 
