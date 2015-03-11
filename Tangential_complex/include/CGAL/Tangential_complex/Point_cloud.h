@@ -117,9 +117,10 @@ public:
   static const int AMB_DIM = Ambient_dimension<Point>::value; // CJTODO: use Point_dimension_d or similar
 
   /// Constructor
+  /// "points" must not be empty
   Point_cloud_data_structure(Point_container_ &points, Kernel const& k)
   : m_adaptor(points, k),
-    m_kd_tree(AMB_DIM,
+    m_kd_tree(k.point_dimension_d_object()(*points.begin()),
               m_adaptor,
               nanoflann::KDTreeSingleIndexAdaptorParams(10 /* max leaf */) )
   {
@@ -141,12 +142,9 @@ public:
     size_t *neighbor_indices,
     FT *squared_distance) const
   {
-    /*std::vector<FT> sp_vec(
+    std::vector<FT> sp_vec(
       m_adaptor.kernel().construct_cartesian_const_iterator_d_object()(sp),
-      m_adaptor.kernel().construct_cartesian_const_iterator_d_object()(sp, 0));*/ // CJTODO remettre
-    std::vector<FT> sp_vec;
-    for (int i = 0 ; i < 4 ; ++i)
-      sp_vec.push_back(sp[i]);
+      m_adaptor.kernel().construct_cartesian_const_iterator_d_object()(sp, 0));
     nanoflann::KNNResultSet<FT> result_set(k);
     result_set.init(neighbor_indices, squared_distance);
     m_kd_tree.findNeighbors(result_set,
@@ -167,12 +165,9 @@ public:
                   std::vector<std::pair<std::size_t, FT> > &neighbors,
                   bool sort_output = true)
   {
-    /*std::vector<FT> sp_vec(
+    std::vector<FT> sp_vec(
       m_adaptor.kernel().construct_cartesian_const_iterator_d_object()(sp),
-      m_adaptor.kernel().construct_cartesian_const_iterator_d_object()(sp, 0));*/ // CJTODO remettre
-    std::vector<FT> sp_vec;
-    for (int i = 0 ; i < 4 ; ++i)
-      sp_vec.push_back(sp[i]);
+      m_adaptor.kernel().construct_cartesian_const_iterator_d_object()(sp, 0));
     m_kd_tree.radiusSearch(&sp_vec[0],
                            radius,
                            neighbors,
@@ -248,8 +243,6 @@ public:
                                                    Incremental_neighbor_search;
   typedef typename Incremental_neighbor_search::iterator    INS_iterator;
   typedef Incremental_neighbor_search                       INS_range;
-
-  static const int AMB_DIM = Ambient_dimension<Point>::value; // CJTODO: use Point_dimension_d or similar
 
   /// Constructor
   Point_cloud_data_structure(Point_container_ const& points)
