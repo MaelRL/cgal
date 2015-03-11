@@ -22,10 +22,10 @@ public:
 
   typedef typename Base::Metric::E_Vector             E_Vector;
 
-  std::vector<FT> m_evals;
+  mutable std::vector<FT> m_evals;
 
 public:
-  virtual Metric compute_metric(const Point_d&) const
+  virtual Metric compute_metric(const Point_d& p) const
   {
     const int d = Dim::value;
     std::vector<Vector_d> evecs;

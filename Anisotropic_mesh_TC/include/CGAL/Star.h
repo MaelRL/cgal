@@ -107,15 +107,15 @@ public:
   const Metric& metric() const { return m_metric; }
 
   // cache related functions ---------------------------------------------------
-  void invalidate_cache()
-  {
-    m_is_cache_dirty = true;
-  }
+  void invalidate_cache() { m_is_cache_dirty = true; }
 
   void update_star_caches() const
   {
+    assert(is_valid(true));
     if(!m_is_cache_dirty)
       return;
+
+    std::cout << "updating cache @ " << index() << " ... ";
 
     m_finite_adjacent_vertices_cache.clear();
     m_incident_full_cells_cache.clear();
@@ -177,7 +177,7 @@ public:
 
   bool is_topological_ball() const
   {
-    // 2 things to do : verify no d-2 with more than 2 (d-1) on the border
+    // 2 things todo : verify no d-2 with more than 2 (d-1) on the border
 
     // verify there's only one umbrella
     return false;
@@ -224,15 +224,15 @@ public:
     FT nv = (tsb_m.col(1)).norm();
     tsb_m.col(1) /= nv;
 
-    std::cout << tsb_m.col(0).norm() << " " << tsb_m.col(1).norm() << std::endl;
-    std::cout << tsb_m.col(0).dot(tsb_m.col(1)) << std::endl;
+//    std::cout << tsb_m.col(0).norm() << " " << tsb_m.col(1).norm() << std::endl;
+//    std::cout << tsb_m.col(0).dot(tsb_m.col(1)) << std::endl;
 // ----------------------------------------
 
-    std::cout << "tsb_m @ : ";
+    std::cout << "tangent space @ : ";
     std::cout << m_center_Q[0] << " " << m_center_Q[1] << " ";
     std::cout << m_center_Q[2] << " " << m_center_Q[3] << " ";
     std::cout << m_center_Q[4] << std::endl;
-    std::cout << std::endl << tsb_m << std::endl;
+    std::cout << "tsb: " << std::endl << tsb_m << std::endl;
 
     typename KD::Construct_vector_d constr_vec = KD().construct_vector_d_object();
     for(int i=0; i<d(); ++i)
@@ -345,26 +345,24 @@ public:
       is_tsb_init = true;
     }
 
-    WPoint_D p_on_S(to_S(p));
+    WPoint_D p_on_S(to_S(p)); // todo avoid to_S() call if p is the center point
 
-    std::cout << "p: " << p[0] << " " << p[1] << std::endl;
-    std::cout << "mq: " << m_center_Q[0] << " " << m_center_Q[1] << " " << m_center_Q[2] << " " << m_center_Q[3] << " " << m_center_Q[4] << std::endl;
-    std::cout << "ps: " << p_on_S.point()[0] << " " << p_on_S.point()[1] << " " << p_on_S.point()[2] << " " << p_on_S.point()[3] << " " << p_on_S.point()[4] << " w: " << p_on_S.weight() << std::endl;
+//    std::cout << "p: " << p[0] << " " << p[1] << std::endl;
+//    std::cout << "mq: " << m_center_Q[0] << " " << m_center_Q[1] << " " << m_center_Q[2] << " " << m_center_Q[3] << " " << m_center_Q[4] << std::endl;
+//    std::cout << "ps: " << p_on_S.point()[0] << " " << p_on_S.point()[1] << " " << p_on_S.point()[2] << " " << p_on_S.point()[3] << " " << p_on_S.point()[4] << " w: " << p_on_S.weight() << std::endl;
 
-    typename KD::Scalar_product_d inner_pdct =
-      KD().scalar_product_d_object();
-    typename KD::Difference_of_points_d diff_points =
-      KD().difference_of_points_d_object();
+    typename KD::Scalar_product_d inner_pdct = KD().scalar_product_d_object();
+    typename KD::Difference_of_points_d diff_points = KD().difference_of_points_d_object();
 
     Vector_D v = diff_points(p_on_S.point(), m_center_Q);
 
-    std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
+//    std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
 
     // Ambiant-space coords of the projected point
     std::vector<FT> coords;
     coords.reserve(d());
     std::vector<FT> p_proj(m_center_Q.cartesian_begin(), m_center_Q.cartesian_end());
-    std::cout << "p_proj: " << p_proj[0] << " " << p_proj[1] << " " << p_proj[2] << " " << p_proj[3] << " " << p_proj[4] << std::endl;
+//    std::cout << "p_proj: " << p_proj[0] << " " << p_proj[1] << " " << p_proj[2] << " " << p_proj[3] << " " << p_proj[4] << std::endl;
 
     for(std::size_t i=0 ;i<d() ;++i)
     {
@@ -377,11 +375,11 @@ public:
         p_proj[j] += coord * m_tsb[i][j];
     }
 
-    std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
+//    std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
 
     Point_D projected_pt(D(), p_proj.begin(), p_proj.end());
-    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
-    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
+//    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
+//    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
 
     typename KD::Squared_distance_d sqdist = KD().squared_distance_d_object();
     std::cout << "sqdist: " << sqdist(p_on_S.point(), projected_pt) << std::endl;
@@ -406,7 +404,7 @@ public:
     Full_cell_handle_iterator cend = finite_incident_full_cells_end();
     for(; ci!=cend; ci++)
     {
-      if((*ci)->maximal_dimension() < (d-1))
+      if((*ci)->maximal_dimension() < (d-1)) // !! d-1 == d() (ugly, but w/e)
         continue;
       for(int i=0; i<d; i++)
         dids[i] = (*ci)->vertex(i)->data();
@@ -430,7 +428,7 @@ public:
     Full_cell_handle_iterator cend = finite_incident_full_cells_end();
     for(; ci!=cend; ci++)
     {
-      if((*ci)->maximal_dimension() < dDim::value)
+      if((*ci)->maximal_dimension() < d())
         continue;
       for(int i=0; i<dp1; i++)
         dids[i] = (*ci)->vertex(i)->data();
@@ -846,6 +844,43 @@ public:
     return false;
   }
 
+  bool compute_dual(const Full_cell_handle fch,
+                    const std::vector<Star_handle>& all_stars)
+  {
+    std::vector<Star_handle> cell;
+    for(int i=0; i<=d(); ++i)
+      cell.push_back(all_stars[fch->vertex(i)->data()]);
+
+    Point_D ponQ;
+    if(compute_dual_intersection(ponQ, cell, all_stars))
+    {
+      Point_d p = from_Q(ponQ);
+      fch->data().first = Kd().construct_point_d_object()(d(), p.begin(), p.end());
+      fch->data().second = true;
+      return true;
+    }
+    fch->data().second = false;
+    return false;
+  }
+
+  bool is_inside(const Full_cell_handle fch,
+                 const std::vector<Star_handle>& all_stars)
+  {
+    std::cout << "is inside @ " << index() << " (";
+    std::cout << fch->vertex(0)->data() << " ";
+    std::cout << fch->vertex(1)->data() << " ";
+    std::cout << fch->vertex(2)->data() << ") " << std::endl;
+
+    if(!compute_dual(fch, all_stars) ||
+       (fch->data().first)[0] < -0.5 || (fch->data().first)[0] > 0.5 || // TMP need a proper domain class
+       (fch->data().first)[1] < -0.5 || (fch->data().first)[1] > 0.5)
+    {
+      fch->data().second = false;
+      return false;
+    }
+    return true;
+  }
+
   // Maintenance ---------------------------------------------------------------
   std::size_t clean()
   {
@@ -882,10 +917,24 @@ public:
 
   void rebuild_star(); // ~ connectivity in R^D ?
 
+  // Misc stuff ----------------------------------------------------------------
+  void output_underlying_rt(std::ofstream& out) const
+  {
+    out << d() << " " << Base::number_of_vertices() << std::endl;
+    typename Base::Finite_vertex_const_iterator it = Base::finite_vertices_begin();
+    typename Base::Finite_vertex_const_iterator end = Base::finite_vertices_end();
+    for(; it!=end; ++it)
+    {
+      out << it->point().point()[0] << " ";
+      out << it->point().point()[1] << " ";
+      out << it->point().weight() << std::endl;
+    }
+  }
+
 public:
   Tangent_star(const Point_d& center_point,
                const Index& index_,
-               //const Criteria* criteria_,
+               //const Criteria* criteria_, // todo
                //const Constrain_surface* pconstrain_surface,
                const Metric& metric_
                )

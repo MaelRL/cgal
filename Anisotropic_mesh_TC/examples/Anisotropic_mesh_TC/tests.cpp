@@ -84,44 +84,6 @@ bool is_simplex_degenerated_in_Rd(const typename Star::Full_cell_handle fch)
   return (std::abs(m.determinant()) < 1e-5); //fixme not scalable
 }
 
-bool compute_dual(const typename Star::Full_cell_handle fch,
-                  const Star_handle star,
-                  const Starset<Kd, KD>& starset)
-{
-  std::vector<Star_handle> cell;
-  for(int i=0; i<=d; ++i)
-    cell.push_back(starset[fch->vertex(i)->data()]);
-
-  Point_D ponQ;
-  if(star->compute_dual_intersection(ponQ, cell, starset.stars()))
-  {
-    Point_d p = star->from_Q(ponQ);
-    if(p[0] < -0.5 || p[0] > 0.5) return false;
-    if(p[1] < -0.5 || p[1] > 0.5) return false;
-
-    fch->data().first = Kd().construct_point_d_object()(d, p.begin(), p.end());
-    fch->data().second = true;
-    return true;
-  }
-  fch->data().second = false;
-  return false;
-}
-
-//domain check (TODO move it to an independant file like for the starsets)
-bool is_inside(const typename Star::Full_cell_handle fch,
-               const Star_handle star,
-               const Starset<Kd, KD>& starset)
-{
-  std::cout << "is inside @ " << star->index() << " (";
-  std::cout << fch->vertex(0)->data() << " ";
-  std::cout << fch->vertex(1)->data() << " ";
-  std::cout << fch->vertex(2)->data() << ") " << std::endl;
-
-  if(!compute_dual(fch, star, starset))
-    return false;
-  return true;
-}
-
 template<typename Starset>
 void test_fch(const Starset& starset,
               const Star_handle star,
@@ -167,8 +129,12 @@ void fill_refinement_queue(const Starset<Kd, KD>& starset,
     for(; fchi!=fend; ++fchi)
     {
       typename Starset::Full_cell_handle fch = *fchi;
+
+      if((*fchi)->maximal_dimension() != d)
+        continue;
+
       if(!is_simplex_degenerated_in_Rd(fch) &&
-         is_inside(fch, star, starset))
+         star->is_inside(fch, starset.stars()))
         test_fch(starset, star, fch, queue);
     }
   }
@@ -195,7 +161,7 @@ bool next_refine_cell(Queue_iterator& it,
     if(it->star->has_cell(fch, it->full_cell.vertices()))
     {
       //recompute the refinement point for fch, overkill, but to be safe
-      if(compute_dual(fch, it->star, starset))
+      if(it->star->compute_dual(fch, starset.stars()))
         return true;
       else
         queue.pop();
@@ -247,7 +213,6 @@ bool refine(Starset<Kd, KD>& starset)
 
     std::ofstream outm("aniso_TC.mesh");
     output_medit(starset, outm);
-    assert(starset.size() != 36);
 
     queue.clear(); // should be only "pop"
     fill_refinement_queue(starset, queue);

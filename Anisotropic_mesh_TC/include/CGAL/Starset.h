@@ -99,7 +99,7 @@ public:
   {
     bool retval = true;
     bool told = false;
-    for(int i=0; i<dDim::value; i++)
+    for(int i=0; i<fch->maximal_dimension(); i++)
     {
       int index = fch->vertex(i)->data();
 
@@ -134,13 +134,13 @@ public:
   bool is_consistent(Star_handle star,
                      const bool verbose = false) const
   {
-    typename Star::Full_cell_handle_iterator fcit =
-        star->finite_incident_full_cells_begin();
-    typename Star::Full_cell_handle_iterator fcend =
-        star->finite_incident_full_cells_end();
+    typename Star::Full_cell_handle_iterator fcit = star->finite_incident_full_cells_begin();
+    typename Star::Full_cell_handle_iterator fcend = star->finite_incident_full_cells_end();
     for(; fcit!=fcend; fcit++)
+    {
       if(!is_consistent(*fcit, verbose))
         return false;
+    }
 
     return true;
   }
@@ -245,7 +245,10 @@ public:
   {
     const int d = Star::dDim::value;
     if(fch->maximal_dimension() != d)
-      std::cout << "trouble ahead..." << std::endl;
+    {
+      std::cout << "compute circumradius w/ fch->max_dim != d..." << std::endl;
+      assert(0);
+    }
 
     assert(fch->data().second); // make sure the cell circumcenter has been computed
     const Point_d& c = fch->data().first;
@@ -270,9 +273,12 @@ public:
 
   FT compute_volume(const Full_cell_handle fch) const
   {
-    const int d = Star::dDim::value;
+    const std::size_t d = dDim::value;
+    if(fch->maximal_dimension() != d)
+      return 0.;
+
     FT den = 1./(FT) fact(d);
-    Eigen::Matrix<FT,d,d> m;
+    Eigen::Matrix<FT,d,d> m = Eigen::Matrix<FT, d, d>::Zero();
     for(int i=0; i<d; ++i)
     {
       Point_d v0 = fch->vertex(0)->point().point();

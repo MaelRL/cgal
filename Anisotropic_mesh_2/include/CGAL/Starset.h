@@ -664,6 +664,51 @@ public:
     }
   }
 
+  template<typename MF>
+  void draw_metric_vector_field_2(MF const * const  mf) const
+  {
+    const FT offset_x = -0.55; // offset is the bottom left point
+    const FT offset_y = -0.55; // todo normalize this with aniso_mesh_2's rectangle
+    const unsigned int n = 70;
+    const FT grid_side = 1.1; // whose offset is the center of the rectangle...
+    const FT step = grid_side / n;
+
+    FT e0, e1;
+    Vector_2 v0, v1;
+
+    std::ofstream min_vector_field_os("vector_field_min.polylines.cgal");
+    std::ofstream max_vector_field_os("vector_field_max.polylines.cgal");
+
+    for(unsigned int i=0; i<n; ++i)
+    {
+      for(unsigned int j=0; j<n ;++j)
+      {
+        Point_2 p(offset_x+j*step, offset_y+i*step);
+
+        typename MF::Metric m_p = mf->compute_metric(p);
+        Eigen::Matrix2d m = m_p.get_mat();
+
+        get_eigen_vecs_and_vals<K>(m, v0, v1, e0, e1);
+
+        e0 = 1./std::sqrt(std::abs(e0));
+        e1 = 1./std::sqrt(std::abs(e1));
+
+        FT scale = 0.1;
+
+        if(e0>e1)
+        {
+          max_vector_field_os << "2 " << p << " 0 " << (p+scale*e0*v0) << " 0 " << std::endl;
+          min_vector_field_os << "2 " << p << " 0 " << (p+scale*e1*v1) << " 0 " << std::endl;
+        }
+        else
+        {
+          max_vector_field_os << "2 " << p << " 0 " << (p+scale*e1*v1) << " 0 " << std::endl;
+          min_vector_field_os << "2 " << p << " 0 " << (p+scale*e0*v0) << " 0 " << std::endl;
+        }
+      }
+    }
+  }
+
   Starset() : m_stars() { }
   Starset(const Star_vector& stars_) : m_stars(stars_) { }
 

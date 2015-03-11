@@ -37,34 +37,34 @@ void dump(const Starset& stars)
 }
 
 template<typename Starset, typename Cell_set>
-int get_simplices_to_draw(const Starset& stars,
+int get_simplices_to_draw(const Starset& starset,
                           Cell_set& output_cells,
                           const bool consistent_only = false)
 {
   const std::size_t d = Starset::dDim::value;
   unsigned int nb_inconsistent_cells = 0;
+  unsigned int nb_restricted_cells = 0;
 
-  typename Starset::const_iterator it = stars.begin();
-  typename Starset::const_iterator itend = stars.end();
+  typename Starset::const_iterator it = starset.begin();
+  typename Starset::const_iterator itend = starset.end();
   for (; it != itend; ++it)
   {
     typename Starset::Star_handle star = *it;
 //    std::cout << "Star: " << star->m_center_v->data() << std::endl;
+
+    if(star->current_dimension() != d)
+      continue;
 
     typename Starset::Full_cell_handle_iterator fchi = star->finite_incident_full_cells_begin();
     typename Starset::Full_cell_handle_iterator fend = star->finite_incident_full_cells_end();
     for(; fchi!=fend; ++fchi)
     {
       typename Starset::Full_cell_handle fch = *fchi;
-//      if(!fch->data().second)
-//        continue;
 
-//      std::cout << "     ----" << std::endl;
-//      std::cout << "cell max dim " << fch->maximal_dimension() << std::endl;
+      if(star->is_inside(fch, starset.stars())) // recomputes the dual intersection
+        nb_restricted_cells++;
 
-//      if(!star->is_inside(fch))
-//        continue;
-      bool is_consistent = stars.is_consistent(fch, true);
+      bool is_consistent = true; //starset.is_consistent(fch, true);
       if(!is_consistent)
         nb_inconsistent_cells++;
 
@@ -72,7 +72,7 @@ int get_simplices_to_draw(const Starset& stars,
       {
         boost::array<int, d+1> ids;
 
-        int id=0;
+        int id = 0;
         typename Starset::Vertex_h_iterator v = fch->vertices_begin();
         typename Starset::Vertex_h_iterator vend = fch->vertices_end();
         for(; v!=vend; ++v)
