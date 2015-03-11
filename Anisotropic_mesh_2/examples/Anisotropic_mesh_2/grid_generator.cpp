@@ -22,10 +22,18 @@ typedef typename Star::Metric                                Metric;
 typedef typename Star::Traits                                Traits;
 
 typedef typename Eigen::Matrix<double, 5, 1>                 Vector5d;
+typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 
-const FT offset_x = -0.55; // offset is the bottom left point
-const FT offset_y = -0.55; // todo normalize this with aniso_mesh_2's rectangle
-const FT grid_side = 1.1; // whose offset is the center of the rectangle...
+//#define R2
+#ifdef R2
+FT offset_x = -1; // offset is the bottom left point
+FT offset_y = -1; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
+const FT grid_side = 2;
+#else
+FT offset_x = -0.55; // offset is the bottom left point
+FT offset_y = -0.55;
+const FT grid_side = 1.1;
+#endif
 
 Vector5d compute_hat(const Point_2& p,
                      const Metric& m)
@@ -59,29 +67,82 @@ template<typename Metric_field>
 void build_seeds(std::vector<Point_2>& seeds,
                  std::vector<Vector5d>& R5seeds,
                  std::vector<Metric>& seeds_m,
-                 std::vector<FT>& sqws,
+                 std::vector<FT>& ws,
                  const Metric_field& mf)
 {
   srand (0);
 
-  for(unsigned int i=0; i<seeds.size(); ++i)
+#if 1
+  std::ifstream in("bambimboum.mesh");
+//  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/aniso_TC.mesh");
+  std::string word;
+  std::size_t useless, nv, dim;
+  FT r_x, r_y;
+
+  in >> word >> useless; //MeshVersionFormatted i
+  in >> word >> dim; //Dimension d
+  in >> word >> nv;
+  std::cout << "nv: " << nv << std::endl;
+  assert(dim == 2);
+
+  nv = (std::min)(nv, seeds.size());
+  seeds.resize(nv); R5seeds.resize(nv); seeds_m.resize(nv); ws.resize(nv);
+
+  for(std::size_t i=0; i<nv; ++i)
+  {
+    in >> r_x >> r_y >> useless;
+#else
+  for(std::size_t i=0; i<seeds.size(); ++i)
   {
     double r_x = offset_x + grid_side * ((double) rand() / (RAND_MAX));
     double r_y = offset_y + grid_side * ((double) rand() / (RAND_MAX));
+#endif
     seeds[i] = Point_2(r_x, r_y);
     std::cout << "Seeds i: " << i << " " << seeds[i].x() << " " << seeds[i].y() << std::endl;
 
     seeds_m[i] = mf->compute_metric(seeds[i]);
     R5seeds[i] = compute_hat(seeds[i], seeds_m[i]);
-    sqws[i] = R5seeds[i].norm()*R5seeds[i].norm() - seeds[i].x()*R5seeds[i](0)
+    ws[i] = R5seeds[i].norm()*R5seeds[i].norm() - seeds[i].x()*R5seeds[i](0)
                                                   - seeds[i].y()*R5seeds[i](1);
 
 //    std::cout << "check " << std::endl;
 //    std::cout << seeds[i].x() << " " << seeds[i].y() << std::endl;
 //    std::cout << seeds_m[i].get_mat() << std::endl;
 //    std::cout << R5seeds[i](0) << " " << R5seeds[i](1) << std::endl;
-//    std::cout << sqws[i] << std::endl;
+//    std::cout << ws[i] << std::endl;
   }
+}
+
+void read_tangent_plane_seeds(std::vector<Vector2d>& R2seeds,
+                              std::vector<FT>& r2ws)
+{
+  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points.txt");
+  std::size_t nv, dim;
+  FT x, y, w, max_x = 0, max_y = 0;
+
+  in >> dim >> nv;
+  assert(dim == 2);
+  assert(offset_x + grid_side/2. == 0.); //gotta be centered on 0
+  assert(offset_y + grid_side/2. == 0.);
+
+  nv = (std::min)(nv, R2seeds.size());
+  R2seeds.resize(nv); r2ws.resize(nv);
+
+  for(std::size_t i=0; i<nv; ++i)
+  {
+    in >> x >> y >> w;
+    R2seeds[i] = (Vector2d() << x, y ).finished();
+    r2ws[i] = w;
+
+    if(std::abs(x) > max_x)
+      max_x = x;
+    if(std::abs(y) > max_y)
+      max_y = y;
+  }
+
+//  FT max = (std::max)(max_x, max_y);
+//  offset_x = -max/2.;
+//  offset_y = -max/2.;
 }
 
 int main(int, char**)
@@ -115,12 +176,18 @@ int main(int, char**)
   Metric m_c = metric_field->compute_metric(center);
   Vector5d m_hat(compute_hat(center, m_c));
 
-  std::vector<Point_2> seeds(seed_n);
-  std::vector<Vector5d> R5seeds(seed_n);
-  std::vector<Metric> seeds_m(seed_n);
-  std::vector<FT> sqws(seed_n);
+  std::vector<Point_2> seeds(seed_n); // p
+  std::vector<Metric> seeds_m(seed_n); // p metrics
+  std::vector<Vector5d> R5seeds(seed_n); // p_hat
+  std::vector<FT> ws(seed_n); // p_hat weights
 
-  build_seeds(seeds, R5seeds, seeds_m, sqws, metric_field);
+  std::vector<Vector2d> R2seeds(seed_n); // Pi_H(p_hat) on some tangent plane H
+  std::vector<FT> r2ws(seed_n); // corresponding weights
+#ifdef R2
+  read_tangent_plane_seeds(R2seeds, r2ws);
+#else
+  build_seeds(seeds, R5seeds, seeds_m, ws, metric_field);
+#endif
 
   for(unsigned int i=0; i<n; ++i)
   {
@@ -128,6 +195,7 @@ int main(int, char**)
     {
       //filling from bot left to top right
       Point_2 p(offset_x+j*step, offset_y+i*step);
+      Vector2d pv = (Vector2d() << p.x(), p.y()).finished();
       out << p.x() << " " << p.y() << " " << ++counter << std::endl;
 
       Metric m_p = metric_field->compute_metric(p);
@@ -142,28 +210,46 @@ int main(int, char**)
 //      out_bb << (p_hat - m_hat).norm() << std::endl;
 
 // THIRD MODE : BUILD A VORONOI
-      double min = 1e30;
+      FT min = 1e30;
       unsigned int min_id = 0;
-      for(unsigned int i=0; i<seed_n; ++i)
-      {
-//        double sq_d = (p_hat - R5seeds[i]).norm();             // EUCLIDEAN DISTANCE IN R^5
-//        double sq_d = std::pow((p_hat - R5seeds[i]).norm(),2.) - sqws[i];  // WEIGHTED DISTANCE IN R^5
-        double sq_d = csd(tp, m_p.transform(seeds[i]));          // dx(p,x) < dx(q,x) (DU WANG)
 
-        TPoint_2 tp2 = (seeds_m[i]).transform(p);
-        TPoint_2 ts = (seeds_m[i]).transform(seeds[i]);
-//        double sq_d = csd(tp2, ts);                             // dp(p,x) < dq(q,x) (LABELLE SHEWCHUK)
+#ifdef R2
+      for(std::size_t k=0; k<R2seeds.size(); ++k) // !!! IGNORING THE FIRST FOUR SEEDS !!!
+#else
+      for(std::size_t k=4; k<seeds.size(); ++k) // !!! IGNORING THE FIRST FOUR SEEDS !!!
+#endif
+      {
+        // EUCLIDEAN DISTANCE IN R^5
+//        double sq_d = (p_hat - R5seeds[k]).norm();
+
+        // WEIGHTED DISTANCE IN R^5
+//        double sq_d = std::pow((p_hat - R5seeds[k]).norm(),2.) - ws[k];
+
+        // DU WANG : dx(p,x) < dx(q,x)
+//        double sq_d = csd(tp, m_p.transform(seeds[k]));
+
+        // LABELLE SHEWCHUK : dp(p,x) < dq(q,x)
+        TPoint_2 tp2 = (seeds_m[k]).transform(p);
+        TPoint_2 ts = (seeds_m[k]).transform(seeds[k]);
+        double sq_d = csd(tp2, ts);
+
+        // WEIGHTED DISTANCE IN THE TANGENT PLANE (seeds are the projected p_hat)
+//        double sq_d = std::pow((pv - R2seeds[k]).norm(), 2.) - r2ws[k];
+
         if(sq_d < min)
         {
+          //std::cout << "ahah: " << k << " " << sq_d << std::endl;
           min = sq_d;
-          min_id = i;
+          min_id = k;
         }
       }
 
-      if(min < 10*step*step) // closer to a seed than another point of the grid (sort of)
-        min_id = seed_n;
+//      if(min < 10*step*step) // close to a seed (sort of) -> draw with another color
+//        min_id = seed_n;
 
-      out_bb << min_id*min_id * ((double) min_id+1) / (double) seed_n  << std::endl;
+      //std::cout << "min id: " << min_id << " " << min << std::endl;
+
+      out_bb << std::pow(min_id, 0.1) * ((double) min_id+1) / (double) seed_n  << std::endl;
     }
   }
 
