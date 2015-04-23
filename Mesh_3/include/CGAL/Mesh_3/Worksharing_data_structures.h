@@ -690,7 +690,7 @@ protected:
 
   }
 
-  const int                         NUM_WORK_ITEMS_PER_BATCH;
+  const size_t                      NUM_WORK_ITEMS_PER_BATCH;
 
   int                               m_num_cells_per_axis;
   int                               m_num_cells;
@@ -844,7 +844,7 @@ protected:
     enqueue_task(create_task(wb, parent_task), parent_task);
   }
 
-  const int                         NUM_WORK_ITEMS_PER_BATCH;
+  const size_t                      NUM_WORK_ITEMS_PER_BATCH;
   TLS_WorkBuffer                    m_tls_work_buffers;
 };
 

@@ -8,7 +8,7 @@ A model for `Kernel_d` that uses %Cartesian coordinates to represent the
 geometric objects. The parameter `DimensionTag` is a tag representing the dimension of the
 ambient Euclidean space. It may be either `Dimension_tag<d>` where `d` is
 an integer
-or `Dynamic_dimension_tag`. In the later case, the dimension of the space is specified for each point when it is constructed, so it doesn't need to be known at compile-time.
+or `Dynamic_dimension_tag`. In the latter case, the dimension of the space is specified for each point when it is constructed, so it does not need to be known at compile-time.
 This kernel supports construction of points from `double`
 %Cartesian coordinates. It provides exact geometric predicates, but
 the geometric constructions are not guaranteed to be exact. The geometric
@@ -26,7 +26,8 @@ Known bugs: the functor `Intersect_d` is not yet implemented. `Contained_in_affi
 
 This kernel requires the \ref thirdpartyEigen "Eigen" library.
 
-Ancient compilers like gcc-4.2 are not supported, but gcc-4.4 works.
+Ancient compilers like gcc-4.2 or icc 14 are not supported, but gcc-4.4 and
+icc 15 work.
 
 \cgalModels `Kernel_d`
 \cgalModels `DelaunayTriangulationTraits`
@@ -41,7 +42,6 @@ public:
 /*!
 represents a point in the Euclidean space
 \cgalModels `DefaultConstructible`
-\cgalModels `Copyable`
 \cgalModels `Assignable`
 */
 class Point_d {

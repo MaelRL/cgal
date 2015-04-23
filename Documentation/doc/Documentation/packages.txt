@@ -46,12 +46,14 @@ h1 {
 \package_listing{Partition_2}
 \package_listing{Straight_skeleton_2}
 \package_listing{Minkowski_sum_2}
+\package_listing{Polyline_simplification_2}
 
 
 \section PartPolyhedra Cell Complexes and Polyhedra
 
 \package_listing{Polyhedron}
 \package_listing{HalfedgeDS}
+\package_listing{Surface_mesh}
 \package_listing{Combinatorial_map}
 \package_listing{Linear_cell_complex}
 \package_listing{Nef_3}
@@ -90,6 +92,7 @@ h1 {
 \package_listing{Mesh_2}
 \package_listing{Surface_mesher}
 \package_listing{Surface_reconstruction_points_3}
+\package_listing{Scale_space_reconstruction_3}
 \package_listing{Skin_surface_3}
 \package_listing{Mesh_3}
 
@@ -125,6 +128,7 @@ h1 {
 \section PartInterpolation Interpolation
 
 \package_listing{Interpolation}
+\package_listing{Barycentric_coordinates_2}
 
 \section PartKineticDataStructures Kinetic Data Structures
 

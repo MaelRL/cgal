@@ -37,7 +37,7 @@ complex, pure connected and without singularities \cgalCite{by-ag-98}. Its
 cells (`3`-faces) are such that two cells either do not intersect or
 share a common facet (`2`-face), edge (`1`-face) or vertex (`0`-face).
 
-The basic 3D-triangulation class of \cgal\ is primarily designed to
+The basic 3D-triangulation class of \cgal is primarily designed to
 represent the triangulations of a set of points \f$ A \f$ in \f$ \mathbb{R}^3 \f$.  It can
 be viewed as a partition of the convex hull of \f$ A \f$ into tetrahedra
 whose vertices are the points of \f$ A \f$.  Together with the unbounded
@@ -86,7 +86,6 @@ is opposite to the vertex with the same index. See
 
 - `CGAL::Triangulation_3<TriangulationTraits_3,TriangulationDataStructure_3,SurjectiveLockDataStructure>`
 - `CGAL::Delaunay_triangulation_3<DelaunayTriangulationTraits_3,TriangulationDataStructure_3,LocationPolicy,SurjectiveLockDataStructure>`
-- `CGAL::Triangulation_hierarchy_3<Tr>`
 - `CGAL::Regular_triangulation_3<RegularTriangulationTraits_3,TriangulationDataStructure_3,SurjectiveLockDataStructure>`
 - `CGAL::Triangulation_vertex_base_3<TriangulationTraits_3, TriangulationDSVertexBase_3>`
 - `CGAL::Triangulation_vertex_base_with_info_3<Info, TriangulationTraits_3, TriangulationVertexBase_3>`
