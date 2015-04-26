@@ -35,7 +35,7 @@ typedef CGAL::Epick_d<CGAL::Dynamic_dimension_tag>              Kernel;
 typedef Kernel::FT                                              FT;
 typedef Kernel::Point_d                                         Point;
 typedef CGAL::Tangential_complex<
-  Kernel, CGAL::Dynamic_dimension_tag, 
+  Kernel, CGAL::Dynamic_dimension_tag,
   CGAL::Parallel_tag>                                           TC;
 
 class XML_perf_data
@@ -144,18 +144,18 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     slash_index, input_name_stripped.find_last_of('.') - slash_index);
 
   int ambient_dim = k.point_dimension_d_object()(*points.begin());
-    
+
 #ifdef CGAL_TC_PROFILING
   Wall_clock_timer t_gen;
 #endif
-  
+
 #ifdef CGAL_TC_PROFILING
   std::cerr << "Point set generated in " << t_gen.elapsed()
             << " seconds." << std::endl;
 #endif
-  
+
   CGAL_TC_SET_PERFORMANCE_DATA("Num_points_in_input", points.size());
-  
+
 #ifdef USE_ANOTHER_POINT_SET_FOR_TANGENT_SPACE_ESTIM
   std::vector<Point> points_not_sparse = points;
 #endif
@@ -167,10 +167,10 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     std::cerr << "Number of points before/after sparsification: "
       << num_points_before << " / " << points.size() << std::endl;
   }
-  
+
   CGAL_TC_SET_PERFORMANCE_DATA("Sparsity", sparsity);
   CGAL_TC_SET_PERFORMANCE_DATA("Num_points", points.size());
-  
+
 #ifdef USE_ANOTHER_POINT_SET_FOR_TANGENT_SPACE_ESTIM
   TC tc(points.begin(), points.end(), sparsity, intrinsic_dim,
     points_not_sparse.begin(), points_not_sparse.end(), k);
@@ -182,7 +182,7 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
 
   tc.compute_tangential_complex();
   double computation_time = t.elapsed(); t.reset();
-    
+
   // CJTODO TEMP ===========================
   {
   TC::Simplicial_complex complex;
@@ -228,8 +228,6 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     export_before_time = t.elapsed(); t.reset();
   }
 
-
-
   t.reset();
   unsigned int num_fix_steps;
   std::size_t initial_num_inconsistent_local_tr;
@@ -241,13 +239,13 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     time_limit_for_fix);
   double fix_time = t.elapsed(); t.reset();
 
-  CGAL_TC_SET_PERFORMANCE_DATA("Initial_num_inconsistent_local_tr", 
+  CGAL_TC_SET_PERFORMANCE_DATA("Initial_num_inconsistent_local_tr",
                                initial_num_inconsistent_local_tr);
-  CGAL_TC_SET_PERFORMANCE_DATA("Best_num_inconsistent_local_tr", 
+  CGAL_TC_SET_PERFORMANCE_DATA("Best_num_inconsistent_local_tr",
                                best_num_inconsistent_local_tr);
-  CGAL_TC_SET_PERFORMANCE_DATA("Final_num_inconsistent_local_tr", 
+  CGAL_TC_SET_PERFORMANCE_DATA("Final_num_inconsistent_local_tr",
                                final_num_inconsistent_local_tr);
-  
+
   double export_after_fix_time = -1.;
   if (intrinsic_dim <= 3)
   {
@@ -259,7 +257,7 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     tc.export_to_off(off_stream, true);
     export_after_fix_time = t.elapsed(); t.reset();
   }
-  
+
   t.reset();
   // Try to solve the remaining inconstencies
   tc.check_and_solve_inconsistencies_by_adding_higher_dim_simplices();
@@ -287,7 +285,7 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
 
   // Collapse
   //complex.collapse(max_dim);
-  
+
   double export_after_collapse_time = -1.;
   if (intrinsic_dim <= 3)
   {
@@ -316,8 +314,8 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     << "    - Init + kd-tree = " << init_time << std::endl
     << "    - TC computation = " << computation_time << std::endl
     << "  * Export to OFF (before fix): " << export_before_time << std::endl
-    << "  * Fix inconsistencies 1: " << fix_time 
-    <<      " (" << num_fix_steps << " steps) ==> " 
+    << "  * Fix inconsistencies 1: " << fix_time
+    <<      " (" << num_fix_steps << " steps) ==> "
     <<      (fix_ret == CGAL::TC_FIXED ? "FIXED" : "NOT fixed") << std::endl
     << "  * Fix inconsistencies 2: " << fix2_time << std::endl
     << "  * Export to OFF (after fix): " << export_after_fix_time << std::endl
@@ -335,7 +333,7 @@ void make_tc(std::vector<Point> &points, int intrinsic_dim,
     CGAL_TC_SET_PERFORMANCE_DATA("Fix1_steps",    num_fix_steps);
     CGAL_TC_SET_PERFORMANCE_DATA("Fix2_pure_manifold",
                                                   (pure_manifold ? "Y" : "N"));
-    CGAL_TC_SET_PERFORMANCE_DATA("Fix2_num_wrong_number_of_cofaces", 
+    CGAL_TC_SET_PERFORMANCE_DATA("Fix2_num_wrong_number_of_cofaces",
                                                   num_wrong_number_of_cofaces);
     CGAL_TC_SET_PERFORMANCE_DATA("Fix2_time",     fix2_time);
     CGAL_TC_SET_PERFORMANCE_DATA("Info", "");
@@ -354,7 +352,7 @@ int main()
   int seed = CGAL::default_random.get_int(0, 1<<30);
   CGAL::default_random = CGAL::Random();
   std::cerr << "Random seed = " << seed << std::endl;
-  
+
   std::ifstream script_file;
   script_file.open(BENCHMARK_SCRIPT_FILENAME);
   // Script?
@@ -444,13 +442,13 @@ int main()
 #endif
 
             std::cerr << std::endl << "TC #" << i << "..." << std::endl;
-            
+
             std::vector<Point> points;
 
             if (input == "generate_moment_curve")
             {
               points = generate_points_on_moment_curve<Kernel>(
-                num_points, ambient_dim, 
+                num_points, ambient_dim,
                 std::atof(param1.c_str()), std::atof(param2.c_str()));
             }
             else if (input == "generate_plane")
@@ -460,7 +458,7 @@ int main()
             else if (input == "generate_sphere_d")
             {
               points = generate_points_on_sphere_d<Kernel>(
-                num_points, ambient_dim, 
+                num_points, ambient_dim,
                 std::atof(param1.c_str()));
             }
             else if (input == "generate_klein_bottle_3D")
@@ -489,11 +487,11 @@ int main()
 
             if (!points.empty())
             {
-              make_tc(points, intrinsic_dim, sparsity, 
+              make_tc(points, intrinsic_dim, sparsity,
                       time_limit_for_fix, input.c_str());
 
               std::cerr << "TC #" << i++ << " done." << std::endl;
-              std::cerr << std::endl << "---------------------------------" 
+              std::cerr << std::endl << "---------------------------------"
                         << std::endl << std::endl;
             }
             else
