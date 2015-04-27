@@ -223,7 +223,7 @@ public:
         if(si == sj)
           continue;
         Star_handle star_j = m_stars[sj];
-        star_i->insert_to_star(star_j->center_point(), sj, false/*no cond*/);
+        star_i->insert_to_star(star_j->m_center_S, sj, false/*no cond*/);
       }
       //star_i->clean();
     }
@@ -234,8 +234,8 @@ public:
     Star_handle s = new Star(p, m_stars.size(), m_mf->compute_metric(p));
     for(std::size_t i=0; i<m_stars.size(); ++i)
     {
-      m_stars[i]->insert_to_star(s->m_center, s->index(), false/*no cond*/);
-      s->insert_to_star(m_stars[i]->m_center, m_stars[i]->index(), false);
+      m_stars[i]->insert_to_star(s->m_center_S, s->index(), false/*no cond*/);
+      s->insert_to_star(m_stars[i]->m_center_S, m_stars[i]->index(), false);
     }
     m_stars.push_back(s);
   }

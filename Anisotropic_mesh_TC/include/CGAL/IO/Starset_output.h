@@ -27,8 +27,8 @@ void dump(const Starset& stars)
   for(std::size_t i=0; i<ns; ++i)
   {
     typename Starset::Star_handle star_i = stars[i];
-    typename Starset::Vertex_h_iterator nsi = star_i->finite_adjacent_vertices_begin();
-    typename Starset::Vertex_h_iterator nsiend = star_i->finite_adjacent_vertices_end();
+    typename Starset::Vertex_handle_iterator nsi = star_i->finite_adjacent_vertices_begin();
+    typename Starset::Vertex_handle_iterator nsiend = star_i->finite_adjacent_vertices_end();
     fx << nsiend - nsi;
     for(; nsi != nsiend; nsi++)
       fx << " " << (*nsi)->data();

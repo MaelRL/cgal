@@ -232,7 +232,7 @@ public:
     std::cout << m_center_Q[0] << " " << m_center_Q[1] << " ";
     std::cout << m_center_Q[2] << " " << m_center_Q[3] << " ";
     std::cout << m_center_Q[4] << std::endl;
-    std::cout << "tsb: " << std::endl << tsb_m << std::endl;
+    std::cout << "tsb: " << std::endl << tsb_m.transpose() << std::endl;
 
     typename KD::Construct_vector_d constr_vec = KD().construct_vector_d_object();
     for(int i=0; i<d(); ++i)
@@ -337,15 +337,13 @@ public:
   }
 
   // from R^d to R^D on the tangent plane
-  WPoint_d to_T(const Point_d& p) const
+  WPoint_d to_T(const WPoint_D& p_on_S) const
   {
     if(!is_tsb_init)
     {
       compute_tangent_space_basis();
       is_tsb_init = true;
     }
-
-    WPoint_D p_on_S(to_S(p)); // todo avoid to_S() call if p is the center point
 
 //    std::cout << "p: " << p[0] << " " << p[1] << std::endl;
 //    std::cout << "mq: " << m_center_Q[0] << " " << m_center_Q[1] << " " << m_center_Q[2] << " " << m_center_Q[3] << " " << m_center_Q[4] << std::endl;
@@ -447,25 +445,29 @@ public:
   }
 
   // Insert functions ----------------------------------------------------------
-  Vertex_handle insert_if_in_star(const Point_d& p,
+  // We take "p_on_S" and not "p" because "this" cannot transform p to p_on_S (it
+  // doesn't know p's metric and calling to_T(p) would wrongly use "this"'s metric
+  // instead of p's !)
+  Vertex_handle insert_if_in_star(const WPoint_D& p_on_S,
                                   const Index& index_)
   {
-    Vertex_handle vh = Base::insert_if_in_star(to_T(p), m_center_v);
+    Vertex_handle vh = Base::insert_if_in_star(to_T(p_on_S), m_center_v);
     if(vh != Vertex_handle())
       vh->data() = index_;
     invalidate_cache();
     return vh;
   }
 
-  Vertex_handle insert_to_star(const Point_d& p,
+  Vertex_handle insert_to_star(const WPoint_D& p_on_S,
                                const Index& index,
                                const bool conditional = false)
   {
     Vertex_handle vh;
     if(conditional)
-      vh = insert_if_in_star(p, index);
+      vh = insert_if_in_star(p_on_S, index);
     else
-      vh = Base::insert(to_T(p), m_center_v);
+      vh = Base::insert(to_T(p_on_S), m_center_v);
+
     if(vh != Vertex_handle())
       vh->data() = index;
 
@@ -899,7 +901,7 @@ public:
 
     // re-insert
     for(std::size_t i = 1; i < backup.size(); i++)
-      insert_to_star(backup[i].first, backup[i].second, false);
+      Base::insert(backup[i].first, backup[i].second, false);
 
     return (nbv - backup.size());
   }
@@ -946,7 +948,7 @@ public:
       m_center(center_point),
       m_center_Q(to_Q(center_point)),
       m_center_S(to_S(center_point)),
-      m_center_T(to_T(center_point)),
+      m_center_T(to_T(m_center_S)),
       m_is_cache_dirty(true),
       m_finite_adjacent_vertices_cache(),
       m_incident_full_cells_cache(),
