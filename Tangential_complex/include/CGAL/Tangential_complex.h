@@ -135,9 +135,15 @@ class Tangential_complex
   typedef tbb::mutex                                  Mutex_for_perturb;
   typedef Vector                                      Translation_for_perturb;
   typedef std::vector<Atomic_wrapper<FT> >            Weights;
+ #ifdef CGAL_TC_PERTURB_WEIGHT
+  typedef std::vector<Atomic_wrapper<FT> >            Weights_memory;
+ #endif
 #else
   typedef Vector                                      Translation_for_perturb;
   typedef std::vector<FT>                             Weights;
+ #ifdef CGAL_TC_PERTURB_WEIGHT
+  typedef std::vector<FT>                             Weights_memory;
+ #endif
 #endif
   typedef std::vector<Translation_for_perturb>        Translations_for_perturb;
 
@@ -226,6 +232,9 @@ public:
     m_ambient_dim(k.point_dimension_d_object()(*first)),
     m_points(first, last),
     m_weights(m_points.size(), FT(0))
+#ifdef CGAL_TC_PERTURB_WEIGHT
+    m_weights_memory(m_points.size(), FT(0))
+#endif
 # if defined(CGAL_LINKED_WITH_TBB) && defined(CGAL_TC_PERTURB_POSITION) \
   && defined(CGAL_TC_GLOBAL_REFRESH)
     , m_p_perturb_mutexes(NULL)
@@ -256,9 +265,12 @@ public:
     return m_points.size();
   }
 
-  void set_weights(std::vector<FT> const& weights)
+  void set_weights(const Weights& weights)
   {
     m_weights = weights;
+#ifdef CGAL_TC_PERTURB_WEIGHT
+    m_weights_memory = weights;
+#endif
   }
 
   void set_tangent_planes(const TS_container& tangent_spaces
@@ -1872,7 +1884,8 @@ next_face:
   {
     // Perturb the weight?
 #ifdef CGAL_TC_PERTURB_WEIGHT
-    m_weights[point_idx] += m_random_generator.get_double(0., m_sq_half_sparsity);
+    m_weights[point_idx] = m_weights_memory[point_idx] +
+                           m_random_generator.get_double(0., m_sq_half_sparsity);
 #endif
 
 #ifdef CGAL_TC_PERTURB_TANGENT_SPACE
@@ -2868,6 +2881,9 @@ private:
 
   Points                    m_points;
   Weights                   m_weights;
+#ifdef CGAL_TC_PERTURB_WEIGHT
+  Weights_memory            m_weights_memory;
+#endif
 #ifdef CGAL_TC_PERTURB_POSITION
   Translations_for_perturb  m_translations;
 # if defined(CGAL_LINKED_WITH_TBB) && defined(CGAL_TC_GLOBAL_REFRESH)
