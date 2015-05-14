@@ -165,12 +165,12 @@ private:
 
 public:
     Triangulation_data_structure( int dim=0)  /* Concept */
-        : dmax_(get_maximal_dimension<Dimen>::value(dim)), dcur_(-2), 
+        : dmax_(get_maximal_dimension<Dimen>::value(dim)), dcur_(-2),
           vertices_(), full_cells_()
     {
         CGAL_assertion_msg(dmax_ > 0, "maximal dimension must be positive.");
     }
-  
+
     ~Triangulation_data_structure()
     {
         clean_dynamic_memory();
@@ -717,7 +717,7 @@ Triangulation_data_structure<Dim, Vb, Fcb>
             }
         }
     }
-    clear_visited_marks(start); // CJTODO: couldn't we use what is in "out" 
+    clear_visited_marks(start); // CJTODO: couldn't we use what is in "out"
                                 // to make ot faster? (would require to
                                 // replace the output iterator by a container)
     return ft;
@@ -739,7 +739,8 @@ template< class Dim, class Vb, class Fcb >
 template< typename OutputIterator, typename Comparator >
 OutputIterator
 Triangulation_data_structure<Dim, Vb, Fcb>
-::incident_faces(Vertex_const_handle v, const int dim, OutputIterator out, Comparator cmp, bool upper_faces) const
+::incident_faces(Vertex_const_handle v, const int dim,
+                 OutputIterator out, Comparator cmp, bool upper_faces) const
 {
     CGAL_precondition( 0 < dim );
     if( dim >= current_dimension() )
@@ -983,10 +984,10 @@ Triangulation_data_structure<Dim, Vb, Fcb>
   {
     IITH_task task = task_queue.front();
     task_queue.pop();
-    
+
     Full_cell_handle old_s = full_cell(task.boundary_facet);
     const int facet_index = index_of_covertex(task.boundary_facet);
-    
+
     Full_cell_handle outside_neighbor = neighbor(old_s, facet_index);
     // Here, "new_s" might actually be a new cell, but it might also be "old_s"
     // if it has not been treated already in the meantime
@@ -1010,7 +1011,7 @@ Triangulation_data_structure<Dim, Vb, Fcb>
 
       // add the new full_cell to the list of new full_cells
       *new_full_cells++ = new_s;
-  
+
       // check all of |Facet f|'s neighbors
       for (i = 0 ; i <= cur_dim ; ++i)
       {
@@ -1045,7 +1046,7 @@ Triangulation_data_structure<Dim, Vb, Fcb>
             index,                        // index_of_inside_cell_in_outside_cell
             new_s,                        // future_neighbor
             i,                            // new_cell_index_in_future_neighbor
-            index_of_second_covertex(rot) // index_of_future_neighbor_in_new_cell 
+            index_of_second_covertex(rot) // index_of_future_neighbor_in_new_cell
           ));
         }
       }
@@ -1055,9 +1056,9 @@ Triangulation_data_structure<Dim, Vb, Fcb>
     if (task.future_neighbor != Full_cell_handle())
     {
       // now the new neighboring full_cell exists, we link both
-      set_neighbors(new_s, 
-                    task.index_of_future_neighbor_in_new_cell, 
-                    task.future_neighbor, 
+      set_neighbors(new_s,
+                    task.index_of_future_neighbor_in_new_cell,
+                    task.future_neighbor,
                     task.new_cell_index_in_future_neighbor);
     }
   }
@@ -1275,7 +1276,7 @@ bool Triangulation_data_structure<Dimen, Vb, Fcb>
         if( ! v->is_valid(verbose) )
             return false;
     }
-    
+
     // FUTURE: for each vertex v, gather incident full_cells. then, check that
     // any full_cell containing v is among those gathered full_cells...
 
@@ -1528,8 +1529,6 @@ operator>>(std::istream & is, Triangulation_data_structure<Dimen, Vb, Fcb> & tr)
   // - the neighbors of each full_cell by their index in the preceding list
 {
     typedef Triangulation_data_structure<Dimen, Vb, Fcb> TDS;
-    typedef typename TDS::Full_cell_handle      Full_cell_handle;
-    typedef typename TDS::Full_cell_iterator    Full_cell_iterator;
     typedef typename TDS::Vertex_handle         Vertex_handle;
 
     // read current dimension and number of vertices
@@ -1580,8 +1579,6 @@ operator<<(std::ostream & os, const Triangulation_data_structure<Dimen, Vb, Fcb>
   // - the neighbors of each full_cell by their index in the preceding list
 {
     typedef Triangulation_data_structure<Dimen, Vb, Fcb> TDS;
-    typedef typename TDS::Full_cell_const_handle      Full_cell_handle;
-    typedef typename TDS::Full_cell_const_iterator    Full_cell_iterator;
     typedef typename TDS::Vertex_const_handle         Vertex_handle;
     typedef typename TDS::Vertex_const_iterator       Vertex_iterator;
 
