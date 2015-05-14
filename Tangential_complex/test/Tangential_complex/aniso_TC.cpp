@@ -42,7 +42,7 @@ typedef CGAL::Anisotropic_mesh_TC::Custom_metric_field<Kk>      Custom_mf;
 void read_points(std::vector<Point_k>& points,
                  const Kk kerk = Kk())
 {
-  std::ifstream in("../../../../Anisotropic_mesh_2/examples/Anisotropic_mesh_2/bambimboum.mesh");
+  std::ifstream in("../../../../Anisotropic_mesh_2/examples/Anisotropic_mesh_2/build/bambimboum.mesh");
 //  std::ifstream in("aniso_regular.mesh");
   std::string word;
   int useless, nv, dd;
@@ -217,28 +217,144 @@ void compute_and_set_tangent_planes(TC& tc,
                         );
 }
 
+std::ostream& export_simplices_to_medit(const TC& tc,
+                                        const TC::Simplicial_complex &complex,
+                                        std::ostream & os,
+                                        std::size_t &num_simplices,
+                                        const std::vector<Point_k>& points_k)
+{
+  typedef TC::Simplicial_complex::Simplex                     Simplex;
+  typedef TC::Simplicial_complex::Simplex_range               Simplex_range;
+
+  num_simplices = 0;
+  typename Simplex_range::const_iterator it_s = complex.simplex_range().begin();
+  typename Simplex_range::const_iterator it_s_end = complex.simplex_range().end();
+  // For each triangulation
+  for ( ; it_s != it_s_end ; ++it_s)
+  {
+    Simplex c = *it_s;
+
+    bool color_simplex = !tc.is_simplex_consistent(c);
+
+    // Gather the triangles here
+    typedef std::vector<Simplex> Triangles;
+    Triangles triangles;
+
+    std::size_t num_vertices = c.size();
+    // Do not export smaller dimension simplices
+    if (num_vertices < tc.m_intrinsic_dimension + 1)
+      continue;
+
+    if (num_vertices <= 3)
+    {
+      triangles.push_back(c);
+    }
+    else
+    {
+      // num_vertices >= 4: decompose the simplex in triangles
+      std::vector<bool> booleans(num_vertices, false);
+      std::fill(booleans.begin() + num_vertices - 3, booleans.end(), true);
+      do
+      {
+        std::set<std::size_t> triangle;
+        std::set<std::size_t>::iterator it = c.begin();
+        for (int i = 0; it != c.end() ; ++i, ++it)
+        {
+          if (booleans[i])
+            triangle.insert(*it);
+        }
+        triangles.push_back(triangle);
+      }
+      while (std::next_permutation(booleans.begin(), booleans.end()));
+    }
+
+    // For each cell
+    Triangles::const_iterator it_tri = triangles.begin();
+    Triangles::const_iterator it_tri_end = triangles.end();
+    for ( ; it_tri != it_tri_end ; ++it_tri)
+    {
+      // Don't export infinite cells
+      if (*it_tri->rbegin() == std::numeric_limits<std::size_t>::max())
+        continue;
+
+//      bool avoid_triangle = false;
+//      std::set<std::size_t>::const_iterator it_point_idx0 = it_tri->begin();
+//      for ( ; it_point_idx0 != it_tri->end() ; ++it_point_idx0)
+//      {
+//        typename Kk::Squared_distance_d sqd = Kk().squared_distance_d_object();
+
+//        std::vector<FT> null_coords(k,0.);
+//        Point_k ori = Kk().construct_point_d_object()(k, null_coords.begin(), null_coords.end());
+//        std::cout << "sqd is: " << sqd(points_k[*it_point_idx0], ori) << std::endl;
+//        if(sqd(points_k[*it_point_idx0], ori) > 2)
+//        {
+//          avoid_triangle = true;
+//          break;
+//        }
+//      }
+//      if(avoid_triangle)
+//        continue;
+
+      std::set<std::size_t>::const_iterator it_point_idx = it_tri->begin();
+      for ( ; it_point_idx != it_tri->end() ; ++it_point_idx)
+        os << *it_point_idx+1 << " ";
+
+      if (color_simplex)
+        os << "1" << std::endl;
+      else
+        os << "2" << std::endl;
+
+      ++num_simplices;
+    }
+  }
+
+  return os;
+}
+
 // translate the connectivity of the stars back to the original points
 void export_complex_in_origin_space(const TC& tc,
                                     const TC::Simplicial_complex& complex,
-                                    const std::vector<Point_k>& points_k)
+                                    const std::vector<Point_k>& points_k,
+                                    std::ofstream& out)
 {
-  std::ofstream out("aniso.off");
   std::stringstream output;
   std::size_t num_simplices;
-
   typename Kk::Compute_coordinate_d k_coord = Kk().compute_coordinate_d_object();
 
-
+  out << "MeshVersionFormatted 1" << std::endl;
+  out << "Dimension " << tc.m_intrinsic_dimension << std::endl;
+  out << "Vertices" << std::endl;
+  out << tc.number_of_vertices() << std::endl;
   for(std::size_t i=0; i<points_k.size(); ++i)
   {
     const Point_k& p = points_k[i];
-    output << k_coord(p, 0) << " " << k_coord(p, 1) << " 0" << std::endl;
+    out << k_coord(p, 0) << " " << k_coord(p, 1) << " 0" << std::endl;
+  }
+
+  export_simplices_to_medit(tc, complex, output, num_simplices, points_k);
+  out << "Triangles" << std::endl;
+  out << num_simplices << std::endl;
+  out << output.str();
+}
+
+void export_paraboloid(const TC& tc,
+                       const TC::Simplicial_complex& complex,
+                       std::ofstream& out)
+{
+  std::stringstream output;
+  std::size_t num_simplices;
+  typename Kd::Compute_coordinate_d d_coord = Kd().compute_coordinate_d_object();
+
+  for(std::size_t i=0; i<tc.number_of_vertices(); ++i)
+  {
+    const Point_d& p = tc.m_tangent_spaces[i].origin();
+    output << d_coord(p, 2) << " " << d_coord(p, 3) << " " << d_coord(p, 4) << std::endl;
   }
 
   tc.export_simplices_to_off(complex, output, num_simplices);
 
   out << "OFF" << std::endl;
-  out << points_k.size() << " " << num_simplices << " 0" << std::endl;
+  out << tc.number_of_vertices() << " " << num_simplices << " 0" << std::endl;
   out << output.str();
 }
 
@@ -261,15 +377,25 @@ void make_tc(std::vector<Point_k>& points_k,
   int max_dim = tc.export_TC(complex, false);
   complex.display_stats();
   {
-    std::ofstream off_stream("aniso_alpha_complex.off");
+    std::ofstream off_stream("aniso_complex.off");
     tc.export_to_off(complex, off_stream);
+  }
+
+  for(int i=0; i<tc.number_of_vertices(); ++i)
+  {
+    std::ostringstream os;
+    os << "star_" << i << ".mesh" << std::ends;
+    std::ofstream out(os.str().c_str());
+    TC::Simplicial_complex star;
+    tc.export_TC(star, false, i);
+    export_complex_in_origin_space(tc, star, points_k, out);
   }
 
   // Collapse
   complex.collapse(max_dim);
   {
     std::ofstream off_stream("aniso_after_collapse.off");
-    tc.export_to_off(complex, off_stream);
+    export_complex_in_origin_space(tc, complex, points_k, off_stream);
   }
 
   std::size_t num_wrong_dim_simplices, num_wrong_number_of_cofaces;
@@ -278,12 +404,20 @@ void make_tc(std::vector<Point_k>& points_k,
                                                 &num_wrong_number_of_cofaces);
   complex.display_stats();
 
-  export_complex_in_origin_space(tc, complex, points_k);
-  return;
+  std::ofstream out("aniso_TC.mesh");
+  export_complex_in_origin_space(tc, complex, points_k, out);
+
+  std::ofstream outp("aniso_TC_paraboloid.off");
+  export_paraboloid(tc, complex, outp);
+
+  for(std::size_t i=0; i<tc.number_of_vertices(); ++i)
+    tc.compute_projected_points(i);
 }
 
 int main()
 {
+  std::freopen("log_TC.txt", "w", stdout); // redirect std::cout to log.txt
+
   CGAL::default_random = CGAL::Random();
   std::vector<Point_k> points_k;
 

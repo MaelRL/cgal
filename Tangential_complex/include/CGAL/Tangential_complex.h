@@ -641,7 +641,8 @@ public:
 
   // Return the max dimension of the simplices
   int export_TC(Simplicial_complex &complex,
-    bool export_infinite_simplices = false) const
+                bool export_infinite_simplices = false,
+                int specific_star_id = -1) const
   {
     int max_dim = -1;
 
@@ -650,6 +651,9 @@ public:
     // For each triangulation
     for (std::size_t idx = 0 ; it_tr != it_tr_end ; ++it_tr, ++idx)
     {
+      if(specific_star_id >= 0 && specific_star_id != idx)
+        continue;
+
       // For each cell of the star
       Star::const_iterator it_inc_simplex = m_stars[idx].begin();
       Star::const_iterator it_inc_simplex_end = m_stars[idx].end();
@@ -979,6 +983,32 @@ private:
     }
   };
 #endif // CGAL_LINKED_WITH_TBB
+
+public:
+  void compute_projected_points(std::size_t i)
+  {
+    std::ostringstream outstr;
+    outstr << "projected_points_" << i << ".txt" << std::ends;
+    std::ofstream out(outstr.str().c_str());
+
+    std::stringstream out_s;
+
+    Triangulation &local_tr =
+      m_triangulations[i].construct_triangulation(m_intrinsic_dimension);
+    const Tr_traits &local_tr_traits = local_tr.geom_traits();
+
+    for(std::size_t j=0; j<number_of_vertices(); ++j)
+    {
+      const Weighted_point& wp = compute_perturbed_weighted_point(j);
+      Tr_point proj_wp = project_point_and_compute_weight(wp, m_tangent_spaces[i],
+                                                          local_tr_traits);
+
+      out_s << proj_wp.point()[0] << " " << proj_wp.point()[1] << " ";
+      out_s << proj_wp.weight() << std::endl;
+    }
+    out << m_intrinsic_dimension << " " << number_of_vertices() << std::endl;
+    out << out_s.str();
+  }
 
   void compute_tangent_triangulation(std::size_t i, bool verbose = false)
   {
