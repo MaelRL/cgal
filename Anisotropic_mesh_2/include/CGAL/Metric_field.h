@@ -63,7 +63,7 @@ public:
   // this function is used to report the setting of the metric
   virtual void report(typename std::ofstream &fx) const = 0;
 
-  Metric_field(FT epsilon_ = 1.0) // to avoid the degen case of two equal evs
+  Metric_field(FT epsilon_ = 1e-6)
     :
       epsilon(epsilon_),
       m_max_sq_eigenvalue(0.),

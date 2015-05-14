@@ -105,7 +105,7 @@ public:
     timer.start();
     double elapsed_time = 0.;
 
-#if 1//ndef ANISO_VERBOSE
+#if 0//ndef ANISO_VERBOSE
     // Scan surface and refine it
     m_face_mesher.initialize();
     m_face_mesher.refine(m_face_visitor);

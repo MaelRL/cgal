@@ -67,8 +67,8 @@ public:
     FT x = p[0];
 
     evals[0] = 1./((denom*std::abs(x)+(1-std::abs(x)))*h); //linear interpolation
-    evals[0] = std::pow(1./denom, std::abs(x))/h; //logexp 1D
-    evals[0] = std::max(std::pow(1./denom, std::abs(x)),1./denom); //logexp 1D extended into uniform
+    //evals[0] = std::pow(1./denom, std::abs(x))/h; //logexp 1D
+    //evals[0] = std::max(std::pow(1./denom, std::abs(x)),1./denom); //logexp 1D extended into uniform
 
     return this->build_metric(evecs, evals);
   }

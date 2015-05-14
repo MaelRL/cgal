@@ -30,7 +30,7 @@ typedef std::vector<Star*>                                   Star_vector;
 
 int main(int argc, char** argv)
 {
-  //std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
+  std::freopen("log.txt", "w", stdout); //all output is written in "wut.txt"
 
   std::streambuf * old = std::cout.rdbuf();
   //std::cout.rdbuf(0);

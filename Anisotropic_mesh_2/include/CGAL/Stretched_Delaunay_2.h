@@ -845,6 +845,14 @@ public:
                                const int id,
                                const bool conditional)
   {
+    TPoint_2 tp = m_metric.transform(p);
+#ifdef ANISO_DEUBG
+    std::cout << "insert to star: " << std::endl;
+    std::cout << "p: " << p << std::endl;
+    std::cout << "m" << std::endl << m_metric.get_transformation() << std::endl;
+    std::cout << "tp: " << tp << std::endl;
+#endif
+
     Vertex_handle v = insert_to_star_(m_metric.transform(p), conditional);
     if(v != center() && v != Vertex_handle())
       v->info() = id;

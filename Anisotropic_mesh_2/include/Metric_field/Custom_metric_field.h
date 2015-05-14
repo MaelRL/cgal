@@ -47,7 +47,7 @@ public:
   }
 
   Metric hyberbolic_shock(const Point_2 &p,
-                          const FT delta = 0.1) const
+                          const FT delta = 0.6) const
   {
     FT x = p.x();
     FT y = p.y();

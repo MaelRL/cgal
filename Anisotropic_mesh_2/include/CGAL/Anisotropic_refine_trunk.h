@@ -665,6 +665,11 @@ public:
     {
       Metric m_p = metric_field()->compute_metric(p);
       star->reset(p, pid, m_p);
+#ifdef ANISO_DEBUG
+      std::cout << "compute metric" << std::endl;
+      std::cout << "m_p:"  << std::endl << m_p.get_transformation() << std::endl;
+      std::cout << "check:"  << std::endl << star->metric().get_transformation() << std::endl;
+#endif
     }
 
 #ifdef ANISO_SCHWARZENEGGER_CREATE_STAR
@@ -850,7 +855,7 @@ public:
   }
 
 private:
-  //Adding the 8 points of the domain's bbox to avoid infinite cells
+  //Adding the 4 points of the domain's bbox to avoid infinite cells
   void initialize_bounding_box_vertices()
   {
     std::cout << "ini bounding box vertices" << std::endl;
@@ -918,7 +923,7 @@ protected:
   }
 
 public:
-//Resuming
+  //Resuming
   void resume_from_mesh_file_(const char* filename)
   {
     if(!m_starset.empty())

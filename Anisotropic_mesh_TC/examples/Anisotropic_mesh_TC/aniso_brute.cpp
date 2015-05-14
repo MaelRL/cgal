@@ -405,8 +405,8 @@ struct J // Jacobian
   const std::vector<Weighted_point>& wpoints;
 
   // the matrix is the jacobian of the system :
-  //   d(p,p0) - w0 = d(p,pi) - wi
-  //   p \in Q
+  //  d(p,p0) - w0 = d(p,pi) - wi
+  //  p \in Q
   // that is : J(i,j) = \frac{\partial \sum_k 2*(p_k-pi_k)x_j}{\partial p_j}
   // where the x_j are x x² (if d=1), x y x² xy y² (if d=2), etc.
 
@@ -957,7 +957,13 @@ int main(int, char **)
   std::cout << "finite cells: " << rt.number_of_finite_full_cells() << std::endl;
   std::cout << "dim rt: " << rt.current_dimension() << std::endl;
 
-  std::cout << "computing restricting facets" << std::endl;
+/*
+  refine_biggest_face(rt, points, wpoints);
+  std::cout << "refine biggest done in " << cost.time() << " seconds." << std::endl;
+  std::cout << "finite cells: " << rt.number_of_finite_full_cells() << std::endl;
+  std::cout << "dim rt: " << rt.current_dimension() << std::endl;
+*/
+
   compute_restricted_facets(rt, points, wpoints);
 
   return 0;

@@ -22,7 +22,7 @@ typedef typename Star::Point_2                               Point_2;
 
 int main(int argc, char** argv)
 {
-//  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
+  std::freopen("aniso_mesh_2_log.txt", "w", stdout);
 
   std::streambuf * old = std::cout.rdbuf();
   //std::cout.rdbuf(0);

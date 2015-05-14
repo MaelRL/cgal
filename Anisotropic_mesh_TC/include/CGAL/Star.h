@@ -215,7 +215,7 @@ public:
       }
     }
 
-//GRAM SCHMIDT ------------------------------------- todo check that it is needed
+//GRAM SCHMIDT ----------------------------------- todo: check that it is needed
     FT nu = (tsb_m.col(0)).norm();
     FT sp = tsb_m.col(0).dot(tsb_m.col(1));
     tsb_m.col(0) /= nu; // norming first => only dividing by nu below (instead of nu²)
@@ -295,7 +295,6 @@ public:
   // from R^d to R^D on the metric surface
   WPoint_D to_S(const Point_d& p) const
   {
-//    std::cout << "p: " << p[0] << " " << p[1] << std::endl;
     const E_Matrix_d m = m_metric.get_mat();
     E_Vector_d e_p, p_bar;
 
@@ -345,16 +344,12 @@ public:
       is_tsb_init = true;
     }
 
-//    std::cout << "p: " << p[0] << " " << p[1] << std::endl;
-//    std::cout << "mq: " << m_center_Q[0] << " " << m_center_Q[1] << " " << m_center_Q[2] << " " << m_center_Q[3] << " " << m_center_Q[4] << std::endl;
-//    std::cout << "ps: " << p_on_S.point()[0] << " " << p_on_S.point()[1] << " " << p_on_S.point()[2] << " " << p_on_S.point()[3] << " " << p_on_S.point()[4] << " w: " << p_on_S.weight() << std::endl;
-
     typename KD::Scalar_product_d inner_pdct = KD().scalar_product_d_object();
     typename KD::Difference_of_points_d diff_points = KD().difference_of_points_d_object();
 
     Vector_D v = diff_points(p_on_S.point(), m_center_Q);
 
-//    std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
+    std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
 
     // Ambiant-space coords of the projected point
     std::vector<FT> coords;
@@ -373,13 +368,14 @@ public:
         p_proj[j] += coord * m_tsb[i][j];
     }
 
-//    std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
+    std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
 
     Point_D projected_pt(D(), p_proj.begin(), p_proj.end());
-//    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
-//    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
+    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
+    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
 
     typename KD::Squared_distance_d sqdist = KD().squared_distance_d_object();
+    std::cout << "w: " << p_on_S.weight() << std::endl;
     std::cout << "sqdist: " << sqdist(p_on_S.point(), projected_pt) << std::endl;
 
     return m_traits->construct_weighted_point_d_object()
@@ -472,11 +468,17 @@ public:
       vh->data() = index;
 
     invalidate_cache();
-    std::cout << "INSERT : " << index << " IN STAR " << m_center_v->data() << std::endl;
+#ifdef CGAL_ANISO_DEBUG
+    std::cout << "---------------------------------------------------" << std::endl;
+    std::cout << "insert " << index << " in " << this->index() << std::endl;
+    WPoint_d tp = to_T(p_on_S);
+    std::cout << "tp: " << tp.point()[0] << " " << tp.point()[1] << " ";
+    std::cout << tp.weight() << std::endl;
     std::cout << "finite cells: " << this->number_of_finite_full_cells() << std::endl;
     std::cout << "dim rt: " << this->current_dimension() << std::endl;
     this->is_valid(true);
-
+#endif
+    std::cout << "exit insert to star" << std::endl;
     return vh;
   }
 
@@ -874,7 +876,7 @@ public:
     std::cout << fch->vertex(2)->data() << ") " << std::endl;
 
     if(!compute_dual(fch, all_stars) ||
-       (fch->data().first)[0] < -0.5 || (fch->data().first)[0] > 0.5 || // TMP need a proper domain class
+       (fch->data().first)[0] < -0.5 || (fch->data().first)[0] > 0.5 || // TODO need a proper domain class
        (fch->data().first)[1] < -0.5 || (fch->data().first)[1] > 0.5)
     {
       fch->data().second = false;
@@ -958,9 +960,23 @@ public:
     m_center_v->data() = index_;
     this->infinite_vertex()->data() = index_of_infinite_vertex;
 
-    std::cout << "End new star constructor" << std::endl;
-    std::cout << "finite cells: " << this->number_of_finite_full_cells() << std::endl;
-    std::cout << "dim rt: " << this-> current_dimension() << std::endl;
+#ifdef ANISO_TC_DEBUG
+    typename Kd::Compute_coordinate_d coord_d = Kd().compute_coordinate_d_object();
+    typename KD::Compute_coordinate_d coord_D = KD().compute_coordinate_d_object();
+
+    std::cout << "End new star constructor " << index_ << std::endl;
+    std::cout << "center_p: " << coord_d(center_point, 0) << " " << coord_d(center_point, 1) << std::endl;
+
+    std::cout << "center_S: ";
+    for(int i=0; i<5; ++i)
+      std::cout << coord_D(m_center_S.point(), i) << " ";
+    std::cout << m_center_S.weight() << std::endl;
+
+    std::cout << "center_Q: ";
+    for(int i=0; i<5; ++i)
+      std::cout << coord_D(m_center_Q, i) << " ";
+    std::cout << std::endl;
+#endif
   }
 
 };

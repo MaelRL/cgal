@@ -112,6 +112,9 @@ public:
             std::cout << " inconsistent : ";
             told = true;
           }
+          std::cout << fch->vertex(0)->data() << " ";
+          std::cout << fch->vertex(1)->data() << " ";
+          std::cout << fch->vertex(2)->data() << " ";
           std::cout << "c not in S_" << index << ", ";
         }
         retval = false;

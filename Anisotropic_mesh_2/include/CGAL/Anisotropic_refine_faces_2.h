@@ -150,7 +150,7 @@ public:
     if(!next_refine_face(bad_face, fh, need_picking_valid))
       return EMPTY_QUEUE;
 
-#if 1//def ANISO_DEBUG_REFINEMENT_PP
+#ifdef ANISO_DEBUG_REFINEMENT_PP
     Vertex_handle v1 = fh->vertex(0);
     Vertex_handle v2 = fh->vertex(1);
     Vertex_handle v3 = fh->vertex(2);
@@ -368,13 +368,14 @@ private:
     //Benefits would be the cost of checking the criteria + update cost but the queues would
     //not have the exact correct priority order they should have.
 
-/* DEBUG
+
+#ifdef ANISO_DEBUG_REFINEMENT_PP
     std::cout << "testing face: ";
     std::cout << fit->vertex(0)->info() << " ";
     std::cout << fit->vertex(1)->info() << " ";
     std::cout << fit->vertex(2)->info() << " ";
     std::cout << " @ star: " << star->index_in_star_set() << std::endl;
-*/
+#endif
 
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
@@ -574,21 +575,23 @@ private:
         if(!m_refinement_condition(c))
           continue;
 */
-        if(!star->is_inside(fh)) //checks infinity
-          continue;
 
 #ifdef ANISO_DEBUG_REFINEMENT_PP
         //check for absurdities
         Vertex_handle v1 = fh->vertex(0);
         Vertex_handle v2 = fh->vertex(1);
         Vertex_handle v3 = fh->vertex(2);
+        std::cout << "check" << std::endl;
+        std::cout << v1->info() << " " << v1->point() << std::endl;
+        std::cout << v2->info() << " " << v2->point() << std::endl;
+        std::cout << v3->info() << " " << v3->point() << std::endl;
 
         typename Star::Traits::Compute_squared_distance_2 csd =
-            m_traits->compute_squared_distance_2_object();
+            K().compute_squared_distance_2_object();
 
-        if(csd(star->metric().inverse_transform(v1->point()), m_stars[v1->info()]->center_point()) > 1e-10 ||
-           csd(star->metric().inverse_transform(v2->point()), m_stars[v2->info()]->center_point()) > 1e-10 ||
-           csd(star->metric().inverse_transform(v3->point()), m_stars[v3->info()]->center_point()) > 1e-10)
+        if(csd(star->metric().inverse_transform(v1->point()), Trunk::get_star(v1->info())->center_point()) > 1e-10 ||
+           csd(star->metric().inverse_transform(v2->point()), Trunk::get_star(v2->info())->center_point()) > 1e-10 ||
+           csd(star->metric().inverse_transform(v3->point()), Trunk::get_star(v3->info())->center_point()) > 1e-10)
         {
           std::cout.precision(20);
           std::cout << "points differ in fill_ref_queue: " << v1->info() << " " << v2->info() << " " << v3->info() << std::endl;
@@ -596,11 +599,13 @@ private:
           std::cout << star->metric().inverse_transform(v1->point()) << std::endl;
           std::cout << star->metric().inverse_transform(v2->point()) << std::endl;
           std::cout << star->metric().inverse_transform(v3->point()) << std::endl;
-          std::cout << m_stars[v1->info()]->center_point() << std::endl;
-          std::cout << m_stars[v2->info()]->center_point() << std::endl;
-          std::cout << m_stars[v3->info()]->center_point() << std::endl;
+          std::cout << Trunk::get_star(v1->info())->center_point() << std::endl;
+          std::cout << Trunk::get_star(v2->info())->center_point() << std::endl;
+          std::cout << Trunk::get_star(v3->info())->center_point() << std::endl;
         }
 #endif
+        if(!star->is_inside(fh)) //checks infinity
+          continue;
 
         if(relative_point >= 0) // we do not consider not-relative faces
         {

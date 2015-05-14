@@ -1,8 +1,8 @@
 #include <CGAL/assertions_behaviour.h>
 #include <CGAL/Epick_d.h>
-#include <CGAL/Tangential_complex.h>
 #include <CGAL/Random.h>
 
+#include <CGAL/Tangential_complex.h>
 #include "../../test/Tangential_complex/test_utilities.h"
 
 #include <CGAL/Metric_field.h> // Anisotropic metrics

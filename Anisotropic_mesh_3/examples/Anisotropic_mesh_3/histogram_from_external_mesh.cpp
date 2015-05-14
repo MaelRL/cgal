@@ -519,10 +519,10 @@ int main(int, char**)
   facet_edge_length_histogram(points, facets, metrics);
   cell_distortion_histogram(points, cells, metrics);
   cell_edge_length_histogram(points, cells, metrics);
-  cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
-  cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
+  //cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
+  //cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
 
-  delete pdomain;
+//  delete pdomain;
   delete metric_field;
 
   return 0;

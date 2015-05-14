@@ -88,6 +88,8 @@ int get_simplices_to_draw(const Starset& starset,
       }
     }
   }
+
+  std::cout << "drawing " << output_cells.size() << " (" << nb_restricted_cells << ")" << std::endl;
   return nb_inconsistent_cells;
 }
 

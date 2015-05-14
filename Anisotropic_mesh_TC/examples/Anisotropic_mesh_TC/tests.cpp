@@ -186,7 +186,7 @@ bool refine(Starset<Kd, KD>& starset)
     assert(fch->data().second); // make sure the cell's circumcenter has been computed
     const Point_d& ref = fch->data().first;
 
-// VERBOSE
+// VERBOSE ---------------------------------------------------------------------
     std::cout << "INSERT IN STARS: " << ref[0] << " " << ref[1] << std::endl;
     for(int i=0; i<=d; ++i)
     {
@@ -199,7 +199,7 @@ bool refine(Starset<Kd, KD>& starset)
       FT dist  = std::sqrt(v.transpose() * v);
       std::cout << "metric dist: " << fch->vertex(i)->data() << " " << dist << std::endl;
     }
-// VERBOSE
+// VERBOSE ---------------------------------------------------------------------
 
     starset.insert_in_stars(ref);
     if(rfsit->star->has_cell(fch, rfsit->full_cell.vertices()))

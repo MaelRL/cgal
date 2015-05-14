@@ -384,8 +384,8 @@ void compute_orthogonal_vectors(const IPoint& t, VectorD& nu, VectorD& mu,
                                 std::map<Position, VectorD>& memory,
                                 int Ci, int Cj)
 {
-  std::cout << "compute_orthogonal_vectors +++++++++++++++";
-  std::cout <<  t.transpose() << " @@ " << Ci << " " << Cj << std::endl;
+//  std::cout << "compute_orthogonal_vectors +++++++++++++++";
+//  std::cout <<  t.transpose() << " @@ " << Ci << " " << Cj << std::endl;
 
   if(Cj == 0) { Cj=n-1; Ci--; }
   else Cj--;
@@ -406,7 +406,7 @@ void compute_orthogonal_vectors(const IPoint& t, VectorD& nu, VectorD& mu,
   tangent_vectors.push_back(nu);
   tangent_vectors.push_back(mu);
 
-//  std::cout << "computed TKs, now orthogonormalizing" << std::endl;
+//  std::cout << "computed TKs, now orthonormalizing" << std::endl;
   for(int i=0; i<d+2; ++i)
   {
     VectorD& tvi = tangent_vectors[i];
@@ -452,15 +452,15 @@ VectorD compute_step_ij_embed_2(const IPoint& t,
 {
   // compute Psi_ij(t)
 
-  std::cout << "compute_step_ij_embed_2 ----------------- ";
-  std::cout << t.transpose() << " @@ " << Ci << " " << Cj << std::endl;
+//  std::cout << "compute_step_ij_embed_2 ----------------- ";
+//  std::cout << t.transpose() << " @@ " << Ci << " " << Cj << std::endl;
 
   std::map<Position, VectorD>::iterator it = memory.find(Position(t, Ci, Cj));
   if(it != memory.end())
   {
 //    print_memory(memory);
-    std::cout << "already computed " << t.transpose() << " " << Ci << " " << Cj << std::endl;
-    std::cout << "val: " << it->second.transpose() << std::endl;
+//    std::cout << "already computed " << t.transpose() << " " << Ci << " " << Cj << std::endl;
+//    std::cout << "val: " << it->second.transpose() << std::endl;
     return it->second;
   }
 
@@ -471,8 +471,8 @@ VectorD compute_step_ij_embed_2(const IPoint& t,
   if(Ci < 0)
   {
     assert(Cj == n-1);
-    std::cout << "Add to memory: " << t.transpose() << " " << Ci << " " << Cj << std::endl;
-    std::cout << "val: " << ret.transpose() << std::endl;
+//    std::cout << "Add to memory: " << t.transpose() << " " << Ci << " " << Cj << std::endl;
+//    std::cout << "val: " << ret.transpose() << std::endl;
     memory[Position(t, Ci, Cj)] = ret;
     return ret;
   }
@@ -483,16 +483,16 @@ VectorD compute_step_ij_embed_2(const IPoint& t,
   int i=0, j=0;
   while(i<Ci || (i==Ci && j<=Cj))
   {
-    std::cout << "stepij: ~~~~~~~~~~~~~~~~~~~~ ";
-    std::cout << t.transpose() << " " << i << " " << j << std::endl;
+//    std::cout << "stepij: ~~~~~~~~~~~~~~~~~~~~ ";
+//    std::cout << t.transpose() << " " << i << " " << j << std::endl;
 
     it = memory.find(Position(t, i, j));
     if(it != memory.end())
     {
 //      print_memory(memory);
-      std::cout << "already computed (iw) ";
-      std::cout << t.transpose() << " " << i << " " << j << std::endl;
-      std::cout << "val: " << it->second.transpose() << std::endl;
+//      std::cout << "already computed (iw) ";
+//      std::cout << t.transpose() << " " << i << " " << j << std::endl;
+//      std::cout << "val: " << it->second.transpose() << std::endl;
       ret += it->second;
     }
     else
@@ -507,8 +507,8 @@ VectorD compute_step_ij_embed_2(const IPoint& t,
       FT coeff = std::sqrt(L)/omega;
       ret += coeff*(std::sin(omega*(m*t)(j))*nu + std::cos(omega*(m*t)(j))*mu);
 
-      std::cout << "Add to memory (iw) : " << t.transpose() << " " << i << " " << j << std::endl;
-      std::cout << "val: " << ret.transpose() << std::endl;
+//      std::cout << "Add to memory (iw) : " << t.transpose() << " " << i << " " << j << std::endl;
+//      std::cout << "val: " << ret.transpose() << std::endl;
       memory[Position(t, i, j)] = ret;
     }
 
