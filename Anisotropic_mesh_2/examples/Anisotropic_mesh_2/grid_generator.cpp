@@ -24,15 +24,16 @@ typedef typename Star::Traits                                Traits;
 typedef typename Eigen::Matrix<double, 5, 1>                 Vector5d;
 typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 
+const int vertices_nv = 1010;
 //#define R2
 #ifdef R2
-FT offset_x = -1; // offset is the bottom left point
-FT offset_y = -1; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
-const FT grid_side = 2;
+const FT grid_side = 4;
+FT offset_x = -grid_side/2.; // offset is the bottom left point
+FT offset_y = -grid_side/2.; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
 #else
-FT offset_x = -0.55; // offset is the bottom left point
-FT offset_y = -0.55;
-const FT grid_side = 1.1;
+const FT grid_side = 4;
+FT offset_x = -grid_side/2.;//-2.75; // offset is the bottom left point
+FT offset_y = -grid_side/2.;//0.9;
 #endif
 
 Vector5d compute_hat(const Point_2& p,
@@ -84,8 +85,9 @@ void build_seeds(std::vector<Point_2>& seeds,
   in >> word >> nv;
   std::cout << "nv: " << nv << std::endl;
   assert(dim == 2);
+  if(vertices_nv < nv)
+    nv = vertices_nv;
 
-  nv = (std::min)(nv, seeds.size());
   seeds.resize(nv); R5seeds.resize(nv); seeds_m.resize(nv); ws.resize(nv);
 
   for(std::size_t i=0; i<nv; ++i)
@@ -116,16 +118,15 @@ void build_seeds(std::vector<Point_2>& seeds,
 void read_tangent_plane_seeds(std::vector<Vector2d>& R2seeds,
                               std::vector<FT>& r2ws)
 {
-  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points.txt");
+//  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points.txt");
+  std::ifstream in("/home/mrouxel/cgal/Tangential_complex/test/Tangential_complex/build/projected_points_120.txt");
   std::size_t nv, dim;
-  FT x, y, w, max_x = 0, max_y = 0;
+  FT x, y, w;
 
   in >> dim >> nv;
-  assert(dim == 2);
-  assert(offset_x + grid_side/2. == 0.); //gotta be centered on 0
-  assert(offset_y + grid_side/2. == 0.);
-
-  nv = (std::min)(nv, R2seeds.size());
+  assert(dim == 2); //tmp
+  if(vertices_nv < nv)
+    nv = vertices_nv;
   R2seeds.resize(nv); r2ws.resize(nv);
 
   for(std::size_t i=0; i<nv; ++i)
@@ -133,16 +134,7 @@ void read_tangent_plane_seeds(std::vector<Vector2d>& R2seeds,
     in >> x >> y >> w;
     R2seeds[i] = (Vector2d() << x, y ).finished();
     r2ws[i] = w;
-
-    if(std::abs(x) > max_x)
-      max_x = x;
-    if(std::abs(y) > max_y)
-      max_y = y;
   }
-
-//  FT max = (std::max)(max_x, max_y);
-//  offset_x = -max/2.;
-//  offset_y = -max/2.;
 }
 
 int main(int, char**)
@@ -154,7 +146,6 @@ int main(int, char**)
   double step = a/n;
   double sq_n = n*n;
   double tri_n = 2*(n-1)*(n-1);
-  unsigned int seed_n = 20;
   std::size_t counter = 0;
   Traits* traits = new Traits();
   typename Star::Traits::Compute_squared_distance_2 csd =
@@ -176,13 +167,13 @@ int main(int, char**)
   Metric m_c = metric_field->compute_metric(center);
   Vector5d m_hat(compute_hat(center, m_c));
 
-  std::vector<Point_2> seeds(seed_n); // p
-  std::vector<Metric> seeds_m(seed_n); // p metrics
-  std::vector<Vector5d> R5seeds(seed_n); // p_hat
-  std::vector<FT> ws(seed_n); // p_hat weights
+  std::vector<Point_2> seeds; // p
+  std::vector<Metric> seeds_m; // p metrics
+  std::vector<Vector5d> R5seeds; // p_hat
+  std::vector<FT> ws; // p_hat weights
 
-  std::vector<Vector2d> R2seeds(seed_n); // Pi_H(p_hat) on some tangent plane H
-  std::vector<FT> r2ws(seed_n); // corresponding weights
+  std::vector<Vector2d> R2seeds; // Pi_H(p_hat) on some tangent plane H
+  std::vector<FT> r2ws; // corresponding weights
 #ifdef R2
   read_tangent_plane_seeds(R2seeds, r2ws);
 #else
@@ -214,11 +205,12 @@ int main(int, char**)
       unsigned int min_id = 0;
 
 #ifdef R2
-      for(std::size_t k=0; k<R2seeds.size(); ++k) // !!! IGNORING THE FIRST FOUR SEEDS !!!
+      for(std::size_t k=0; k<R2seeds.size(); ++k)
 #else
       for(std::size_t k=4; k<seeds.size(); ++k) // !!! IGNORING THE FIRST FOUR SEEDS !!!
 #endif
       {
+#ifndef R2
         // EUCLIDEAN DISTANCE IN R^5
 //        double sq_d = (p_hat - R5seeds[k]).norm();
 
@@ -232,24 +224,24 @@ int main(int, char**)
         TPoint_2 tp2 = (seeds_m[k]).transform(p);
         TPoint_2 ts = (seeds_m[k]).transform(seeds[k]);
         double sq_d = csd(tp2, ts);
-
+#else
         // WEIGHTED DISTANCE IN THE TANGENT PLANE (seeds are the projected p_hat)
-//        double sq_d = std::pow((pv - R2seeds[k]).norm(), 2.) - r2ws[k];
-
+        double sq_d = std::pow((pv - R2seeds[k]).norm(), 2.) - r2ws[k];
+#endif
         if(sq_d < min)
         {
-          //std::cout << "ahah: " << k << " " << sq_d << std::endl;
+          if(std::abs(sq_d-min)<0.05*min)
+            min_id = 1.01*vertices_nv; // drawing borders
+          else
+            min_id = k;
           min = sq_d;
-          min_id = k;
         }
       }
 
-//      if(min < 10*step*step) // close to a seed (sort of) -> draw with another color
-//        min_id = seed_n;
 
-      //std::cout << "min id: " << min_id << " " << min << std::endl;
+      out_bb << min_id << std::endl;
 
-      out_bb << std::pow(min_id, 0.1) * ((double) min_id+1) / (double) seed_n  << std::endl;
+//      std::cout << "min id: " << min_id << " " << min << std::endl;
     }
   }
 
