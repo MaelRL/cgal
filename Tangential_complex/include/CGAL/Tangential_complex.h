@@ -232,8 +232,12 @@ public:
     m_ambient_dim(k.point_dimension_d_object()(*first)),
     m_points(first, last),
     m_weights(m_points.size(), FT(0))
+#ifdef USE_ANISO_R0_FILTER
+    , m_max_sq_ds_matrix()
+    , m_is_max_sq_ds_matrix_set(false)
+#endif
 #ifdef CGAL_TC_PERTURB_WEIGHT
-    m_weights_memory()
+    , m_weights_memory()
 #endif
 # if defined(CGAL_LINKED_WITH_TBB) && defined(CGAL_TC_PERTURB_POSITION) \
   && defined(CGAL_TC_GLOBAL_REFRESH)
@@ -1004,6 +1008,18 @@ public:
                                                           local_tr_traits);
 
       out_s << proj_wp.point()[0] << " " << proj_wp.point()[1] << " ";
+#ifdef USE_ANISO_R0_FILTER
+      CGAL_assertion(m_is_max_sq_ds_matrix_set);
+      if(i != j)
+      {
+        std::size_t check_n = std::sqrt(m_max_sq_ds_matrix.size());
+        if(m_max_sq_ds_matrix[i*check_n+j] > m_max_sq_ds_matrix[i*check_n+i])
+        {
+          out_s << -1e30 << std::endl; // ugly hack to ignore this point
+          continue;
+        }
+      }
+#endif
       out_s << proj_wp.weight() << std::endl;
     }
     out << m_intrinsic_dimension << " " << number_of_vertices() << std::endl;
@@ -1099,6 +1115,25 @@ public:
     // circumspheres of the star of "center_vertex"
     boost::optional<FT> squared_star_sphere_radius_plus_margin;
 
+#ifdef USE_ANISO_R0_FILTER
+    if(!m_is_max_sq_ds_matrix_set)
+    {
+      std::ifstream max_distances("../../../../Anisotropic_mesh_2/examples/Anisotropic_mesh_2/build/stars_radius.txt");
+      std::size_t check_n;
+      max_distances >> check_n;
+      std::cout << "checkn: " << check_n << " at " << i << std::endl;
+      CGAL_assertion(check_n == m_points.size());
+      m_max_sq_ds_matrix.resize(check_n*check_n);
+      for(std::size_t k=0; k<check_n*check_n; ++k)
+      {
+        FT d;
+        max_distances >> d;
+        m_max_sq_ds_matrix[k] = d;
+      }
+      m_is_max_sq_ds_matrix_set = true;
+    }
+#endif
+
     // Insert points until we find a point which is outside "star shere"
     for (INS_iterator nn_it = ins_range.begin() ;
          nn_it != ins_range.end() ;
@@ -1115,6 +1150,17 @@ public:
         FT neighbor_weight;
         compute_perturbed_weighted_point(neighbor_point_idx, neighbor_pt,
                                          neighbor_weight);
+
+#ifdef USE_ANISO_R0_FILTER
+        std::size_t check_n = std::sqrt(m_max_sq_ds_matrix.size());
+        if(m_max_sq_ds_matrix[i*check_n+neighbor_point_idx] >
+           m_max_sq_ds_matrix[i*check_n+i])
+        {
+          continue;
+        }
+        else
+          std::cout << "proceed!" << std::endl;
+#endif
 
         // "4*m_sq_half_sparsity" because both points can be perturbed
         if (squared_star_sphere_radius_plus_margin
@@ -2924,6 +2970,8 @@ private:
 
   Points                    m_points;
   Weights                   m_weights;
+  std::vector<FT>           m_max_sq_ds_matrix;
+  bool                      m_is_max_sq_ds_matrix_set;
 #ifdef CGAL_TC_PERTURB_WEIGHT
   Weights_memory            m_weights_memory;
 #endif

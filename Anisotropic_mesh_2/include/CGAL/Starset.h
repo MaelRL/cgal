@@ -630,6 +630,47 @@ public:
     output_medit(*this, out, false, ghost_faces);
   }
 
+  void output_radius_of_stars()
+  {
+    typename Traits::Compute_squared_distance_2 sqd =
+        Traits().compute_squared_distance_2_object();
+    std::ofstream out("stars_radius.txt");
+    out << m_stars.size() << std::endl;
+
+    for(std::size_t si=0; si<m_stars.size(); ++si)
+    {
+      Star_handle star_i = m_stars[si];
+
+      for(std::size_t sj=0; sj<m_stars.size(); ++sj)
+      {
+        if(si!=sj)
+        {
+          Star_handle star_j = m_stars[sj];
+          TPoint_2 tp = star_i->metric().transform(star_j->center_point());
+          FT sq_d = sqd(star_i->center()->point(), tp);
+          out << sq_d << " ";
+        }
+        else // at sj == si, we put the max distance to the adj vertices in star_i
+        {
+          FT sq_r = -1.;
+          Vertex_handle_handle vhit = star_i->finite_adjacent_vertices_begin();
+          Vertex_handle_handle vhend = star_i->finite_adjacent_vertices_end();
+          for(; vhit != vhend; vhit++)
+          {
+            typename Traits::Compute_squared_distance_2 sqd =
+                                   Traits().compute_squared_distance_2_object();
+            FT sq_d = sqd(star_i->center()->point(), (*vhit)->point());
+            if(sq_d > sq_r)
+              sq_r = sq_d;
+          }
+          out << sq_r << " ";
+          std::cout << "sqr: " << sq_r << std::endl;
+        }
+      }
+      out << std::endl;
+    }
+  }
+
   void draw_metric_vector_field()
   {
     FT e0, e1;
