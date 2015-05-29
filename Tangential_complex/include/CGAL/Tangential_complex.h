@@ -357,7 +357,7 @@ public:
 #endif
   }
 
-  void estimate_intrinsic_dimension() const
+  void estimate_intrinsic_dimension() const // fixme ? ANN query still valid with weighted_points ?
   {
     // Kernel functors
     typename Kernel::Compute_coordinate_d coord =
@@ -720,7 +720,7 @@ public:
     const Simplicial_complex &complex, std::ostream & os,
     std::set<std::set<std::size_t> > const *p_additional_simpl_to_color = NULL) const
   {
-    return export_to_off(os, false, p_additional_simpl_to_color, &complex);
+    return export_to_off(os, true, p_additional_simpl_to_color, &complex);
   }
 
   std::ostream &export_to_off(
@@ -1172,12 +1172,12 @@ public:
           neighbor_pt, neighbor_weight, m_tangent_spaces[i],
           local_tr_traits);
 
-        Tr_vertex_handle vh = local_tr.insert_if_in_star(proj_pt, center_vertex);
-        //Tr_vertex_handle vh = local_tr.insert(proj_pt);
+        //Tr_vertex_handle vh = local_tr.insert_if_in_star(proj_pt, center_vertex);
+        Tr_vertex_handle vh = local_tr.insert(proj_pt, center_vertex); //tmp
         if (vh != Tr_vertex_handle())
         {
           if (verbose)
-            std::cerr << "* Inserted point #" << neighbor_point_idx << std::endl;
+            std::cerr << "* Inserted point #" << neighbor_point_idx << " in " << i << std::endl;
 
           vh->data() = neighbor_point_idx;
 
@@ -2860,14 +2860,15 @@ public:
     for ( ; it_s != it_s_end ; ++it_s)
     {
       Simplex c = *it_s;
+      bool color_simplex = !is_simplex_consistent(c);
 
-      bool color_simplex = false;
       if (p_additional_simpl_to_color)
       {
         color_simplex = (std::find(
-          p_additional_simpl_to_color->begin(),
-          p_additional_simpl_to_color->end(),
-          c) != p_additional_simpl_to_color->end());
+                           p_additional_simpl_to_color->begin(),
+                           p_additional_simpl_to_color->end(),
+                           c) != p_additional_simpl_to_color->end());
+
       }
 
       // Gather the triangles here

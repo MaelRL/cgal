@@ -7,6 +7,8 @@
 
 #include <CGAL/IO/Starset_output.h>
 
+#include <CGAL/helpers/metric_helper.h>
+
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
 
@@ -95,32 +97,29 @@ void test_fch(const Starset& starset,
   std::cout << fch->vertex(1)->data() << " ";
   std::cout << fch->vertex(2)->data() << std::endl;
 
-  FT r0 = 0.01;
-  FT over_circumradius = starset.compute_circumradius(fch) - r0;
-  if(over_circumradius > 0.)
-  {
-    std::cout << "push size: " << over_circumradius << std::endl;
-    refine_queue.push(star, fch, over_circumradius, 0);
-    return;
-  }
+  //if you want to use other criteria, fix the criteria computations first ! (todo)
 
   if(!starset.is_consistent(fch))
   {
     std::cout << "push inconsistency" << std::endl;
     FT vol = starset.compute_volume(fch);
-    refine_queue.push(star, fch, vol, 1);
+    refine_queue.push(star, fch, vol, 5);
   }
   std::cout << "end test fch" << std::endl;
 }
 
 void fill_refinement_queue(const Starset<Kd, KD>& starset,
-                           Full_cell_refine_queue<Kd, KD>& queue)
+                           Full_cell_refine_queue<Kd, KD>& queue,
+                           const int id = -1)
 {
   typedef Starset<Kd, KD> Starset;
   typename Starset::const_iterator si = starset.begin();
   typename Starset::const_iterator siend = starset.end();
   for (; si != siend; si++)
   {
+    if(id != -1 && (*si)->index() != id)
+      continue;
+
     Star_handle star = *si;
     std::cout << "fill @ " << star->index() << std::endl;
 
@@ -129,12 +128,12 @@ void fill_refinement_queue(const Starset<Kd, KD>& starset,
     for(; fchi!=fend; ++fchi)
     {
       typename Starset::Full_cell_handle fch = *fchi;
-
       if((*fchi)->maximal_dimension() != d)
         continue;
 
-      if(!is_simplex_degenerated_in_Rd(fch) &&
-         star->is_inside(fch, starset.stars()))
+      if(!is_simplex_degenerated_in_Rd(fch)
+         //&& star->is_inside(fch, starset.stars())
+         )
         test_fch(starset, star, fch, queue);
     }
   }
@@ -148,7 +147,7 @@ bool next_refine_cell(Queue_iterator& it,
                       Queue& queue,
                       const Starset<Kd,KD>& starset)
 {
-  std::cout << "next refine cell" << std::endl;
+  std::cout << "next refine face" << std::endl;
   while(true)
   {
     if(!queue.top(it))
@@ -175,15 +174,14 @@ bool refine(Starset<Kd, KD>& starset)
   Queue queue;
   fill_refinement_queue(starset, queue);
 
-  while(!queue.empty() && starset.size()<100)
+  while(!queue.empty())
   {
     Queue_iterator rfsit;
     typename Star::Full_cell_handle fch;
     next_refine_cell(rfsit, fch, queue, starset);
-    std::cout << "refine: " << std::endl << *rfsit << std::endl;
-
     assert(fch->data().second); // make sure the cell's circumcenter has been computed
     const Point_d& ref = fch->data().first;
+    const Star_handle star = rfsit->star;
 
 // VERBOSE ---------------------------------------------------------------------
     std::cout << "INSERT IN STARS: " << ref[0] << " " << ref[1] << std::endl;
@@ -203,26 +201,31 @@ bool refine(Starset<Kd, KD>& starset)
     starset.insert_in_stars(ref);
     if(rfsit->star->has_cell(fch, rfsit->full_cell.vertices()))
     {
-      std::cout << rfsit->star->index() << " star has cell unbroken by refinement point ";
+      std::cout << star->index() << " star has cell unbroken by refinement point ";
       std::cout << fch->vertex(0)->data() << " ";
       std::cout << fch->vertex(1)->data() << " ";
       std::cout << fch->vertex(2)->data() << std::endl;
       //assert(0);
     }
+    else
+    {
+      std::cout << "broke the face" << std::endl;
+      queue.pop();
+    }
 
     std::ofstream outm("aniso_TC.mesh");
     output_medit(starset, outm);
 
-    queue.clear(); // should be only "pop"
-    fill_refinement_queue(starset, queue);
+    fill_refinement_queue(starset, queue, star->index());
     std::cout << "queue size: " << queue.count() << std::endl;
   }
+
   return true;
 }
 
 int main(int, char **)
 {
-  std::freopen("log_tests.txt", "w", stdout); // redirect std::cout to log.txt
+  std::freopen("log_aniso_TC.txt", "w", stdout); // redirect std::cout
 
   //Custom_metric_field<Kd>* mf = new Custom_metric_field<Kd>();
   Euclidean_metric_field<Kd>* mf = new Euclidean_metric_field<Kd>();

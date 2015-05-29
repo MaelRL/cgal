@@ -35,12 +35,43 @@ public:
       if(i == dir_id)
         evals[i] = 1./(0.0025+0.2*(1-std::exp(-std::abs(p[i]-0.6))));
       else
-        evals[i] = 1.;
+        evals[i] = 5.;
+
 
       E_Vector vi = E_Vector::Zero();
       vi(i) = 1.;
       evecs.push_back(constr_vec(d, vi.data(), vi.data() + d));
     }
+
+    return this->build_metric(evecs, evals);
+  }
+
+  Metric yang_liu_cube_shock(const Point_d& p) const // fixme this is only 2D
+  {
+    int d = Dim::value;
+    typename Kd::Construct_vector_d constr_vec = Kd().construct_vector_d_object();
+    double h = 0.3;
+    std::vector<FT> evals(d);
+    std::vector<Vector_d> evecs;
+
+    double x = p[0];
+    double y = p[1];
+    double r = std::sqrt(x*x + y*y);
+
+    x /= r;
+    y /= r;
+
+    double lambda = std::exp(-0.5*std::abs(r*r-1));
+    double h1 = 0.1 + (1-lambda);
+    double h2 = 1.;
+
+    E_Vector v1 = E_Vector::Zero(), v2 = E_Vector::Zero();
+    v1(0) = x; v1(1) = y;
+    v2(0) = -y; v2(1) = x;
+    evecs.push_back(constr_vec(d, v1.data(), v1.data() + d));
+    evecs.push_back(constr_vec(d, v2.data(), v2.data() + d));
+    evals[0] = 1./(h*h1);
+    evals[1] = 1./(h*h2);
 
     return this->build_metric(evecs, evals);
   }
@@ -75,6 +106,7 @@ public:
 
   virtual Metric compute_metric(const Point_d &p) const
   {
+    return yang_liu_cube_shock(p);
     return shock_1D(p);
     return interpolation(p);
   }

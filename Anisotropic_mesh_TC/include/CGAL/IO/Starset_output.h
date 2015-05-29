@@ -67,8 +67,8 @@ int get_simplices_to_draw(const Starset& starset,
     {
       typename Starset::Full_cell_handle fch = *fchi;
 
-      if(star->is_inside(fch, starset.stars())) // recomputes the dual intersection
-        nb_restricted_cells++;
+//      if(star->is_inside(fch, starset.stars())) // recomputes the dual intersection
+//        nb_restricted_cells++;
 
       bool is_consistent = starset.is_consistent(fch, true);
       if(!is_consistent)

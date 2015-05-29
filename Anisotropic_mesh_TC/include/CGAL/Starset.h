@@ -58,6 +58,7 @@ public:
   typedef typename Star_vector::const_iterator            const_iterator;
   typedef typename Star_vector::iterator                  iterator;
 
+  typedef typename Star::Metric                           Metric;
   typedef Metric_field<Kd>*                               MF;
 
 protected:
@@ -243,7 +244,22 @@ public:
     m_stars.push_back(s);
   }
 
+  void insert_in_stars(const Point_d& p, const Metric& m)
+  {
+    Star_handle s = new Star(p, m_stars.size(), m);
+    for(std::size_t i=0; i<m_stars.size(); ++i)
+    {
+      m_stars[i]->insert_to_star(s->m_center_S, s->index(), false/*no cond*/);
+      s->insert_to_star(m_stars[i]->m_center_S, m_stars[i]->index(), false);
+    }
+    m_stars.push_back(s);
+  }
+
   // Criteria ------------------------------------------------------------------
+
+/* FIXME: define properly r_0 before. For example, it should probably use
+ * the original points in R^d. Currently (below) are points in the tangent plane
+ * of the star...
   FT compute_circumradius(const Full_cell_handle fch) const
   {
     const int d = Star::dDim::value;
@@ -273,6 +289,7 @@ public:
     }
     return dist;
   }
+*/
 
   FT compute_volume(const Full_cell_handle fch) const
   {
@@ -284,10 +301,10 @@ public:
     Eigen::Matrix<FT,d,d> m = Eigen::Matrix<FT, d, d>::Zero();
     for(int i=0; i<d; ++i)
     {
-      Point_d v0 = fch->vertex(0)->point().point();
+      Point_d v0 = m_stars[fch->vertex(0)->data()]->center_point();
       for(int j=0; j<d; ++j)
       {
-        Point_d vj = fch->vertex(j+1)->point().point();
+        Point_d vj = m_stars[fch->vertex(j+1)->data()]->center_point();
         m(i,j) = vj[i]-v0[i];
       }
     }

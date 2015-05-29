@@ -8,6 +8,7 @@
 #include <CGAL/Full_cell_refine_queue.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
+#include <CGAL/helpers/metric_helper.h>
 
 #include <CGAL/Combination_enumerator.h>
 
@@ -85,7 +86,7 @@ public:
   mutable bool is_tsb_init;
   mutable Tangent_space_basis m_tsb;
 
-  Point_d m_center; // base point
+  Point_d m_center; // base point in R^d
   Point_D m_center_Q; // ... transformed to Q (the paraboloid)
   WPoint_D m_center_S; // ... transformed to S (the metric surface)
   WPoint_d m_center_T; // S projected on the tangent plane
@@ -349,13 +350,10 @@ public:
 
     Vector_D v = diff_points(p_on_S.point(), m_center_Q);
 
-    std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
-
     // Ambiant-space coords of the projected point
     std::vector<FT> coords;
     coords.reserve(d());
     std::vector<FT> p_proj(m_center_Q.cartesian_begin(), m_center_Q.cartesian_end());
-//    std::cout << "p_proj: " << p_proj[0] << " " << p_proj[1] << " " << p_proj[2] << " " << p_proj[3] << " " << p_proj[4] << std::endl;
 
     for(std::size_t i=0 ;i<d() ;++i)
     {
@@ -368,15 +366,16 @@ public:
         p_proj[j] += coord * m_tsb[i][j];
     }
 
-    std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
-
     Point_D projected_pt(D(), p_proj.begin(), p_proj.end());
-    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
-    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
-
     typename KD::Squared_distance_d sqdist = KD().squared_distance_d_object();
-    std::cout << "w: " << p_on_S.weight() << std::endl;
-    std::cout << "sqdist: " << sqdist(p_on_S.point(), projected_pt) << std::endl;
+
+//    std::cout << "v: " << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << std::endl;
+//    std::cout << "p_proj: " << p_proj[0] << " " << p_proj[1] << " " << p_proj[2] << " " << p_proj[3] << " " << p_proj[4] << std::endl;
+//    std::cout << "coords: " << coords.size() << " " << coords[0] << " " << coords[1] << std::endl;
+//    std::cout << "ppt: " << projected_pt[0] << " " << projected_pt[1] << " ";
+//    std::cout << projected_pt[2] << " " << projected_pt[3] << " " << projected_pt[4] << std::endl;
+//    std::cout << "w: " << p_on_S.weight() << std::endl;
+//    std::cout << "sqdist: " << sqdist(p_on_S.point(), projected_pt) << std::endl;
 
     return m_traits->construct_weighted_point_d_object()
     (
@@ -470,9 +469,10 @@ public:
     invalidate_cache();
 #ifdef CGAL_ANISO_DEBUG
     std::cout << "---------------------------------------------------" << std::endl;
+    std::cout << "enter insert to star" << std::endl;
     std::cout << "insert " << index << " in " << this->index() << std::endl;
     WPoint_d tp = to_T(p_on_S);
-    std::cout << "tp: " << tp.point()[0] << " " << tp.point()[1] << " ";
+    std::cout << "pt transformed to star's tangent plane: " << tp.point()[0] << " " << tp.point()[1] << " ";
     std::cout << tp.weight() << std::endl;
     std::cout << "finite cells: " << this->number_of_finite_full_cells() << std::endl;
     std::cout << "dim rt: " << this->current_dimension() << std::endl;
@@ -867,6 +867,12 @@ public:
     return false;
   }
 
+
+  bool is_inside(const Point_d& p) // fixme this should check if we're in the domain
+  {
+    return (p[0] < -5 || p[0] > 5 || p[1] < -5 || p[1] > 5);
+  }
+
   bool is_inside(const Full_cell_handle fch,
                  const std::vector<Star_handle>& all_stars)
   {
@@ -875,9 +881,7 @@ public:
     std::cout << fch->vertex(1)->data() << " ";
     std::cout << fch->vertex(2)->data() << ") " << std::endl;
 
-    if(!compute_dual(fch, all_stars) ||
-       (fch->data().first)[0] < -0.5 || (fch->data().first)[0] > 0.5 || // TODO need a proper domain class
-       (fch->data().first)[1] < -0.5 || (fch->data().first)[1] > 0.5)
+    if(!compute_dual(fch, all_stars) || !is_inside(fch->data().first))
     {
       fch->data().second = false;
       return false;
@@ -980,8 +984,9 @@ public:
     typename Kd::Compute_coordinate_d coord_d = Kd().compute_coordinate_d_object();
     typename KD::Compute_coordinate_d coord_D = KD().compute_coordinate_d_object();
 
-    std::cout << "End new star constructor " << index_ << std::endl;
+    std::cout << "New star constructor " << index_ << std::endl;
     std::cout << "center_p: " << coord_d(center_point, 0) << " " << coord_d(center_point, 1) << std::endl;
+    std::cout << "transformation : " << std::endl << m_metric.get_transformation() << std::endl;
 
     std::cout << "center_S: ";
     for(int i=0; i<5; ++i)
