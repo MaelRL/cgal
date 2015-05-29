@@ -15,14 +15,19 @@ namespace Anisotropic_mesh_TC
 {
 
 template<typename Starset>
-void dump(const Starset& stars)
+void dump(const Starset& stars,
+          std::ofstream& fx)
 {
-  std::ofstream fx("dump.txt");
+  const std::size_t d = Starset::dDim::value;
 
   std::size_t ns = stars.size();
   fx << ns << std::endl;
   for(std::size_t i=0; i<ns; ++i)
-    fx << stars[i]->center_point() << std::endl;
+  {
+    const typename Starset::Point_d& p = stars[i]->center_point();
+    for(int j=0; j<d; ++j)
+      fx << p[j] << " ";
+  }
 
   for(std::size_t i=0; i<ns; ++i)
   {
@@ -36,9 +41,10 @@ void dump(const Starset& stars)
   }
 }
 
-template<typename Starset, typename Cell_set>
+template<typename Starset, typename Cell_set, typename Simplex>
 int get_simplices_to_draw(const Starset& starset,
                           Cell_set& output_cells,
+                          std::map<Simplex, bool>& color,
                           const bool consistent_only = false)
 {
   const std::size_t d = Starset::dDim::value;
@@ -64,7 +70,7 @@ int get_simplices_to_draw(const Starset& starset,
       if(star->is_inside(fch, starset.stars())) // recomputes the dual intersection
         nb_restricted_cells++;
 
-      bool is_consistent = true; //starset.is_consistent(fch, true);
+      bool is_consistent = starset.is_consistent(fch, true);
       if(!is_consistent)
         nb_inconsistent_cells++;
 
@@ -84,6 +90,7 @@ int get_simplices_to_draw(const Starset& starset,
 //        std::cout << std::endl;
 
         Ordered_simplex_base<d+1> cell(ids);
+        color[cell] = 1-is_consistent;
         output_cells.insert(cell);
       }
     }
@@ -104,8 +111,9 @@ void output_off(const Starset& stars,
   const std::size_t d = Starset::dDim::value;
   typedef typename Simplex_unordered_set<d+1>::type Cell_unordered_set;
   Cell_unordered_set output_cells;
-  unsigned int nb_inconsistent_cells =
-      get_simplices_to_draw(stars, output_cells, consistent_only);
+  std::map<Ordered_simplex_base<d+1>, bool> color;
+  unsigned int nb_inconsistent_cells = get_simplices_to_draw(stars, output_cells,
+                                                             color, consistent_only);
 
   if(nb_inconsistent_cells > 0)
     std::cout << "Warning OFF : there are " << nb_inconsistent_cells << " inconsistent cells in the ouput mesh.\n";
@@ -145,8 +153,9 @@ void output_medit(const Starset& stars,
   const std::size_t d = Starset::dDim::value;
   typedef typename Simplex_unordered_set<d+1>::type Cell_unordered_set;
   Cell_unordered_set output_cells;
-  unsigned int nb_inconsistent_cells =
-      get_simplices_to_draw(stars, output_cells, consistent_only);
+  std::map<Ordered_simplex_base<d+1>, bool> color;
+  unsigned int nb_inconsistent_cells = get_simplices_to_draw(stars, output_cells,
+                                                             color, consistent_only);
 
   if(nb_inconsistent_cells > 0)
     std::cout << "Warning Medit : there are " << nb_inconsistent_cells << " inconsistent cells in the ouput mesh.\n";
@@ -173,7 +182,10 @@ void output_medit(const Starset& stars,
   {
     CGAL::Combination_enumerator<int> combi(3, 0, d+1);
     for(; !combi.finished(); combi++)
-      fx << (*fcit)[combi[0]]+1 << " " << (*fcit)[combi[1]]+1 << " " << (*fcit)[combi[2]]+1 << " 1" << std::endl;
+    {
+      fx << (*fcit)[combi[0]]+1 << " " << (*fcit)[combi[1]]+1 << " " << (*fcit)[combi[2]]+1;
+      fx << " " << color[*fcit] << std::endl;
+    }
   }
   fx << "End" << std::endl;
 }

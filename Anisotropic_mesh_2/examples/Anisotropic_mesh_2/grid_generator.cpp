@@ -65,11 +65,11 @@ Vector5d compute_hat(const Point_2& p,
 }
 
 template<typename Metric_field>
-void build_seeds(std::vector<Point_2>& seeds,
-                 std::vector<Vector5d>& R5seeds,
-                 std::vector<Metric>& seeds_m,
-                 std::vector<FT>& ws,
-                 const Metric_field& mf)
+int build_seeds(std::vector<Point_2>& seeds,
+                std::vector<Vector5d>& R5seeds,
+                std::vector<Metric>& seeds_m,
+                std::vector<FT>& ws,
+                const Metric_field& mf)
 {
   srand (0);
 
@@ -113,10 +113,11 @@ void build_seeds(std::vector<Point_2>& seeds,
 //    std::cout << R5seeds[i](0) << " " << R5seeds[i](1) << std::endl;
 //    std::cout << ws[i] << std::endl;
   }
+  return nv;
 }
 
-void read_tangent_plane_seeds(std::vector<Vector2d>& R2seeds,
-                              std::vector<FT>& r2ws)
+int read_tangent_plane_seeds(std::vector<Vector2d>& R2seeds,
+                             std::vector<FT>& r2ws)
 {
 //  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points.txt");
   std::ifstream in("/home/mrouxel/cgal/Tangential_complex/test/Tangential_complex/build/projected_points_120.txt");
@@ -135,6 +136,7 @@ void read_tangent_plane_seeds(std::vector<Vector2d>& R2seeds,
     R2seeds[i] = (Vector2d() << x, y ).finished();
     r2ws[i] = w;
   }
+  return nv;
 }
 
 int main(int, char**)
@@ -175,9 +177,9 @@ int main(int, char**)
   std::vector<Vector2d> R2seeds; // Pi_H(p_hat) on some tangent plane H
   std::vector<FT> r2ws; // corresponding weights
 #ifdef R2
-  read_tangent_plane_seeds(R2seeds, r2ws);
+  vertices_nv = read_tangent_plane_seeds(R2seeds, r2ws);
 #else
-  build_seeds(seeds, R5seeds, seeds_m, ws, metric_field);
+  vertices_nv = build_seeds(seeds, R5seeds, seeds_m, ws, metric_field);
 #endif
 
   for(unsigned int i=0; i<n; ++i)
@@ -200,41 +202,47 @@ int main(int, char**)
       // SECOND MODE : COMPUTE THE EUCLIDEAN DISTANCE BETWEEN THE POINTS IN R^5
 //      out_bb << (p_hat - m_hat).norm() << std::endl;
 
-// THIRD MODE : BUILD A VORONOI
+      // THIRD MODE : BUILD A VORONOI
       FT min = 1e30;
       unsigned int min_id = 0;
 
-#ifdef R2
-      for(std::size_t k=0; k<R2seeds.size(); ++k)
-#else
-      for(std::size_t k=4; k<seeds.size(); ++k) // !!! IGNORING THE FIRST FOUR SEEDS !!!
-#endif
+      for(int l=0; l<1; ++l) // set l = 2 to draw borders
       {
-#ifndef R2
-        // EUCLIDEAN DISTANCE IN R^5
-//        double sq_d = (p_hat - R5seeds[k]).norm();
-
-        // WEIGHTED DISTANCE IN R^5
-//        double sq_d = std::pow((p_hat - R5seeds[k]).norm(),2.) - ws[k];
-
-        // DU WANG : dx(p,x) < dx(q,x)
-//        double sq_d = csd(tp, m_p.transform(seeds[k]));
-
-        // LABELLE SHEWCHUK : dp(p,x) < dq(q,x)
-        TPoint_2 tp2 = (seeds_m[k]).transform(p);
-        TPoint_2 ts = (seeds_m[k]).transform(seeds[k]);
-        double sq_d = csd(tp2, ts);
+#ifdef R2
+        for(std::size_t k=0; k<R2seeds.size(); ++k)
 #else
-        // WEIGHTED DISTANCE IN THE TANGENT PLANE (seeds are the projected p_hat)
-        double sq_d = std::pow((pv - R2seeds[k]).norm(), 2.) - r2ws[k];
+        for(std::size_t k=4; k<seeds.size(); ++k) // !!! IGNORING THE FIRST FOUR SEEDS !!!
 #endif
-        if(sq_d < min)
         {
-          if(std::abs(sq_d-min)<0.05*min)
-            min_id = 1.01*vertices_nv; // drawing borders
-          else
+#ifndef R2
+          // EUCLIDEAN DISTANCE IN R^5
+          //        double sq_d = (p_hat - R5seeds[k]).norm();
+
+          // WEIGHTED DISTANCE IN R^5
+          //        double sq_d = std::pow((p_hat - R5seeds[k]).norm(),2.) - ws[k];
+
+          // DU WANG : dx(p,x) < dx(q,x)
+          //        double sq_d = csd(tp, m_p.transform(seeds[k]));
+
+          // LABELLE SHEWCHUK : dp(p,x) < dq(q,x)
+          TPoint_2 tp2 = (seeds_m[k]).transform(p);
+          TPoint_2 ts = (seeds_m[k]).transform(seeds[k]);
+          double sq_d = csd(tp2, ts);
+#else
+          // WEIGHTED DISTANCE IN THE TANGENT PLANE (seeds are the projected p_hat)
+          FT sq_d = std::pow((pv - R2seeds[k]).norm(), 2.) - r2ws[k];
+#endif
+          if(l==0 && sq_d < min)
+          {
             min_id = k;
-          min = sq_d;
+            min = sq_d;
+          }
+          else if(l==1 && ((k!=min_id && std::abs(sq_d-min)<0.005*min) ||
+                            sq_d < 1e-2))
+          {
+            min_id = 1.01*vertices_nv; // drawing borders and center points
+            break;
+          }
         }
       }
 

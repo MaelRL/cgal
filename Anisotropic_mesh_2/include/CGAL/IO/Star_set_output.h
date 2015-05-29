@@ -115,6 +115,7 @@ void output_medit(const Starset& stars,
 {
   std::cout << "Saving medit... @ " << stars.size() << std::endl;
   unsigned int nb_inconsistent_stars = 0;
+  std::map<Facet_ijk, bool> color;
 
   fx << "MeshVersionFormatted 1\n";
   fx << "Dimension 2\n";
@@ -146,6 +147,7 @@ void output_medit(const Starset& stars,
       {
         Facet_ijk face(fh);
         output_faces.insert(face);
+        color[face] = stars.is_consistent(fh);
       }
       else
       {
@@ -165,7 +167,17 @@ void output_medit(const Starset& stars,
     int n0 = f.vertices()[0];
     int n1 = f.vertices()[1];
     int n2 = f.vertices()[2];
-    fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " 1" << std::endl;
+    fx << (n0+1) << " " << (n1+1) << " " << (n2+1);
+
+    if(true) // tmp
+    {
+      if(color[f])
+        fx << " 2" << std::endl;
+      else
+        fx << " 1" << std::endl;
+    }
+    else
+      fx << " 1" << std::endl;
   }
   fx << "End" << std::endl;
 

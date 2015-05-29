@@ -924,6 +924,7 @@ public:
   // Misc stuff ----------------------------------------------------------------
   void output_underlying_rt(std::ofstream& out) const
   {
+    out.precision(17);
     out << d() << " " << Base::number_of_vertices() << std::endl;
     typename Base::Finite_vertex_const_iterator it = Base::finite_vertices_begin();
     typename Base::Finite_vertex_const_iterator end = Base::finite_vertices_end();
@@ -932,6 +933,21 @@ public:
       out << it->point().point()[0] << " ";
       out << it->point().point()[1] << " ";
       out << it->point().weight() << std::endl;
+    }
+  }
+
+  void output_full_underlying_rt(std::ofstream& out,
+                                 const std::vector<Star_handle>& all_stars) const
+  {
+    out.precision(17);
+    out << d() << " " << all_stars.size() << std::endl;
+    typename std::vector<Star_handle>::const_iterator it = all_stars.begin();
+    typename std::vector<Star_handle>::const_iterator end = all_stars.end();
+    for(; it!=end; ++it)
+    {
+      WPoint_d p = to_T((*it)->m_center_S);
+      out << p.point()[0] << " " << p.point()[1] << " ";
+      out << p.weight() << std::endl;
     }
   }
 

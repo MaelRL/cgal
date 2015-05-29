@@ -141,11 +141,10 @@ void fill_refinement_queue(const Starset<Kd, KD>& starset,
 
   std::cout << "nstars: " << starset.size() << std::endl;
   queue.print_queues();
-  assert(starset.size()!=20);
 }
 
 bool next_refine_cell(Queue_iterator& it,
-                      typename Star::Full_cell_handle& fch, // unused atm
+                      typename Star::Full_cell_handle& fch,
                       Queue& queue,
                       const Starset<Kd,KD>& starset)
 {
