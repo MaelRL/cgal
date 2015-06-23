@@ -26,20 +26,26 @@ typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 
 typedef std::set<std::size_t> Simplex;
 
-// using a lot of global variables, it's ugly but passing them by function is tedious
+// define (only) one of these for the dual
+//#define APPROXIMATE_DUAL
+#define SMART_DUAL
+//#define USE_WITNESS
 
-std::size_t vertices_nv = 2000;
+#define FILTER_SEEDS_OUTSIDE_GRID
+//#define R2 // tangent plane mode
+
+// using a lot of global variables, it's ugly but passing them by function is tedious
+std::size_t vertices_nv = 103;
 
 Point_2 center(0.,0.);
-//#define R2
 #ifdef R2
-const FT grid_side = 4;
+const FT grid_side = 100;
 FT offset_x = -grid_side/2.; // offset is the bottom left point
 FT offset_y = -grid_side/2.; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
 #else
-const FT grid_side = 4;
-FT offset_x = -grid_side/2.;//-2.75; // offset is the bottom left point
-FT offset_y = -grid_side/2.;//0.9;
+const FT grid_side = 4.0;
+FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
+FT offset_y = center.y() - grid_side/2.;
 #endif
 
 std::vector<Vector2d> R2seeds;
@@ -55,6 +61,56 @@ std::vector<int> random_colors;
 std::vector<std::vector<std::size_t> > witness_grid; // grid_size * 3
 std::vector<std::vector<std::size_t> > first_position; // could be a vector of booleans...
 std::vector<std::vector<std::size_t> > second_position;
+
+// -----------------------------------------------------------------------------
+// WITNESS COMPLEX
+// -----------------------------------------------------------------------------
+
+bool is_simplex_in_witness_complex(std::size_t l0,
+                                   std::size_t l1,
+                                   std::size_t l2)
+{
+  // we already know that there exists w for 012 so 0 and 01 are taken care of
+  // we must find 1, 2, 12, and 02 in witness_grid
+
+  // there might be a more subtle approach but we're going for clarity !
+  bool found_1 = false, found_2 = false, found_12 = false, found_02 = false;
+
+  //quick filters (need to have l1 and l2 in a 0th position somewhere, etc.)
+  if(first_position[l1].empty())
+    return false;
+  if(first_position[l2].empty())
+    return false;
+  if((first_position[l0].empty() || second_position[l2].empty()) &&
+     (first_position[l2].empty() || second_position[l0].empty()))
+    return false;
+  if((first_position[l1].empty() || second_position[l2].empty()) &&
+     (first_position[l2].empty() || second_position[l1].empty()))
+    return false;
+
+  //proper checks
+  for(std::size_t w=0; w<witness_grid.size(); ++w)
+  {
+    if(witness_grid[w][0] == l0 && witness_grid[w][1] == l2)
+      found_02 = true;
+    else if(witness_grid[w][0] == l1)
+    {
+      found_1 = true;
+      if(witness_grid[w][1] == l2)
+        found_12 = true;
+    }
+    else if(witness_grid[w][0] == l2)
+    {
+      found_2 = true;
+      if(witness_grid[w][1] == l1)
+        found_12 = true;
+      else if(witness_grid[w][1] == l0)
+        found_02 = true;
+    }
+  }
+
+  return found_1 && found_2 && found_12 && found_02;
+}
 
 Vector5d compute_hat(const Point_2& p,
                      const Metric& m)
@@ -99,38 +155,43 @@ int build_seeds(const Metric_field& mf)
   in >> word >> nv;
   std::cout << "nv: " << nv << std::endl;
   assert(dim == 2);
-  if(vertices_nv < nv)
-    nv = vertices_nv;
 
-  seeds.resize(nv);
-  R5seeds.resize(nv);
-  seeds_m.resize(nv);
-  ws.resize(nv);
+  std::size_t min_nv = (std::min)(nv, vertices_nv);
+  seeds.reserve(min_nv);
+  R5seeds.reserve(min_nv);
+  seeds_m.reserve(min_nv);
+  ws.reserve(min_nv);
 
   for(std::size_t i=0; i<nv; ++i)
   {
     in >> r_x >> r_y >> useless;
-#else
-  for(std::size_t i=0; i<seeds.size(); ++i)
-  {
-    double r_x = offset_x + grid_side * ((double) rand() / (RAND_MAX));
-    double r_y = offset_y + grid_side * ((double) rand() / (RAND_MAX));
-#endif
-    seeds[i] = Point_2(r_x, r_y);
-    std::cout << "Seeds i: " << i << " " << seeds[i].x() << " " << seeds[i].y() << std::endl;
 
-    seeds_m[i] = mf->compute_metric(seeds[i]);
-    R5seeds[i] = compute_hat(seeds[i], seeds_m[i]);
-    ws[i] = R5seeds[i].norm()*R5seeds[i].norm() - seeds[i].x()*R5seeds[i](0)
-                                                  - seeds[i].y()*R5seeds[i](1);
+#ifdef FILTER_SEEDS_OUTSIDE_GRID
+    if(r_x <= offset_x || r_x >= center.x() + grid_side/2 ||
+       r_y <= offset_y || r_y >= center.y() + grid_side/2 )
+    {
+      std::cout << "filtered : " << r_x << " " << r_y << std::endl;
+      continue;
+    }
+#endif
+
+    seeds.push_back(Point_2(r_x, r_y));
+//    std::cout << "Seeds i: " << i << " " << seeds[i].x() << " " << seeds[i].y() << std::endl;
+
+    seeds_m.push_back(mf->compute_metric(seeds[i]));
+    R5seeds.push_back(compute_hat(seeds[i], seeds_m[i]));
+    ws.push_back(R5seeds[i].norm() * R5seeds[i].norm() - seeds[i].x()*R5seeds[i](0) - seeds[i].y()*R5seeds[i](1));
 
 //    std::cout << "check " << std::endl;
 //    std::cout << seeds[i].x() << " " << seeds[i].y() << std::endl;
 //    std::cout << seeds_m[i].get_mat() << std::endl;
 //    std::cout << R5seeds[i](0) << " " << R5seeds[i](1) << std::endl;
 //    std::cout << ws[i] << std::endl;
+
+    if(seeds.size() == vertices_nv)
+      break;
   }
-  return nv;
+  return seeds.size();
 }
 
 int read_tangent_plane_seeds()
@@ -141,7 +202,7 @@ int read_tangent_plane_seeds()
   FT x, y, w;
 
   in >> dim >> nv;
-  assert(dim == 2); //tmp
+  assert(dim == 2);
   if(vertices_nv < nv)
     nv = vertices_nv;
   std::cout << "nv: " << nv << std::endl;
@@ -236,23 +297,30 @@ FT value_at_point(const Point_2& p, std::size_t p_id,
   Comp c(sqds);
   std::sort(ids.begin(), ids.end(), c);
 
+#ifdef USE_WITNESS
   //for the witness
   witness_grid.push_back(std::vector<std::size_t>(ids.begin(), ids.begin()+3));
   first_position[ids[0]].push_back(p_id);
   second_position[ids[1]].push_back(p_id);
-
-  // check if we are in the dual of a triangle (somewhat, not exactly a witness)
+#elif defined(APPROXIMATE_DUAL)
   for(int i=0; i<vertices_nv-1; ++i)
-    assert(sqds[ids[i]] < sqds[ids[i+1]]);
+  {
+//    std::cout.precision(17);
+//    std::cout << sqds[ids[i+1]] - sqds[ids[i]] << std::endl;
+    assert(sqds[ids[i+1]] >= sqds[ids[i]]);
+  }
 
+  // check if we are in the dual of a triangle (somewhat!)
+  // that is : the three closest points are more or less at the same distance
   FT alpha = 0.1;
   if(std::abs(sqds[ids[0]] - sqds[ids[1]]) < alpha*sqds[ids[0]] &&
-     std::abs(sqds[ids[0]] - sqds[ids[2]]) < alpha*sqds[ids[0]]) // in the dual
+     std::abs(sqds[ids[0]] - sqds[ids[2]]) < alpha*sqds[ids[0]])
   {
     std::set<std::size_t> simplex;
     simplex.insert(ids[0]); simplex.insert(ids[1]); simplex.insert(ids[2]);
     simplices.insert(simplex);
   }
+#endif
 
   return min_id;
 }
@@ -286,7 +354,7 @@ void full_grid(const MF* metric_field, const Traits* traits)
       Point_2 p(offset_x+j*step, offset_y+i*step);
       out << p.x() << " " << p.y() << " " << ++counter << std::endl;
 
-      FT ret = value_at_point(p, metric_field, traits);
+      FT ret = value_at_point(p, i*n+j, metric_field, traits);
       out_bb << ret << std::endl;
     }
   }
@@ -306,6 +374,10 @@ void full_grid(const MF* metric_field, const Traits* traits)
   }
   out << "End" << std::endl;
 }
+
+// -----------------------------------------------------------------------------
+// SMART GRID
+// -----------------------------------------------------------------------------
 
 struct Quad
 {
@@ -331,10 +403,8 @@ struct Quad
 
   bool has_same_colors(const std::vector<FT>& values) const
   {
-    CGAL_assertion(values.find(i0) != values.end() &&
-                   values.find(i1) != values.end() &&
-                   values.find(i2) != values.end() &&
-                   values.find(i3) != values.end());
+    CGAL_assertion(i0 < values.size() && i1 < values.size() &&
+                   i2 < values.size() && i3 < values.size());
     FT v0 = values[i0];
     if(v0 != values[i1])
       return false;
@@ -358,52 +428,6 @@ struct Quad
     : i0(i0_), i1(i1_), i2(i2_), i3(i3_)
   { }
 };
-
-bool is_simplex_in_witness_complex(std::size_t l0,
-                                   std::size_t l1,
-                                   std::size_t l2)
-{
-  // we already know that there exists w for 012 so 0 and 01 are taken care of
-  // we must find 1, 2, 12, and 02 in witness_grid
-
-  // there might be a more subtle approach but we're going for clarity !
-  bool found_1 = false, found_2 = false, found_12 = false, found_02 = false;
-
-  //quick filters (need to have l1 and l2 in a 0th position somewhere, etc.)
-  if(first_position[l1].empty())
-    return false;
-  if(first_position[l2].empty())
-    return false;
-  if((first_position[l0].empty() || second_position[l2].empty()) &&
-     (first_position[l2].empty() || second_position[l0].empty()))
-    return false;
-  if((first_position[l1].empty() || second_position[l2].empty()) &&
-     (first_position[l2].empty() || second_position[l1].empty()))
-    return false;
-
-  //proper checks
-  for(std::size_t w=0; w<witness_grid.size(); ++w)
-  {
-    if(witness_grid[w][0] == l0 && witness_grid[w][1] == l2)
-      found_02 = true;
-    else if(witness_grid[w][0] == l1)
-    {
-      found_1 = true;
-      if(witness_grid[w][1] == l2)
-        found_12 = true;
-    }
-    else if(witness_grid[w][0] == l2)
-    {
-      found_2 = true;
-      if(witness_grid[w][1] == l1)
-        found_12 = true;
-      else if(witness_grid[w][1] == l0)
-        found_02 = true;
-    }
-  }
-
-  return found_1 && found_2 && found_12 && found_02;
-}
 
 template<typename MF>
 void split_quad(const Quad q,
@@ -467,19 +491,24 @@ void split_quad(const Quad q,
 template<typename MF>
 void smart_grid(const MF* mf, const Traits* traits)
 {
-  // idea is to create some kind of quadtree and refine a square
-  // if its four corners don't have all the same colors (and it's not too small)
-  FT min_vol = grid_side*grid_side*1e-7;
+  std::cout << "smart grid !" << std::endl;
+
+  // idea is to create some kind of quadtree and refine a quad following
+  // a criterion based on the value at its vertices
+  FT min_vol = grid_side*grid_side*1e-5;
   FT max_vol = grid_side*grid_side*1e-3;
 
   std::list<Quad> quads_to_test;
-  std::list<Quad> final_quads;
+  std::list<Quad> final_quads; // quads that won't be refined anymore
   std::vector<Point_2> points;
   std::vector<FT> values;
 
-  // create the first quad
+  // create the initial quad
   FT l = grid_side / 2.;
-  Point_2 p0(l,l), p1(-l,l), p2(-l,-l), p3(l,-l);
+  FT x0 = center.x() - l, x1 = center.x() + l;
+  FT y0 = center.y() - l, y1 = center.y() + l;
+
+  Point_2 p0(x1,y1), p1(x0,y1), p2(x0,y0), p3(x1,y0);
   points.push_back(p0);
   points.push_back(p1);
   points.push_back(p2);
@@ -497,37 +526,41 @@ void smart_grid(const MF* mf, const Traits* traits)
   {
     const Quad& q = quads_to_test.front();
 
-//    std::cout << quads_to_test.size() << std::endl;
-
-    //experiment : refine more near 3pts dual
-    if(false && !q.is_too_small(0.01*min_vol, points) && q.number_of_colors(values) >= 3)
-      split_quad(q, quads_to_test, values, points, mf, traits);
-
-    else if(q.is_too_small(min_vol, points) || q.has_same_colors(values))
+    ///experiment : refine more near 3pts dual
+//    if(!q.is_too_small(0.01*min_vol, points) && q.number_of_colors(values) >= 3)
+//      split_quad(q, quads_to_test, values, points, mf, traits);
+//    else
+    if(q.is_too_small(min_vol, points) || q.has_same_colors(values) || points.size() > 1e6)
       final_quads.push_back(q);
-
     else if(/*q.is_too_big(max_vol, points) ||*/ !q.has_same_colors(values))
+    {
       split_quad(q, quads_to_test, values, points, mf, traits);
+      std::cout << "Split. Now: " << points.size() << " points" << std::endl;
+    }
+    else
+      final_quads.push_back(q);
 
     quads_to_test.pop_front();
   }
 
-  // output the quad set (easily transformed into a triangulation) -------------
+  std::cout << "created quadtree" << std::endl;
+
+  // OUTPUT the quad set (easily transformed into a triangulation by adding the diagonal)
   CGAL_assertion(points.size() == values.size());
-  std::size_t grid_side = values.size();
+  std::size_t values_n = values.size();
   std::cout << "check: " << points.size() << " " << values.size() << " vertices" << std::endl;
 
   std::ofstream out("smart_grid.mesh");
   out << "MeshVersionFormatted 1" << std::endl;
   out << "Dimension 2" << std::endl;
   out << "Vertices" << std::endl;
-  out << grid_side << std::endl;
+  out << values_n << std::endl;
 
   std::ofstream out_bb("smart_grid.bb");
-  out_bb << "2 1 " << grid_side << " 2" << std::endl;
+  out_bb << "2 1 " << values_n << " 2" << std::endl;
 
   int counter = 0;
-  for(int i=0; i!=grid_side; ++i)
+  for(int i=0; i!=values_n; ++i)
   {
     const Point_2& p = points[i];
     out << p.x() << " " << p.y() << " " << ++counter << std::endl;
@@ -546,14 +579,15 @@ void smart_grid(const MF* mf, const Traits* traits)
   }
   out << "End" << std::endl;
 
-  //smart dual : if a quad has 3 different values, the dual exists -------------
-#if 0//def SMART_DUAL
+  //smart dual : if a quad has 3 different values, the dual exists
+#ifdef SMART_DUAL
   simplices.clear();
   for(it=final_quads.begin(); it!=iend; ++it)
   {
     const Quad& q = *it;
     std::set<std::size_t> simplex;
-    simplex.insert(values[q.i0]); simplex.insert(values[q.i1]);
+    simplex.insert(values[q.i0]);
+    simplex.insert(values[q.i1]);
     simplex.insert(values[q.i2]);
     if(simplex.size() == 3)
       simplices.insert(simplex);
@@ -565,7 +599,7 @@ void smart_grid(const MF* mf, const Traits* traits)
     }
   }
 #else
-  //witness --------------------------------------------------------------------
+  //witness
   CGAL_assertion(witness_grid.size() == grid_side);
   simplices.clear();
   for(std::size_t w=0; w<witness_grid.size(); ++w)
@@ -588,6 +622,10 @@ void smart_grid(const MF* mf, const Traits* traits)
   }
 #endif
 }
+
+// -----------------------------------------------------------------------------
+// OUTPUT FUNCTIONS
+// -----------------------------------------------------------------------------
 
 void output_simplices()
 {
@@ -623,6 +661,10 @@ void output_simplices()
   }
   outd << "End" << std::endl;
 }
+
+// -----------------------------------------------------------------------------
+// MAIN FUNCTIONS
+// -----------------------------------------------------------------------------
 
 template<typename MF>
 void draw(const MF* metric_field)
