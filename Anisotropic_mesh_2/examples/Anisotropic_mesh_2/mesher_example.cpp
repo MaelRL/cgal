@@ -3,8 +3,6 @@
 #include <CGAL/Stretched_Delaunay_2.h>
 #include <CGAL/Anisotropic_mesher_2.h>
 
-#include <CGAL/helpers/histogram_helper.h>
-
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
 

@@ -5,10 +5,10 @@
 #include <CGAL/Anisotropic_surface_mesher_3.h>
 #include <CGAL/Starset.h>
 
-#include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <Domain/Constrain_surface_3_cylinder.h>
 #include <Domain/Constrain_surface_3_torus.h>
+#include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Cylinder_metric_field.h>
 
 #include "refinement_condition_is_between_planes.h"

@@ -26,7 +26,7 @@ public:
 
 private:
   Eigen::Matrix2d eigen_transformation, eigen_inverse_transformation;
-  mutable double e_max, e_min;
+  mutable FT e_max, e_min;
   Vector_2 v_max, v_min;
 
 public:

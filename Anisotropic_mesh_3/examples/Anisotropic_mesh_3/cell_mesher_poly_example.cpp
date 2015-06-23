@@ -19,7 +19,7 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
 #include <CGAL/Constrain_surface_3_polyhedral.h>
-#include <CGAL/Euclidean_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
 
 #include <CGAL/Anisotropic_tet_mesher_3.h>

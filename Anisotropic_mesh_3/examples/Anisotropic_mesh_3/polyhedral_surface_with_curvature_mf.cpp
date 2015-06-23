@@ -24,8 +24,8 @@
 #include <CGAL/Starset.h>
 
 #include <CGAL/Constrain_surface_3_polyhedral.h>
-#include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
 
 using namespace CGAL::Anisotropic_mesh_3;
 
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 
   std::string outfile = output_filename(file);
   output_surface_off(starset, outfile.c_str());
-  
+
   delete metric_field;
   delete pdomain;
   delete criteria;

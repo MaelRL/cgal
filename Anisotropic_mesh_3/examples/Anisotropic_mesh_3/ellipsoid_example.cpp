@@ -24,7 +24,7 @@
 
 #include <Metric_field/Ellipsoid_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
-#include <CGAL/Euclidean_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
 #include <Domain/Constrain_surface_3_ellipse.h>
 
 #include "refinement_condition_is_between_planes.h"

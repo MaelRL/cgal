@@ -24,9 +24,7 @@ public:
     FT x = p.x();
 
     if(x == 0)
-    {
       return Metric();
-    }
 
     FT y = p.y();
 

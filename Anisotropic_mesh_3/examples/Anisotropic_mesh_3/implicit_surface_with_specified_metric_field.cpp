@@ -8,7 +8,7 @@
 #include <Domain/Constrain_surface_3_ellipse.h>
 #include <Metric_field/Arctan_metric_field.h>
 #include <Metric_field/Hyperbolic_shock_metric_field.h>
-#include <CGAL/Euclidean_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
 
 using namespace CGAL::Anisotropic_mesh_3;
 

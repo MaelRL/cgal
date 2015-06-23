@@ -1,8 +1,8 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
-#include <CGAL/Euclidean_metric_field.h>
-#include <Metric_field/Hyperbolic_shock_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
+#include <Metric_field/Hyperbolic_shock_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
 #include <CGAL/Constrain_surface_3_polyhedral.h>
 
 #include <CGAL/IO/Star_set_output.h>

@@ -247,7 +247,6 @@ public:
 
   bool insert_(const Point_3& p)
   {
-
     Refine_cell bad_cell;
     bool need_picking_valid;
     Cell_handle c;

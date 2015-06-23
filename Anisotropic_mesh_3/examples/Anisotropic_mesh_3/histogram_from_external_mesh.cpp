@@ -4,12 +4,12 @@
 #include <CGAL/Metric.h>
 #include <CGAL/Starset.h>
 
-#include <CGAL/Euclidean_metric_field.h>
 #include <CGAL/Implicit_curvature_metric_field.h>
 #include <CGAL/Polyhedral_curvature_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
-#include <Metric_field/Hyperbolic_shock_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/External_metric_field.h>
+#include <Metric_field/Hyperbolic_shock_metric_field.h>
 
 #include <ostream>
 #include <string>
