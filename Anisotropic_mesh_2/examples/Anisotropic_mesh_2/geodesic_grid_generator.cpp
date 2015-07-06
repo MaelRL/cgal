@@ -5,7 +5,9 @@
 #include <Metric_field/Custom_metric_field.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+
 #include <Eigen/Dense>
+#include <omp.h>
 
 #include <iostream>
 #include <vector>
@@ -20,14 +22,16 @@ typedef typename Star::Metric                                Metric;
 typedef typename Star::Traits                                Traits;
 
 typedef std::set<std::size_t>                                Simplex;
+typedef boost::array<std::size_t, 3>                         Tri;
+
 typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 
 //typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
 typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 
+#define COMPUTE_DUAL
 #define FILTER_SEEDS_OUTSIDE_GRID
 #define USE_RECURSIVE_UPDATES
-
 #define TMP_REFINEMENT_UGLY_HACK
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
@@ -73,10 +77,10 @@ struct Grid_point_comparer
 int insert_new_seed(const FT x, const FT y)
 {
 #ifdef FILTER_SEEDS_OUTSIDE_GRID
-    if(x <= offset_x || x >= center.x() + grid_side/2 ||
-       y <= offset_y || y >= center.y() + grid_side/2 )
+    if(x < offset_x || x > center.x() + grid_side/2. ||
+       y < offset_y || y > center.y() + grid_side/2. )
     {
-      std::cout << "get filtered : " << x << " " << y << std::endl;
+      std::cout << "filtered : " << x << " " << y << std::endl;
       return seeds.size();
     }
 #endif
@@ -117,13 +121,15 @@ int build_seeds()
 
 struct Grid_point
 {
+  typedef boost::array<Grid_point*, 4> Neighbors;
+
   Point_2 point;
   std::size_t index;
   mutable FT distance_to_closest_seed;
   mutable std::size_t closest_seed_id;
   mutable  FMM_state state;
-  std::vector<Grid_point*> neighbors; // 4 neighbors ORDERED (left, up, right, down)
-                                      // if no neighbor (borders for example) then NULL
+  Neighbors neighbors; // 4 neighbors ORDERED (left, up, right, down)
+                       // if no neighbor (borders for example) then NULL
   Metric metric;
 
   const Grid_point* ancestor; // used to debug & draw nice things
@@ -155,6 +161,8 @@ struct Grid_point
 
   FT eval_at_p(FT p, const FT a, const FT b, const FT c, const FT d, const FT e) const
   {
+    if(std::abs(c*p*p + d*p + e) < 1e-16) // avoids stuff like -1e-17
+      return p*a+(1.-p)*b;
     CGAL_assertion(c*p*p + d*p + e >= 0);
     return p*a+(1.-p)*b + std::sqrt(c*p*p + d*p + e);
   }
@@ -165,9 +173,10 @@ struct Grid_point
     CGAL_assertion((gp->state == KNOWN || gp->state == CHANGED) &&
                    (gq->state == KNOWN || gq->state == CHANGED) );
 
-    // in 2D, we can solve analytically the minimization.
+    // in 2D, we can solve the minimization analytically.
     // We're solving :
     // min_{p\in [0,1]} f(p) = F(x)*p + F(y)*(1-p) + sqrt(v(p)^t * M * v(p))
+    // vp = p*gp+(1-p)*gq
     // local minimum is given by f'(p_0) = 0 _but_ we have to compare f(p_0)
     // with f(0) and f(1) as we're only interested in solutions that live in [0,1]
     // If there's no solution in [0,1], then there's no (local) minimum in [0,1]
@@ -280,59 +289,55 @@ struct Grid_point
       distance_to_closest_seed = d;
       FT gp_d = gp->distance_to_closest_seed;
       FT gq_d = gq->distance_to_closest_seed;
-      bool is_gp_better = (gp_d < gq_d); // fixme this works but really shouldn't...
-//bool is_gp_better = (p > 0.5); // this should be the correct one but it doesn't work ??
-      closest_seed_id = is_gp_better ? gp->closest_seed_id : gq->closest_seed_id;
-      ancestor = is_gp_better ? gp : gq; // a bit ugly, create the point p ?
+      const Grid_point* best_p = (gp_d < gq_d) ? gp : gq; // fixme the commented line below should be the correct one...
+//      const Grid_point* best_p = (p > 0.5) ? gp : gq;
+      closest_seed_id = best_p->closest_seed_id;
+      ancestor = best_p; // a bit ugly, create the point p ?
     }
     return changed;
   }
 
-  bool compute_closest_seed()
+  bool compute_closest_seed(const Grid_point* ancestor,
+                            const bool ignore_ancestor = false)
   {
 //    std::cout << "compute closest high level " << index << std::endl;
 
     bool changed = false;
-    std::vector<Grid_point*>::const_iterator it = neighbors.begin(),
-                                             iend = neighbors.end();
-    for(; it!=iend; ++it)
+    for(std::size_t i=0; i<neighbors.size(); ++i)
     {
-      const Grid_point* gp = *it;
-      const Grid_point* gq;
-      if(it == --(neighbors.end()))
-        gq = *(neighbors.begin());
-      else // get the next one without increasing the iterator
-        gq = *(++it)--; // need the parenthesis because suffix has higher priority
+      const Grid_point* gp = neighbors[i];
+      const Grid_point* gq = neighbors[(i+1)%(neighbors.size())];
 
       if(gp && (gp->state == KNOWN || gp->state == CHANGED))
       {
         if(gq && (gq->state == KNOWN || gq->state == CHANGED))
         {
-          if(compute_closest_seed_2D(gp, gq))
-            changed = true;
+          if(ignore_ancestor || gp == ancestor || gq == ancestor)
+            if(compute_closest_seed_2D(gp, gq))
+              changed = true;
         }
         else // we could do it++ here since we know the next 'it' has gp->state != KNOWN
-          if(compute_closest_seed_1D(gp))
-            changed = true;
+        {
+          if(ignore_ancestor || gp == ancestor)
+            if(compute_closest_seed_1D(gp))
+              changed = true;
+        }
       }
     }
     return changed;
   }
 
   template<typename PQ>
-  void update_neighbors_distances(PQ& changed_pq,
-                                  PQ& trial_pq) const
+  void update_neighbors_distances(PQ& changed_pq, PQ& trial_pq) const
   {
 //    std::cout << "update neigh" << std::endl;
 
     // consider all the known neighbors and compute the value to that
     CGAL_assertion(state == KNOWN || state == CHANGED);
 
-    std::vector<Grid_point*>::const_iterator it = neighbors.begin(),
-                                             iend = neighbors.end();
-    for(; it!=iend; ++it)
+    for(std::size_t i=0; i<neighbors.size(); ++i)
     {
-      Grid_point* gp = *it; // a neighbor of 'this'
+      Grid_point* gp = neighbors[i]; // a neighbor of 'this'
       if(!gp)
         continue;
 
@@ -344,7 +349,7 @@ struct Grid_point
         // recompute the distance in the direction gp-'this'
         FT mem = gp->distance_to_closest_seed;
         std::size_t mem_ancestor = (gp->ancestor)?gp->ancestor->index:-1;
-        if(gp->compute_closest_seed())
+        if(gp->compute_closest_seed(this))
         {
           std::cout.precision(17);
           std::cout << "new value at " << gp->index << " : " << gp->distance_to_closest_seed;
@@ -365,14 +370,14 @@ struct Grid_point
 #endif
       if(gp->state == TRIAL)
       {
-        gp->compute_closest_seed(); // need to change the order of the element
+        gp->compute_closest_seed(this); // need to change the order of the element
         // note that we don't insert in trial_pq since it's already in
         // the sort after this function will change its position if needs be
       }
       else if(gp->state == FAR)
       {
         gp->state = TRIAL;
-        gp->compute_closest_seed(); // always returns true here so no need to test it
+        gp->compute_closest_seed(this); // always returns true here so no need to test it
         trial_pq.push_back(gp);
         std::push_heap(trial_pq.begin(), trial_pq.end(), Grid_point_comparer<Grid_point>());
       }
@@ -388,7 +393,8 @@ struct Grid_point
     //    |
     //    n3
 
-    Grid_point *n0=neighbors[0], *n1=neighbors[1], *n2=neighbors[2], *n3=neighbors[3];
+    Grid_point *n0=neighbors[0], *n1=neighbors[1],
+               *n2=neighbors[2], *n3=neighbors[3];
 
     bool is_p_leq_n0_x = (n0) ? p.x() <= n0->point.x() : false;
     bool is_p_geq_n1_y = (n1) ? p.y() >= n1->point.y() : false;
@@ -420,13 +426,14 @@ struct Grid_point
     state = TRIAL;
   }
 
-  Grid_point() { }
-
   Grid_point(const Point_2& point_, const std::size_t index_)
     : point(point_), index(index_), distance_to_closest_seed(1e30),
-      closest_seed_id(-1), state(FAR), neighbors(4, NULL),
+      closest_seed_id(-1), state(FAR), neighbors(),
       metric(mf->compute_metric(point)), ancestor(NULL)
-  { }
+  {
+    for(std::size_t i=0; i<neighbors.size(); ++i)
+      neighbors[i] = NULL;
+  }
 };
 
 struct Geo_grid
@@ -504,29 +511,30 @@ struct Geo_grid
     std::cout << "grid ini" << std::endl;
 
     // create the grid points (either a full grid or a smart grid (todo) )
-    for(unsigned int i=0; i<n; ++i)
+    for(unsigned int j=0; j<n; ++j)
     {
-      for(unsigned int j=0; j<n; ++j)
+      for(unsigned int i=0; i<n; ++i)
       {
-        Point_2 p(offset_x+j*step, offset_y+i*step); // fill from bot left to top right
-        Grid_point gp(p, i*n+j);
+        Point_2 p(offset_x+i*step, offset_y+j*step); // fill from bot left to top right
+        Grid_point gp(p, i + j*n);
         points.push_back(gp);
       }
     }
 
     // assign the neighbors (todo: find a better way...)
-    for(unsigned int i=0; i<n; ++i)
+    for(unsigned int j=0; j<n; ++j)
     {
-      for(unsigned int j=0; j<n; ++j)
+      for(unsigned int i=0; i<n; ++i)
       {
-        if(j!=0) // there is a neighbor left
-          points[i*n+j].neighbors[0] = &(points[i*n+j-1]);
-        if(i!=n-1) // there is a neighbor above
-          points[i*n+j].neighbors[1] = &(points[(i+1)*n+j]);
-        if(j!=n-1) // there is a neighbor right
-          points[i*n+j].neighbors[2] = &(points[i*n+j+1]);
-        if(i!=0) // there is a neighbor below
-          points[i*n+j].neighbors[3] = &(points[(i-1)*n+j]);
+        std::size_t curr_id = i + j*n;
+        if(i != 0) // there is a neighbor left
+          points[curr_id].neighbors[0] = &(points[i-1 + j*n]);
+        if(j != n-1) // there is a neighbor above
+          points[curr_id].neighbors[1] = &(points[i + (j+1)*n]);
+        if(i != n-1) // there is a neighbor right
+          points[curr_id].neighbors[2] = &(points[i+1 + j*n]);
+        if(j != 0) // there is a neighbor below
+          points[curr_id].neighbors[3] = &(points[i + (j-1)*n]);
       }
     }
     std::cout << "assigned neighbors" << std::endl;
@@ -616,12 +624,14 @@ struct Geo_grid
       is_t_empty = trial_points.empty();
     }
 
+#ifdef USE_RECURSIVE_UPDATES
     std::cout << "DOUBLE CHECK THAT WE ARE REALLY FINISHED : " << std::endl;
     for(std::size_t i=0; i<points.size(); ++i)
     {
       Grid_point* gp = &(points[i]);
-      CGAL_assertion(!(gp->compute_closest_seed())); // if 'true', we forgot a move
+      CGAL_assertion(!(gp->compute_closest_seed(gp, true))); // if 'true', we forgot a move
     }
+#endif
   }
 
   void build_grid()
@@ -655,12 +665,11 @@ struct Geo_grid
     refresh_grid_after_new_seed_creation();
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
-    best_ref_x = 1e30;
-    best_ref_y = 1e30;
+    best_ref_x = 1e30; best_ref_y = 1e30;
 #endif
   }
 
-  void draw(const std::string str_base) const
+  void output_grid(const std::string str_base) const
   {
     std::ofstream out((str_base + ".mesh").c_str());
     std::ofstream out_bb((str_base + ".bb").c_str());
@@ -670,7 +679,7 @@ struct Geo_grid
     out << points.size() << std::endl;
     out_bb << "2 1 " << points.size() << " 2" << std::endl;
 
-    std::set<Simplex> simplices;
+    std::set<Tri> simplices;
     for(std::size_t i=0; i<points.size(); ++i)
     {
       const Grid_point& gp = points[i];
@@ -679,109 +688,145 @@ struct Geo_grid
 //      out_bb << gp.closest_seed_id << std::endl;
       out_bb << gp.distance_to_closest_seed << std::endl;
 
-      // we want to draw a botleft-topright diagonal so we only draw
-      // gp-n0-n1 and gp-n2-n3 (if possible obviously)
-      std::vector<Grid_point*>::const_iterator it = gp.neighbors.begin(),
-                                               iend = gp.neighbors.end();
-      for(; it!=iend; ++it)
+      const Grid_point* n0 = gp.neighbors[0];
+      const Grid_point* n1 = gp.neighbors[1];
+      const Grid_point* n2 = gp.neighbors[2];
+      const Grid_point* n3 = gp.neighbors[3];
+
+//      CGAL_assertion((!n0 || n0->point.x() == gp.point.x() - step) &&
+//                     (!n1 || n1->point.y() == gp.point.y() + step) &&
+//                     (!n2 || n2->point.x() == gp.point.x() + step) &&
+//                     (!n3 || n3->point.y() == gp.point.y() - step) );
+
+      if(n1 && n2)
       {
-        const Grid_point* gq = *it;
-        const Grid_point* gr = *((++it));
-        if(gq && gr)
-        {
-          Simplex simplex;
-          simplex.insert(gp.index);
-          simplex.insert(gq->index);
-          simplex.insert(gr->index);
-          simplices.insert(simplex);
-        }
+        Tri simplex;
+        simplex[0] = gp.index;
+        simplex[1] = n1->index;
+        simplex[2] = n2->index;
+        simplices.insert(simplex);
+      }
+      if(n0 && n3)
+      {
+        Tri simplex;
+        simplex[0] = gp.index;
+        simplex[1] = n0->index;
+        simplex[2] = n3->index;
+        simplices.insert(simplex);
       }
 
-      // if we want to use the other diagonal instead (no difference in practice)
-      // todo: maybe above should be done like below, it's clearer
-//      const Grid_point* n0 = gp.neighbors[0];
-//      const Grid_point* n1 = gp.neighbors[1];
-//      const Grid_point* n2 = gp.neighbors[2];
-//      const Grid_point* n3 = gp.neighbors[3];
-
-//      if(n1 && n2)
+//      // we want to draw a botleft-topright diagonal so we only draw
+//      // gp-n0-n1 and gp-n2-n3 (if possible obviously)
+//      typename Neighbors::const_iterator it = gp.neighbors.begin(),
+//                                         iend = gp.neighbors.end();
+//      for(; it!=iend; ++it)
 //      {
-//        Simplex simplex;
-//        simplex.insert(gp.index);
-//        simplex.insert(n1->index);
-//        simplex.insert(n2->index);
-//        simplices.insert(simplex);
-//      }
-//      if(n0 && n3)
-//      {
-//        Simplex simplex;
-//        simplex.insert(gp.index);
-//        simplex.insert(n0->index);
-//        simplex.insert(n3->index);
-//        simplices.insert(simplex);
+//        const Grid_point* gq = *it;
+//        const Grid_point* gr = *((++it));
+//        if(gq && gr)
+//        {
+//          Simplex simplex;
+//          simplex.insert(gp.index);
+//          simplex.insert(gq->index);
+//          simplex.insert(gr->index);
+//          simplices.insert(simplex);
+//        }
 //      }
     }
 
     out << "Triangles" << std::endl;
     out << simplices.size() << std::endl;
-    for(typename std::set<Simplex>::iterator it = simplices.begin();
-                                             it != simplices.end(); ++it)
+    for(typename std::set<Tri>::iterator it = simplices.begin();
+                                         it != simplices.end(); ++it)
     {
-      const Simplex& s = *it;
-      std::size_t material = 0.;
+      const Tri& t = *it;
+      std::set<std::size_t> materials;
 
-      typename Simplex::iterator sit = s.begin();
-      typename Simplex::iterator siend = s.end();
-      for(; sit!=siend; ++sit)
+      for(std::size_t i=0; i<t.size(); ++i)
       {
-        out << *sit+1 << " ";
-        material += points[*sit].closest_seed_id;
+        out << t[i]+1 << " ";
+        materials.insert(points[t[i]].closest_seed_id);
       }
-      out << material/3 << std::endl;
+      std::size_t mat = (materials.size()==1)?(*(materials.begin())):(seeds.size());
+      out << mat << std::endl;
+      //if only one value at all points, we're okay. if more than one, print a unique frontier material
     }
-
-    output_dual(simplices);
   }
 
-  std::set<Simplex> compute_dual(const std::set<Simplex>& simplices) const
+  std::set<Simplex> compute_dual() const
   {
     std::cout << "dual computations" << std::endl;
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
     FT farthest_dual_distance = 0.;
 #endif
-
     std::set<Simplex> dual_simplices;
-    // a dual exists if a simplex has 3 different values
-    for(typename std::set<Simplex>::iterator it = simplices.begin();
-                                             it != simplices.end(); ++it)
+#pragma omp parallel for
+    for(std::size_t i=0; i<points.size(); ++i)
     {
-      std::set<std::size_t> closest_seeds;
-      const Simplex& s = *it;
-      typename Simplex::iterator sit = s.begin();
-      typename Simplex::iterator siend = s.end();
-      for(; sit!=siend; ++sit)
-        closest_seeds.insert(points[*sit].closest_seed_id);
-      if(closest_seeds.size() == 3)
+      const Grid_point& gp = points[i];
+      Simplex dual_simplex;
+      dual_simplex.insert(gp.closest_seed_id);
+
+      boost::array<Grid_point*, 4>::const_iterator it = gp.neighbors.begin(),
+          iend = gp.neighbors.end();
+      for(; it!=iend; ++it)
       {
-        Simplex simplex;
-        for(sit=s.begin(); sit!=siend; ++sit)
-        {
+        const Grid_point* gq = *it;
+        if(!gq)
+          continue;
 
-          simplex.insert(points[*sit].closest_seed_id);
+        dual_simplex.insert(gq->closest_seed_id);
+      }
 
+      // no one cares if dual_simplex.size() == 1
+      if(dual_simplex.size() == 2)
+      {
+        // that'd be an edge in the dual if we cared about it
+      }
+      else if(dual_simplex.size() >= 3)
+      {
+        if(dual_simplex.size() == 3)
+#pragma omp critical
+          dual_simplices.insert(dual_simplex); // a triangle!
+        else
+          std::cerr << "WARNING: COSPHERICITY..." << std::endl;
 #ifdef TMP_REFINEMENT_UGLY_HACK
-          if(points[*sit].distance_to_closest_seed > farthest_dual_distance)
-          {
-            farthest_dual_distance = points[*sit].distance_to_closest_seed;
-            best_ref_x = points[*sit].point.x();
-            best_ref_y = points[*sit].point.y();
-          }
-#endif
+        if(gp.distance_to_closest_seed > farthest_dual_distance)
+        {
+#pragma omp critical
+{
+          farthest_dual_distance = gp.distance_to_closest_seed;
+          best_ref_x = gp.point.x();
+          best_ref_y = gp.point.y();
+}
         }
-        dual_simplices.insert(simplex);
+#endif
       }
     }
+
+//    // a dual exists if a simplex has 3 different values
+//    for(typename std::set<Simplex>::iterator it = simplices.begin();
+//                                             it != simplices.end(); ++it)
+//    {
+//      std::set<std::size_t> closest_seeds;
+//      const Simplex& s = *it;
+//      typename Simplex::iterator sit = s.begin();
+//      typename Simplex::iterator siend = s.end();
+//      for(; sit!=siend; ++sit)
+//        closest_seeds.insert(points[*sit].closest_seed_id);
+//      if(closest_seeds.size() == 3)
+//      {
+//        Simplex simplex;
+//        for(sit=s.begin(); sit!=siend; ++sit)
+//        {
+
+//          simplex.insert(points[*sit].closest_seed_id);
+
+//        }
+//        dual_simplices.insert(simplex);
+//      }
+//    }
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
     if(dual_simplices.empty())
@@ -791,9 +836,9 @@ struct Geo_grid
     return dual_simplices;
   }
 
-  void output_dual(const std::set<Simplex>& simplices) const
+  void output_dual() const
   {
-    const std::set<Simplex>& dual_simplices = compute_dual(simplices);
+    const std::set<Simplex>& dual_simplices = compute_dual();
     std::cout << "captured: " << dual_simplices.size() << " simplices" << std::endl;
 
     std::ofstream out("geo_grid_dual.mesh");
@@ -826,26 +871,40 @@ struct Geo_grid
   }
 };
 
-int main(int, char**)
+void initialize()
 {
-  std::freopen("geo_grid_log.txt", "w", stdout);
-  std::srand(0);
-
 //  mf = new Euclidean_metric_field<K>(10,1);
   mf = new Custom_metric_field<K>();
 
   vertices_nv = build_seeds();
+}
+
+int main(int, char**)
+{
+  std::clock_t start;
+  double duration;
+  start = std::clock();
+
+  std::freopen("geo_grid_log.txt", "w", stdout);
+  std::srand(0);
+  initialize();
 
   Geo_grid gg;
   gg.build_grid();
-  gg.draw("geo_grid");
+  gg.output_grid("geo_grid");
 
-  int n_refine = 100;
+  int n_refine = 50;
   for(int i=0; i<n_refine; ++i)
   {
     gg.refine_grid();
     std::ostringstream out;
     out << "geo_grid_ref_" << i;
-    gg.draw(out.str());
+    gg.output_grid(out.str());
   }
+
+  gg.output_grid("geo_grid");
+  gg.output_dual();
+
+  duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+  std::cerr << "dur: " << duration << std::endl;
 }
