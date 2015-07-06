@@ -5,7 +5,11 @@
 #include <Metric_field/Custom_metric_field.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+
 #include <Eigen/Dense>
+#include <boost/array.hpp>
+#include <omp.h>
 
 #include <fstream>
 #include <iostream>
@@ -15,6 +19,9 @@ using namespace CGAL::Anisotropic_mesh_2;
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef typename K::FT                                       FT;
+typedef typename K::Segment_2                                Segment;
+typedef typename K::Triangle_2                               Triangle;
+
 typedef Stretched_Delaunay_2<K>                              Star;
 typedef typename Star::Point_2                               Point_2;
 typedef typename Star::TPoint_2                              TPoint_2;
@@ -24,18 +31,38 @@ typedef typename Star::Traits                                Traits;
 typedef typename Eigen::Matrix<double, 5, 1>                 Vector5d;
 typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 
-typedef std::set<std::size_t> Simplex;
+typedef boost::array<std::size_t, 2>                         Edge;
+typedef boost::array<std::size_t, 3>                         Tri;
+
+//typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+
+typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
+typedef typename KExact::Point_2                             EPoint;
+typedef typename KExact::Segment_2                           ESegment;
+typedef typename KExact::Triangle_2                          ETriangle;
+typedef CGAL::Cartesian_converter<K, KExact>                 To_exact;
+typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
+
+To_exact to_exact;
+Back_from_exact back_from_exact;
+
+// -----------------------------------------------------------------------------
 
 // define (only) one of these for the dual
 //#define APPROXIMATE_DUAL
 #define SMART_DUAL
-//#define USE_WITNESS
+//#define WITNESS_DUAL
 
 #define FILTER_SEEDS_OUTSIDE_GRID
 //#define R2 // tangent plane mode
 
+//#define TMP_REFINEMENT_UGLY_HACK
+
+// -----------------------------------------------------------------------------
+
 // using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 103;
+std::size_t vertices_nv = 100;
 
 Point_2 center(0.,0.);
 #ifdef R2
@@ -43,11 +70,17 @@ const FT grid_side = 100;
 FT offset_x = -grid_side/2.; // offset is the bottom left point
 FT offset_y = -grid_side/2.; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
 #else
-const FT grid_side = 4.0;
+const FT grid_side = 4.0; // lenght of a side
 FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
 FT offset_y = center.y() - grid_side/2.;
 #endif
+std::size_t max_grid_size = 1e6;
 
+// metric & traits
+MF mf;
+Traits* traits;
+
+// seeds
 std::vector<Vector2d> R2seeds;
 std::vector<FT> r2ws;
 std::vector<Point_2> seeds;
@@ -55,15 +88,101 @@ std::vector<Vector5d> R5seeds;
 std::vector<Metric> seeds_m;
 std::vector<FT> ws;
 
-std::set<Simplex> simplices;
+std::set<Tri> simplices; // THESE ARE THE SIMPLICES OF THE DUAL OF THE GRID
 std::vector<int> random_colors;
 
-std::vector<std::vector<std::size_t> > witness_grid; // grid_size * 3
+// witness
+std::vector<std::vector<std::size_t> > witness_grid;
 std::vector<std::vector<std::size_t> > first_position; // could be a vector of booleans...
 std::vector<std::vector<std::size_t> > second_position;
 
+#ifdef TMP_REFINEMENT_UGLY_HACK
+// farthest point memory
+FT farthest_x = 1e30, farthest_y = 1e30;
+FT farthest_d = 0.;
+#endif
+
+std::set<Edge> build_edges()
+{
+  std::set<Edge> edges;
+  typename std::set<Tri>::const_iterator it = simplices.begin(), iend = simplices.end();
+  for(; it!=iend; ++it)
+  {
+    //the tris are sorted, so the edges are sorted as long as the indices are sorted!
+    const Tri& tri = *it;
+    Edge e;
+    e[0] = tri[0]; e[1] = tri[1]; edges.insert(e);
+    e[0] = tri[0]; e[1] = tri[2]; edges.insert(e);
+    e[0] = tri[1]; e[1] = tri[2]; edges.insert(e);
+  }
+
+  return edges;
+}
+
+bool is_triangle_intersected(const Tri& tri, const std::set<Edge>& edges)
+{
+  bool is_intersected = false;
+
+  // need to switch to epeck for the correct intersections here...
+  const std::size_t i0 = tri[0];
+  const std::size_t i1 = tri[1];
+  const std::size_t i2 = tri[2];
+  const Point_2& p0 = seeds[i0];
+  const Point_2& p1 = seeds[i1];
+  const Point_2& p2 = seeds[i2];
+  const Triangle triangle(p0, p1, p2);
+
+#pragma omp parallel shared(is_intersected, edges, p0, p1, p2)
+{
+  for(std::set<Edge>::const_iterator it = edges.begin(); it!=edges.end(); ++it)
+  {
+#pragma omp single nowait // hack to parallelize the std::set loop
+{
+#pragma omp flush (is_intersected)
+    if(!is_intersected) // hack because we're not allowed to 'break' (nor to 'continue')
+                        // inside a pragma omp for
+    {
+      const Edge& edge = *it;
+      bool local_intersected = false;
+
+      const Segment segment(seeds[edge[0]], seeds[edge[1]]);
+
+      ESegment esegment = to_exact(segment);
+      ETriangle etriangle = to_exact(triangle);
+      CGAL::cpp11::result_of<KExact::Intersect_2(ESegment, ETriangle)>::type
+                               result = CGAL::intersection(esegment, etriangle);
+
+      if (result)
+      {
+        if (const EPoint* p = boost::get<EPoint>(&*result))
+        {
+          const EPoint& ep = *p;
+          local_intersected = (ep!=to_exact(p0) && ep!=to_exact(p1) && ep!=to_exact(p2));
+        }
+        else if(const ESegment* s = boost::get<ESegment>(&*result))
+        {
+          const EPoint& ep0 = to_exact(p0);
+          const EPoint& ep1 = to_exact(p1);
+          const EPoint& ep2 = to_exact(p2);
+          local_intersected = ((s->source()!=ep0 && s->source()!=ep1 && s->source()!=ep2) ||
+                               (s->target()!=ep0 && s->target()!=ep1 && s->target()!=ep2));
+        }
+      }
+
+#pragma omp critical
+{      if(local_intersected)
+        is_intersected = true;
+}
+#pragma omp flush (is_intersected)
+    } // end !is_intersected
+} // end single nowait
+  } // end for
+} // end parallel
+  return is_intersected;
+}
+
 // -----------------------------------------------------------------------------
-// WITNESS COMPLEX
+// WITNESS FUNCTIONS
 // -----------------------------------------------------------------------------
 
 bool is_simplex_in_witness_complex(std::size_t l0,
@@ -112,6 +231,10 @@ bool is_simplex_in_witness_complex(std::size_t l0,
   return found_1 && found_2 && found_12 && found_02;
 }
 
+// -----------------------------------------------------------------------------
+// SEED FUNCTIONS
+// -----------------------------------------------------------------------------
+
 Vector5d compute_hat(const Point_2& p,
                      const Metric& m)
 {
@@ -140,12 +263,37 @@ Vector5d compute_hat(const Point_2& p,
   return p_hat;
 }
 
-template<typename Metric_field>
-int build_seeds(const Metric_field& mf)
+int insert_new_seed(const FT x, const FT y)
 {
-#if 1
+#ifdef FILTER_SEEDS_OUTSIDE_GRID
+    if(x < offset_x || x > center.x() + grid_side/2. ||
+       y < offset_y || y > center.y() + grid_side/2. )
+    {
+      std::cout << "filtered : " << x << " " << y << std::endl;
+      return seeds.size();
+    }
+#endif
+
+    seeds.push_back(Point_2(x, y));
+    const Point_2& p = seeds.back();
+    seeds_m.push_back(mf->compute_metric(p));
+    R5seeds.push_back(compute_hat(p, seeds_m.back()));
+    const Vector5d& v = R5seeds.back();
+    ws.push_back(v.norm() * v.norm() - p.x()*v(0) - p.y()*v(1));
+
+//    std::cout << "Seeds i: " << seeds.size()-1 << " " << p.x() << " " << p.y() << std::endl;
+//    std::cout << "check " << std::endl;
+//    std::cout << seeds_m.back().get_mat() << std::endl;
+//    std::cout << v(0) << " " << v(1) << std::endl;
+//    std::cout << ws.back() << std::endl;
+  return seeds.size();
+}
+
+int build_seeds()
+{
+//  std::ifstream in("grid_dual.mesh");
   std::ifstream in("bambimboum.mesh");
-//  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/aniso_TC.mesh");
+//  std::ifstream in("/home/mrouxell/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/aniso_TC.mesh");
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y;
@@ -165,39 +313,20 @@ int build_seeds(const Metric_field& mf)
   for(std::size_t i=0; i<nv; ++i)
   {
     in >> r_x >> r_y >> useless;
-
-#ifdef FILTER_SEEDS_OUTSIDE_GRID
-    if(r_x <= offset_x || r_x >= center.x() + grid_side/2 ||
-       r_y <= offset_y || r_y >= center.y() + grid_side/2 )
-    {
-      std::cout << "filtered : " << r_x << " " << r_y << std::endl;
-      continue;
-    }
-#endif
-
-    seeds.push_back(Point_2(r_x, r_y));
-//    std::cout << "Seeds i: " << i << " " << seeds[i].x() << " " << seeds[i].y() << std::endl;
-
-    seeds_m.push_back(mf->compute_metric(seeds[i]));
-    R5seeds.push_back(compute_hat(seeds[i], seeds_m[i]));
-    ws.push_back(R5seeds[i].norm() * R5seeds[i].norm() - seeds[i].x()*R5seeds[i](0) - seeds[i].y()*R5seeds[i](1));
-
-//    std::cout << "check " << std::endl;
-//    std::cout << seeds[i].x() << " " << seeds[i].y() << std::endl;
-//    std::cout << seeds_m[i].get_mat() << std::endl;
-//    std::cout << R5seeds[i](0) << " " << R5seeds[i](1) << std::endl;
-//    std::cout << ws[i] << std::endl;
+    insert_new_seed(r_x, r_y);
 
     if(seeds.size() == vertices_nv)
       break;
   }
+  std::cout << "seeds: " << seeds.size() << std::endl;
   return seeds.size();
 }
 
 int read_tangent_plane_seeds()
 {
-//  std::ifstream in("/home/mrouxel/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points.txt");
-  std::ifstream in("/home/mrouxel/cgal/Tangential_complex/test/Tangential_complex/build/projected_points_120.txt");
+  std::ifstream in("/home/mrouxell/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points.txt");
+  //  std::ifstream in("/home/mrouxell/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/projected_points_after.txt");
+  //  std::ifstream in("/home/mrouxell/cgal/Tangential_complex/test/Tangential_complex/build/projected_points_984.txt");
   std::size_t nv, dim;
   FT x, y, w;
 
@@ -218,6 +347,10 @@ int read_tangent_plane_seeds()
   return nv;
 }
 
+// -----------------------------------------------------------------------------
+// GRID FUNCTIONS
+// -----------------------------------------------------------------------------
+
 // comparator needs to be outside for c++03...
 struct Comp
 {
@@ -230,10 +363,7 @@ struct Comp
   Comp(const std::vector<FT>& sqds_) : m_sqds(sqds_) { }
 };
 
-template<typename MF>
-FT value_at_point(const Point_2& p, std::size_t p_id,
-                  const MF* mf,
-                  const Traits* traits)
+std::size_t value_at_point(const Point_2& p, std::size_t p_id)
 {
   Metric m_p = mf->compute_metric(p);
   Vector2d pv = (Vector2d() << p.x(), p.y()).finished();
@@ -251,7 +381,7 @@ FT value_at_point(const Point_2& p, std::size_t p_id,
 
   // THIRD MODE : BUILD A VORONOI
   FT min = 1e30;
-  unsigned int min_id = 0;
+  std::size_t min_id = 0;
   std::vector<FT> sqds(vertices_nv, 1e30);
   std::vector<std::size_t> ids(vertices_nv);
 
@@ -297,7 +427,7 @@ FT value_at_point(const Point_2& p, std::size_t p_id,
   Comp c(sqds);
   std::sort(ids.begin(), ids.end(), c);
 
-#ifdef USE_WITNESS
+#ifdef WITNESS_DUAL
   //for the witness
   witness_grid.push_back(std::vector<std::size_t>(ids.begin(), ids.begin()+3));
   first_position[ids[0]].push_back(p_id);
@@ -312,23 +442,22 @@ FT value_at_point(const Point_2& p, std::size_t p_id,
 
   // check if we are in the dual of a triangle (somewhat!)
   // that is : the three closest points are more or less at the same distance
-  FT alpha = 0.1;
+  FT alpha = 1e-1;
   if(std::abs(sqds[ids[0]] - sqds[ids[1]]) < alpha*sqds[ids[0]] &&
      std::abs(sqds[ids[0]] - sqds[ids[2]]) < alpha*sqds[ids[0]])
   {
-    std::set<std::size_t> simplex;
-    simplex.insert(ids[0]); simplex.insert(ids[1]); simplex.insert(ids[2]);
-    simplices.insert(simplex);
+    Tri t; t[0] = ids[0]; t[1] = ids[1]; t[2] = ids[2];
+    simplices.insert(t);
+    std::cerr << "added one ! " << std::abs(sqds[ids[0]] - sqds[ids[2]]) << std::endl;
   }
 #endif
 
   return min_id;
 }
 
-template<typename MF>
-void full_grid(const MF* metric_field, const Traits* traits)
+void full_grid()
 {
-  double n = 1000.; // number of points per side
+  double n = 300.; // number of points per side
   double a = grid_side; // length of the side
   double step = a/n;
   double sq_n = n*n;
@@ -354,7 +483,7 @@ void full_grid(const MF* metric_field, const Traits* traits)
       Point_2 p(offset_x+j*step, offset_y+i*step);
       out << p.x() << " " << p.y() << " " << ++counter << std::endl;
 
-      FT ret = value_at_point(p, i*n+j, metric_field, traits);
+      FT ret = value_at_point(p, i*n+j);
       out_bb << ret << std::endl;
     }
   }
@@ -401,7 +530,40 @@ struct Quad
     return dx*dy > max_vol;
   }
 
-  bool has_same_colors(const std::vector<FT>& values) const
+  bool is_too_distorted(FT max_distortion, const std::vector<Point_2>& points) const
+  {
+    Metric m0 = mf->compute_metric(points[i0]);
+    Metric m1 = mf->compute_metric(points[i1]);
+
+    FT gamma01 = m0.compute_distortion(m1);
+      if(gamma01 > max_distortion)
+        return true;
+
+    Metric m2 = mf->compute_metric(points[i2]);
+    FT gamma02 = m0.compute_distortion(m2);
+    if(gamma02 > max_distortion)
+      return true;
+
+    Metric m3 = mf->compute_metric(points[i3]);
+    FT gamma03 = m0.compute_distortion(m3);
+    if(gamma03 > max_distortion)
+      return true;
+
+    FT gamma12 = m1.compute_distortion(m2);
+    if(gamma12 > max_distortion)
+      return true;
+    FT gamma13 = m1.compute_distortion(m3);
+    if(gamma13 > max_distortion)
+      return true;
+
+    FT gamma23 = m2.compute_distortion(m3);
+    if(gamma23 > max_distortion)
+      return true;
+
+    return false;
+  }
+
+  bool has_same_colors(const std::vector<std::size_t>& values) const
   {
     CGAL_assertion(i0 < values.size() && i1 < values.size() &&
                    i2 < values.size() && i3 < values.size());
@@ -415,7 +577,7 @@ struct Quad
     return true;
   }
 
-  std::size_t number_of_colors(const std::vector<FT>& values) const
+  std::size_t number_of_colors(const std::vector<std::size_t>& values) const
   {
     std::set<int> colors;
     colors.insert(values[i0]); colors.insert(values[i1]);
@@ -429,12 +591,10 @@ struct Quad
   { }
 };
 
-template<typename MF>
 void split_quad(const Quad q,
                 std::list<Quad>& quads_to_test,
-                std::vector<FT>& values,
-                std::vector<Point_2>& points,
-                const MF* mf, const Traits* traits)
+                std::vector<std::size_t>& values,
+                std::vector<Point_2>& points)
 {
   // compute the new 5 pts & their respective color
   // p1---p4---p0
@@ -453,28 +613,23 @@ void split_quad(const Quad q,
 
   std::size_t i4 = points.size();
   Point_2 p4(xmid, y1);
-  points.push_back(p4);
-  values.push_back(value_at_point(p4, i4, mf, traits));
+  points.push_back(p4); values.push_back(value_at_point(p4, i4));
 
   std::size_t i5 = points.size();
   Point_2 p5(x0, ymid);
-  points.push_back(p5);
-  values.push_back(value_at_point(p5, i5, mf, traits));
+  points.push_back(p5); values.push_back(value_at_point(p5, i5));
 
   std::size_t i6 = points.size();
   Point_2 p6(xmid, ymid);
-  points.push_back(p6);
-  values.push_back(value_at_point(p6, i6, mf, traits));
+  points.push_back(p6);  values.push_back(value_at_point(p6, i6));
 
   std::size_t i7 = points.size();
   Point_2 p7(x1, ymid);
-  points.push_back(p7);
-  values.push_back(value_at_point(p7, i7, mf, traits));
+  points.push_back(p7);  values.push_back(value_at_point(p7, i7));
 
   std::size_t i8 = points.size();
   Point_2 p8(xmid, y0);
-  points.push_back(p8);
-  values.push_back(value_at_point(p8, i8, mf, traits));
+  points.push_back(p8);  values.push_back(value_at_point(p8, i8));
 
   // create the new four quads and add them to the queue
   Quad q1(q.i0, i4, i6, i7);
@@ -488,63 +643,66 @@ void split_quad(const Quad q,
   quads_to_test.push_back(q4);
 }
 
-template<typename MF>
-void smart_grid(const MF* mf, const Traits* traits)
+#ifdef TMP_REFINEMENT_UGLY_HACK
+void ugly_farthest_computation(const Tri& tri,
+                               const std::vector<Point_2>& points,
+                               const std::vector<std::size_t>& values)
 {
-  std::cout << "smart grid !" << std::endl;
+  //tri is a triangle with different colors at each vertex
+  typename Star::Traits::Compute_squared_distance_2 csd =
+      traits->compute_squared_distance_2_object();
 
-  // idea is to create some kind of quadtree and refine a quad following
-  // a criterion based on the value at its vertices
-  FT min_vol = grid_side*grid_side*1e-5;
-  FT max_vol = grid_side*grid_side*1e-3;
-
-  std::list<Quad> quads_to_test;
-  std::list<Quad> final_quads; // quads that won't be refined anymore
-  std::vector<Point_2> points;
-  std::vector<FT> values;
-
-  // create the initial quad
-  FT l = grid_side / 2.;
-  FT x0 = center.x() - l, x1 = center.x() + l;
-  FT y0 = center.y() - l, y1 = center.y() + l;
-
-  Point_2 p0(x1,y1), p1(x0,y1), p2(x0,y0), p3(x1,y0);
-  points.push_back(p0);
-  points.push_back(p1);
-  points.push_back(p2);
-  points.push_back(p3);
-  values.push_back(value_at_point(p0, 0, mf, traits));
-  values.push_back(value_at_point(p1, 1, mf, traits));
-  values.push_back(value_at_point(p2, 2, mf, traits));
-  values.push_back(value_at_point(p3, 3, mf, traits));
-
-  Quad q0(0, 1, 2, 3);
-  quads_to_test.push_back(q0);
-
-  // refine the quad set
-  while(!quads_to_test.empty())
+  for(std::size_t i=0; i<tri.size(); ++i)
   {
-    const Quad& q = quads_to_test.front();
+    const Point_2& p = points[tri[i]];
+    std::size_t k = values[tri[i]];
 
-    ///experiment : refine more near 3pts dual
-//    if(!q.is_too_small(0.01*min_vol, points) && q.number_of_colors(values) >= 3)
-//      split_quad(q, quads_to_test, values, points, mf, traits);
-//    else
-    if(q.is_too_small(min_vol, points) || q.has_same_colors(values) || points.size() > 1e6)
-      final_quads.push_back(q);
-    else if(/*q.is_too_big(max_vol, points) ||*/ !q.has_same_colors(values))
+    // DU WANG : dx(p,x) < dx(q,x)
+    Metric m_p = mf->compute_metric(p);
+    TPoint_2 tp(m_p.transform(p));
+    double sq_d = csd(tp, m_p.transform(seeds[k]));
+
+    // LABELLE SHEWCHUK : dp(p,x) < dq(q,x)
+    TPoint_2 tp2 = (seeds_m[k]).transform(p);
+    TPoint_2 ts = (seeds_m[k]).transform(seeds[k]);
+//    double sq_d = csd(tp2, ts);
+
+    if(sq_d > farthest_d)
     {
-      split_quad(q, quads_to_test, values, points, mf, traits);
-      std::cout << "Split. Now: " << points.size() << " points" << std::endl;
+#pragma omp critical
+{
+      farthest_d = sq_d;
+      farthest_x = p.x();
+      farthest_y = p.y();
+}
     }
-    else
-      final_quads.push_back(q);
-
-    quads_to_test.pop_front();
   }
+}
+#endif
 
-  std::cout << "created quadtree" << std::endl;
+void insert_simplex_if_colored(const std::size_t i0, const std::size_t i1,
+                               const std::size_t i2,
+                               const std::vector<std::size_t>& values,
+                               const std::vector<Point_2>& points)
+{
+  if(values[i0] != values[i1] && values[i0] != values[i2] &&
+     values[i1] != values[i2])
+  {
+    Tri t;
+    t[0] = values[i0]; t[1] = values[i1]; t[2] = values[i2];
+#pragma omp critical
+    simplices.insert(t);
+#ifdef TMP_REFINEMENT_UGLY_HACK
+    t[0] = i0; t[1] = i1; t[2] = i2;
+    ugly_farthest_computation(t, points, values);
+#endif
+  }
+}
 
+void output_smart_grid(const std::list<Quad>& final_quads,
+                       const std::vector<Point_2>& points,
+                       const std::vector<std::size_t>& values)
+{
   // OUTPUT the quad set (easily transformed into a triangulation by adding the diagonal)
   CGAL_assertion(points.size() == values.size());
   std::size_t values_n = values.size();
@@ -570,7 +728,7 @@ void smart_grid(const MF* mf, const Traits* traits)
 
   out << "Triangles" << std::endl;
   out << 2*final_quads.size() << std::endl;
-  std::list<Quad>::iterator it = final_quads.begin(), iend = final_quads.end();
+  std::list<Quad>::const_iterator it = final_quads.begin(), iend = final_quads.end();
   for(; it!=iend; ++it)
   {
     const Quad& q = *it;
@@ -578,29 +736,87 @@ void smart_grid(const MF* mf, const Traits* traits)
     out << q.i0+1 << " " << q.i1+1 << " " << q.i2+1 << " 2" << std::endl;
   }
   out << "End" << std::endl;
+}
+
+// todo parallelize this like it was done for grid_gen_3, be careful with the
+// pragma omp critical in other functions!
+void smart_grid()
+{
+  std::cout << "smart grid !" << std::endl;
+
+  // idea is to create some kind of quadtree and refine a quad following
+  // a criterion based on the value at its vertices
+  FT min_vol = grid_side*grid_side*1e-6;
+  FT max_vol = grid_side*grid_side*1e-3;
+
+  std::list<Quad> quads_to_test;
+  std::list<Quad> final_quads; // quads that won't be refined anymore
+  std::vector<Point_2> points;
+  std::vector<std::size_t> values;
+
+  // create the initial quad
+  FT l = grid_side / 2.;
+  FT x0 = center.x() - l, x1 = center.x() + l;
+  FT y0 = center.y() - l, y1 = center.y() + l;
+
+  Point_2 p0(x1,y1), p1(x0,y1), p2(x0,y0), p3(x1,y0);
+  points.push_back(p0);
+  points.push_back(p1);
+  points.push_back(p2);
+  points.push_back(p3);
+  values.push_back(value_at_point(p0, 0));
+  values.push_back(value_at_point(p1, 1));
+  values.push_back(value_at_point(p2, 2));
+  values.push_back(value_at_point(p3, 3));
+
+  Quad q0(0, 1, 2, 3);
+  quads_to_test.push_back(q0);
+
+  // refine the quad set
+  while(!quads_to_test.empty())
+  {
+    const Quad& q = quads_to_test.front();
+
+    ///experiment : refine more near 3pts dual
+//    if(!q.is_too_small(0.01*min_vol, points) && q.number_of_colors(values) >= 3)
+//      split_quad(q, quads_to_test, values, points, mf, traits);
+    ///experiment : refine for the distortion
+//if(points.size() < 1e6 && (q.is_too_distorted(1.1, points) || points.size() < 100)
+
+    if(q.is_too_small(min_vol, points) || q.has_same_colors(values) ||
+       points.size() > max_grid_size)
+      final_quads.push_back(q);
+    else if(/*q.is_too_big(max_vol, points) ||*/ !q.has_same_colors(values))
+    {
+      split_quad(q, quads_to_test, values, points);
+      std::cout << "Split. Now: " << points.size() << " points" << std::endl;
+    }
+    else
+      final_quads.push_back(q);
+
+    quads_to_test.pop_front();
+  }
+
+  output_smart_grid(final_quads, points, values);
 
   //smart dual : if a quad has 3 different values, the dual exists
 #ifdef SMART_DUAL
   simplices.clear();
-  for(it=final_quads.begin(); it!=iend; ++it)
+  for(std::list<Quad>::iterator it=final_quads.begin(); it!=final_quads.end(); ++it)
   {
     const Quad& q = *it;
-    std::set<std::size_t> simplex;
-    simplex.insert(values[q.i0]);
-    simplex.insert(values[q.i1]);
-    simplex.insert(values[q.i2]);
-    if(simplex.size() == 3)
-      simplices.insert(simplex);
-    else
-    {
-      simplex.insert(values[q.i3]);
-      if(simplex.size() == 3)
-        simplices.insert(simplex);
-    }
+    insert_simplex_if_colored(q.i0, q.i1, q.i2, values, points);
+    insert_simplex_if_colored(q.i0, q.i1, q.i3, values, points);
   }
-#else
+
+#ifdef TMP_REFINEMENT_UGLY_HACK
+  vertices_nv = insert_new_seed(farthest_x, farthest_y);
+  farthest_d = 0.; farthest_x = 1e30; farthest_y = 1e30;
+#endif
+
+#elif defined(WITNESS_DUAL)
   //witness
-  CGAL_assertion(witness_grid.size() == grid_side);
+  CGAL_assertion(witness_grid.size() == points.size());
   simplices.clear();
   for(std::size_t w=0; w<witness_grid.size(); ++w)
   {
@@ -608,16 +824,16 @@ void smart_grid(const MF* mf, const Traits* traits)
     std::size_t l0 = witness_grid[w][0];
     std::size_t l1 = witness_grid[w][1];
     std::size_t l2 = witness_grid[w][2];
-    std::set<std::size_t> simplex;
-    simplex.insert(l0); simplex.insert(l1); simplex.insert(l2);
+    Tri t;
+    t[0] = l0; t[1] = l1; t[2] = l2;
 
-    if(simplices.find(simplex) != simplices.end()) // it's already in the complex
+    if(simplices.find(t) != simplices.end()) // it's already in the complex
       continue;
 
     if(is_simplex_in_witness_complex(l0, l1, l2))
     {
       std::cout << "added a new simple: " << simplices.size() << std::endl;
-      simplices.insert(simplex);
+      simplices.insert(t);
     }
   }
 #endif
@@ -626,7 +842,6 @@ void smart_grid(const MF* mf, const Traits* traits)
 // -----------------------------------------------------------------------------
 // OUTPUT FUNCTIONS
 // -----------------------------------------------------------------------------
-
 void output_simplices()
 {
   std::cout << "captured: " << simplices.size() << " simplices" << std::endl;
@@ -635,29 +850,25 @@ void output_simplices()
   outd << "MeshVersionFormatted 1" << std::endl;
   outd << "Dimension 2" << std::endl;
   outd << "Vertices" << std::endl;
-  outd << vertices_nv << std::endl;
-  for(int i=0; i<vertices_nv; ++i)
+  outd << seeds.size() << std::endl;
+  for(std::size_t i=0; i<seeds.size(); ++i)
 #ifdef R2
     outd << R2seeds[i].x() << " " << R2seeds[i].y() << " " << i+1 << std::endl;
 #else
     outd << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << std::endl;
 #endif
 
+  const std::set<Edge>& edges = build_edges();
+
   outd << "Triangles" << std::endl;
   outd << simplices.size() << std::endl;
-  for(typename std::set<Simplex>::iterator it = simplices.begin();
+  for(typename std::set<Tri>::iterator it = simplices.begin();
       it != simplices.end(); ++it)
   {
-    const Simplex& s = *it;
-    typename Simplex::iterator sit = s.begin();
-    typename Simplex::iterator siend = s.end();
-    for(; sit!=siend; ++sit)
-    {
-//      std::cout << *sit+1 << " ";
-      outd << *sit+1 << " ";
-    }
-    outd << "1" << std::endl;
-//    std::cout << std::endl;
+    const Tri& tri = *it;
+    for(std::size_t i=0; i<tri.size(); ++i)
+      outd << tri[i]+1 << " ";
+    outd << is_triangle_intersected(tri, edges) << std::endl;
   }
   outd << "End" << std::endl;
 }
@@ -665,16 +876,16 @@ void output_simplices()
 // -----------------------------------------------------------------------------
 // MAIN FUNCTIONS
 // -----------------------------------------------------------------------------
-
-template<typename MF>
-void draw(const MF* metric_field)
+void initialize()
 {
-  Traits* traits = new Traits();
+  traits = new Traits();
+  //  mf = new Euclidean_metric_field<K>(16,1);
+  mf = new Custom_metric_field<K>();
 
 #ifdef R2
   vertices_nv = read_tangent_plane_seeds();
 #else
-  vertices_nv = build_seeds(metric_field);
+  vertices_nv = build_seeds();
 #endif
 
   // for random colors
@@ -682,12 +893,19 @@ void draw(const MF* metric_field)
   for(int i=0; i<vertices_nv; ++i)
     random_colors[i] = i;
 //  std::random_shuffle(random_colors.begin(), random_colors.end());
+}
 
-  first_position.resize(vertices_nv);
-  second_position.resize(vertices_nv);
+void build_grid()
+{
+  simplices.clear();
+#ifdef WITNESS_DUAL
+  witness_grid.clear();
+  first_position.resize(vertices_nv, 0.);
+  second_position.resize(vertices_nv, 0.);
+#endif
 
-//  full_grid(metric_field, traits);
-  smart_grid(metric_field, traits);
+//  full_grid();
+  smart_grid();
 
   output_simplices();
 }
@@ -697,14 +915,14 @@ int main(int, char**)
   std::freopen("grid_log.txt", "w", stdout);
   std::srand(0);
 
-  // to build a ~dual
-  simplices.clear();
-  witness_grid.clear();
-  first_position.clear();
-  second_position.clear();
+  initialize();
+  build_grid();
 
-  //Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(16,1);
-  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
-
-  draw(metric_field);
+  //  int n_refine = 80;
+  //  for(int i=0; i<n_refine; ++i)
+  //  {
+  //    std::cerr << "refine: " << i << std::endl;
+  //    build_grid();
+  //  }
+  std::cerr << "end of program" << std::endl;
 }
