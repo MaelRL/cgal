@@ -5,7 +5,11 @@
 #include <Metric_field/Custom_metric_field.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+
 #include <Eigen/Dense>
+#include <boost/array.hpp>
+#include <omp.h>
 
 #include <fstream>
 #include <iostream>
@@ -18,39 +22,206 @@ using namespace CGAL::Anisotropic_mesh_3;
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef typename K::FT                                       FT;
+typedef typename K::Segment_3                                Segment;
+typedef typename K::Triangle_3                               Triangle;
+
 typedef Stretched_Delaunay_3<K>                              Star;
 typedef typename Star::Point_3                               Point_3;
 typedef typename Star::TPoint_3                              TPoint_3;
 typedef typename Star::Metric                                Metric;
 typedef typename Star::Traits                                Traits;
 
-typedef std::set<std::size_t> Simplex;
+//typedef typename CGAL::Anisotropic_mesh_3::Euclidean_metric_field<K>* MF;
+typedef typename CGAL::Anisotropic_mesh_3::Custom_metric_field<K>* MF;
+
+typedef std::set<std::size_t>                                Simplex;
+typedef boost::array<std::size_t, 2>                         Edge;
+typedef boost::array<std::size_t, 3>                         Tri;
+typedef boost::array<std::size_t, 4>                         Tet;
+
+typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
+typedef typename KExact::Point_3                             EPoint;
+typedef typename KExact::Segment_3                           ESegment;
+typedef typename KExact::Triangle_3                          ETriangle;
+typedef CGAL::Cartesian_converter<K, KExact>                 To_exact;
+typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
+
+To_exact to_exact;
+Back_from_exact back_from_exact;
+
+// -----------------------------------------------------------------------------
 
 // pick (only) one to compute the dual
 //#define APPROXIMATE_DUAL
 #define SMART_DUAL
 
+#define TMP_REFINEMENT_UGLY_HACK
 #define FILTER_SEEDS_OUTSIDE_GRID
 
+// -----------------------------------------------------------------------------
+
 // using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 200;
+std::size_t vertices_nv = 10;
 
-Point_3 center(0.75,0.75,0.75);
+Point_3 center(0.6, 0.6, 0.6);
 
-const FT grid_side = 0.5;
+const FT grid_side = 1.0;
 FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
 FT offset_y = center.y() - grid_side/2.;
 FT offset_z = center.z() - grid_side/2.;
+std::size_t max_grid_nv = 1e5;
 
+// metric & traits
+MF mf;
+Traits* traits;
+
+// seeds
 std::vector<Point_3> seeds;
 std::vector<Metric> seeds_m;
 
-std::set<Simplex> simplices;
+std::set<Tet> simplices; // THESE ARE THE SIMPLICES OF THE DUAL OF THE GRID
 
-template<typename Metric_field>
-int build_seeds(const Metric_field& mf)
+#ifdef TMP_REFINEMENT_UGLY_HACK
+// farthest point memory
+FT farthest_x = 1e30, farthest_y = 1e30, farthest_z = 1e30;
+FT farthest_d = 0.;
+#endif
+
+// -----------------------------------------------------------------------------
+
+std::set<Edge> compute_edges()
 {
-  std::ifstream in("bambimboum.mesh");
+  std::set<Edge> edges;
+  for(typename std::set<Tet>::const_iterator it = simplices.begin();
+                                             it != simplices.end(); ++it)
+  {
+    //the tets are sorted, so the edges are sorted as long as the indices are sorted!
+    const Tet& tet = *it;
+    Edge e;
+    e[0] = tet[0]; e[1] = tet[1]; edges.insert(e);
+    e[0] = tet[0]; e[1] = tet[2]; edges.insert(e);
+    e[0] = tet[0]; e[1] = tet[3]; edges.insert(e);
+    e[0] = tet[1]; e[1] = tet[2]; edges.insert(e);
+    e[0] = tet[1]; e[1] = tet[3]; edges.insert(e);
+    e[0] = tet[2]; e[1] = tet[3]; edges.insert(e);
+  }
+
+  return edges;
+}
+
+std::set<Tri> compute_triangles()
+{
+  std::set<Tri> triangles;
+  for(typename std::set<Tet>::const_iterator it = simplices.begin();
+                                             it != simplices.end(); ++it)
+  {
+    //the tets are sorted, so the edges are sorted as long as the indices are sorted!
+    const Tet& tet = *it;
+    Tri t;
+    t[0] = tet[0]; t[1] = tet[1]; t[2] = tet[2]; triangles.insert(t);
+    t[0] = tet[0]; t[1] = tet[1]; t[2] = tet[3]; triangles.insert(t);
+    t[0] = tet[0]; t[1] = tet[2]; t[2] = tet[3]; triangles.insert(t);
+    t[0] = tet[1]; t[1] = tet[2]; t[2] = tet[3]; triangles.insert(t);
+  }
+
+  return triangles;
+}
+
+bool has_simplex_n_colors(const std::size_t i0, const std::size_t i1,
+                          const std::size_t i2, const std::size_t i3,
+                          const int n, const std::vector<std::size_t>& values)
+{
+  std::set<std::size_t> colors;
+  colors.insert(values[i0]);
+  colors.insert(values[i1]);
+  colors.insert(values[i2]);
+  colors.insert(values[i3]);
+
+  return (colors.size() >= n);
+}
+
+bool is_triangle_intersected(const Tri& tri, const std::set<Edge>& edges)
+{
+  bool is_intersected = false;
+
+  // need to switch to epeck for the correct intersections here...
+  const std::size_t i0 = tri[0];
+  const std::size_t i1 = tri[1];
+  const std::size_t i2 = tri[2];
+  const Point_3& p0 = seeds[i0];
+  const Point_3& p1 = seeds[i1];
+  const Point_3& p2 = seeds[i2];
+  const Triangle triangle(p0, p1, p2);
+
+#pragma omp parallel shared(is_intersected, p0, p1, p2)
+{
+  for(std::set<Edge>::const_iterator it = edges.begin(); it!=edges.end(); ++it)
+  {
+#pragma omp single nowait // hack to parallelize the std::set
+{
+#pragma omp flush (is_intersected)
+    if(!is_intersected) // hack because we're not allowed to break (or continue)
+                        // inside a pragma omp for
+    {
+      const Edge& edge = *it;
+      bool local_intersected = false;
+
+      const Segment segment(seeds[edge[0]], seeds[edge[1]]);
+
+      ESegment esegment = to_exact(segment);
+      ETriangle etriangle = to_exact(triangle);
+      CGAL::cpp11::result_of<KExact::Intersect_3(ESegment, ETriangle)>::type
+                               result = CGAL::intersection(esegment, etriangle);
+
+      if (result)
+      {
+        if (const EPoint* p = boost::get<EPoint>(&*result))
+        {
+          const EPoint& ep = *p;
+          local_intersected = (ep!=to_exact(p0) && ep!=to_exact(p1) && ep!=to_exact(p2));
+        }
+        else if(const ESegment* s = boost::get<ESegment>(&*result))
+        {
+          const EPoint& ep0 = to_exact(p0);
+          const EPoint& ep1 = to_exact(p1);
+          const EPoint& ep2 = to_exact(p2);
+          local_intersected = ((s->source()!=ep0 && s->source()!=ep1 && s->source()!=ep2) ||
+                               (s->target()!=ep0 && s->target()!=ep1 && s->target()!=ep2));
+        }
+      }
+
+#pragma omp critical
+{      if(local_intersected)
+        is_intersected = true;
+}
+#pragma omp flush (is_intersected)
+    } // end !is_intersected
+} // end single nowait
+  } // end for
+} // end parallel
+  return is_intersected;
+}
+
+int insert_new_seed(const FT x, const FT y, const FT z)
+{
+#ifdef FILTER_SEEDS_OUTSIDE_GRID
+  if(x < offset_x || x > center.x() + grid_side/2. ||
+     y < offset_y || y > center.y() + grid_side/2. ||
+     z < offset_z || z > center.y() + grid_side/2.)
+  {
+    std::cout << "filtered : " << x << " " << y << " " << z << std::endl;
+    return seeds.size();
+  }
+#endif
+  seeds.push_back(Point_3(x, y, z));
+  seeds_m.push_back(mf->compute_metric(seeds.back()));
+
+  return seeds.size();
+}
+
+int build_seeds()
+{
+  std::ifstream in("bambimboum_wip.mesh");
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y, r_z;
@@ -68,26 +239,12 @@ int build_seeds(const Metric_field& mf)
   for(std::size_t i=0; i<nv; ++i)
   {
     in >> r_x >> r_y >> r_z >> useless;
-
-#ifdef FILTER_SEEDS_OUTSIDE_GRID
-    if(r_x <= offset_x || r_x >= center.x() + grid_side/2 ||
-       r_y <= offset_y || r_y >= center.y() + grid_side/2 ||
-       r_z <= offset_z || r_z >= center.y() + grid_side/2)
-    {
-      std::cout << "filtered : " << r_x << " " << r_y << " " << r_z << std::endl;
-      continue;
-    }
-#endif
-
-    seeds.push_back(Point_3(r_x, r_y, r_z));
-//    std::cout << "Seeds i: " << i << " " << seeds[i].x() << " ";
-//    std::cout << seeds[i].y() << " " << seeds[i].z() << std::endl;
-
-    seeds_m.push_back(mf->compute_metric(seeds[i]));
+    insert_new_seed(r_x, r_y, r_z);
 
     if(seeds.size() == vertices_nv)
       break;
   }
+  std::cout << seeds.size() << " seeds" << std::endl;
   return seeds.size();
 }
 
@@ -103,17 +260,15 @@ struct Comp
   Comp(const std::vector<FT>& sqds_) : m_sqds(sqds_) { }
 };
 
-template<typename MF>
-FT value_at_point(const Point_3& p, const MF* mf, const Traits* traits)
+FT value_at_point(const Point_3& p)
 {
   Metric m_p = mf->compute_metric(p);
   TPoint_3 tp(m_p.transform(p));
-
   typename Star::Traits::Compute_squared_distance_3 csd =
       traits->compute_squared_distance_3_object();
 
   FT min = 1e30;
-  unsigned int min_id = 0;
+  std::size_t min_id = 0;
   std::vector<FT> sqds(vertices_nv, 1e30);
   std::vector<std::size_t> ids(vertices_nv);
 
@@ -140,42 +295,52 @@ FT value_at_point(const Point_3& p, const MF* mf, const Traits* traits)
       else if(l==1 && ((k!=min_id && std::abs(sq_d-min)<0.1*min) ||
                        sq_d < 0.01*min)) // second pass
       {
-        min_id = 1.01*vertices_nv; // drawing borders and center points
+        min_id = 1.01 * vertices_nv; // drawing borders and center points
         break;
       }
     }
   }
 
+#if 1//def APPROXIMATE_DUAL don't forget to decomment below if you change that
   Comp c(sqds);
   std::sort(ids.begin(), ids.end(), c);
 
-  // check if we are in the dual of a triangle (somewhat, not exactly a witness)
   for(int i=0; i<vertices_nv-1; ++i)
   {
 //    std::cout << sqds[ids[i]] << " " << sqds[ids[i+1]] << std::endl;
-    assert(sqds[ids[i+1]] >= sqds[ids[i]]);
+    CGAL_assertion(sqds[ids[i+1]] >= sqds[ids[i]]);
   }
 
-#ifdef APPROXIMATE_DUAL
+  // check if we are in the dual of a triangle (somewhat, not exactly a witness)
   FT alpha = 0.1;
   if(std::abs(sqds[ids[0]] - sqds[ids[1]]) < alpha*sqds[ids[0]] &&
      std::abs(sqds[ids[0]] - sqds[ids[2]]) < alpha*sqds[ids[0]] &&
-     std::abs(sqds[ids[0]] - sqds[ids[3]]) < alpha*sqds[ids[0]]) // in the dual
+     std::abs(sqds[ids[0]] - sqds[ids[3]]) < alpha*sqds[ids[0]]) // in the dual of the tet 0123
   {
-    std::set<std::size_t> simplex;
-    simplex.insert(ids[0]); simplex.insert(ids[1]);
-    simplex.insert(ids[2]); simplex.insert(ids[3]);
-    simplices.insert(simplex);
+    if(std::abs(sqds[ids[0]] - sqds[ids[4]]) < alpha*sqds[ids[0]]) // 4 is close too!
+    {
+#pragma omp critical
+{
+      std::cerr << "close tet" << std::endl;
+      std::cerr << sqds[ids[0]] << " " << sqds[ids[1]] << " " << sqds[ids[2]] << " " << sqds[ids[3]] << " ";
+      std::cerr << sqds[ids[4]] << std::endl;
+      std::cerr << "YOU VE GOT A CASE OF COSPHERITY at : " << p.x() << " " << p.y() << " " << p.z() << " ";
+      std::cerr << "(r: " << std::sqrt(p.x()*p.x() + p.y()*p.y() + p.z()*p.z()) << ")" << std::endl;
+}
+    }
+
+//    Tet t; t[0] = ids[0]; t[1] = ids[1]; t[2] = ids[2]; t[3] = ids[3];
+//    std::sort(t.begin(), t.end());
+//    simplices.insert(simplex);
   }
 #endif
 
   return min_id;
 }
 
-template<typename MF>
-void full_grid(const MF* metric_field, const Traits* traits)
+void full_grid()
 {
-  double n = 1000.; // number of points per side
+  double n = 100.; // number of points per side
   double a = grid_side; // length of the side
   double step = a/n;
   double n_cube = n*n*n;
@@ -202,7 +367,7 @@ void full_grid(const MF* metric_field, const Traits* traits)
         Point_3 p(offset_x+j*step, offset_y+i*step, offset_z+k*step);
         out << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << std::endl;
 
-        FT ret = value_at_point(p, metric_field, traits);
+        FT ret = value_at_point(p);
         out_bb << ret << std::endl;
       }
     }
@@ -213,7 +378,7 @@ void full_grid(const MF* metric_field, const Traits* traits)
   {
     for(int j=0; j<(n-1); ++j)
     {
-      std::cout << "fixme" << std::endl;
+      std::cout << "fixme" << std::endl; // need to define the 5 tets depending on i,j,k,i-1, etc.
       CGAL_assertion(false);
     }
   }
@@ -236,7 +401,7 @@ struct Cube
   // |    |
   // p6---p7
 
-  std::vector<std::size_t> ids;
+  boost::array<std::size_t, 8> ids;
 
   bool is_too_small(FT min_vol, const std::vector<Point_3>& points) const
   {
@@ -256,41 +421,40 @@ struct Cube
     return dx*dy*dz > max_vol;
   }
 
-  std::size_t number_of_colors(const std::vector<FT>& values) const
+  std::size_t number_of_colors(const std::vector<std::size_t>& values) const
   {
     std::set<FT> vals;
-    std::vector<std::size_t>::const_iterator it = ids.begin(), iend = ids.end();
+    boost::array<std::size_t, 8>::const_iterator it = ids.begin(), iend = ids.end();
     for(; it!=iend; ++it)
       vals.insert(values[*it]);
     return vals.size();
   }
 
-  bool has_same_colors(const std::vector<FT>& values) const
+  bool has_same_colors(const std::vector<std::size_t>& values) const
   {
     FT v0 = values[ids.front()];
-    std::vector<std::size_t>::const_iterator it = ids.begin()++, iend = ids.end();
+    boost::array<std::size_t, 8>::const_iterator it = ids.begin(), iend = ids.end();
+    ++it; // ignore the first one since it's v0
     for(; it!=iend; ++it)
       if(v0 != values[*it])
         return false;
     return true;
   }
 
-  Cube(const std::vector<std::size_t>& ids_) : ids(ids_) { }
+  Cube(const boost::array<std::size_t, 8>& ids_) : ids(ids_) { }
   Cube(const std::size_t i0, const std::size_t i1, const std::size_t i2,
        const std::size_t i3, const std::size_t i4 ,const std::size_t i5,
        const std::size_t i6, const std::size_t i7) : ids()
   {
-    ids.push_back(i0); ids.push_back(i1); ids.push_back(i2); ids.push_back(i3);
-    ids.push_back(i4); ids.push_back(i5); ids.push_back(i6); ids.push_back(i7);
+    ids[0] = i0; ids[1] = i1; ids[2] = i2; ids[3] = i3;
+    ids[4] = i4; ids[5] = i5; ids[6] = i6; ids[7] = i7;
   }
 };
 
-template<typename MF>
 void split_cube(const Cube q,
                 std::list<Cube>& cubes_to_test,
-                std::vector<FT>& values,
-                std::vector<Point_3>& points,
-                const MF* mf, const Traits* traits)
+                std::vector<std::size_t>& values,
+                std::vector<Point_3>& points)
 {
   // compute the new 5 pts & their respective color
   //top level (order defined from Oz)
@@ -315,12 +479,9 @@ void split_cube(const Cube q,
   // p6---p26---p7
 
   //gather the interesting values (2 of each)
-  FT x0 = points[q.ids[1]].x();
-  FT x1 = points[q.ids[0]].x();
-  FT y0 = points[q.ids[2]].y();
-  FT y1 = points[q.ids[1]].y();
-  FT z0 = points[q.ids[4]].z();
-  FT z1 = points[q.ids[0]].z();
+  FT x0 = points[q.ids[1]].x(); FT x1 = points[q.ids[0]].x();
+  FT y0 = points[q.ids[2]].y(); FT y1 = points[q.ids[1]].y();
+  FT z0 = points[q.ids[4]].z(); FT z1 = points[q.ids[0]].z();
 
   FT xmid = (x0 + x1) / 2.;
   FT ymid = (y0 + y1) / 2.;
@@ -328,99 +489,80 @@ void split_cube(const Cube q,
 
   //new pts coordinates (19!):
   std::size_t i8 = points.size();
-  Point_3 p8(xmid,y1,z1);
-  points.push_back(p8);
-  values.push_back(value_at_point(p8, mf, traits));
+  Point_3 p8(xmid, y1, z1);
+  points.push_back(p8); values.push_back(value_at_point(p8));
 
   std::size_t i9 = points.size();
-  Point_3 p9(x1,ymid,z1);
-  points.push_back(p9);
-  values.push_back(value_at_point(p9, mf, traits));
+  Point_3 p9(x1, ymid, z1);
+  points.push_back(p9); values.push_back(value_at_point(p9));
 
   std::size_t i10 = points.size();
-  Point_3 p10(xmid,ymid,z1);
-  points.push_back(p10);
-  values.push_back(value_at_point(p10, mf, traits));
+  Point_3 p10(xmid, ymid, z1);
+  points.push_back(p10); values.push_back(value_at_point(p10));
 
   std::size_t i11 = points.size();
-  Point_3 p11(x0,ymid,z1);
-  points.push_back(p11);
-  values.push_back(value_at_point(p11, mf, traits));
+  Point_3 p11(x0, ymid, z1);
+  points.push_back(p11); values.push_back(value_at_point(p11));
 
   std::size_t i12 = points.size();
-  Point_3 p12(xmid,y0,z1);
-  points.push_back(p12);
-  values.push_back(value_at_point(p12, mf, traits));
+  Point_3 p12(xmid, y0, z1);
+  points.push_back(p12); values.push_back(value_at_point(p12));
 
   std::size_t i13 = points.size();
-  Point_3 p13(x1,y1,zmid);
-  points.push_back(p13);
-  values.push_back(value_at_point(p13, mf, traits));
+  Point_3 p13(x1, y1, zmid);
+  points.push_back(p13); values.push_back(value_at_point(p13));
 
   std::size_t i14 = points.size();
-  Point_3 p14(xmid,y1,zmid);
-  points.push_back(p14);
-  values.push_back(value_at_point(p14, mf, traits));
+  Point_3 p14(xmid, y1, zmid);
+  points.push_back(p14); values.push_back(value_at_point(p14));
 
   std::size_t i15 = points.size();
-  Point_3 p15(x0,y1,zmid);
-  points.push_back(p15);
-  values.push_back(value_at_point(p15, mf, traits));
+  Point_3 p15(x0, y1, zmid);
+  points.push_back(p15); values.push_back(value_at_point(p15));
 
   std::size_t i16 = points.size();
-  Point_3 p16(x1,ymid,zmid);
-  points.push_back(p16);
-  values.push_back(value_at_point(p16, mf, traits));
+  Point_3 p16(x1, ymid, zmid);
+  points.push_back(p16); values.push_back(value_at_point(p16));
 
   std::size_t i17 = points.size();
-  Point_3 p17(xmid,ymid,zmid);
-  points.push_back(p17);
-  values.push_back(value_at_point(p17, mf, traits));
+  Point_3 p17(xmid, ymid, zmid);
+  points.push_back(p17); values.push_back(value_at_point(p17));
 
   std::size_t i18 = points.size();
-  Point_3 p18(x0,ymid,zmid);
-  points.push_back(p18);
-  values.push_back(value_at_point(p18, mf, traits));
+  Point_3 p18(x0, ymid, zmid);
+  points.push_back(p18); values.push_back(value_at_point(p18));
 
   std::size_t i19 = points.size();
-  Point_3 p19(x1,y0,zmid);
-  points.push_back(p19);
-  values.push_back(value_at_point(p19, mf, traits));
+  Point_3 p19(x1, y0, zmid);
+  points.push_back(p19); values.push_back(value_at_point(p19));
 
   std::size_t i20 = points.size();
-  Point_3 p20(xmid,y0,zmid);
-  points.push_back(p20);
-  values.push_back(value_at_point(p20, mf, traits));
+  Point_3 p20(xmid, y0, zmid);
+  points.push_back(p20); values.push_back(value_at_point(p20));
 
   std::size_t i21 = points.size();
-  Point_3 p21(x0,y0,zmid);
-  points.push_back(p21);
-  values.push_back(value_at_point(p21, mf, traits));
+  Point_3 p21(x0, y0, zmid);
+  points.push_back(p21); values.push_back(value_at_point(p21));
 
   std::size_t i22 = points.size();
-  Point_3 p22(xmid,y1,z0);
-  points.push_back(p22);
-  values.push_back(value_at_point(p22, mf, traits));
+  Point_3 p22(xmid, y1, z0);
+  points.push_back(p22); values.push_back(value_at_point(p22));
 
   std::size_t i23 = points.size();
-  Point_3 p23(x1,ymid,z0);
-  points.push_back(p23);
-  values.push_back(value_at_point(p23, mf, traits));
+  Point_3 p23(x1, ymid, z0);
+  points.push_back(p23); values.push_back(value_at_point(p23));
 
   std::size_t i24 = points.size();
-  Point_3 p24(xmid,ymid,z0);
-  points.push_back(p24);
-  values.push_back(value_at_point(p24, mf, traits));
+  Point_3 p24(xmid, ymid, z0);
+  points.push_back(p24); values.push_back(value_at_point(p24));
 
   std::size_t i25 = points.size();
-  Point_3 p25(x0,ymid,z0);
-  points.push_back(p25);
-  values.push_back(value_at_point(p25, mf, traits));
+  Point_3 p25(x0, ymid, z0);
+  points.push_back(p25); values.push_back(value_at_point(p25));
 
   std::size_t i26 = points.size();
-  Point_3 p26(xmid,y0,z0);
-  points.push_back(p26);
-  values.push_back(value_at_point(p26, mf, traits));
+  Point_3 p26(xmid, y0, z0);
+  points.push_back(p26); values.push_back(value_at_point(p26));
 
   // one cube gives 8 cubes :
   Cube c0(q.ids[0], i8, i10, i9, i13, i14, i17, i16);
@@ -442,141 +584,294 @@ void split_cube(const Cube q,
   cubes_to_test.push_back(c7);
 }
 
-template<typename MF>
-void smart_grid(const MF* mf, const Traits* traits)
+#ifdef TMP_REFINEMENT_UGLY_HACK
+void ugly_farthest_computation(const Tet& tet,
+                               const std::vector<Point_3>& points,
+                               const std::vector<std::size_t>& values)
 {
+  //tet is a _GRID_ tet with different colors (values) at each vertex
+  typename Star::Traits::Compute_squared_distance_2 csd =
+      traits->compute_squared_distance_2_object();
+
+  for(std::size_t i=0; i<tet.size(); ++i)
+  {
+    const Point_3& p = points[tet[i]];
+    std::size_t k = values[tet[i]];
+
+    // DU WANG : dx(p,x) < dx(q,x)
+    Metric m_p = mf->compute_metric(p);
+    TPoint_3 tp(m_p.transform(p));
+    double sq_d = csd(tp, m_p.transform(seeds[k]));
+
+    // LABELLE SHEWCHUK : dp(p,x) < dq(q,x)
+    TPoint_3 tp2 = (seeds_m[k]).transform(p);
+    TPoint_3 ts = (seeds_m[k]).transform(seeds[k]);
+//    double sq_d = csd(tp2, ts);
+
+    if(sq_d > farthest_d)
+    {
+#pragma omp critical
+{
+      farthest_d = sq_d;
+      farthest_x = p.x();
+      farthest_y = p.y();
+      farthest_z = p.z();
+}
+    }
+  }
+}
+#endif
+
+void insert_simplex_if_colored(const std::size_t i0, const std::size_t i1,
+                               const std::size_t i2, const std::size_t i3,
+                               const std::vector<std::size_t>& values,
+                               const std::vector<Point_3>& points)
+{
+  if(values[i0] != values[i1] && values[i0] != values[i2] && values[i0] != values[i3] &&
+     values[i1] != values[i2] && values[i1] != values[i3] &&
+     values[i2] != values[i3])
+  {
+    Tet t;
+    t[0] = values[i0]; t[1] = values[i1]; t[2] = values[i2]; t[3] = values[i3];
+    std::sort(t.begin(), t.end());
+
+    std::cerr << "In the dual at : " << i0 << " " << i1 << " " << i2 << " " << i3 << std::endl;
+    std::cerr << "vals: " << t[0] << " " << t[1] << " " << t[2] << " " << t[3] << std::endl;
+#pragma omp critical
+    simplices.insert(t);
+#ifdef TMP_REFINEMENT_UGLY_HACK
+    t[0] = i0; t[1] = i1; t[2] = i2; t[3] = i3;
+    ugly_farthest_computation(t, points, values);
+#endif
+  }
+}
+
+void output_smart_grid_points(std::ofstream& out_pts,
+                              std::ofstream& out_bb,
+                              std::size_t offset,
+                              const std::vector<Point_3>& points,
+                              const std::vector<std::size_t>& values)
+{
+  // we're adding new pts to existing points thus we add an offset
+  CGAL_assertion(points.size() == values.size());
+
+  std::size_t grid_nv = values.size();
+  int counter = ++offset; // '++' because medit likes fortran
+  for(int i=0; i!=grid_nv; ++i)
+  {
+    const Point_3& p = points[i];
+    out_pts << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << std::endl;
+    out_bb << values[i] << std::endl;
+  }
+}
+
+void output_smart_grid_tets(std::ofstream& out_tets,
+                            std::size_t offset,
+                            const std::list<Cube>& final_cubes)
+{
+  // output the cube set (transformed into a triangulation)
+  // the tets have LOCAL coordinates, so we need to add an offset
+
+  ++offset; // '++' because medit likes fortran
+  std::list<Cube>::const_iterator it = final_cubes.begin(), iend = final_cubes.end();
+  for(; it!=iend; ++it)
+  {
+    const Cube& q = *it;
+    out_tets << q.ids[0]+offset << " " << q.ids[1]+offset << " " << q.ids[2]+offset << " " << q.ids[5]+offset << " ";
+    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[1], q.ids[2], q.ids[5], 4, values) << std::endl;
+    out_tets << q.ids[0]+offset << " " << q.ids[2]+offset << " " << q.ids[5]+offset << " " << q.ids[7]+offset << " ";
+    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[2], q.ids[5], q.ids[7], 4, values) << std::endl;
+    out_tets << q.ids[0]+offset << " " << q.ids[2]+offset << " " << q.ids[3]+offset << " " << q.ids[7]+offset << " ";
+    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[2], q.ids[3], q.ids[7], 4, values) << std::endl;
+    out_tets << q.ids[0]+offset << " " << q.ids[4]+offset << " " << q.ids[5]+offset << " " << q.ids[7]+offset << " ";
+    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[4], q.ids[5], q.ids[7], 4, values) << std::endl;
+    out_tets << q.ids[2]+offset << " " << q.ids[5]+offset << " " << q.ids[6]+offset << " " << q.ids[7]+offset << " ";
+    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[2], q.ids[5], q.ids[6], q.ids[7], 4, values) << std::endl;
+  }
+}
+
+void smart_grid(const bool output_grid = false)
+{
+  std::ofstream out("smart_grid.mesh");
+  std::ofstream out_bb("smart_grid.bb");
+
+  std::size_t grid_nv = 0., grid_ntet = 0., glob_offset = 0.;
+
   // idea is to create some kind of octree and refine a square
   // if its four corners don't have all the same colors (and it's not too small)
   FT min_vol = grid_side*grid_side*grid_side*1e-7;
   FT max_vol = grid_side*grid_side*grid_side*1e-3;
 
-  std::list<Cube> cubes_to_test;
-  std::list<Cube> final_cubes;
+  std::list<Cube> initial_cubes;
   std::vector<Point_3> points;
-  std::vector<FT> values;
+  std::vector<std::size_t> values;
 
   // create the first cube
   FT l = grid_side / 2.;
-  FT x0 = offset_x - l, x1 = offset_x + l;
-  FT y0 = offset_y - l, y1 = offset_y + l;
-  FT z0 = offset_z - l, z1 = offset_z + l;
+  FT x0 = center.x() - l, x1 = center.x() + l;
+  FT y0 = center.x() - l, y1 = center.x() + l;
+  FT z0 = center.x() - l, z1 = center.x() + l;
 
   Point_3 p0(x1,y1,z1), p1(x0,y1,z1), p2(x0,y0,z1), p3(x1,y0,z1);
   Point_3 p4(x1,y1,z0), p5(x0,y1,z0), p6(x0,y0,z0), p7(x1,y0,z0);
-  points.push_back(p0); points.push_back(p1); points.push_back(p2); points.push_back(p3);
-  points.push_back(p4); points.push_back(p5); points.push_back(p6); points.push_back(p7);
-  values.push_back(value_at_point(p0, mf, traits));
-  values.push_back(value_at_point(p1, mf, traits));
-  values.push_back(value_at_point(p2, mf, traits));
-  values.push_back(value_at_point(p3, mf, traits));
-  values.push_back(value_at_point(p4, mf, traits));
-  values.push_back(value_at_point(p5, mf, traits));
-  values.push_back(value_at_point(p6, mf, traits));
-  values.push_back(value_at_point(p7, mf, traits));
+  points.push_back(p0); values.push_back(value_at_point(p0));
+  points.push_back(p1); values.push_back(value_at_point(p1));
+  points.push_back(p2); values.push_back(value_at_point(p2));
+  points.push_back(p3); values.push_back(value_at_point(p3));
+  points.push_back(p4); values.push_back(value_at_point(p4));
+  points.push_back(p5); values.push_back(value_at_point(p5));
+  points.push_back(p6); values.push_back(value_at_point(p6));
+  points.push_back(p7); values.push_back(value_at_point(p7));
 
-  Cube c0(0,1,2,3,4,5,6,7);
-  cubes_to_test.push_back(c0);
+  Cube c0(0, 1, 2, 3, 4, 5, 6, 7);
 
-  // refine the cube set
-  while(!cubes_to_test.empty())
-  {
-    const Cube& q = cubes_to_test.front();
+// SPLIT AND GO PARALLEL
+  split_cube(c0, initial_cubes, values, points);
 
-    if(q.is_too_small(min_vol, points) || q.has_same_colors(values) || points.size() > 1e6)
-      final_cubes.push_back(q);
-#ifdef REFINE_NEAR_CENTERS_ONLY
-    else if(q.number_of_colors(values) >= 4)
-#else
-    else if(!q.has_same_colors(values))
-#endif
+  // remark: we have obvious (small) redundancy in the points of the grid
+  // coming from the borders of each region but it should not create any issue
+  // (and it's simpler to do it that way... :^) )
+
+  omp_set_num_threads(8);
+#pragma omp parallel shared(grid_nv)
+{
+    int thread_ID = omp_get_thread_num();
+    typename std::list<Cube>::iterator lcit = initial_cubes.begin();
+    std::advance(lcit, thread_ID);
+
+    std::list<Cube> local_final_cubes;
+    std::vector<Point_3> local_points;
+    std::vector<std::size_t> local_values;
+    std::size_t local_offset; // 'local' ids need to be shifted for them to be 'global' in output
+
+    for(std::size_t i=0; i<lcit->ids.size(); ++i)
     {
-      split_cube(q, cubes_to_test, values, points, mf, traits);
-      std::cout << "Split. Now: " << points.size() << " points" << std::endl;
+      local_points.push_back(points[lcit->ids[i]]);
+      local_values.push_back(values[lcit->ids[i]]);
     }
-    else
-      final_cubes.push_back(q);
 
-    cubes_to_test.pop_front();
-  }
+    const Cube ci(0, 1, 2, 3, 4, 5, 6, 7); // cube n°i in the local coordinates
+    std::list<Cube> local_cubes_to_test;
+    local_cubes_to_test.push_back(ci);
 
-  // output the cube set (easily transformed into a triangulation) -------------
-  CGAL_assertion(points.size() == values.size());
-  std::size_t grid_side = values.size();
-  std::cout << "check: " << points.size() << " " << values.size() << " vertices" << std::endl;
+    // refine the cube set
+    while(!local_cubes_to_test.empty())
+    {
+      const Cube& q = local_cubes_to_test.front();
 
-  std::ofstream out("smart_grid.mesh");
-  out << "MeshVersionFormatted 1" << std::endl;
-  out << "Dimension 3" << std::endl;
-  out << "Vertices" << std::endl;
-  out << grid_side << std::endl;
+      if(q.is_too_small(min_vol, local_points) || q.has_same_colors(local_values) ||
+         local_points.size() > max_grid_nv)
+        local_final_cubes.push_back(q);
+#ifdef REFINE_NEAR_CENTERS_ONLY
+      else if(q.number_of_colors(local_values) >= 4)
+#else
+      else if(!q.has_same_colors(local_values))
+#endif
+      {
+        split_cube(q, local_cubes_to_test, local_values, local_points);
+        if(local_points.size()%1000 == 0)
+        {
+          std::cout << local_points.size() << " points for thread: " << thread_ID
+                    << " (" << ((FT) local_points.size()/(FT) max_grid_nv)*100. << "%)" << std::endl;
+        }
+      }
+      else
+        local_final_cubes.push_back(q);
 
-  std::ofstream out_bb("smart_grid.bb");
-  out_bb << "3 1 " << grid_side << " 2" << std::endl;
+      local_cubes_to_test.pop_front();
+    }
 
-  int counter = 0;
-  for(int i=0; i!=grid_side; ++i)
-  {
-    const Point_3& p = points[i];
-    out << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << std::endl;
-    out_bb << values[i] << std::endl;
-  }
-  out_bb << "End" << std::endl;
-
-  out << "Tetrahedra" << std::endl;
-  out << 5*final_cubes.size() << std::endl;
-  std::list<Cube>::iterator it = final_cubes.begin(), iend = final_cubes.end();
-  for(; it!=iend; ++it)
-  {
-    const Cube& q = *it;
-    out << q.ids[0]+1 << " " << q.ids[1]+1 << " " << q.ids[2]+1 << " " << q.ids[5]+1 << " 1" << std::endl;
-    out << q.ids[0]+1 << " " << q.ids[2]+1 << " " << q.ids[5]+1 << " " << q.ids[7]+1 << " 2" << std::endl;
-    out << q.ids[0]+1 << " " << q.ids[2]+1 << " " << q.ids[3]+1 << " " << q.ids[7]+1 << " 3" << std::endl;
-    out << q.ids[0]+1 << " " << q.ids[4]+1 << " " << q.ids[5]+1 << " " << q.ids[7]+1 << " 4" << std::endl;
-    out << q.ids[2]+1 << " " << q.ids[5]+1 << " " << q.ids[6]+1 << " " << q.ids[7]+1 << " 5" << std::endl;
-  }
-  out << "End" << std::endl;
+    std::cout << "end of refinement for thread " << thread_ID << std::endl;
 
 #ifdef SMART_DUAL
-  // split the cube into tets. If a tet has 4 different values, the dual exists
-  simplices.clear();
-  for(it=final_cubes.begin(); it!=iend; ++it)
+  for(std::list<Cube>::iterator it = local_final_cubes.begin();
+      it != local_final_cubes.end(); ++it)
   {
     const Cube& q = *it;
-// test all five tetrahedra
-    std::set<std::size_t> vals;
-    vals.insert(values[q.ids[0]]); vals.insert(values[q.ids[1]]);
-    vals.insert(values[q.ids[2]]); vals.insert(values[q.ids[5]]);
-    if(vals.size() == 4)
-      simplices.insert(vals);
-//------------
-    vals.clear();
-    vals.insert(values[q.ids[0]]); vals.insert(values[q.ids[2]]);
-    vals.insert(values[q.ids[5]]); vals.insert(values[q.ids[7]]);
-    if(vals.size() == 4)
-      simplices.insert(vals);
-//------------
-    vals.clear();
-    vals.insert(values[q.ids[0]]); vals.insert(values[q.ids[2]]);
-    vals.insert(values[q.ids[3]]); vals.insert(values[q.ids[7]]);
-    if(vals.size() == 4)
-      simplices.insert(vals);
-//------------
-    vals.clear();
-    vals.insert(values[q.ids[0]]); vals.insert(values[q.ids[4]]);
-    vals.insert(values[q.ids[5]]); vals.insert(values[q.ids[7]]);
-    if(vals.size() == 4)
-      simplices.insert(vals);
-//------------
-    vals.clear();
-    vals.insert(values[q.ids[2]]); vals.insert(values[q.ids[5]]);
-    vals.insert(values[q.ids[6]]); vals.insert(values[q.ids[7]]);
-    if(vals.size() == 4)
-      simplices.insert(vals);
+    // split the cube in five tetrahedra and insert a tet in simplices if colored
+    // THIS (CAN) COMPUTE THE POINT IN A DUAL THAT IS FARTHEST FROM ITS SEEDS
+    insert_simplex_if_colored(q.ids[0], q.ids[1], q.ids[2], q.ids[5], local_values, local_points);
+    insert_simplex_if_colored(q.ids[0], q.ids[2], q.ids[5], q.ids[7], local_values, local_points);
+    insert_simplex_if_colored(q.ids[0], q.ids[2], q.ids[3], q.ids[7], local_values, local_points);
+    insert_simplex_if_colored(q.ids[0], q.ids[4], q.ids[5], q.ids[7], local_values, local_points);
+    insert_simplex_if_colored(q.ids[2], q.ids[5], q.ids[6], q.ids[7], local_values, local_points);
   }
+
+  std::cout << "End of simplices computation for thread " << thread_ID << std::endl;
+#endif
+
+  // OUTPUT all the regions to a single file. From now on, it's more or less
+  // sequential but we don't want to lose local data yet !
+  if(output_grid)
+  {
+#pragma omp critical // get the total amount of vertices and tetrahedra
+{
+    grid_nv += local_values.size();
+    grid_ntet += 5 * local_final_cubes.size();
+}
+
+#pragma omp single
+{
+    out << "MeshVersionFormatted 1" << std::endl;
+    out << "Dimension 3" << std::endl;
+    out << "Vertices" << std::endl;
+    out << grid_nv << std::endl;
+
+    out_bb << "3 1 " << grid_nv << " 2" << std::endl;
+}
+
+#pragma omp critical // print the points
+{
+#pragma omp flush(grid_nv)
+    local_offset = glob_offset;
+    std::cout << "loc off " << glob_offset << " @ " << thread_ID << std::endl;
+    output_smart_grid_points(out, out_bb, local_offset, local_points, local_values);
+
+    //increment the offset for the next thread
+    glob_offset += local_values.size();
+
+    //clears to free memory asap (shouldn't really be needed)
+    local_points.clear(); local_values.clear();
+//    std::cout << "pts output done for thread " << thread_ID << std::endl;
+}
+
+#pragma omp barrier // waiting for all the threads to have written their points
+#pragma omp single
+{
+    out << "Tetrahedra" << std::endl;
+    out << grid_ntet << std::endl;
+}
+
+#pragma omp critical // print the tetrahedra
+{
+    output_smart_grid_tets(out, local_offset, local_final_cubes);
+
+    //clears shouldn't be needed anymore...
+    local_points.clear(); local_final_cubes.clear(); local_values.clear();
+    std::cout << "Output done for thread " << thread_ID << std::endl;
+}
+
+#pragma omp barrier // waiting for all the threads to have written their tets
+#pragma omp single
+{
+    out << "End" << std::endl;
+    out_bb << "End" << std::endl;
+}
+  }
+} // end of parallel region
+
+  std::cout << "after parallel : " << grid_nv << " pts" << std::endl;
+
+#ifdef TMP_REFINEMENT_UGLY_HACK
+  CGAL_assertion(farthest_x != 1e30 && farthest_y != 1e30 && farthest_z != 1e30);
+  std::cout << "inserting: " << farthest_x << " " << farthest_y << " " << farthest_z << std::endl;
+  vertices_nv = insert_new_seed(farthest_x, farthest_y, farthest_z);
+  std::cout << "now: " << vertices_nv << " seeds" << std::endl;
+  farthest_d = 0.; farthest_x = 1e30; farthest_y = 1e30; farthest_z = 1e30;
 #endif
 }
 
-void output_simplices()
+void output_dual(bool compute_intersections = false)
 {
   std::cout << "captured: " << simplices.size() << " simplices" << std::endl;
 
@@ -588,32 +883,60 @@ void output_simplices()
   for(int i=0; i<vertices_nv; ++i)
     outd << seeds[i].x() << " " << seeds[i].y() << " " << seeds[i].z() << " " << i+1 << std::endl;
 
-  outd << "Tetrahedra" << std::endl;
-  outd << simplices.size() << std::endl;
-  for(typename std::set<Simplex>::iterator it = simplices.begin();
-                                           it != simplices.end(); ++it)
-  {
-    const Simplex& s = *it;
-    typename Simplex::iterator sit = s.begin();
-    typename Simplex::iterator siend = s.end();
-    for(; sit!=siend; ++sit)
-      outd << *sit+1 << " ";
+//  outd << "Tetrahedra" << std::endl;
+//  outd << simplices.size() << std::endl;
+//  for(typename std::set<Tet>::iterator it = simplices.begin();
+//                                       it != simplices.end(); ++it)
+//  {
+//    const Tet& t = *it;
+//    for(std::size_t i=0; i<t.size(); ++i)
+//      outd << t[i] + 1 << " ";
+//    outd << "1" << std::endl;
+//  }
 
-    outd << "1" << std::endl;
+  // kinda bad but easier to compute self intersections
+  std::set<Edge> edges;
+  if(compute_intersections)
+    edges = compute_edges();
+
+  const std::set<Tri>& triangles = compute_triangles();
+  outd << "Triangles" << std::endl;
+  outd << triangles.size() << std::endl;
+  for(typename std::set<Tri>::iterator it = triangles.begin();
+                                       it != triangles.end(); ++it)
+  {
+    const Tri& tri = *it;
+    for(std::size_t i=0; i<tri.size(); ++i)
+      outd << tri[i]+1 << " ";
+    if(compute_intersections)
+      outd << is_triangle_intersected(tri, edges) << std::endl;
+    else
+      outd << "1" << std::endl;
   }
+
   outd << "End" << std::endl;
 }
 
-template<typename MF>
-void draw(const MF* metric_field)
+// -----------------------------------------------------------------------------
+// MAIN FUNCTIONS
+// -----------------------------------------------------------------------------
+void initialize()
 {
-  Traits* traits = new Traits();
-  vertices_nv = build_seeds(metric_field);
+  //  mf = new Euclidean_metric_field<K>();
+  mf= new Custom_metric_field<K>();
 
-//  full_grid(metric_field, traits);
-  smart_grid(metric_field, traits);
+  traits = new Traits();
+  vertices_nv = build_seeds();
+}
 
-  output_simplices();
+void build_grid()
+{
+  simplices.clear();
+
+//  full_grid();
+  smart_grid(true);
+
+  output_dual(true);
 }
 
 int main(int, char**)
@@ -621,11 +944,17 @@ int main(int, char**)
   std::freopen("grid_log.txt", "w", stdout);
   std::srand(0);
 
-  // to build a ~dual
-  simplices.clear();
+  initialize();
+  build_grid();
 
-//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
-  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+  int n_refine = 50;
+  for(int i=0; i<n_refine; ++i)
+  {
+    std::cout << "refine: " << i << std::endl;
+    simplices.clear();
+    smart_grid(i == (n_refine-1) /* output the grid*/);
+    output_dual(i == (n_refine-1)  /*compute the self intersections*/);
+  }
 
-  draw(metric_field);
+  std::cout << "EoP" << std::endl;
 }
