@@ -150,6 +150,22 @@ public:
     return max(eigen_dis1, eigen_dis2);
   }
 
+  Eigen::Matrix2d get_inverse_mat() const
+  {
+    FT inv_sq_e_max = 1./(e_max*e_max);
+    FT inv_sq_e_min = 1./(e_min*e_min);
+
+    Eigen::Matrix2d eigen_m;
+    eigen_m(0,0) = v_max.x();  eigen_m(0,1) = v_min.x();
+    eigen_m(1,0) = v_max.y();  eigen_m(1,1) = v_min.y();
+
+    Eigen::Matrix2d eigen_diag = Eigen::Matrix2d::Zero();
+    eigen_diag(0,0) = inv_sq_e_max;
+    eigen_diag(1,1) = inv_sq_e_min;
+
+    return eigen_m * eigen_diag * eigen_m.transpose();
+  }
+
   void construct(const Vector_2 &axis_x, //normal
                  const Vector_2 &axis_y,
                  const double& vpmax, //curvature max

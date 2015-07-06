@@ -71,15 +71,14 @@ public:
   typedef K                                                     Kernel;
   typedef Delaunay_traits_2<K, KExact>                          Traits;
   typedef CGAL::Triangulation_data_structure_2<
-  CGAL::Triangulation_vertex_base_with_info_2<
-  Star_index,
-  Traits >,
-  CGAL::Triangulation_face_base_with_domain_info_2<
-  Traits, Domain_2<K> >
-  >                                                     DS;
+               CGAL::Triangulation_vertex_base_with_info_2<Star_index,
+                                                           Traits >,
+               CGAL::Triangulation_face_base_with_domain_info_2<Traits,
+                                                                Domain_2<K> >
+                                                >                DS;
 
 #ifdef CGAL_USE_BASIC_ANISO
-  typedef CGAL::Delaunay_triangulation_2<Traits, DS>            Base;
+  typedef CGAL::Delaunay_triangulation_2<Traits, DS>             Base;
 #else
   typedef CGAL::Constrained_Delaunay_triangulation_2<Traits, DS> Base;
 #endif

@@ -105,6 +105,21 @@ public:
     return this->build_metric(v1, v2, 1./(h*h1), 1./(h*h2));
   }
 
+  Metric cos_1D(const Point_2& p) const
+  {
+    double h = 0.3;
+//    Vector_2 v1(1, 0.);
+//    Vector_2 v2(0., 1.);
+    Vector_2 v1(p.x(), p.y());
+    Vector_2 v2(p.y(), -p.x());
+
+
+    double h1 = (std::max)(1e-4, std::abs(std::cos(5*p.x())));
+    double h2 = 1.;
+
+    return this->build_metric(v1, v2, 1./(h*h1), 1./(h*h2));
+  }
+
   virtual Metric compute_metric(const Point_2 &p) const
   {
 //    return hyberbolic_shock(p);

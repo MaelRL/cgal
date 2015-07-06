@@ -67,6 +67,8 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("mesher_lvl_example.cpp")
   create_single_source_cgal_program("small_angle_between_planes_example.cpp")
   create_single_source_cgal_program("histogram_from_external_mesh.cpp")
+  create_single_source_cgal_program("grid_generator.cpp")
+  create_single_source_cgal_program("geodesic_grid_generator.cpp")
 
   else(LAPACK_FOUND)
 
