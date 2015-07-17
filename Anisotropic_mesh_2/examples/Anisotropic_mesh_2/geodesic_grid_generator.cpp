@@ -5,9 +5,11 @@
 #include <Metric_field/Custom_metric_field.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
 #include <Eigen/Dense>
 #include <omp.h>
+#include <boost/array.hpp>
 
 #include <iostream>
 #include <vector>
@@ -29,7 +31,16 @@ typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 //typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
 typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 
-#define COMPUTE_DUAL
+typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
+typedef typename KExact::Point_2                             EPoint;
+typedef typename KExact::Segment_2                           ESegment;
+typedef typename KExact::Line_2                              ELine;
+typedef CGAL::Cartesian_converter<K, KExact>                 To_exact;
+typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
+
+To_exact to_exact;
+Back_from_exact back_from_exact;
+
 #define FILTER_SEEDS_OUTSIDE_GRID
 #define USE_RECURSIVE_UPDATES
 #define TMP_REFINEMENT_UGLY_HACK
@@ -51,11 +62,13 @@ std::vector<Point_2> seeds;
 std::vector<Metric> seeds_m;
 
 // how big of an update the new value needs to be
-FT recursive_tolerance = 1e-4;
+FT recursive_tolerance = 1e-15;
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
 FT best_ref_x = 1e30, best_ref_y = 1e30;
 #endif
+
+bool debugging = false;
 
 enum FMM_state
 {
@@ -271,6 +284,275 @@ struct Grid_point
     return min;
   }
 
+  void determine_ancestor(const Grid_point* gp, const Grid_point* gq,
+                            const FT lambda, const FT d)
+  {
+    CGAL_assertion(debugging);
+    std::cout << "ancestor shenanigans" << std::endl;
+
+    if(lambda == 0)
+    {
+      closest_seed_id = gq->closest_seed_id;
+      ancestor = gq;
+      return;
+    }
+    else if(lambda == 1)
+    {
+      closest_seed_id = gp->closest_seed_id;
+      ancestor = gp;
+      return;
+    }
+
+    if(gp->closest_seed_id == static_cast<std::size_t>(-1))
+    {
+      if(gq->closest_seed_id == static_cast<std::size_t>(-1))
+        CGAL_assertion(false && "both gp & gq have uninitialized seeds...");
+      closest_seed_id = gq->closest_seed_id;
+      ancestor = gq;
+      return;
+    }
+    else if(gq->closest_seed_id == static_cast<std::size_t>(-1))
+    {
+      closest_seed_id = gp->closest_seed_id;
+      ancestor = gp;
+      return;
+    }
+
+    FT gp_d = gp->distance_to_closest_seed;
+    FT gq_d = gq->distance_to_closest_seed;
+
+    bool same_colors = (gp->closest_seed_id == gq->closest_seed_id);
+    std::cout << "color are the same ? " << same_colors << std::endl;
+    if(same_colors)
+    {
+      closest_seed_id = gp->closest_seed_id;
+      ancestor = gp;
+      return;
+    }
+
+    const Grid_point* best_g;
+#if 0
+    // compute p_mid, the limit value to decide which seed id to give depending on p
+    // p_mid defined as the point of [pq] on the dual..
+
+    FT Cp, Cq;
+    if(gq->index == index + n || gq->index == index - n)
+    {
+      fixme you have to use the proper Cp & Cq, also verify the computations for
+      a non uniform metric field
+      Cp = std::sqrt(5.); // m_1 + 2*m_2 + m_3
+      Cq = std::sqrt(5.);
+    }
+    if(gq->index == index + 1 || gq->index == index - 1)
+    {
+      Cp = std::sqrt(5.); // m_1 - 2*m_2 + m_3
+      Cq = std::sqrt(5.);
+    }
+
+    FT lambda_mid = (std::sqrt(2.)*step*Cq + gq_d - gp_d)/(Cp + Cq);
+    lambda_mid /= step; // to get it in [0,1] if it's in [0, step]
+    std::cout << "lambda_mid: " << lambda_mid << std::endl;
+
+    CGAL_assertion(lambda_mid >= -1e-10 && lambda_mid <= 1+1e-10);
+
+    // the point on [pq] is given by p + lambda_mid*(q-p)
+    // if we find another point on the dual close, we can approximate the dual
+    // by a line and compute the intersection of the dual with 'this p' or
+    // 'this q' and deduce in which voronoi cell 'this' is...
+
+    // consider something like below (scaling of the figure is... anisotropic AHAH)
+
+    // THIS ----p'--- p
+    //  |     /      /
+    //  |    /      /
+    //  |   / <----/----- some lambda_mid' living on [p'q'] --> r'
+    //  |  /      /
+    //  | /      /
+    //  q'      /
+    //  |      /  lambda_mid around here gives a point r
+    //  |     /
+    //  |    /
+    //  |   /
+    //  |  /
+    //  | /
+    //  |/
+    //  q
+    // and the dual is given by
+
+    FT rx = gp->point.x() + lambda_mid * (gq->point.x() - gp->point.x());
+    FT ry = gp->point.y() + lambda_mid * (gq->point.y() - gp->point.y());
+    Point_2 r(rx, ry);
+
+    // let's compute that r' fellow... we need p' and q' first...
+    FT rppx = 0.5*(point.x() + gp->point.x());
+    FT rppy = 0.5*(point.y() + gp->point.y());
+    FT rqpx = 0.5*(point.x() + gq->point.x());
+    FT rqpy = 0.5*(point.y() + gq->point.y());
+    Point_2 pp(rppx, rppy), qp(rqpx, rqpy);
+
+    // finding lambda_mid' is solving the same thing than finding lambda_prime
+    // the value at 'this' is d, the values at p and q are gp_d, gq_d
+    FT Cpp, Cqp;
+
+    // can use the index of gp or gq since the order doesn't change
+    if(gq->index == index + n || gq->index == index - n)
+    {
+      Cpp = std::sqrt(5.); // m_1 + 2*m_2 + m_3
+      Cqp = std::sqrt(5.);
+    }
+    if(gq->index == index + 1 || gq->index == index - 1)
+    {
+      Cpp = std::sqrt(5.); // m_1 - 2*m_2 + m_3
+      Cqp = std::sqrt(5.);
+    }
+
+    // interpolate the values for value at pp and qp:
+    FT gpp_d = 0.5*(gp_d + d);
+    FT gqp_d = 0.5*(gq_d + d);
+
+    FT semi_step = 0.5*step;
+    FT lambda_midp = (std::sqrt(2.)*semi_step*Cqp + gqp_d - gpp_d)/(Cpp + Cqp);
+    lambda_midp /= semi_step; // to get it in [0,1] if it's in [0, step]
+
+    // create r'
+    FT rpx = pp.x() + lambda_midp * (qp.x() - pp.x());
+    FT rpy = pp.y() + lambda_midp * (qp.y() - pp.y());
+    Point_2 rp(rpx, rpy);
+
+    // compute the intersection of the line [r,rp] with [this, gp] and [this, gq]
+    const typename K::Segment_2 thisp(point, gp->point);
+    const typename K::Segment_2 thisq(point, gq->point);
+    const typename K::Segment_2 rrp(r, rp);
+    ESegment ethisp = to_exact(thisp);
+    ESegment ethisq = to_exact(thisq);
+    ELine errp_l = (to_exact(rrp)).supporting_line();
+
+    CGAL::cpp11::result_of<KExact::Intersect_2(ESegment, ELine)>::type
+        resultp = CGAL::intersection(ethisp, errp_l);
+    CGAL::cpp11::result_of<KExact::Intersect_2(ESegment, ELine)>::type
+        resultq = CGAL::intersection(ethisq, errp_l);
+
+    if(lambda_mid < 1e-10 || lambda_mid > 1-1e-10)
+      std::cout << "WARNING: CLOSE TO DEGEN CASE IN LAMBDA_MID'" << std::endl;
+
+    const EPoint* res;
+    CGAL_assertion((resultp && (res = boost::get<EPoint>(&*resultp))) ||
+                   (resultq && (res = boost::get<EPoint>(&*resultq))));
+
+    // handle the degen case of intersection being 'this'... todo
+
+    if (resultp)
+    {
+      std::cout << "intersected on [this gp]" << std::endl;
+      best_g = gq;
+    }
+    if (resultq)
+    {
+      std::cout << "intersected on 'this gq'" << std::endl;
+      best_g = gp;
+    }
+#else
+    // Version n°2 : we compute the intersection of the dual with [this,p] and
+    // [this,q] (we know that the dual intersects p-q).
+    // depending on which side is intersected, we can deduce the color of 'this'
+
+    // fixme, rename max & min in metric.h and everywhere...
+    // we never care who's max and who's min, just their position !
+
+    // we're solving d(this) + d_this(this-mp) = d(p) + d_p(p-mp)
+
+    const Eigen::Matrix2d& mp = gp->metric.get_mat();
+    const Eigen::Matrix2d& mq = gq->metric.get_mat();
+    const Eigen::Matrix2d& m = metric.get_mat();
+
+    FT pe1 = std::sqrt(mp(0,0)), pe2 = std::sqrt(mp(1,1));
+    FT qe1 = std::sqrt(mq(0,0)), qe2 = std::sqrt(mq(1,1));
+    FT me1 = std::sqrt(m(0,0)), me2 = std::sqrt(m(1,1));
+
+    FT lambda_p, lambda_q;
+    if(gp->index == index + 1 || gp->index == index - 1)
+    {
+      // [this gp] is horizontal and [this,gq] is vertical
+      // compute the intersection on [this,gp] & [this gq]
+      lambda_p = (gp_d - d + pe1*step)/(me1 + pe1);
+      lambda_q = (gq_d - d + qe2*step)/(me2 + qe2);
+    }
+    else if(gp->index == index + n || gp->index == index - n)
+    {
+      // 'this gp' is vertical and [this,gq] is horizontal
+      // compute the intersection on [this,gp] & [this gq]
+      lambda_p = (gp_d - d + pe2*step)/(me2 + pe2);
+      lambda_q = (gq_d - d + qe1*step)/(me1 + qe1);
+    }
+
+    // check that we're computing the correct lambdas :
+    FT mpx = point.x() + lambda_p * (gp->point.x() - point.x()) / step;
+    FT mpy = point.y() + lambda_p * (gp->point.y() - point.y()) / step;
+    FT mqx = point.x() + lambda_q * (gq->point.x() - point.x()) / step;
+    FT mqy = point.y() + lambda_q * (gq->point.y() - point.y()) / step;
+
+    Vector2d p_to_mp, this_to_mp, q_to_mq, this_to_mq;
+    //these are flipped, but it doesn't matter since v^t M v = -v^t M -v
+    p_to_mp(0) = gp->point.x() - mpx;
+    p_to_mp(1) = gp->point.y() - mpy;
+    q_to_mq(0) = gq->point.x() - mqx;
+    q_to_mq(1) = gq->point.y() - mqy;
+    this_to_mp(0) = point.x() - mpx;
+    this_to_mp(1) = point.y() - mpy;
+    this_to_mq(0) = point.x() - mqx;
+    this_to_mq(1) = point.y() - mqy;
+
+    FT d_p_to_mp = std::sqrt(p_to_mp.transpose()*mp*p_to_mp);
+    FT d_q_to_mq = std::sqrt(q_to_mq.transpose()*mq*q_to_mq);
+    FT d_this_to_mp = std::sqrt(this_to_mp.transpose()*m*this_to_mp);
+    FT d_this_to_mq = std::sqrt(this_to_mq.transpose()*m*this_to_mq);
+
+    FT diffp = distance_to_closest_seed + d_this_to_mp - (gp_d + d_p_to_mp);
+    FT diffq = distance_to_closest_seed + d_this_to_mq - (gq_d + d_q_to_mq);
+
+    // we simplified the absolute values of the system because we need lamba in [0,step]
+    // the assertion will be false if the solution we found is outside of this interval
+    if(lambda_p >= -1e-10 && lambda_p <= step+1e-10)
+      CGAL_assertion(std::abs(diffp) < 1e-10);
+    if(lambda_q >= -1e-10 && lambda_q <= step+1e-10)
+      CGAL_assertion(std::abs(diffq) < 1e-10);
+
+    std::cout << "lambdas: " << lambda_p << " " << lambda_q << std::endl;
+    std::cout << "step: " << step << " gpd/q: " << gp_d << " " << gq_d << std::endl;
+    // if the colors are different, then the dual intersects the segment [p,q]
+    // if we find which of the segment [this p] or [this q] intersects the dual
+    // we know which colors to associate to 'this'!
+
+    if(lambda_p >= -1e-10 && lambda_p <= step+1e-10)
+    {
+      // we intersects [this,p) therefore 'this' is on the side of q
+      best_g = gq;
+      if(lambda_q >= -1e-10 && lambda_q <= step+1e-10)
+      {
+        // we intersects both [this p] and [this q]... what to do ?
+//        CGAL_assertion(false && "[this p] and [this q]");
+        std::cout << "mega warning [this p] and [this q]" << std::endl;
+        best_g = (lambda_q > lambda_p)?gp:gq; // this is shady... fixme...?
+      }
+    }
+    else if(lambda_q >= -1e-10  && lambda_q <= step+1e-10)
+    {
+      // we intersects [this q] therefore 'this' is on the side of p
+      best_g = gp;
+    }
+    else
+    {
+      CGAL_assertion(false && "we intersect nothing... ?");
+      best_g = gp;
+    }
+
+#endif
+    closest_seed_id = best_g->closest_seed_id;
+    ancestor = best_g;
+
+    std::cout << "ancestor shen @ " << index << " color is : " << closest_seed_id << std::endl;
+  }
+
   bool compute_closest_seed_2D(const Grid_point* gp, const Grid_point* gq)
   {
 //    std::cout << "compute closest 2D " << index << " to " << gp->index << " & " << gq->index << std::endl;
@@ -279,16 +561,85 @@ struct Grid_point
                    (gq->state == KNOWN || gq->state == CHANGED) );
     bool changed = false;
 
-    FT p = 0.;
-    const FT d = compute_min_distance_2D(gp, gq, p);
+    FT lambda = 0.;
+    const FT d = compute_min_distance_2D(gp, gq, lambda);
+    CGAL_assertion(lambda >= -1e-10 && lambda <= 1+1e-10);
+
+    FT gp_d = gp->distance_to_closest_seed;
+    FT gq_d = gq->distance_to_closest_seed;
+
+    std::cout << "computation of optimal lambda for: " << index << " gp/q: ";
+    std::cout << gp->index << " " << gq->index ;
+    std::cout << " ds: " << gp_d << " " << gq_d;
+    std::cout << " resp. " << gp->closest_seed_id << " " << gq->closest_seed_id << std::endl;
+//    gp->print_ancestree(); gq->print_ancestree();
+    std::cout << "optimal lambda is : " << lambda << " and d: " << d << std::endl;
+
+#ifdef BRUTE_FORCE_CHECK_OPTIMAL_P
+    // this is pretty much debug code to verify that compute_min_distance_2D() is correct
+    std::size_t query_inters = 1e5;
+    FT query_step = 1./static_cast<FT>(query_inters);
+    FT min_lambda;
+    FT min_d = 1e30;
+
+    for(std::size_t i=0; i<=query_inters; ++i)
+    {
+      // segment PQ
+      const FT x = query_step*(i*gp->point.x() + (query_inters-i)*gq->point.x());
+      const FT y = query_step*(i*gp->point.y() + (query_inters-i)*gq->point.y());
+
+      // arc PQ (just to check what would be the value if we interpolated on a cicle arc
+      // rather than a segment)
+
+      // pq has been cleverly (not...) chosen to be in counter clockwise angle
+      // thus if we do min_angle + add_angle, we must start from gq and do
+      // a pi/2 increase...
+//      FT min_angle;
+//      if(gq->index == index-1)
+//        min_angle = M_PI;
+//      else if(gq->index == index + n)
+//        min_angle = M_PI_2;
+//      else if(gq->index == index + 1)
+//        min_angle = 0;
+//      else // (gq->index == index - n)
+//        min_angle = -M_PI_2;
+//      const FT add_angle = query_step*i*M_PI_2;
+//      const FT x = point.x() + step * std::cos(min_angle + add_angle);
+//      const FT y = point.y() + step * std::sin(min_angle + add_angle);
+
+      const FT d_at_que = query_step*(i*gp->distance_to_closest_seed +
+                                     (query_inters-i)*gq->distance_to_closest_seed);
+      Vector2d v;
+      v(0) = point.x() - x;
+      v(1) = point.y() - y;
+      FT neighbor_d = std::sqrt(v.transpose()*metric.get_mat()*v);
+      FT d_que = d_at_que + neighbor_d;
+      if(d_que < min_d)
+      {
+        min_lambda = i*query_step;
+        min_d = d_que;
+      }
+    }
+    std::cout << query_step << std::endl;
+    std::cout << "lambda, min_lambda: " << lambda << " " << min_lambda << std::endl;
+    std::cout << ":min_d d " << min_d << " " << d << std::endl;
+    CGAL_assertion(std::abs(min_d - d) < 1e-2*d);
+    CGAL_assertion(std::abs(min_lambda - lambda) < query_step);
+#endif
+    // -------------------------------------------------------------------------
+
+    if(debugging && (d - distance_to_closest_seed) <= recursive_tolerance * d)
+    {
+      std::cout << "shenanigans check: " << d - distance_to_closest_seed << std::endl;
+      determine_ancestor(gp, gq, lambda, d);
+    }
 
     // tolerance to ignore unsignificant changes
     if(distance_to_closest_seed - d > recursive_tolerance *d)
     {
       changed = true;
       distance_to_closest_seed = d;
-      FT gp_d = gp->distance_to_closest_seed;
-      FT gq_d = gq->distance_to_closest_seed;
+
       const Grid_point* best_p = (gp_d < gq_d) ? gp : gq; // fixme the commented line below should be the correct one...
 //      const Grid_point* best_p = (p > 0.5) ? gp : gq;
       closest_seed_id = best_p->closest_seed_id;
@@ -324,6 +675,10 @@ struct Grid_point
         }
       }
     }
+
+    if(debugging)
+      CGAL_assertion(!changed);
+
     return changed;
   }
 
@@ -624,13 +979,45 @@ struct Geo_grid
       is_t_empty = trial_points.empty();
     }
 
+    if(!debugging) // boolean used to not debug the debug
+      debug();
+  }
+
+  void debug()
+  {
+    if(debugging)
+      return;
+    debugging = true;
+
 #ifdef USE_RECURSIVE_UPDATES
+    CGAL_assertion(trial_points.empty() && changed_points.empty());
+
     std::cout << "DOUBLE CHECK THAT WE ARE REALLY FINISHED : " << std::endl;
     for(std::size_t i=0; i<points.size(); ++i)
     {
+      // temporarily hacking it to spread seed_id again... (since we know we have the best values)
+      // reset the colors (but not the values!)
       Grid_point* gp = &(points[i]);
-      CGAL_assertion(!(gp->compute_closest_seed(gp, true))); // if 'true', we forgot a move
+      gp->closest_seed_id = -1;
+      gp->ancestor = NULL;
+
+      changed_points.push_back(gp);
+      std::push_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
     }
+    std::sort_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
+
+    // only re initialize the closest_seed_id for each point-seed
+    for(std::size_t i=0; i<seeds.size(); ++i)
+    {
+      // if you use 4 pts ini for a seed, you need to modify here too...
+      const Point_2& p = seeds[i];
+      int index_x = std::floor((p.x()-offset_x)/step);
+      int index_y = std::floor((p.y()-offset_y)/step);
+      Grid_point* gp = &(points[index_y*n + index_x]);
+      gp->closest_seed_id = i;
+    }
+
+    geo_grid_loop();
 #endif
   }
 
