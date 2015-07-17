@@ -54,7 +54,7 @@ const FT grid_side = 4.0;
 FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
 FT offset_y = center.y() - grid_side/2.;
 FT n = 400.; // number of points per side of the grid
-FT step = grid_side / n;
+FT step = grid_side / (n-1);
 
 // the metric field and the seeds
 MF mf;
@@ -124,8 +124,7 @@ int build_seeds()
   {
     in >> r_x >> r_y >> useless;
     insert_new_seed(r_x, r_y);
-
-    if(seeds.size() == vertices_nv)
+    if(seeds.size() >= vertices_nv)
       break;
   }
   std::cout << "seeds: " << seeds.size() << std::endl;
@@ -731,8 +730,8 @@ struct Grid_point
       }
       else if(gp->state == FAR)
       {
-        gp->state = TRIAL;
         gp->compute_closest_seed(this); // always returns true here so no need to test it
+        gp->state = TRIAL;
         trial_pq.push_back(gp);
         std::push_heap(trial_pq.begin(), trial_pq.end(), Grid_point_comparer<Grid_point>());
       }
@@ -816,7 +815,7 @@ struct Geo_grid
     int index_y = std::floor((p.y()-offset_y)/step);
 
     Grid_point* gp = &(points[index_y*n + index_x]);
-    if(gp->closest_seed_id != -1)
+    if(gp->closest_seed_id != static_cast<std::size_t>(-1))
     {
       std::cerr << "WARNING: a new seed is overwriting the closest seed id";
       std::cerr << " of a grid point! previous index is: " << gp->closest_seed_id << std::endl;
@@ -1030,6 +1029,7 @@ struct Geo_grid
   Point_2 compute_refinement_point()
   {
     // todo
+    return Point_2();
   }
 
   void refresh_grid_after_new_seed_creation()
@@ -1192,29 +1192,6 @@ struct Geo_grid
       }
     }
 
-//    // a dual exists if a simplex has 3 different values
-//    for(typename std::set<Simplex>::iterator it = simplices.begin();
-//                                             it != simplices.end(); ++it)
-//    {
-//      std::set<std::size_t> closest_seeds;
-//      const Simplex& s = *it;
-//      typename Simplex::iterator sit = s.begin();
-//      typename Simplex::iterator siend = s.end();
-//      for(; sit!=siend; ++sit)
-//        closest_seeds.insert(points[*sit].closest_seed_id);
-//      if(closest_seeds.size() == 3)
-//      {
-//        Simplex simplex;
-//        for(sit=s.begin(); sit!=siend; ++sit)
-//        {
-
-//          simplex.insert(points[*sit].closest_seed_id);
-
-//        }
-//        dual_simplices.insert(simplex);
-//      }
-//    }
-
 #ifdef TMP_REFINEMENT_UGLY_HACK
     if(dual_simplices.empty())
       std::cerr << "WARNING: no simplices captured, so no best_ref_x,y set" << std::endl;
@@ -1233,7 +1210,7 @@ struct Geo_grid
     out << "Dimension 2" << std::endl;
     out << "Vertices" << std::endl;
     out << seeds.size() << std::endl;
-    for(int i=0; i<seeds.size(); ++i)
+    for(std::size_t i=0; i<seeds.size(); ++i)
       out << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << std::endl;
 
     out << "Triangles" << std::endl;
