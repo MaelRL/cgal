@@ -97,6 +97,7 @@ int insert_new_seed(const FT x, const FT y)
       return seeds.size();
     }
 #endif
+  std::cout << "seed: " << x << " " << y << " added" << std::endl;
   seeds.push_back(Point_2(x, y));
   seeds_m.push_back(mf->compute_metric(seeds.back()));
   return seeds.size();
@@ -146,10 +147,22 @@ struct Grid_point
 
   const Grid_point* ancestor; // used to debug & draw nice things
 
+  void print_ancestree() const
+  {
+    std::cout << "ancestors of gp " << index << " :";
+    const Grid_point* anc = ancestor;
+    while(anc)
+    {
+      std::cout << anc->index << " ";
+      anc = anc->ancestor;
+    }
+    std::cout << std::endl;
+  }
+
   bool compute_closest_seed_1D(const Grid_point* gp)
   {
-//    std::cout << "compute closest 1D " << index << " to " << gp->index << std::endl;
-//    std::cout << "gp distance to closest is : " << gp->distance_to_closest_seed << std::endl;
+    std::cout << "compute closest 1D " << index << " to " << gp->index;
+    std::cout << " | gp distance to closest is : " << gp->distance_to_closest_seed << std::endl;
 
     CGAL_assertion(gp->state == KNOWN || gp->state == CHANGED);
     bool changed = false;
@@ -160,14 +173,18 @@ struct Grid_point
     FT neighbor_d = std::sqrt(v.transpose()*metric.get_mat()*v);
     FT dcs_at_gp = gp->distance_to_closest_seed;
     FT d = dcs_at_gp + neighbor_d;
+
     if(distance_to_closest_seed - d > recursive_tolerance * d)
     {
       changed = true;
       distance_to_closest_seed = d;
       closest_seed_id = gp->closest_seed_id;
       ancestor = gp;
-//      std::cout << "new closest at : " << distance_to_closest_seed << std::endl;
+      std::cout << "new closest at : " << distance_to_closest_seed;
+      std::cout << " color is : " << closest_seed_id << std::endl;
     }
+    else
+      std::cout << "not closer : " << d << " prev: " << distance_to_closest_seed << std::endl;
     return changed;
   }
 
@@ -554,7 +571,7 @@ struct Grid_point
 
   bool compute_closest_seed_2D(const Grid_point* gp, const Grid_point* gq)
   {
-//    std::cout << "compute closest 2D " << index << " to " << gp->index << " & " << gq->index << std::endl;
+    std::cout << "compute closest 2D " << index << " to " << gp->index << " & " << gq->index << std::endl;
 
     CGAL_assertion((gp->state == KNOWN || gp->state == CHANGED) &&
                    (gq->state == KNOWN || gq->state == CHANGED) );
@@ -634,23 +651,33 @@ struct Grid_point
     }
 
     // tolerance to ignore unsignificant changes
-    if(distance_to_closest_seed - d > recursive_tolerance *d)
+    if(distance_to_closest_seed - d > recursive_tolerance * d)
     {
       changed = true;
       distance_to_closest_seed = d;
 
       const Grid_point* best_p = (gp_d < gq_d) ? gp : gq; // fixme the commented line below should be the correct one...
-//      const Grid_point* best_p = (p > 0.5) ? gp : gq;
+//      const Grid_point* best_p = (1.-lambda < lambda_mid) ? gp : gq;
       closest_seed_id = best_p->closest_seed_id;
       ancestor = best_p; // a bit ugly, create the point p ?
+
+      std::cout << "new closest at : " << distance_to_closest_seed;
+      std::cout << " color is : " << closest_seed_id << std::endl;
     }
+    else
+      std::cout << "not closer : " << d << " prev: " << distance_to_closest_seed << std::endl;
+
     return changed;
   }
 
   bool compute_closest_seed(const Grid_point* ancestor,
                             const bool ignore_ancestor = false)
   {
-//    std::cout << "compute closest high level " << index << std::endl;
+    std::cout << "compute closest high level " << index;
+    std::cout << " state : " << state;
+    std::cout << " dist : " << distance_to_closest_seed;
+    std::cout << " color : " << closest_seed_id;
+    std::cout << " ancestor: " << ancestor->index << std::endl;
 
     bool changed = false;
     for(std::size_t i=0; i<neighbors.size(); ++i)
@@ -675,6 +702,8 @@ struct Grid_point
       }
     }
 
+    std::cout << "color and value: " << closest_seed_id << " " << distance_to_closest_seed << std::endl;
+
     if(debugging)
       CGAL_assertion(!changed);
 
@@ -684,7 +713,7 @@ struct Grid_point
   template<typename PQ>
   void update_neighbors_distances(PQ& changed_pq, PQ& trial_pq) const
   {
-//    std::cout << "update neigh" << std::endl;
+    std::cout << "update neighbors of " << index << std::endl;
 
     // consider all the known neighbors and compute the value to that
     CGAL_assertion(state == KNOWN || state == CHANGED);
@@ -875,7 +904,7 @@ struct Geo_grid
       }
     }
 
-    // assign the neighbors (todo: find a better way...)
+    // assign the neighbors
     for(unsigned int j=0; j<n; ++j)
     {
       for(unsigned int i=0; i<n; ++i)
@@ -897,7 +926,7 @@ struct Geo_grid
     for(std::size_t i=0; i<seeds.size(); ++i)
     {
       const Point_2& p = seeds[i];
-//      const Grid_point* gp = locate_point(p);
+//      const Grid_point* gp = locate_point(p); // todo
 //      gp->initialize_from_point(p, i);
       locate_and_initialize(p, i);
     }
@@ -967,7 +996,8 @@ struct Geo_grid
       if(print_states())
         break;
       std::cout << "Queue sizes. Trial: " << trial_points.size() << " Changed: " << changed_points.size() << std::endl;
-      std::cout << "picked: " << gp->index << " | " << gp->point.x() << " " << gp->point.y() << std::endl;
+      std::cout << "picked n° " << gp->index << " (" << gp->point.x() << ", " << gp->point.y() << ") ";
+      std::cout << "at distance : " << gp->distance_to_closest_seed << " from " << gp->closest_seed_id << std::endl;
 
       gp->state = KNOWN;
       gp->update_neighbors_distances(changed_points, trial_points);
@@ -1043,6 +1073,7 @@ struct Geo_grid
   void refine_grid()
   {
 #ifdef TMP_REFINEMENT_UGLY_HACK
+    std::cout << "insert: " << best_ref_x << " " << best_ref_y << std::endl;
     Point_2 p(best_ref_x, best_ref_y);
     CGAL_assertion(best_ref_x != 1e30 && best_ref_y != 1e30);
 #else
@@ -1216,7 +1247,7 @@ struct Geo_grid
     out << "Triangles" << std::endl;
     out << dual_simplices.size() << std::endl;
     for(typename std::set<Simplex>::iterator it = dual_simplices.begin();
-        it != dual_simplices.end(); ++it)
+                                             it != dual_simplices.end(); ++it)
     {
       const Simplex& s = *it;
       typename Simplex::iterator sit = s.begin();
