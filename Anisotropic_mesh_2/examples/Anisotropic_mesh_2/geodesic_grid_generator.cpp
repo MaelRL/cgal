@@ -24,6 +24,7 @@ typedef typename Star::Metric                                Metric;
 typedef typename Star::Traits                                Traits;
 
 typedef std::set<std::size_t>                                Simplex;
+typedef boost::array<std::size_t, 2>                         Edge;
 typedef boost::array<std::size_t, 3>                         Tri;
 
 typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
@@ -68,7 +69,7 @@ FT recursive_tolerance = 1e-15;
 FT best_ref_x = 1e30, best_ref_y = 1e30;
 #endif
 
-bool debugging = false;
+std::clock_t start;
 
 enum FMM_state
 {
@@ -78,12 +79,20 @@ enum FMM_state
   FAR
 };
 
+enum PQ_state
+{
+  NOTHING_TO_DO = 0,
+  REBUILD_TRIAL,
+  REBUILD_CHANGED,
+  REBUILD_BOTH
+};
+
 template<typename Gp>
 struct Grid_point_comparer
 {
   bool operator()(Gp const * const gp1, Gp const * const gp2)
   {
-    return gp1->distance_to_closest_seed < gp2->distance_to_closest_seed;
+    return gp1->distance_to_closest_seed > gp2->distance_to_closest_seed;
   }
 };
 
@@ -135,6 +144,7 @@ int build_seeds()
 struct Grid_point
 {
   typedef boost::array<Grid_point*, 4> Neighbors;
+  typedef boost::array<const Grid_point*, 2> Optimal_neighbors;
 
   Point_2 point;
   std::size_t index;
@@ -146,18 +156,9 @@ struct Grid_point
   Metric metric;
 
   const Grid_point* ancestor; // used to debug & draw nice things
-
-  void print_ancestree() const
-  {
-    std::cout << "ancestors of gp " << index << " :";
-    const Grid_point* anc = ancestor;
-    while(anc)
-    {
-      std::cout << anc->index << " ";
-      anc = anc->ancestor;
-    }
-    std::cout << std::endl;
-  }
+  // the neighbors of this for which we have reached the lowest distance_to_closest_seed
+  // this is a 2-array with at least 1 non null pointer in [0]
+  Optimal_neighbors opt_neighbors;
 
   bool compute_closest_seed_1D(const Grid_point* gp)
   {
@@ -178,6 +179,11 @@ struct Grid_point
     {
       changed = true;
       distance_to_closest_seed = d;
+
+      opt_neighbors[0] = gp;
+      opt_neighbors[1] = NULL; // just in case a _1D becomes better than a _2D
+
+      // below is useless fixme
       closest_seed_id = gp->closest_seed_id;
       ancestor = gp;
       std::cout << "new closest at : " << distance_to_closest_seed;
@@ -238,6 +244,9 @@ struct Grid_point
     const FT C = 4*(a-b)*(a-b)*e-d*d;
     FT delta = B*B-4*A*C;
 
+    if(delta >= -1e17)
+      delta = (std::max)(0., delta);
+
 //    std::cout << "a: " << a << std::endl;
 //    std::cout << "b: " << b << std::endl;
 //    std::cout << "c: " << c << std::endl;
@@ -259,8 +268,12 @@ struct Grid_point
     }
 
     // get solutions
-    CGAL_assertion(A!=0. || B!=0.);
-    if(A == 0.)
+    if(A == 0 && B == 0)
+    {
+      std::cout << "Warning: constant derivative in compute_min_distance_2D : " << C << std::endl;
+      // min is found at {0} or {1} (computed above)
+    }
+    else if(A == 0.)
     {
       p = -C/B;
       FT dp = eval_at_p(p, a, b, c, d, e);
@@ -300,13 +313,25 @@ struct Grid_point
     return min;
   }
 
-  void determine_ancestor(const Grid_point* gp, const Grid_point* gq,
-                            const FT lambda, const FT d)
+  void determine_ancestor(FT lambda = -1.)
   {
-    CGAL_assertion(debugging);
-    std::cout << "ancestor shenanigans" << std::endl;
+    std::cout << "determine ancestor for " << index << " d: " << distance_to_closest_seed << std::endl;
 
-    if(lambda == 0)
+    if(this->closest_seed_id != static_cast<std::size_t>(-1)) // already has a color
+      return;
+
+    CGAL_assertion(opt_neighbors[0]);
+    const Grid_point* gp = opt_neighbors[0];
+    const Grid_point* gq = opt_neighbors[1];
+
+    bool is_init_p = gp->closest_seed_id != static_cast<std::size_t>(-1);
+    bool is_init_q = gq?(gq->closest_seed_id != static_cast<std::size_t>(-1)):false;
+    CGAL_assertion((is_init_p || is_init_q) && "gp & gq have uninitialized seeds...");
+
+    if(gp && gq)
+    compute_min_distance_2D(gp, gq, lambda);
+
+    if(lambda == 0) // not sure this is correct
     {
       closest_seed_id = gq->closest_seed_id;
       ancestor = gq;
@@ -319,23 +344,19 @@ struct Grid_point
       return;
     }
 
-    if(gp->closest_seed_id == static_cast<std::size_t>(-1))
-    {
-      if(gq->closest_seed_id == static_cast<std::size_t>(-1))
-        CGAL_assertion(false && "both gp & gq have uninitialized seeds...");
-      closest_seed_id = gq->closest_seed_id;
-      ancestor = gq;
-      return;
-    }
-    else if(gq->closest_seed_id == static_cast<std::size_t>(-1))
+    // quick filters
+    if(is_init_p && !is_init_q)
     {
       closest_seed_id = gp->closest_seed_id;
       ancestor = gp;
       return;
     }
-
-    FT gp_d = gp->distance_to_closest_seed;
-    FT gq_d = gq->distance_to_closest_seed;
+    else if(!is_init_p && is_init_q)
+    {
+      closest_seed_id = gq->closest_seed_id;
+      ancestor = gq;
+      return;
+    }
 
     bool same_colors = (gp->closest_seed_id == gq->closest_seed_id);
     std::cout << "color are the same ? " << same_colors << std::endl;
@@ -346,6 +367,8 @@ struct Grid_point
       return;
     }
 
+    FT gp_d = gp->distance_to_closest_seed;
+    FT gq_d = gq->distance_to_closest_seed;
     const Grid_point* best_g;
 #if 0
     // compute p_mid, the limit value to decide which seed id to give depending on p
@@ -490,15 +513,15 @@ struct Grid_point
     {
       // [this gp] is horizontal and [this,gq] is vertical
       // compute the intersection on [this,gp] & [this gq]
-      lambda_p = (gp_d - d + pe1*step)/(me1 + pe1);
-      lambda_q = (gq_d - d + qe2*step)/(me2 + qe2);
+      lambda_p = (gp_d - distance_to_closest_seed + pe1*step)/(me1 + pe1);
+      lambda_q = (gq_d - distance_to_closest_seed + qe2*step)/(me2 + qe2);
     }
     else if(gp->index == index + n || gp->index == index - n)
     {
       // 'this gp' is vertical and [this,gq] is horizontal
       // compute the intersection on [this,gp] & [this gq]
-      lambda_p = (gp_d - d + pe2*step)/(me2 + pe2);
-      lambda_q = (gq_d - d + qe1*step)/(me1 + qe1);
+      lambda_p = (gp_d - distance_to_closest_seed + pe2*step)/(me2 + pe2);
+      lambda_q = (gq_d - distance_to_closest_seed + qe1*step)/(me1 + qe1);
     }
 
     // check that we're computing the correct lambdas :
@@ -539,30 +562,26 @@ struct Grid_point
     // if we find which of the segment [this p] or [this q] intersects the dual
     // we know which colors to associate to 'this'!
 
-    if(lambda_p >= -1e-10 && lambda_p <= step+1e-10)
+    bool intersect_p = lambda_p >= -1e-10 && lambda_p <= step+1e-10;
+    bool intersect_q = lambda_q >= -1e-10 && lambda_q <= step+1e-10;
+
+    if(intersect_p)
     {
-      // we intersects [this,p) therefore 'this' is on the side of q
-      best_g = gq;
-      if(lambda_q >= -1e-10 && lambda_q <= step+1e-10)
+      if(intersect_q)
       {
-        // we intersects both [this p] and [this q]... what to do ?
-//        CGAL_assertion(false && "[this p] and [this q]");
+        // we intersect both [this p] and [this q]...
         std::cout << "mega warning [this p] and [this q]" << std::endl;
         best_g = (lambda_q > lambda_p)?gp:gq; // this is shady... fixme...?
       }
+      else
+        best_g = gq; // we intersect [this,p] therefore 'this' is on the side of q
     }
-    else if(lambda_q >= -1e-10  && lambda_q <= step+1e-10)
-    {
-      // we intersects [this q] therefore 'this' is on the side of p
-      best_g = gp;
-    }
+    else if(intersect_q)
+      best_g = gp; // we intersect [this q] therefore 'this' is on the side of p
     else
-    {
       CGAL_assertion(false && "we intersect nothing... ?");
-      best_g = gp;
-    }
-
 #endif
+
     closest_seed_id = best_g->closest_seed_id;
     ancestor = best_g;
 
@@ -644,25 +663,20 @@ struct Grid_point
 #endif
     // -------------------------------------------------------------------------
 
-    if(debugging && (d - distance_to_closest_seed) <= recursive_tolerance * d)
-    {
-      std::cout << "shenanigans check: " << d - distance_to_closest_seed << std::endl;
-      determine_ancestor(gp, gq, lambda, d);
-    }
-
     // tolerance to ignore unsignificant changes
     if(distance_to_closest_seed - d > recursive_tolerance * d)
     {
       changed = true;
       distance_to_closest_seed = d;
 
-      const Grid_point* best_p = (gp_d < gq_d) ? gp : gq; // fixme the commented line below should be the correct one...
-//      const Grid_point* best_p = (1.-lambda < lambda_mid) ? gp : gq;
-      closest_seed_id = best_p->closest_seed_id;
-      ancestor = best_p; // a bit ugly, create the point p ?
+      opt_neighbors[0] = gp;
+      opt_neighbors[1] = gq;
 
-      std::cout << "new closest at : " << distance_to_closest_seed;
-      std::cout << " color is : " << closest_seed_id << std::endl;
+      // below is useless fixme
+      closest_seed_id = gp->closest_seed_id;
+      ancestor = gp;
+
+      std::cout << "2D new best for " << index << " : " << distance_to_closest_seed << std::endl;
     }
     else
       std::cout << "not closer : " << d << " prev: " << distance_to_closest_seed << std::endl;
@@ -704,16 +718,14 @@ struct Grid_point
 
     std::cout << "color and value: " << closest_seed_id << " " << distance_to_closest_seed << std::endl;
 
-    if(debugging)
-      CGAL_assertion(!changed);
-
     return changed;
   }
 
-  template<typename PQ>
-  void update_neighbors_distances(PQ& changed_pq, PQ& trial_pq) const
+  PQ_state update_neighbors_distances(std::vector<Grid_point*>& changed_pq,
+                                      std::vector<Grid_point*>& trial_pq) const
   {
     std::cout << "update neighbors of " << index << std::endl;
+    PQ_state pqs_ret = NOTHING_TO_DO;
 
     // consider all the known neighbors and compute the value to that
     CGAL_assertion(state == KNOWN || state == CHANGED);
@@ -747,17 +759,29 @@ struct Grid_point
             changed_pq.push_back(gp);
             std::push_heap(changed_pq.begin(), changed_pq.end(), Grid_point_comparer<Grid_point>());
           }
+          else
+          {
+            if(pqs_ret == NOTHING_TO_DO || pqs_ret == REBUILD_CHANGED)
+              pqs_ret = REBUILD_CHANGED;
+            else // pqs_ret == REBUILD_TRIAL || pqs_ret == REBUILD_BOTH
+              pqs_ret = REBUILD_BOTH;
+          }
         }
       }
       else
 #endif
       if(gp->state == TRIAL)
       {
-        gp->compute_closest_seed(this); // need to change the order of the element
         // note that we don't insert in trial_pq since it's already in
-        // the sort after this function will change its position if needs be
+        if(gp->compute_closest_seed(this))
+        {
+          if(pqs_ret == NOTHING_TO_DO || pqs_ret == REBUILD_TRIAL)
+            pqs_ret = REBUILD_TRIAL;
+          else // pqs_ret == REBUILD_CHANGED || pqs_ret == REBUILD_BOTH
+            pqs_ret = REBUILD_BOTH;
+        }
       }
-      else if(gp->state == FAR)
+      else // gp->state == FAR
       {
         gp->compute_closest_seed(this); // always returns true here so no need to test it
         gp->state = TRIAL;
@@ -765,6 +789,8 @@ struct Grid_point
         std::push_heap(trial_pq.begin(), trial_pq.end(), Grid_point_comparer<Grid_point>());
       }
     }
+
+    return pqs_ret;
   }
 
   bool is_contained(const Point_2& p,
@@ -812,7 +838,7 @@ struct Grid_point
   Grid_point(const Point_2& point_, const std::size_t index_)
     : point(point_), index(index_), distance_to_closest_seed(1e30),
       closest_seed_id(-1), state(FAR), neighbors(),
-      metric(mf->compute_metric(point)), ancestor(NULL)
+      metric(mf->compute_metric(point)), ancestor(NULL), opt_neighbors()
   {
     for(std::size_t i=0; i<neighbors.size(); ++i)
       neighbors[i] = NULL;
@@ -886,7 +912,6 @@ struct Geo_grid
     std::cout << "neighbors are : " << gr->index << " " << gr->point.x() << " " << gr->point.y() << std::endl;
     std::cout << "neighbors are : " << gs->index << " " << gs->point.x() << " " << gs->point.y() << std::endl;
 */
-    std::sort_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
   }
 
   void initialize_geo_grid()
@@ -958,6 +983,55 @@ struct Geo_grid
     return false;
   }
 
+  void determine_ancestors()
+  {
+    std::cout << "Determine ancestors" << std::endl;
+
+    // TODO do something smarter when spreading a new color in an already colored
+    // grid... One can probably just start from the new seed WITHOUT RESETING EVERYTHING
+    // and then spread and only consider stuff if one of the possible ancestors
+    // has the new color something like that...
+
+    Grid_point_vector known_points;
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      // reset the colors (but not the values!)
+      Grid_point* gp = &(points[i]);
+      gp->closest_seed_id = -1;
+      gp->ancestor = NULL;
+
+      known_points.push_back(gp);
+    }
+    std::make_heap(known_points.begin(), known_points.end(), Grid_point_comparer<Grid_point>());
+
+    // only re initialize the closest_seed_id for each point-seed
+    for(std::size_t i=0; i<seeds.size(); ++i)
+    {
+      // if you use 4 pts initilization  for a seed, you need to modify here too...
+      const Point_2& p = seeds[i];
+      int index_x = std::floor((p.x()-offset_x)/step);
+      int index_y = std::floor((p.y()-offset_y)/step);
+      Grid_point* gp = &(points[index_y*n + index_x]);
+      gp->closest_seed_id = i;
+
+      std::cout << "Color ini: " << gp->index << " with " << i << std::endl;
+    }
+
+    bool is_kp_empty = known_points.empty();
+    while(!is_kp_empty)
+    {
+      Grid_point* gp = known_points.front();
+      std::pop_heap(known_points.begin(), known_points.end(), Grid_point_comparer<Grid_point>());
+      known_points.pop_back();
+
+      gp->determine_ancestor();
+      is_kp_empty = known_points.empty();
+    }
+
+    std::cerr << "End of determine ancestors. time: ";
+    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+  }
+
   void geo_grid_loop()
   {
     std::cout << "main loop" << std::endl;
@@ -1000,53 +1074,44 @@ struct Geo_grid
       std::cout << "at distance : " << gp->distance_to_closest_seed << " from " << gp->closest_seed_id << std::endl;
 
       gp->state = KNOWN;
-      gp->update_neighbors_distances(changed_points, trial_points);
-      std::sort_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
-      std::sort_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
+      PQ_state pqs = gp->update_neighbors_distances(changed_points, trial_points);
+
+      if(pqs == REBUILD_TRIAL || pqs == REBUILD_BOTH)
+        std::make_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
+      else if(pqs == REBUILD_CHANGED || pqs == REBUILD_BOTH)
+        std::make_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
 
       is_cp_empty = changed_points.empty();
       is_t_empty = trial_points.empty();
     }
 
-    if(!debugging) // boolean used to not debug the debug
-      debug();
+    std::cerr << "End of geo_grid_loop. time: ";
+    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+
+    determine_ancestors();
+    debug();
   }
 
   void debug()
   {
-    if(debugging)
-      return;
-    debugging = true;
-
 #ifdef USE_RECURSIVE_UPDATES
     CGAL_assertion(trial_points.empty() && changed_points.empty());
 
-    std::cout << "DOUBLE CHECK THAT WE ARE REALLY FINISHED : " << std::endl;
+    std::cout << "BRUTE FORCE CHECK THAT WE ARE REALLY FINISHED : " << std::endl;
     for(std::size_t i=0; i<points.size(); ++i)
     {
-      // temporarily hacking it to spread seed_id again... (since we know we have the best values)
-      // reset the colors (but not the values!)
       Grid_point* gp = &(points[i]);
-      gp->closest_seed_id = -1;
-      gp->ancestor = NULL;
-
-      changed_points.push_back(gp);
-      std::push_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
+      std::cout << "point " << i << " min distance is supposedly: ";
+      std::cout << gp->distance_to_closest_seed << std::endl;
+      boost::array<Grid_point*, 4>::const_iterator it = gp->neighbors.begin(),
+                                                   iend = gp->neighbors.end();
+      for(; it!=iend; ++it)
+      {
+        const Grid_point* gq = *it;
+        if(gq)
+          CGAL_assertion(!gp->compute_closest_seed(gq));
+      }
     }
-    std::sort_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
-
-    // only re initialize the closest_seed_id for each point-seed
-    for(std::size_t i=0; i<seeds.size(); ++i)
-    {
-      // if you use 4 pts ini for a seed, you need to modify here too...
-      const Point_2& p = seeds[i];
-      int index_x = std::floor((p.x()-offset_x)/step);
-      int index_y = std::floor((p.y()-offset_y)/step);
-      Grid_point* gp = &(points[index_y*n + index_x]);
-      gp->closest_seed_id = i;
-    }
-
-    geo_grid_loop();
 #endif
   }
 
@@ -1171,15 +1236,27 @@ struct Geo_grid
     }
   }
 
-  std::set<Simplex> compute_dual() const
+  void add_triangles_edges_to_dual_edges(const Tri& tr,
+                                         std::set<Edge>& dual_edges) const
+  {
+    Edge e;
+    e[0] = tr[0]; e[1] = tr[1]; dual_edges.insert(e);
+    e[0] = tr[0]; e[1] = tr[2]; dual_edges.insert(e);
+    e[0] = tr[1]; e[1] = tr[2]; dual_edges.insert(e);
+  }
+
+  void compute_dual(std::set<Edge>& dual_edges,
+                    std::set<Tri>& dual_triangles) const
   {
     std::cout << "dual computations" << std::endl;
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
     FT farthest_dual_distance = 0.;
+    const Grid_point* ref;
+    FT back_up_farthest = 0.;
+    const Grid_point* backup; // separate from ref because it could be farther
 #endif
-    std::set<Simplex> dual_simplices;
-#pragma omp parallel for
+
     for(std::size_t i=0; i<points.size(); ++i)
     {
       const Grid_point& gp = points[i];
@@ -1197,44 +1274,67 @@ struct Geo_grid
         dual_simplex.insert(gq->closest_seed_id);
       }
 
-      // no one cares if dual_simplex.size() == 1
-      if(dual_simplex.size() == 2)
+      // don't care if dual_simplex.size() == 1
+      if(dual_simplex.size() == 2) // an edge!
       {
-        // that'd be an edge in the dual if we cared about it
+        typename Simplex::const_iterator it = dual_simplex.begin();
+        Edge e; e[0] = *it; e[1] = (*++it);
+        dual_edges.insert(e);
+
+        if(dual_triangles.empty() && gp.distance_to_closest_seed > back_up_farthest)
+        {
+          // this is just in case we don't find any triangle...
+          back_up_farthest = gp.distance_to_closest_seed;
+          backup = &gp;
+        }
       }
       else if(dual_simplex.size() >= 3)
       {
-        if(dual_simplex.size() == 3)
-#pragma omp critical
-          dual_simplices.insert(dual_simplex); // a triangle!
+        if(dual_simplex.size() == 3) // a triangle!
+        {
+          typename Simplex::const_iterator it = dual_simplex.begin();
+          Tri tr; tr[0] = *it; tr[1] = (*++it); tr[2] = (*++it);
+          dual_triangles.insert(tr);
+
+          add_triangles_edges_to_dual_edges(tr, dual_edges);
+        }
         else
           std::cerr << "WARNING: COSPHERICITY..." << std::endl;
+
 #ifdef TMP_REFINEMENT_UGLY_HACK
         if(gp.distance_to_closest_seed > farthest_dual_distance)
         {
-#pragma omp critical
-{
           farthest_dual_distance = gp.distance_to_closest_seed;
-          best_ref_x = gp.point.x();
-          best_ref_y = gp.point.y();
-}
+          ref = &gp;
         }
 #endif
       }
     }
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
-    if(dual_simplices.empty())
-      std::cerr << "WARNING: no simplices captured, so no best_ref_x,y set" << std::endl;
+    if(dual_triangles.empty())
+    {
+      std::cerr << "WARNING: no triangle captured, using back-up " << std::endl;
+      best_ref_x = backup->point.x();
+      best_ref_y = backup->point.y();
+    }
+    else
+    {
+      best_ref_x = ref->point.x();
+      best_ref_y = ref->point.y();
+    }
 #endif
-
-    return dual_simplices;
   }
 
   void output_dual() const
   {
-    const std::set<Simplex>& dual_simplices = compute_dual();
-    std::cout << "captured: " << dual_simplices.size() << " simplices" << std::endl;
+    std::set<Edge> dual_edges;
+    std::set<Tri> dual_triangles;
+    compute_dual(dual_edges, dual_triangles);
+
+    std::cout << "captured: ";
+    std::cout << dual_edges.size() << " edges, ";
+    std::cout << dual_triangles.size() << " triangles" << std::endl;
 
     std::ofstream out("geo_grid_dual.mesh");
     out << "MeshVersionFormatted 1" << std::endl;
@@ -1245,25 +1345,19 @@ struct Geo_grid
       out << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << std::endl;
 
     out << "Triangles" << std::endl;
-    out << dual_simplices.size() << std::endl;
-    for(typename std::set<Simplex>::iterator it = dual_simplices.begin();
-                                             it != dual_simplices.end(); ++it)
+    out << dual_triangles.size() << std::endl;
+    for(typename std::set<Tri>::iterator it = dual_triangles.begin();
+                                         it != dual_triangles.end(); ++it)
     {
-      const Simplex& s = *it;
-      typename Simplex::iterator sit = s.begin();
-      typename Simplex::iterator siend = s.end();
-      for(; sit!=siend; ++sit)
-        out << *sit+1 << " ";
-      out << "1" << std::endl;
+      const Tri& tr = *it;
+      for(std::size_t i=0; i<tr.size(); ++i)
+        out << tr[i] + 1 << " ";
+      out << "1" << std::endl; // fixme do the is_intersected from grid_gen.cpp
     }
     out << "End" << std::endl;
   }
 
-  Geo_grid() : points(), changed_points(), trial_points()
-  {
-    std::make_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
-    std::make_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
-  }
+  Geo_grid() : points(), changed_points(), trial_points() { }
 };
 
 void initialize()
