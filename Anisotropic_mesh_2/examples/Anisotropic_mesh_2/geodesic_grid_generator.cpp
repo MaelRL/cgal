@@ -106,7 +106,7 @@ int insert_new_seed(const FT x, const FT y)
       return seeds.size();
     }
 #endif
-  std::cout << "seed: " << x << " " << y << " added" << std::endl;
+  std::cout << "new seed: " << x << " " << y << " added" << std::endl;
   seeds.push_back(Point_2(x, y));
   seeds_m.push_back(mf->compute_metric(seeds.back()));
   return seeds.size();
@@ -163,7 +163,8 @@ struct Grid_point
   bool compute_closest_seed_1D(const Grid_point* gp)
   {
     std::cout << "compute closest 1D " << index << " to " << gp->index;
-    std::cout << " | gp distance to closest is : " << gp->distance_to_closest_seed << std::endl;
+    std::cout << " ds " << gp->distance_to_closest_seed;
+    std::cout << " resp. " << gp->closest_seed_id << std::endl;
 
     CGAL_assertion(gp->state == KNOWN || gp->state == CHANGED);
     bool changed = false;
@@ -174,6 +175,9 @@ struct Grid_point
     FT neighbor_d = std::sqrt(v.transpose()*metric.get_mat()*v);
     FT dcs_at_gp = gp->distance_to_closest_seed;
     FT d = dcs_at_gp + neighbor_d;
+
+    std::cout << "min 1D; min : " << d;
+    std::cout << " vs current best: " << distance_to_closest_seed << std::endl;
 
     if(distance_to_closest_seed - d > recursive_tolerance * d)
     {
@@ -186,11 +190,9 @@ struct Grid_point
       // below is useless fixme
       closest_seed_id = gp->closest_seed_id;
       ancestor = gp;
-      std::cout << "new closest at : " << distance_to_closest_seed;
-      std::cout << " color is : " << closest_seed_id << std::endl;
+
+      std::cout << "1D new best for " << index << " : " << distance_to_closest_seed << std::endl;
     }
-    else
-      std::cout << "not closer : " << d << " prev: " << distance_to_closest_seed << std::endl;
     return changed;
   }
 
@@ -215,7 +217,7 @@ struct Grid_point
     // local minimum is given by f'(p_0) = 0 _but_ we have to compare f(p_0)
     // with f(0) and f(1) as we're only interested in solutions that live in [0,1]
     // If there's no solution in [0,1], then there's no (local) minimum in [0,1]
-    // and the minimum is obtained in 0 or in 1.
+    // and the minimum is obtained at 0 or at 1.
 
     const FT dcs_at_gp = gp->distance_to_closest_seed;
     const FT dcs_at_gq = gq->distance_to_closest_seed;
@@ -359,7 +361,7 @@ struct Grid_point
     }
 
     bool same_colors = (gp->closest_seed_id == gq->closest_seed_id);
-    std::cout << "color are the same ? " << same_colors << std::endl;
+    std::cout << "colors are the same ? " << same_colors << std::endl;
     if(same_colors)
     {
       closest_seed_id = gp->closest_seed_id;
@@ -549,12 +551,12 @@ struct Grid_point
     FT diffp = distance_to_closest_seed + d_this_to_mp - (gp_d + d_p_to_mp);
     FT diffq = distance_to_closest_seed + d_this_to_mq - (gq_d + d_q_to_mq);
 
-    // we simplified the absolute values of the system because we need lamba in [0,step]
+    // we simplified the absolute values of the system because we need lamba in [0, step]
     // the assertion will be false if the solution we found is outside of this interval
     if(lambda_p >= -1e-10 && lambda_p <= step+1e-10)
-      CGAL_assertion(std::abs(diffp) < 1e-10);
+      CGAL_assertion(std::abs(diffp) < 1e-10 );
     if(lambda_q >= -1e-10 && lambda_q <= step+1e-10)
-      CGAL_assertion(std::abs(diffq) < 1e-10);
+      CGAL_assertion(std::abs(diffq) < 1e-10 );
 
     std::cout << "lambdas: " << lambda_p << " " << lambda_q << std::endl;
     std::cout << "step: " << step << " gpd/q: " << gp_d << " " << gq_d << std::endl;
@@ -590,7 +592,13 @@ struct Grid_point
 
   bool compute_closest_seed_2D(const Grid_point* gp, const Grid_point* gq)
   {
-    std::cout << "compute closest 2D " << index << " to " << gp->index << " & " << gq->index << std::endl;
+    FT gp_d = gp->distance_to_closest_seed;
+    FT gq_d = gq->distance_to_closest_seed;
+
+    std::cout << "compute closest 2D " << index << " to ";
+    std::cout << gp->index << " & " << gq->index;
+    std::cout << " ds: " << gp_d << " " << gq_d << " ";
+    std::cout << " resp. " << gp->closest_seed_id << " " << gq->closest_seed_id << std::endl;
 
     CGAL_assertion((gp->state == KNOWN || gp->state == CHANGED) &&
                    (gq->state == KNOWN || gq->state == CHANGED) );
@@ -600,15 +608,7 @@ struct Grid_point
     const FT d = compute_min_distance_2D(gp, gq, lambda);
     CGAL_assertion(lambda >= -1e-10 && lambda <= 1+1e-10);
 
-    FT gp_d = gp->distance_to_closest_seed;
-    FT gq_d = gq->distance_to_closest_seed;
-
-    std::cout << "computation of optimal lambda for: " << index << " gp/q: ";
-    std::cout << gp->index << " " << gq->index ;
-    std::cout << " ds: " << gp_d << " " << gq_d;
-    std::cout << " resp. " << gp->closest_seed_id << " " << gq->closest_seed_id << std::endl;
-//    gp->print_ancestree(); gq->print_ancestree();
-    std::cout << "optimal lambda is : " << lambda << " and d: " << d << std::endl;
+    std::cout << "2D new best for " << index << " : " << distance_to_closest_seed << std::endl;
 
 #ifdef BRUTE_FORCE_CHECK_OPTIMAL_P
     // this is pretty much debug code to verify that compute_min_distance_2D() is correct
@@ -678,8 +678,6 @@ struct Grid_point
 
       std::cout << "2D new best for " << index << " : " << distance_to_closest_seed << std::endl;
     }
-    else
-      std::cout << "not closer : " << d << " prev: " << distance_to_closest_seed << std::endl;
 
     return changed;
   }
@@ -783,6 +781,7 @@ struct Grid_point
       }
       else // gp->state == FAR
       {
+        CGAL_assertion(gp->state == FAR);
         gp->compute_closest_seed(this); // always returns true here so no need to test it
         gp->state = TRIAL;
         trial_pq.push_back(gp);
@@ -880,11 +879,17 @@ struct Geo_grid
     // is not dense enough...
 
     gp->initialize_from_point(p, seed_id);
+
     trial_points.push_back(gp);
     std::push_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
 
     std::cout << "looking for p: " << p.x() << " " << p.y() << std::endl;
     std::cout << "found: " << gp->index << " [" << gp->point.x() << ", " << gp->point.y() << "]" << std::endl;
+    std::cout << "step reminder: " << step << std::endl;
+    std::cout << "looking for p: " << p.x() << " " << p.y() << " " << std::endl;
+    std::cout << "found gp: " << gp->index << " [" << gp->point.x() << ", " << gp->point.y() << "]" << std::endl;
+    std::cout << "index: " << index_x << " " << index_y << " " << std::endl;
+    std::cout << "offset: " << offset_x << " " << offset_y << " " << std::endl;
 
     // if we want to initialize a bit more, we initialize all the vertices of the quad
     // that contains p
@@ -916,7 +921,7 @@ struct Geo_grid
 
   void initialize_geo_grid()
   {
-    std::cout << "grid ini" << std::endl;
+    std::cout << "grid initialization" << std::endl;
 
     // create the grid points (either a full grid or a smart grid (todo) )
     for(unsigned int j=0; j<n; ++j)
@@ -945,9 +950,9 @@ struct Geo_grid
           points[curr_id].neighbors[3] = &(points[i + (j-1)*n]);
       }
     }
-    std::cout << "assigned neighbors" << std::endl;
+    std::cout << "neighbors assigned" << std::endl;
 
-    // seeds belong to a quad, find it and initialize the pts of the quads
+    // seeds belong to a quad, find it
     for(std::size_t i=0; i<seeds.size(); ++i)
     {
       const Point_2& p = seeds[i];
@@ -956,7 +961,7 @@ struct Geo_grid
       locate_and_initialize(p, i);
     }
 
-    std::cout << "grid initialization end" << std::endl;
+    std::cout << "grid initialized" << std::endl;
   }
 
   bool print_states() const
@@ -978,8 +983,6 @@ struct Geo_grid
     std::cout << "changed: " << changed_count << " known: " << known_count;
     std::cout << " trial: " << trial_count << " far: " << far_count << std::endl;
 
-//    if(known_count > 35000)
-//      return true;
     return false;
   }
 
@@ -1042,6 +1045,9 @@ struct Geo_grid
     Grid_point* gp;
     while(!is_cp_empty || !is_t_empty)
     {
+      std::cout << " ------------------------------------------------------- " << std::endl;
+      std::cout << "Queue sizes. Trial: " << trial_points.size() << " Changed: " << changed_points.size() << std::endl;
+
 //      std::cout << "changed heap: " << std::endl;
 //      for (std::vector<Grid_point*>::iterator it = changed_points.begin();
 //           it != changed_points.end(); ++it)
@@ -1057,19 +1063,20 @@ struct Geo_grid
       if(!is_cp_empty)
       {
         gp = changed_points.front();
+        CGAL_assertion(gp && gp->state == CHANGED);
         std::pop_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
         changed_points.pop_back();
       }
       else // !is_t_empty
       {
         gp = trial_points.front();
+        CGAL_assertion(gp && gp->state == TRIAL);
         std::pop_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
         trial_points.pop_back();
       }
 
       if(print_states())
         break;
-      std::cout << "Queue sizes. Trial: " << trial_points.size() << " Changed: " << changed_points.size() << std::endl;
       std::cout << "picked n° " << gp->index << " (" << gp->point.x() << ", " << gp->point.y() << ") ";
       std::cout << "at distance : " << gp->distance_to_closest_seed << " from " << gp->closest_seed_id << std::endl;
 
@@ -1113,6 +1120,9 @@ struct Geo_grid
       }
     }
 #endif
+
+    std::cerr << "End of debug. time: ";
+    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
   }
 
   void build_grid()
@@ -1124,6 +1134,7 @@ struct Geo_grid
   Point_2 compute_refinement_point()
   {
     // todo
+    CGAL_assertion(false);
     return Point_2();
   }
 
@@ -1227,12 +1238,13 @@ struct Geo_grid
 
       for(std::size_t i=0; i<t.size(); ++i)
       {
-        out << t[i]+1 << " ";
+        out << t[i] + 1 << " ";
         materials.insert(points[t[i]].closest_seed_id);
       }
       std::size_t mat = (materials.size()==1)?(*(materials.begin())):(seeds.size());
       out << mat << std::endl;
-      //if only one value at all points, we're okay. if more than one, print a unique frontier material
+      //if only one value at all points, we're okay
+      // if more than one, print a unique frontier material
     }
   }
 
@@ -1366,21 +1378,24 @@ void initialize()
   mf = new Custom_metric_field<K>();
 
   vertices_nv = build_seeds();
+  CGAL_assertion(vertices_nv > 0 && "No seed in domain..." );
 }
 
 int main(int, char**)
 {
-  std::clock_t start;
+  std::cout.precision(17);
+  std::freopen("geo_grid_log.txt", "w", stdout);
+
   double duration;
   start = std::clock();
 
-  std::freopen("geo_grid_log.txt", "w", stdout);
   std::srand(0);
   initialize();
 
   Geo_grid gg;
   gg.build_grid();
-  gg.output_grid("geo_grid");
+  gg.output_grid("geo_grid_pre");
+  gg.output_dual();
 
   int n_refine = 50;
   for(int i=0; i<n_refine; ++i)
@@ -1389,6 +1404,7 @@ int main(int, char**)
     std::ostringstream out;
     out << "geo_grid_ref_" << i;
     gg.output_grid(out.str());
+    gg.output_dual();
   }
 
   gg.output_grid("geo_grid");
