@@ -2,7 +2,6 @@
 #define CGAL_ANISOTROPIC_MESH_TC_STARSET_H
 
 #include <CGAL/Star.h>
-#include <CGAL/helpers/metric_helper.h>
 #include <CGAL/Metric_field.h>
 
 #include <Eigen/Dense>
@@ -299,10 +298,10 @@ public:
 
     FT den = 1./(FT) fact(d);
     Eigen::Matrix<FT,d,d> m = Eigen::Matrix<FT, d, d>::Zero();
-    for(int i=0; i<d; ++i)
+    for(std::size_t i=0; i<d; ++i)
     {
       Point_d v0 = m_stars[fch->vertex(0)->data()]->center_point();
-      for(int j=0; j<d; ++j)
+      for(std::size_t j=0; j<d; ++j)
       {
         Point_d vj = m_stars[fch->vertex(j+1)->data()]->center_point();
         m(i,j) = vj[i]-v0[i];

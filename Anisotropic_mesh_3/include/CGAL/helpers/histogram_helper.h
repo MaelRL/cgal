@@ -515,7 +515,7 @@ void cell_histogram(const Starset& stars,
 
   if(verbose)
   {
-    for(unsigned int i = 0; i<divisions; i++)
+    for(int i = 0; i<divisions; i++)
     {
       double inf = ((double) i)/((double) divisions) * max_val;
       double sup = ((double) i+1)/((double) divisions) * max_val;

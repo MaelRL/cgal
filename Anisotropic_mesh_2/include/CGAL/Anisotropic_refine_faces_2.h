@@ -610,7 +610,7 @@ private:
         if(relative_point >= 0) // we do not consider not-relative faces
         {
           bool relative = false;
-          for(int i = 0; i<3; i++)
+          for(int i=0; i<3; i++)
           {
             if(relative_point == fh->vertex(i)->info())
             {

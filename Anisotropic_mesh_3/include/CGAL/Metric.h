@@ -52,13 +52,13 @@ public:
 
 private:
   Eigen::Matrix3d eigen_transformation, eigen_inverse_transformation;
+  Eigen::Matrix3d full_matrix;
   mutable double e_max, e_min, e_n;
   Vector_3 v_max, v_min, v_n;
 
 public:
   const Eigen::Matrix3d& get_transformation() const { return eigen_transformation; }
   const Eigen::Matrix3d& get_inverse_transformation() const { return eigen_inverse_transformation; }
-  Eigen::Matrix3d get_mat() const { return eigen_transformation.transpose()*eigen_transformation;}
   const Vector_3& get_vmin() const { return v_min; }
   const Vector_3& get_vmax() const { return v_max; }
   const Vector_3& get_vn() const { return v_n; }
@@ -71,6 +71,11 @@ public:
   void set_min_eigenvalue(double emin) const { e_min = emin; }
   void set_max_eigenvalue(double emax) const { e_max = emax; }
   void set_third_eigenvalue(double en) const { e_n = en; }
+
+  const Eigen::Matrix3d& get_mat() const
+  {
+    return full_matrix;
+  }
 
 public:
   // Transform
@@ -256,6 +261,8 @@ public:
     eigen_diag(2,2) = 1.0/eigen_diag(2,2);
     eigen_inverse_transformation = eigen_m * eigen_diag * eigen_mtransp;
 
+    full_matrix = eigen_transformation.transpose()*eigen_transformation;
+
 #ifdef ANISO_DEBUG_METRIC
     std::cout << "-- eigen_inverse_transformation ---" << std::endl;
     std::cout << eigen_inverse_transformation << std::endl;
@@ -292,6 +299,7 @@ public:
     else
       std::cout << "Not invertible and determinant was : " << determinant << std::endl;
 */
+    full_matrix = eigen_transformation.transpose()*eigen_transformation;
   }
 
   Metric_base(const Vector_3 &axis_x,  //normal (unit)

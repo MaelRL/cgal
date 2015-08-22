@@ -874,7 +874,7 @@ private:
     typename std::vector<Point_2>::iterator it = bbox_vertices.begin();
     for(; it!=bbox_vertices.end(); ++it)
       insert(*it, false /*no condition*/);
-    std::cout << "done inibv" << std::endl;
+    std::cout << "done ini bounding vertices: " << bbox_vertices.size() << std::endl;
   }
 
 protected:

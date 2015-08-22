@@ -1,18 +1,3 @@
-// Copyright (c) 2011  INRIA Sophia-Antipolis (France), ETH Zurich (Switzerland).
-// All rights reserved.
-//
-// This file is part of CGAL (www.cgal.org); you may redistribute it under
-// the terms of the Q Public License version 1.0.
-// See the file LICENSE.QPL distributed with CGAL.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Author(s) : Kan-Le Shi
-
 #ifndef CGAL_ANISOTROPIC_MESH_3_EUCLIDEAN_METRIC_FIELD
 #define CGAL_ANISOTROPIC_MESH_3_EUCLIDEAN_METRIC_FIELD
 
@@ -60,7 +45,7 @@ public:
                          const double& b = 1.,
                          const double& c = 1.,
                          FT epsilon_ = 1e-6,
-                         const double& en_factor = 0.999)
+                         const double& en_factor = 1.)
   : Metric_field<K>(epsilon_, en_factor), m_a(a), m_b(b), m_c(c) { }
 };
 

@@ -718,7 +718,7 @@ void output_smart_grid(const std::list<Quad>& final_quads,
   out_bb << "2 1 " << values_n << " 2" << std::endl;
 
   int counter = 0;
-  for(int i=0; i!=values_n; ++i)
+  for(std::size_t i=0; i!=values_n; ++i)
   {
     const Point_2& p = points[i];
     out << p.x() << " " << p.y() << " " << ++counter << std::endl;
@@ -890,7 +890,7 @@ void initialize()
 
   // for random colors
   random_colors.resize(vertices_nv);
-  for(int i=0; i<vertices_nv; ++i)
+  for(std::size_t i=0; i<vertices_nv; ++i)
     random_colors[i] = i;
 //  std::random_shuffle(random_colors.begin(), random_colors.end());
 }

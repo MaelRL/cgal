@@ -168,7 +168,7 @@ void output_medit(const Starset& stars,
   for(std::size_t i=0; i<stars.size(); i++)
   {
     const typename Starset::Point_d& p = stars[i]->center_point();
-    for(int j=0; j<d; ++j)
+    for(std::size_t j=0; j<d; ++j)
       fx << p[j] << " ";
     fx << (i+1) << std::endl;
   }

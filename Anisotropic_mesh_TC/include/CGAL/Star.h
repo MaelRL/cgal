@@ -8,9 +8,9 @@
 #include <CGAL/Full_cell_refine_queue.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
-#include <CGAL/helpers/metric_helper.h>
-
 #include <CGAL/Combination_enumerator.h>
+
+#include <Eigen/Dense>
 
 namespace CGAL
 {
@@ -100,8 +100,8 @@ public:
   mutable Full_cell_handle_vector m_finite_incident_full_cells_cache;
 
   // get/set etc. --------------------------------------------------------------
-  const int d() const { return dDim::value; }
-  const int D() const { return DDim::value; }
+  const std::size_t d() const { return dDim::value; }
+  const std::size_t D() const { return DDim::value; }
   const Index index() const { return m_center_v->data(); }
 
   const Point_d& center_point() const { return m_center; }
@@ -193,17 +193,17 @@ public:
     E_Matrix_Dd tsb_m = E_Matrix_Dd::Zero();
 
     // 'first' part : x y z etc. derivates
-    for(int i=0; i<d(); ++i)
-      for(int j=0; j<d(); ++j)
+    for(std::size_t i=0; i<d(); ++i)
+      for(std::size_t j=0; j<d(); ++j)
         tsb_m(i,j) = (i==j);
 
     // 'second' part: x² xy xz y² yz z² etc. derivatives
     int pos = d();
     typename Kd::Compute_coordinate_d coord = Kd().compute_coordinate_d_object();
 
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
     {
-      for(int j=i; j<d(); ++j)
+      for(std::size_t j=i; j<d(); ++j)
       {
         if(i == j)
           tsb_m(pos, i) = 2*coord(m_center, i);
@@ -236,7 +236,7 @@ public:
     std::cout << "tsb: " << std::endl << tsb_m.transpose() << std::endl;
 
     typename KD::Construct_vector_d constr_vec = KD().construct_vector_d_object();
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
       m_tsb[i] = (constr_vec(D(), tsb_m.col(i).data(), tsb_m.col(i).data() + D()));
   }
 
@@ -252,14 +252,14 @@ public:
   Point_D to_Q(const Point_d& p) const
   {
     E_Vector_D p_on_Q;
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
       p_on_Q(i) = p[i];
 
     int ind = d();
     typename Kd::Compute_coordinate_d coord = Kd().compute_coordinate_d_object();
 
-    for(int i=0; i<d(); ++i)
-      for(int j=i; j<d(); ++j)
+    for(std::size_t i=0; i<d(); ++i)
+      for(std::size_t j=i; j<d(); ++j)
         p_on_Q(ind++) = coord(p,i) * coord(p,j);
 
     return KD().construct_point_d_object()(D(), p_on_Q.data(), p_on_Q.data() + D());
@@ -300,19 +300,19 @@ public:
     E_Vector_d e_p, p_bar;
 
     typename Kd::Compute_coordinate_d coord = Kd().compute_coordinate_d_object();
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
       e_p(i) = coord(p, i);
 
     p_bar = m * e_p;
 
     E_Vector_D p_on_S;
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
       p_on_S(i) = p_bar(i);
 
     int ind = d();
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
     {
-      for(int j=i; j<d(); ++j)
+      for(std::size_t j=i; j<d(); ++j)
       {
         if(j==i)
           p_on_S(ind++) = -0.5*m(i,i);
@@ -362,7 +362,7 @@ public:
       coords.push_back(coord);
 
       // p_proj += coord * v;
-      for(int j=0 ; j<D(); ++j)
+      for(std::size_t j=0 ; j<D(); ++j)
         p_proj[j] += coord * m_tsb[i][j];
     }
 
@@ -388,20 +388,20 @@ public:
   bool has_cell(Full_cell_handle& fch,
                 const boost::array<int, dDim::value+1>& a) const
   {
-    const std::size_t d = dDim::value+1;
-    int cids[d], dids[d];
-    for(int i=0; i<d; i++)
+    const std::size_t dp1 = dDim::value+1;
+    int cids[dp1], dids[dp1];
+    for(std::size_t i=0; i<dp1; i++)
       cids[i] = a[i];
 
     Full_cell_handle_iterator ci = finite_incident_full_cells_begin();
     Full_cell_handle_iterator cend = finite_incident_full_cells_end();
     for(; ci!=cend; ci++)
     {
-      if((*ci)->maximal_dimension() < (d-1)) // !! d-1 == d() (ugly, but w/e)
+      if((*ci)->maximal_dimension() < d())
         continue;
-      for(int i=0; i<d; i++)
+      for(std::size_t i=0; i<dp1; i++)
         dids[i] = (*ci)->vertex(i)->data();
-      if(is_same_ids<d>(cids, dids))
+      if(is_same_ids<dp1>(cids, dids))
       {
         fch = *ci;
         return true;
@@ -414,7 +414,7 @@ public:
   {
     const std::size_t dp1 = dDim::value+1;
     int cids[dp1], dids[dp1];
-    for(int i=0; i<dp1; i++)
+    for(std::size_t i=0; i<dp1; i++)
       cids[i] = fch->vertex(i)->data();
 
     Full_cell_handle_iterator ci = finite_incident_full_cells_begin();
@@ -423,7 +423,7 @@ public:
     {
       if((*ci)->maximal_dimension() < d())
         continue;
-      for(int i=0; i<dp1; i++)
+      for(std::size_t i=0; i<dp1; i++)
         dids[i] = (*ci)->vertex(i)->data();
       if(is_same_ids<dp1>(cids, dids))
         return true;
@@ -486,7 +486,7 @@ public:
   FT norm(const Point_D& p) const // squared norm, actually
   {
     FT n = 0.;
-    for(int i=0; i<D(); ++i)
+    for(std::size_t i=0; i<D(); ++i)
       n += p[i]*p[i];
     return n;
   }
@@ -516,7 +516,7 @@ public:
 //    std::cout << p0_on_Q[0] << " " << p0_on_Q[1] << std::endl;
 
     //first part of the matrix (lines 0-d) (dual equation)
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
     {
       WPoint_D pi = cell[i+1]->m_center_S;
 //      std::cout << "wi: " << cell[i+1]->index() << " || ";
@@ -526,21 +526,21 @@ public:
 
       FT di = norm(pi.point());
       l(i) = d0 - p0.weight() - di + pi.weight();
-      for(int j=0; j<D(); ++j)
+      for(std::size_t j=0; j<D(); ++j)
         m(i,j) = 2*(p0.point()[j] - pi.point()[j]);
     }
 
     //second part of the matrix (lines d-D) (tangent plane equation)
-    for(int i=d(); i<D(); ++i)
+    for(std::size_t i=d(); i<D(); ++i)
     {
       l(i) = p0_on_Q[i];
       m(i,i) = -1;
     }
 
     int pos = d();
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
     {
-      for(int j=i; j<d(); ++j)
+      for(std::size_t j=i; j<d(); ++j)
       {
         if(i == j)
           m(pos, i) = 2*(cell[0]->m_center)[i];
@@ -713,7 +713,7 @@ public:
 
     const WPoint_D& wp0 = cell[0]->m_center_S;
     FT sq_d = csd(sol, wp0.point()) - wp0.weight();
-    for(int i=0; i<d(); i++)
+    for(std::size_t i=0; i<d(); i++)
     {
       const WPoint_D& wpi = cell[i+1]->m_center_S;
       FT sq_dd = csd(sol, wpi.point()) - wpi.weight();
@@ -751,7 +751,7 @@ public:
   {
     //we add a diagonal matrix of the form delta*f_i(x) to J to avoid |J| ~ 0
     E_Matrix_d m2 = E_Matrix_d::Zero();
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
     {
       m2(i,i) = m(i,i)/std::abs(m(i,i)); // sign
       m2(i,i) *= h(i);
@@ -764,12 +764,14 @@ public:
               const std::vector<Star_handle>& cell,
               const std::vector<Star_handle>& all_stars) const
   {
+    // we are looking for the intersection of the dual of to_S(fch) with Q
+    // we start with the approximation intersection of dual(to_S(fch)) with T
     if(!is_support_intersecting(cell, sol_on_Q)) // get the approximation
       return false;
 
     std::cout << "approximation: " << sol_on_Q[0] << " " << sol_on_Q[1] << std::endl;
     E_Vector_d vsol;
-    for(int i=0; i<d(); ++i)
+    for(std::size_t i=0; i<d(); ++i)
       vsol(i) = sol_on_Q[i];  // ugly 'projection' on the paraboloid
                               // of the intersection with the tangent plane
 
@@ -816,7 +818,7 @@ public:
 
     if(count==max)
     {
-      std::cout << "didn't converge in " << max << " iterations.";
+      std::cout << "didn't converge in " << max << " iterations. ";
       std::cout << "h: " << h_err.transpose() << std::endl;
 //      assert(0);
       return false;
@@ -836,14 +838,9 @@ public:
                                  const std::vector<Star_handle>& cell,
                                  const std::vector<Star_handle>& all_stars) const
   {
-    // we are looking for the intersection of the dual of to_S(fch) with Q
-    // we start with the approximation intersection of dual(to_S(fch)) with T
-    if(newton(sol_on_Q, cell, all_stars))
-    {
-      // Newton's method to (try to) find precisely the root on Q
-//      if(is_intersection_point_in_power_cell(sol_on_Q))
-          return true;
-    }
+    // Newton's method to (try to) find precisely the root on Q
+    if(newton(sol_on_Q, cell, all_stars)) // this checks if we're in the power cell too
+     return true;
     std::cout << "dual does not intersect...? " << std::endl;
     return false;
   }
@@ -852,7 +849,7 @@ public:
                     const std::vector<Star_handle>& all_stars)
   {
     std::vector<Star_handle> cell;
-    for(int i=0; i<=d(); ++i)
+    for(std::size_t i=0; i<=d(); ++i)
       cell.push_back(all_stars[fch->vertex(i)->data()]);
 
     Point_D ponQ;

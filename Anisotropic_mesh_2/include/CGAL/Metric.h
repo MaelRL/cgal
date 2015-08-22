@@ -26,13 +26,13 @@ public:
 
 private:
   Eigen::Matrix2d eigen_transformation, eigen_inverse_transformation;
+  Eigen::Matrix2d full_matrix;
   mutable FT e_max, e_min;
   Vector_2 v_max, v_min;
 
 public:
   const Eigen::Matrix2d& get_transformation() const { return eigen_transformation; }
   const Eigen::Matrix2d& get_inverse_transformation() const { return eigen_inverse_transformation; }
-  Eigen::Matrix2d get_mat() const { return eigen_transformation.transpose()*eigen_transformation;}
   const Vector_2& get_vmin() const { return v_min; }
   const Vector_2& get_vmax() const { return v_max; }
   void get_min_eigenvector(Vector_2& v) const { v = v_min; }
@@ -41,6 +41,11 @@ public:
   double get_max_eigenvalue() const { return e_max; }
   void set_min_eigenvalue(double emin) const { e_min = emin; }
   void set_max_eigenvalue(double emax) const { e_max = emax; }
+
+  const Eigen::Matrix2d& get_mat() const
+  {
+    return full_matrix;
+  }
 
 public:
   // Transform
@@ -189,6 +194,8 @@ public:
     Eigen::Matrix2d eigen_mtransp = eigen_m.transpose();
     eigen_transformation = eigen_m * eigen_diag * eigen_mtransp;
 
+    full_matrix = eigen_transformation.transpose()*eigen_transformation;
+
 #ifdef ANISO_DEBUG_METRIC
     std::cout << "--- eigen_m ---" << std::endl;
     std::cout << eigen_m << std::endl;
@@ -240,6 +247,7 @@ public:
     else
       std::cout << "Not invertible and determinant was : " << determinant << std::endl;
 */
+    full_matrix = eigen_transformation.transpose()*eigen_transformation;
   }
 
   Metric_base(const Vector_2 &axis_x,

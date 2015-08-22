@@ -40,8 +40,8 @@ inline bool is_same_ids(int *cids, int *dids)
 template<typename I>
 I fact(const I n)
 {
-  int sum = 1;
-  for(std::size_t i=2; i<=n; ++i)
+  I sum = 1;
+  for(I i=2; i<=n; ++i)
     sum *= i;
   return sum;
 }

@@ -7,16 +7,14 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
-#include <Eigen/Dense>
 #include <boost/array.hpp>
+#include <Eigen/Dense>
 #include <omp.h>
 
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <vector>
-
-//#define SMART_DUAL
-//#define REFINE_NEAR_CENTERS_ONLY
 
 using namespace CGAL::Anisotropic_mesh_3;
 
@@ -55,6 +53,7 @@ Back_from_exact back_from_exact;
 //#define APPROXIMATE_DUAL
 #define SMART_DUAL
 
+//#define REFINE_NEAR_CENTERS_ONLY
 #define TMP_REFINEMENT_UGLY_HACK
 #define FILTER_SEEDS_OUTSIDE_GRID
 
@@ -129,7 +128,7 @@ std::set<Tri> compute_triangles()
 
 bool has_simplex_n_colors(const std::size_t i0, const std::size_t i1,
                           const std::size_t i2, const std::size_t i3,
-                          const int n, const std::vector<std::size_t>& values)
+                          const std::size_t n, const std::vector<std::size_t>& values)
 {
   std::set<std::size_t> colors;
   colors.insert(values[i0]);
@@ -657,7 +656,7 @@ void output_smart_grid_points(std::ofstream& out_pts,
 
   std::size_t grid_nv = values.size();
   int counter = ++offset; // '++' because medit likes fortran
-  for(int i=0; i!=grid_nv; ++i)
+  for(std::size_t i=0; i!=grid_nv; ++i)
   {
     const Point_3& p = points[i];
     out_pts << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << std::endl;
@@ -880,7 +879,7 @@ void output_dual(bool compute_intersections = false)
   outd << "Dimension 3" << std::endl;
   outd << "Vertices" << std::endl;
   outd << vertices_nv << std::endl;
-  for(int i=0; i<vertices_nv; ++i)
+  for(std::size_t i=0; i<vertices_nv; ++i)
     outd << seeds[i].x() << " " << seeds[i].y() << " " << seeds[i].z() << " " << i+1 << std::endl;
 
 //  outd << "Tetrahedra" << std::endl;

@@ -1087,7 +1087,7 @@ public:
     typename std::map<Cell_ijkl, int>::iterator itc;
     for(itc = cells.begin(); itc != cells.end(); ++itc)
     {
-      std::size_t nmax = number_of_stars();
+      int nmax = number_of_stars();
       int c0 = (*itc).first.vertex(0);
       int c1 = (*itc).first.vertex(1);
       int c2 = (*itc).first.vertex(2);

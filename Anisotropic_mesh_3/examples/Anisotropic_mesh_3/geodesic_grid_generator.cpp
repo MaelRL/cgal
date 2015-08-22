@@ -14,6 +14,7 @@
 
 #include <ctime>
 #include <iostream>
+#include <limits>
 #include <set>
 #include <vector>
 
@@ -22,7 +23,9 @@ using namespace CGAL::Anisotropic_mesh_3;
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef typename K::FT                                       FT;
 typedef typename K::Segment_3                                Segment;
+typedef typename K::Vector_3                                 Vector;
 typedef typename K::Triangle_3                               Triangle;
+typedef typename K::Line_3                                   Line;
 
 typedef Stretched_Delaunay_3<K>                              Star;
 typedef typename Star::Point_3                               Point_3;
@@ -42,6 +45,7 @@ typedef boost::array<std::size_t, 4>                         Tet;
 typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
 typedef typename KExact::Point_3                             EPoint;
 typedef typename KExact::Segment_3                           ESegment;
+typedef typename KExact::Line_3                              ELine;
 typedef typename KExact::Triangle_3                          ETriangle;
 typedef CGAL::Cartesian_converter<K, KExact>                 To_exact;
 typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
@@ -53,6 +57,9 @@ Back_from_exact back_from_exact;
 #define USE_RECURSIVE_UPDATES
 
 #define TMP_REFINEMENT_UGLY_HACK
+
+#define verbose 6
+const FT FT_inf = std::numeric_limits<FT>::infinity();
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
 std::size_t vertices_nv = 10;
@@ -73,10 +80,11 @@ std::vector<Point_3> seeds;
 std::vector<Metric> seeds_m;
 
 // how big of an update the new value needs to be
-FT recursive_tolerance = 1e-4;
+FT recursive_tolerance = 1e-5;
 
+int n_refine = 20;
 #ifdef TMP_REFINEMENT_UGLY_HACK
-FT best_ref_x = 1e30, best_ref_y = 1e30, best_ref_z = 1e30;
+FT best_ref_x = FT_inf, best_ref_y = FT_inf, best_ref_z = FT_inf;
 #endif
 
 std::clock_t start;
@@ -192,7 +200,9 @@ struct Grid_point
     v(0) = gp->point.x() - point.x();
     v(1) = gp->point.y() - point.y();
     v(2) = gp->point.z() - point.z();
-    FT neighbor_d = std::sqrt(v.transpose()*metric.get_mat()*v);
+
+    const Eigen::Matrix3d& m = metric.get_mat();
+    FT neighbor_d = std::sqrt(v.transpose() * m * v);
     FT dcs_at_gp = gp->distance_to_closest_seed;
     FT d = dcs_at_gp + neighbor_d;
 
@@ -250,7 +260,7 @@ struct Grid_point
     vq(1) = gq->point.y() - point.y();
     vq(2) = gq->point.z() - point.z();
 
-    Eigen::Matrix3d m = metric.get_mat();
+    const Eigen::Matrix3d& m = metric.get_mat();
     const FT vpmvp = vp.transpose() * m * vp;
     const FT vpmvq = vp.transpose() * m * vq;
     const FT vqmvq = vq.transpose() * m * vq;
@@ -378,6 +388,162 @@ struct Grid_point
     return changed;
   }
 
+  bool check_causality_at_root(const Grid_point* gp, const Grid_point* gq,
+                               const Grid_point* gr, FT x)
+  {
+    if(x < 0)
+      return false;
+
+    const Eigen::Matrix3d& m = metric.get_mat();
+    FT gp_d = gp->distance_to_closest_seed;
+    FT gq_d = gq->distance_to_closest_seed;
+    FT gr_d = gr->distance_to_closest_seed;
+
+    FT l = step; // all edge lengths are the same
+    FT lden = 1./l;
+
+    // gradient:
+    const FT gx = lden * (x - gp_d);
+    const FT gy = lden * (x - gq_d);
+    const FT gz = lden * (x - gr_d);
+
+    // caracteristic direction
+    const FT dx = m(0,0)*gx + m(0,1)*gy + m(0,2)*gz;
+    const FT dy = m(1,0)*gx + m(1,1)*gy + m(1,2)*gz;
+    const FT dz = m(2,0)*gx + m(2,1)*gy + m(2,2)*gz;
+    const Vector v(dx, dy, dz);
+    const Line char_line(this->point, v);
+
+#if (verbose > 20)
+    std::cout << "gradient: " << gx << " " << gy << " " << gz << std::endl;
+    std::cout << "and char direction: " << dx << " " << dy << " " << dz << std::endl;
+#endif
+
+    // intersect with the triangle PQR...
+    const Triangle triangle(gp->point, gq->point, gr->point);
+
+    const ETriangle etriangle = to_exact(triangle);
+    const ELine exact_char_line = to_exact(char_line);
+
+    CGAL::cpp11::result_of<KExact::Intersect_3(ELine, ETriangle)>::type
+        result = CGAL::intersection(exact_char_line, etriangle);
+
+    if (result)
+    {
+      if (const EPoint* p = boost::get<EPoint>(&*result))
+      {
+        // compute the barycentric coordinates to check if it's within the triangle ?
+        std::cout << "pt intersection: " << p->x() << " " << p->y() << " " << p->z() << std::endl;
+        return true; //fixme...
+      }
+      else if(boost::get<ESegment>(&*result))
+      {
+        // the intersection cannot be a segment...
+        CGAL_assertion(false);
+      }
+    }
+    else // no intersection...
+    {
+      std::cout << "no intersection" << std::endl;
+      return false;
+    }
+  }
+
+  bool compute_min_distance_3D(const Grid_point* gp, const Grid_point* gq,
+                               const Grid_point* gr, FT& d)
+  {
+    // See theory for what's happening in there...
+    FT gp_d = gp->distance_to_closest_seed;
+    FT gq_d = gq->distance_to_closest_seed;
+    FT gr_d = gr->distance_to_closest_seed;
+
+    FT l = step; // all edge lengths are the same at the moment
+    FT lden = 1./l;
+
+    Vector3d vp, vq, vr; // note that these "points" towards 'this'
+    vp(0) = point.x() - gp->point.x();
+    vp(1) = point.y() - gp->point.y();
+    vp(2) = point.z() - gp->point.z();
+    vq(0) = point.x() - gq->point.x();
+    vq(1) = point.y() - gq->point.y();
+    vq(2) = point.z() - gq->point.z();
+    vr(0) = point.x() - gr->point.x();
+    vr(1) = point.y() - gr->point.y();
+    vr(2) = point.z() - gr->point.z();
+
+    Eigen::Matrix3d p_matrix;
+    p_matrix(0,0) = lden*vp(0); p_matrix(0,1) = lden*vp(1); p_matrix(0,2) = lden*vp(2);
+    p_matrix(1,0) = lden*vq(0); p_matrix(1,1) = lden*vq(1); p_matrix(1,2) = lden*vq(2);
+    p_matrix(2,0) = lden*vr(0); p_matrix(2,1) = lden*vr(1); p_matrix(2,2) = lden*vr(2);
+
+    // P^-1 = P^t since the edges 'this-gp', 'this-gq', 'this-gr' are orthogonal to each other
+    Eigen::Matrix3d p_matrix_m1 = p_matrix.transpose();
+
+    const Eigen::Matrix3d& m = metric.get_mat();
+
+    FT g1 = lden * ( p_matrix_m1(0,0) + p_matrix_m1(0,1) + p_matrix_m1(0,2));
+    FT g2 = - lden * ( p_matrix_m1(0,0)*gp_d + p_matrix_m1(0,1)*gq_d + p_matrix_m1(0,2)*gr_d);
+
+    FT g3 = lden * ( p_matrix_m1(1,0) + p_matrix_m1(1,1) + p_matrix_m1(1,2));
+    FT g4 = - lden * ( p_matrix_m1(1,0)*gp_d + p_matrix_m1(1,1)*gq_d + p_matrix_m1(1,2)*gr_d);
+
+    FT g5 = lden * ( p_matrix_m1(2,0) + p_matrix_m1(2,1) + p_matrix_m1(2,2));
+    FT g6 = - lden * ( p_matrix_m1(2,0)*gp_d + p_matrix_m1(2,1)*gq_d + p_matrix_m1(2,2)*gr_d);
+
+    FT w1 = m(0,0)*g1*g1 + m(1,1)*g3*g3 + m(2,2)*g5*g5 + 2*m(0,1)*g1*g3 + 2*m(2,0)*g1*g5 + 2*m(1,2)*g3*g5;
+    FT w2 = 2*(m(0,0)*g1*g2 + m(1,1)*g3*g4 + m(2,2)*g5*g6
+               + m(0,1)*(g1*g4+g2*g3) + m(2,0)*(g1*g6+g2*g5) + m(1,2)*(g3*g6+g4*g5));
+    FT w3 = m(0,0)*g2*g2 + m(1,1)*g4*g4 + m(2,2)*g6*g6
+            + 2*(m(0,1)*g2*g4 + m(2,0)*g2*g6 + m(1,2)*g4*g5);
+
+    FT delta = w2*w2 - 4*w1*(w3-1.);
+
+    if(delta >= -1e17)
+      delta = (std::max)(0., delta);
+
+    if(delta < 0.)
+    {
+      // no real positive roots...
+      return false;
+    }
+
+    CGAL_assertion(delta >= 0.);
+
+    FT sqrt_delta = std::sqrt(delta);
+    FT w1_den = 1./(2.*w1);
+    FT x1 = (-w2 - sqrt_delta) * w1_den;
+    FT x2 = (-w2 + sqrt_delta) * w1_den;
+
+#if (verbose > 20)
+// debug stuff
+    std::cout << "debug of compute_min_distance_3D" << std::endl;
+    std::cout << "gpgqgr " << gp->index << " " << gq->index << " " << gr->index << std::endl;
+    std::cout << "resp dist " << gp_d << " " << gq_d << " " << gr_d << std::endl;
+    std::cout << "p_matrix: " << std::endl << p_matrix << std::endl;
+    std::cout << "inversed p_matrix: " << std::endl << p_matrix_m1 << std::endl;
+    std::cout << "g12: " << g1 << " " << g2 << std::endl;
+    std::cout << "g34: " << g3 << " " << g4 << std::endl;
+    std::cout << "g56: " << g5 << " " << g6 << std::endl;
+    std::cout << "ws: " << w1 << " " << w2 << " " << w3 << std::endl;
+    std::cout << "delta: " << delta << std::endl;
+    std::cout << "roots: " << x1 << " " << x2 << std::endl;
+#endif
+
+    // check both roots for positivity and causality
+    bool is_x1_acceptable = check_causality_at_root(gp, gq, gr, x1);
+    bool is_x2_acceptable = check_causality_at_root(gp, gq, gr, x2);
+
+    std::cout << "acceptable: " << is_x1_acceptable << " " << is_x2_acceptable << std::endl;
+
+    d = FT_inf;
+    if(is_x1_acceptable)
+      d = x1;
+    if(is_x2_acceptable)
+      d = (std::min)(d, x2);
+
+    return (is_x1_acceptable || is_x2_acceptable);
+  }
+
   FT compute_lambda_intersection(const Grid_point* gp)
   {
     FT lambda = -1.;
@@ -385,7 +551,7 @@ struct Grid_point
       return lambda;
 
     FT gp_d = gp->distance_to_closest_seed;
-    const Eigen::Matrix3d& mp = gp->metric.get_mat(); // fixme extremely unefficient
+    const Eigen::Matrix3d& mp = gp->metric.get_mat();
     const Eigen::Matrix3d& m = metric.get_mat();
 
     const FT me1 = std::sqrt(m(0,0)), me2 = std::sqrt(m(1,1)), me3 = std::sqrt(m(2,2));
@@ -649,7 +815,26 @@ struct Grid_point
                    (gr->state == KNOWN || gr->state == CHANGED));
     bool changed = false;
 
-    // Doing it uglily for now : we sample the face, loop on all the points and take the min
+    FT d = 0.;
+#if 0
+    bool is_3D_optimal = compute_min_distance_3D(gp, gq, gr, d);
+
+    // if false, the solution is actually on one of the faces of the tetrahedron
+    // so we call the 2D...
+    if(!is_3D_optimal)
+    {
+      FT lambda;
+      FT d_f1 = compute_min_distance_2D(gp, gq, lambda);
+      FT d_f2 = compute_min_distance_2D(gp, gr, lambda);
+      FT d_f3 = compute_min_distance_2D(gq, gr, lambda);
+
+      d = (std::min)((std::min)(d_f1, d_f2), d_f3);
+      std::cout << "3D wasn't optimal so 2D was called and found: " << d << std::endl;
+    }
+#endif
+
+#ifdef BRUTE_FORCE_CHECK_OPTIMAL_P
+    // brute force check
     Vector3d v1, v2;
     v1(0) = gq->point.x() - gp->point.x();
     v1(1) = gq->point.y() - gp->point.y();
@@ -658,23 +843,21 @@ struct Grid_point
     v2(1) = gr->point.y() - gp->point.y();
     v2(2) = gr->point.z() - gp->point.z();
 
-    // Ideally it should be a smart solver that minimizes with a gradient etc.
-    // For now, we build a grid on a triangle.
+    // loops originally are :
+    //for(std::size_t ni=0; ni<=pt_n; ni++)
+    //  for(std::size_t nj=0; nj<=pt_n-ni; nj++)
 
     // To parallelize these two loops, we create a single loop and to make it
     // less tedious to count, we create a grid of the parallelogram and
     // then ignore the pts that are outside the triangle (when ni+nj > pt_n)
 
-    //for(std::size_t ni=0; ni<=pt_n; ni++)
-    //  for(std::size_t nj=0; nj<=pt_n-ni; nj++)
-
-    std::size_t pt_n = 10, tot = pt_n*(pt_n+1);
+    std::size_t pt_n = 15, tot = pt_n*(pt_n+1);
     FT increment = 1./static_cast<FT>(pt_n);
-    FT min_d = 1e30;
+    FT min_d = FT_inf;
     std::size_t min_id = 0;
 
     // actually using the parallel version very much slows the code atm.... false sharing ...?
-    //#pragma omp parallel for
+    //#pragma omp parallel for (don't forget the pragma critical if you uncomment here)
     for(std::size_t nij = 0; nij <= tot; ++nij)
     {
       std::size_t ni = nij / (pt_n+1);
@@ -685,8 +868,6 @@ struct Grid_point
 
       FT i = ni * increment;
       FT j = nj * increment;
-
-//      std::cout << "nij: " << nij << " " << ni << " " << nj << " " << i << " " << j << std::endl;
 
       Point_3 p(gp->point.x() + i*v1(0) + j*v2(0),
                 gp->point.y() + i*v1(1) + j*v2(1),
@@ -742,19 +923,21 @@ struct Grid_point
       if(d < min_d)
       {
         min_id = nij;
-        min_d = d;
+        min_d = dp;
       }
-//}
     }
 
-    std::cout << "min 3D; min : " << min_d << " at " << min_id;
+#endif
+    d = min_d;
+
+    std::cout << "min 3D; min : " << d;
     std::cout << " vs current best: " << distance_to_closest_seed << std::endl;
 
     // tolerance to ignore unsignificant changes
-    if(distance_to_closest_seed - min_d > recursive_tolerance * min_d)
+    if(distance_to_closest_seed - d > recursive_tolerance * d)
     {
       changed = true;
-      distance_to_closest_seed = min_d;
+      distance_to_closest_seed = d;
       opt_neighbors[0] = gp;
       opt_neighbors[1] = gq;
       opt_neighbors[2] = gr;
@@ -810,19 +993,19 @@ struct Grid_point
     return adj_n;
   }
 
-  bool compute_closest_seed(const Grid_point* ancestor)
+  bool compute_closest_seed(const Grid_point* anc)
   {
     // returns true if we improved the distance
 
     std::cout << "compute closest high level " << index;
-    std::cout << " with ancestor: " << ancestor->index;
+    std::cout << " with ancestor: " << anc->index;
     bool changed = false;
 
     // get the neighbors of 'this' that are adjacent of ancestor
     // then 4 possible 3D faces: this-ancestor-2 from adj_n
     // if a tet fails, we have two possible 2D faces: this-ancestor-1 from tet
     // if no face is available, then compute 1D: this-ancestor
-    boost::array<const Grid_point*, 4> adj_n = get_adjacent_neighbors(this, ancestor);
+    boost::array<const Grid_point*, 4> adj_n = get_adjacent_neighbors(this, anc);
 
     std::cout << " neighbors: ";
     for(std::size_t i=0; i<4; ++i)
@@ -842,23 +1025,23 @@ struct Grid_point
         if(gq && (gq->state == KNOWN || gq->state == CHANGED))
         {
           // the tet 'this - ancestor - gp - gq'
-          if(compute_closest_seed_3D(ancestor, gp, gq))
+          if(compute_closest_seed_3D(anc, gp, gq))
             changed = true;
         }
         else
         { // the face 'this - ancestor - gp'
-          if(compute_closest_seed_2D(ancestor, gp))
+          if(compute_closest_seed_2D(anc, gp))
               changed = true;
         }
       }
       else if(gq && (gq->state == KNOWN || gq->state == CHANGED))
       { // the face 'this - ancestor - gq'
-        if(compute_closest_seed_2D(ancestor, gq))
+        if(compute_closest_seed_2D(anc, gq))
           changed = true;
       }
       else
       {
-        if(compute_closest_seed_1D(ancestor))
+        if(compute_closest_seed_1D(anc))
           changed = true;
       }
     }
@@ -884,19 +1067,17 @@ struct Grid_point
       if(!gp)
         continue;
 
-//     std::cout << "gp: " << gp->index << " is go, status: " << gp->state << std::endl;
-
 #ifdef USE_RECURSIVE_UPDATES
       if(gp->state == KNOWN || gp->state == CHANGED) // that's the recursive part
       {
         // recompute the distance in the direction gp-'this'
         FT mem = gp->distance_to_closest_seed;
-        std::size_t mem_ancestor = (gp->ancestor)?gp->ancestor->index:-1;
+        std::size_t ancestor_mem = (gp->ancestor)?gp->ancestor->index:-1;
         if(gp->compute_closest_seed(this))
         {
           std::cout << "new value at " << gp->index << " : " << gp->distance_to_closest_seed;
           std::cout << " with ancestor: " << gp->ancestor->index;
-          std::cout << " (mem: " << mem << " ancestor: " << mem_ancestor << ") ";
+          std::cout << " (mem: " << mem << " ancestor: " << ancestor_mem << ") ";
           std::cout << " diff: " << gp->distance_to_closest_seed-mem << std::endl;
           if(gp->state == KNOWN)
           {
@@ -978,14 +1159,15 @@ struct Grid_point
     v(0) = p.x() - point.x();
     v(1) = p.y() - point.y();
     v(2) = p.z() - point.z();
-    FT d = std::sqrt(v.transpose()*metric.get_mat()*v);
+    const Eigen::Matrix3d& m = metric.get_mat();
+    FT d = std::sqrt(v.transpose() * m * v);
     closest_seed_id = seed_id;
     distance_to_closest_seed = d;
     state = TRIAL;
   }
 
   Grid_point(const Point_3& point_, const std::size_t index_)
-    : point(point_), index(index_), distance_to_closest_seed(1e30),
+    : point(point_), index(index_), distance_to_closest_seed(FT_inf),
       closest_seed_id(-1), state(FAR), neighbors(),
       metric(mf->compute_metric(point)), ancestor(NULL), opt_neighbors()
   {
@@ -1156,8 +1338,6 @@ struct Geo_grid
       int index_z = std::floor((p.z()-offset_z)/step);
       Grid_point* gp = &(points[index_z*sq_n + index_y*n + index_x]);
       gp->closest_seed_id = i;
-
-      std::cout << "Color ini: " << gp->index << " with " << i << std::endl;
     }
 
     bool is_kp_empty = known_points.empty();
@@ -1225,7 +1405,7 @@ struct Geo_grid
 
       if(pqs == REBUILD_TRIAL || pqs == REBUILD_BOTH)
         std::make_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
-      else if(pqs == REBUILD_CHANGED || pqs == REBUILD_BOTH)
+      if(pqs == REBUILD_CHANGED || pqs == REBUILD_BOTH)
         std::make_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
 
       is_cp_empty = changed_points.empty();
@@ -1296,12 +1476,14 @@ struct Geo_grid
 
   void refine_grid()
   {
+#if (verbose > 0)
     std::cout << "Refine grid !" << std::endl;
+#endif
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
     std::cerr << "insert: " << best_ref_x << " " << best_ref_y << " " << best_ref_z << std::endl;
     Point_3 p(best_ref_x, best_ref_y, best_ref_z);
-    CGAL_assertion(best_ref_x != 1e30 && best_ref_y != 1e30 && best_ref_z != 1e30);
+    CGAL_assertion(best_ref_x != FT_inf && best_ref_y != FT_inf && best_ref_z != FT_inf);
 #else
     Point_3 p = compute_refinement_point();
 #endif
@@ -1309,7 +1491,7 @@ struct Geo_grid
     refresh_grid_after_new_seed_creation();
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
-    best_ref_x = 1e30; best_ref_y = 1e30; best_ref_z = 1e30;
+    best_ref_x = FT_inf; best_ref_y = FT_inf; best_ref_z = FT_inf;
 #endif
   }
 
@@ -1544,6 +1726,13 @@ struct Geo_grid
 #ifdef TMP_REFINEMENT_UGLY_HACK
     if(dual_tets.empty()) // if no tet-dual exists, take the farthest triangle-dual
     {
+      if(dual_triangles.empty())
+      {
+        std::cerr << "Couldn't find a ref point, need more initial points" << std::endl;
+        output_grid("failed_geo_grid");
+        std::exit(EXIT_FAILURE);
+      }
+
       std::cerr << "WARNING: no tet captured, using back-up" << std::endl;
       best_ref_x = backup->point.x();
       best_ref_y = backup->point.y();
@@ -1620,7 +1809,7 @@ struct Geo_grid
     return is_intersected;
   }
 
-  void output_dual() const
+  void output_dual(const std::string str_base) const
   {
     std::set<Edge> dual_edges;
     std::set<Tri> dual_triangles;
@@ -1632,13 +1821,16 @@ struct Geo_grid
     std::cout << dual_triangles.size() << " triangles, ";
     std::cout << dual_tets.size() << " tets" << std::endl;
 
-    std::ofstream out("geo_grid_dual.mesh");
+    std::ofstream out((str_base + "_dual.mesh").c_str());
+    std::ofstream outbb((str_base + "_dual.bb").c_str());
     out << "MeshVersionFormatted 1" << std::endl;
     out << "Dimension 3" << std::endl;
     out << "Vertices" << std::endl;
     out << seeds.size() << std::endl;
     for(std::size_t i=0; i<seeds.size(); ++i)
       out << seeds[i].x() << " " << seeds[i].y() << " " << seeds[i].z() << " " << i+1 << std::endl;
+
+    outbb << "3 1 " << dual_tets.size() + dual_triangles.size() << " 1" << std::endl;
 
     // TETRAHEDRA
     out << "Tetrahedra" << std::endl;
@@ -1649,6 +1841,25 @@ struct Geo_grid
       for(std::size_t i=0; i<tet.size(); ++i)
         out << tet[i] + 1 << " ";
       out << "1" << std::endl;
+
+      // very inefficient to recompute them every time but whatever
+      const Metric& m0 = mf->compute_metric(seeds[tet[0]]);
+      const Metric& m1 = mf->compute_metric(seeds[tet[1]]);
+      const Metric& m2 = mf->compute_metric(seeds[tet[2]]);
+      const Metric& m3 = mf->compute_metric(seeds[tet[3]]);
+
+      FT gamma01 = m0.compute_distortion(m1);
+      FT gamma02 = m0.compute_distortion(m2);
+      FT gamma03 = m0.compute_distortion(m3);
+      FT gamma12 = m1.compute_distortion(m2);
+      FT gamma13 = m1.compute_distortion(m3);
+      FT gamma23 = m2.compute_distortion(m3);
+
+      FT max_dist = (std::max)((std::max)(gamma01, gamma02), gamma03);
+      max_dist = (std::max)((std::max)(max_dist, gamma12), gamma13);
+      max_dist = (std::max)(max_dist, gamma23);
+
+      outbb << max_dist << std::endl;
     }
 
      // TRIANGLES
@@ -1661,7 +1872,20 @@ struct Geo_grid
       for(std::size_t i=0; i<tr.size(); ++i)
         out << tr[i] + 1 << " ";
       out << is_triangle_intersected(tr, dual_edges) << std::endl;
+
+      // very inefficient to recompute them every time but whatever
+      const Metric& m0 = mf->compute_metric(seeds[tr[0]]);
+      const Metric& m1 = mf->compute_metric(seeds[tr[1]]);
+      const Metric& m2 = mf->compute_metric(seeds[tr[2]]);
+
+      FT gamma01 = m0.compute_distortion(m1);
+      FT gamma02 = m0.compute_distortion(m2);
+      FT gamma12 = m1.compute_distortion(m2);
+
+      FT max_dist = (std::max)((std::max)(gamma01, gamma02), gamma12);
+      outbb << max_dist << std::endl;
     }
+    outbb << "End" << std::endl;
 
     // edges are not printed by medit, so we don't bother...
 
@@ -1694,10 +1918,9 @@ int main(int, char**)
 
   Geo_grid gg;
   gg.build_grid();
-  gg.output_grid("geo_grid_pre");
-  gg.output_dual();
+//  gg.output_grid("geo_grid_2_pre");
+  gg.output_dual("geo_grid_2_pre");
 
-  int n_refine = 20;
   for(int i=0; i<n_refine; ++i)
   {
 #ifndef TMP_REFINEMENT_UGLY_HACK
@@ -1706,15 +1929,16 @@ int main(int, char**)
 
     gg.refine_grid();
     std::ostringstream out;
-    out << "geo_grid_ref_" << i;
-    gg.output_grid(out.str());
-    gg.output_dual();
+    out << "geo_grid_2_ref_" << i;
+//    gg.output_grid(out.str());
+    gg.output_dual(out.str());
   }
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cerr << "End refinement: " << duration << std::endl;
 
-  gg.output_grid("geo_grid");
+  gg.output_grid("geo_grid_2");
+  gg.output_dual("geo_grid_2");
 
   boost::chrono::system_clock::time_point t_end = boost::chrono::system_clock::now();
   boost::chrono::milliseconds t = boost::chrono::duration_cast<boost::chrono::milliseconds> (t_end-t_start);

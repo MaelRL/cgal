@@ -28,6 +28,11 @@ find_package(CGAL COMPONENTS)
 if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
 
+  # Find Boost
+  find_package(Boost COMPONENTS chrono)
+  include_directories(${Boost_INCLUDE_DIRS})
+  link_libraries(${Boost_LIBRARIES})
+
   include( CGAL_CreateSingleSourceCGALProgram )
 
   # Find OpenGL
@@ -42,6 +47,13 @@ if ( CGAL_FOUND )
     include( ${EIGEN3_USE_FILE} )
   endif()
 
+  # use tbb
+  find_package( TBB )
+  if(TBB_FOUND)
+    include(${TBB_USE_FILE})
+    list(APPEND CGAL_3RD_PARTY_LIBRARIES ${TBB_LIBRARIES})
+  endif(TBB_FOUND)
+ 
   # Find LAPACK (optional), for curvatures estimation
   find_package(LAPACK) 
   if(LAPACK_FOUND)
@@ -69,11 +81,10 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("histogram_from_external_mesh.cpp")
   create_single_source_cgal_program("grid_generator.cpp")
   create_single_source_cgal_program("geodesic_grid_generator.cpp")
+  create_single_source_cgal_program("geodesic_grid_generator_2.cpp")
 
   else(LAPACK_FOUND)
-
     message(STATUS "NOTICE: Some of the executables in this directory need the LAPACK library and will not be compiled.")
-
   endif(LAPACK_FOUND)
   
 else()  

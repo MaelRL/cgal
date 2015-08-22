@@ -7,8 +7,6 @@
 
 #include <CGAL/IO/Starset_output.h>
 
-#include <CGAL/helpers/metric_helper.h>
-
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
 

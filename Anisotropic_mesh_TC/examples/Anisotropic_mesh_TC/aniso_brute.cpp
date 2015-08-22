@@ -142,7 +142,6 @@ Matrixd get_metric(const Pointd& p)
   m(1,0) = 0.; m(1,1) = 1.; m(1,2) = 0.;
   m(2,0) = 0.; m(2,1) = 0.; m(2,2) = 1.;
 #endif
-#endif
   return m;
 }
 
@@ -244,28 +243,49 @@ void generate_wpoints(const RTriangulation& rt,
 //  {
 //    double x = 1.+5.*((double) rand() / (RAND_MAX));
 //    double y = 1.+5.*((double) rand() / (RAND_MAX));
-
-  for(int i=1; i<10; ++i)
-    for(int j=1; j<10; ++j)
-    {
-      double x=i;
-      double y=j;
-
+//    double z = 1.+5.*((double) rand() / (RAND_MAX));
+//-----------------------------------------------------------------------------
+//  for(int i=1; i<3; ++i)
+//    for(int j=1; j<3; ++j)
+//    {
+//      double x=i;
+//      double y=j;
+//-----------------------------------------------------------------------------
 //  Eigen::Vector3d xs; xs(0) = -1.; xs(1) = 1.; xs(2) = -1.;
 //  Eigen::Vector3d ys; ys(0) = -1.; ys(1) = -1.; ys(2) = 1.;
 //  for(int i=0; i<3; ++i)
 //  {
 //    double x = xs(i), y = ys(i);
+//-----------------------------------------------------------------------------
 
-      Pointd p;
-      p(0) = x;
-      p(1) = y;
+  std::ifstream in("../../../../Anisotropic_mesh_2/examples/Anisotropic_mesh_2/build/bambimboum.mesh");
+  std::string word;
+  int useless, nv, dim;
+  FT x;
 
-      points.push_back(p);
+  in >> word >> useless; //MeshVersionFormatted i
+  in >> word >> dim; //Dimension d
+  in >> word >> nv;
+  CGAL_assertion(d == dim);
 
-      Weighted_point wp = compute_wpoint(rt, p);
-      wpoints.push_back(wp);
+  std::cout << "input files has " << nv << " vertices" << std::endl;
+  for(int i=0; i<nv; ++i)
+  {
+    Pointd p;
+    for(int j=0; j<d; ++j)
+    {
+      in >> x;
+      p(j) = x;
     }
+    in >> useless; // don't care about the vertex's reference
+
+    points.push_back(p);
+    Weighted_point wp = compute_wpoint(rt, p);
+    wpoints.push_back(wp);
+
+    if(wpoints.size() >= N)
+      break;
+  }
 }
 
 bool is_support_intersecting(const Simplex& fs,
@@ -366,16 +386,16 @@ struct H // hyperplanes describing the dual and error computation
 //std::cout << "eval H. Point: " << s_on_Q.transpose() << std::endl;
 //std::cout << "from init: " << s.transpose() << std::endl;
 
-    Traits t;
-    typename K::Squared_distance_d csd = t.squared_distance_d_object();
-    Bare_point sQp = construct_bp(s_on_Q);
-    for(int i=0; i<(d+1); ++i)
-    {
-      std::size_t id = fs[i];
-      const Weighted_point& wi = wpoints[id];
-      FT di = csd(sQp, wi.point()) - wi.weight();
-//std::cout << "dist² sQp " << id << " : "  << di << std::endl;
-    }
+//    Traits t;
+//    typename K::Squared_distance_d csd = t.squared_distance_d_object();
+//    Bare_point sQp = construct_bp(s_on_Q);
+//    for(int i=0; i<(d+1); ++i)
+//    {
+//      std::size_t id = fs[i];
+//      const Weighted_point& wi = wpoints[id];
+//      FT di = csd(sQp, wi.point()) - wi.weight();
+//      std::cout << "dist² sQp " << id << " : "  << di << std::endl;
+//    }
 
     Vectord ret = Vectord::Zero();
     for(int i=0; i<d; ++i)
@@ -388,7 +408,7 @@ struct H // hyperplanes describing the dual and error computation
         ret(i) += wp0.point()[j]*wp0.point()[j] - wi.point()[j]*wi.point()[j];
       }
       ret(i) += wi.weight() - wp0.weight();
-//std::cout << "ret: " << i << " " << ret(i) << std::endl;
+//      std::cout << "ret: " << i << " " << ret(i) << std::endl;
     }
 
     return ret;
@@ -762,7 +782,7 @@ void compute_restricted_facets(const RTriangulation& rt,
   Finite_vertex_const_iterator vhitend = rt.finite_vertices_end();
   for(; vhit!=vhitend; ++vhit)
   {
-    std::cout << "considering: " << vhit->data() << std::endl;
+    std::cout << "Adding the faces of vertex: " << vhit->data() << std::endl;
 
     // if the metric field is uniform rt.current_dim() = d
     // and we can't use incident_faces()
@@ -789,7 +809,7 @@ void compute_restricted_facets(const RTriangulation& rt,
         faces.push_back(fs);
       }
     }
-    else
+    else // get the faces of dimension d
     {
       std::vector<Face> ffaces;
       std::back_insert_iterator<std::vector<Face> > out(ffaces);
@@ -811,7 +831,7 @@ void compute_restricted_facets(const RTriangulation& rt,
     }
   }
 
-  std::cout << faces.size() << " incident faces" << std::endl;
+  std::cout << faces.size() << " incident faces to consider" << std::endl;
   typename std::vector<Simplex>::iterator it = faces.begin();
   typename std::vector<Simplex>::iterator end = faces.end();
   for(; it!=end; ++it)

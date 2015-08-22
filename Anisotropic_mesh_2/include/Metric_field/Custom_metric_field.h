@@ -60,12 +60,14 @@ public:
     FT l1 = std::sqrt(x1*x1 + y1*y1);
     FT l2 = std::sqrt(x2*x2 + y2*y2);
 
+    CGAL_assertion(l1 != 0. && l2 != 0.);
+
     Vector_2 v1 = (1./l1) * Vector_2(x1, y1);
     Vector_2 v2 = (1./l2) * Vector_2(x2, y2);
     return Metric(v1, v2, l1, l2, this->epsilon);
   }
 
-  Metric yang_liu_cube_shock_1D(const Point_2&p ) const
+  Metric yang_liu_cube_shock_1D(const Point_2& p) const
   {
     double x = p.x();
 

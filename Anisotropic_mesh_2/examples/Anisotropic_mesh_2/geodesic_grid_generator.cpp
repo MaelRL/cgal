@@ -12,6 +12,8 @@
 #include <boost/array.hpp>
 
 #include <iostream>
+#include <limits>
+#include <set>
 #include <vector>
 
 using namespace CGAL::Anisotropic_mesh_2;
@@ -44,7 +46,10 @@ Back_from_exact back_from_exact;
 
 #define FILTER_SEEDS_OUTSIDE_GRID
 #define USE_RECURSIVE_UPDATES
-#define TMP_REFINEMENT_UGLY_HACK
+//#define TMP_REFINEMENT_UGLY_HACK
+
+#define verbose 10
+const FT FT_inf = std::numeric_limits<FT>::infinity();
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
 std::size_t vertices_nv = 3;
@@ -65,8 +70,9 @@ std::vector<Metric> seeds_m;
 // how big of an update the new value needs to be
 FT recursive_tolerance = 1e-15;
 
+int n_refine = 0;
 #ifdef TMP_REFINEMENT_UGLY_HACK
-FT best_ref_x = 1e30, best_ref_y = 1e30;
+FT best_ref_x = FT_inf, best_ref_y = FT_inf;
 #endif
 
 std::clock_t start;
@@ -172,7 +178,8 @@ struct Grid_point
     Vector2d v;
     v(0) = gp->point.x() - point.x();
     v(1) = gp->point.y() - point.y();
-    FT neighbor_d = std::sqrt(v.transpose()*metric.get_mat()*v);
+    const Eigen::Matrix2d& m = metric.get_mat();
+    FT neighbor_d = std::sqrt(v.transpose() * m * v);
     FT dcs_at_gp = gp->distance_to_closest_seed;
     FT d = dcs_at_gp + neighbor_d;
 
@@ -227,7 +234,7 @@ struct Grid_point
     vq(0) = gq->point.x() - point.x();
     vq(1) = gq->point.y() - point.y();
 
-    Eigen::Matrix2d m = metric.get_mat();
+    const Eigen::Matrix2d& m = metric.get_mat();
     const FT vpmvp = vp.transpose() * m * vp;
     const FT vpmvq = vp.transpose() * m * vq;
     const FT vqmvq = vq.transpose() * m * vq;
@@ -615,7 +622,7 @@ struct Grid_point
     std::size_t query_inters = 1e5;
     FT query_step = 1./static_cast<FT>(query_inters);
     FT min_lambda;
-    FT min_d = 1e30;
+    FT min_d = FT_inf;
 
     for(std::size_t i=0; i<=query_inters; ++i)
     {
@@ -647,7 +654,8 @@ struct Grid_point
       Vector2d v;
       v(0) = point.x() - x;
       v(1) = point.y() - y;
-      FT neighbor_d = std::sqrt(v.transpose()*metric.get_mat()*v);
+      const Eigen::Matrix2d& m = metric.get_mat();
+      FT neighbor_d = std::sqrt(v.transpose() * m * v);
       FT d_que = d_at_que + neighbor_d;
       if(d_que < min_d)
       {
@@ -682,14 +690,14 @@ struct Grid_point
     return changed;
   }
 
-  bool compute_closest_seed(const Grid_point* ancestor,
+  bool compute_closest_seed(const Grid_point* anc,
                             const bool ignore_ancestor = false)
   {
     std::cout << "compute closest high level " << index;
     std::cout << " state : " << state;
     std::cout << " dist : " << distance_to_closest_seed;
     std::cout << " color : " << closest_seed_id;
-    std::cout << " ancestor: " << ancestor->index << std::endl;
+    std::cout << " ancestor: " << anc->index << std::endl;
 
     bool changed = false;
     for(std::size_t i=0; i<neighbors.size(); ++i)
@@ -701,13 +709,13 @@ struct Grid_point
       {
         if(gq && (gq->state == KNOWN || gq->state == CHANGED))
         {
-          if(ignore_ancestor || gp == ancestor || gq == ancestor)
+          if(ignore_ancestor || gp == anc || gq == anc)
             if(compute_closest_seed_2D(gp, gq))
               changed = true;
         }
         else // we could do it++ here since we know the next 'it' has gp->state != KNOWN
         {
-          if(ignore_ancestor || gp == ancestor)
+          if(ignore_ancestor || gp == anc)
             if(compute_closest_seed_1D(gp))
               changed = true;
         }
@@ -734,25 +742,22 @@ struct Grid_point
       if(!gp)
         continue;
 
-//      std::cout << "gp: " << gp->index << " is go, status: " << gp->state << std::endl;
-
 #ifdef USE_RECURSIVE_UPDATES
       if(gp->state == KNOWN || gp->state == CHANGED) // that's the recursive part
       {
         // recompute the distance in the direction gp-'this'
         FT mem = gp->distance_to_closest_seed;
-        std::size_t mem_ancestor = (gp->ancestor)?gp->ancestor->index:-1;
+        std::size_t ancestor_mem = (gp->ancestor)?gp->ancestor->index:-1;
         if(gp->compute_closest_seed(this))
         {
           std::cout.precision(17);
           std::cout << "new value at " << gp->index << " : " << gp->distance_to_closest_seed;
           std::cout << " with ancestor: " << gp->ancestor->index;
-          std::cout << " (mem: " << mem << " ancestor: " << mem_ancestor << ") ";
+          std::cout << " (mem: " << mem << " ancestor: " << ancestor_mem << ") ";
           std::cout << " diff: " << gp->distance_to_closest_seed-mem << std::endl;
           if(gp->state == KNOWN)
           {
-            // if it's already changed we only need to reorder the changed queue
-            std::cout << "and inserting it" << std::endl;
+            // if it's already CHANGED we only need to reorder the CHANGED queue
             gp->state = CHANGED;
             changed_pq.push_back(gp);
             std::push_heap(changed_pq.begin(), changed_pq.end(), Grid_point_comparer<Grid_point>());
@@ -828,14 +833,15 @@ struct Grid_point
     Vector2d v;
     v(0) = p.x() - point.x();
     v(1) = p.y() - point.y();
-    FT d = std::sqrt(v.transpose()*metric.get_mat()*v);
+    const Eigen::Matrix2d& m = metric.get_mat();
+    FT d = std::sqrt(v.transpose() * m * v);
     closest_seed_id = seed_id;
     distance_to_closest_seed = d;
     state = TRIAL;
   }
 
   Grid_point(const Point_2& point_, const std::size_t index_)
-    : point(point_), index(index_), distance_to_closest_seed(1e30),
+    : point(point_), index(index_), distance_to_closest_seed(FT_inf),
       closest_seed_id(-1), state(FAR), neighbors(),
       metric(mf->compute_metric(point)), ancestor(NULL), opt_neighbors()
   {
@@ -875,9 +881,8 @@ struct Geo_grid
       std::cerr << " of a grid point! previous index is: " << gp->closest_seed_id << std::endl;
     }
 
-    // if gp is found the same for 2 different initial points, then your grid
-    // is not dense enough...
-
+    if(gp->state == TRIAL) // it's already a trial point, we can't accept two seeds for one grid pt
+      CGAL_assertion(false && "the grid is not dense enough for the input...");
     gp->initialize_from_point(p, seed_id);
 
     trial_points.push_back(gp);
@@ -1016,8 +1021,6 @@ struct Geo_grid
       int index_y = std::floor((p.y()-offset_y)/step);
       Grid_point* gp = &(points[index_y*n + index_x]);
       gp->closest_seed_id = i;
-
-      std::cout << "Color ini: " << gp->index << " with " << i << std::endl;
     }
 
     bool is_kp_empty = known_points.empty();
@@ -1045,20 +1048,18 @@ struct Geo_grid
     Grid_point* gp;
     while(!is_cp_empty || !is_t_empty)
     {
-      std::cout << " ------------------------------------------------------- " << std::endl;
       std::cout << "Queue sizes. Trial: " << trial_points.size() << " Changed: " << changed_points.size() << std::endl;
+      std::cout << "changed heap: " << std::endl;
+      for (std::vector<Grid_point*>::iterator it = changed_points.begin();
+           it != changed_points.end(); ++it)
+        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
+      std::cout << std::endl;
 
-//      std::cout << "changed heap: " << std::endl;
-//      for (std::vector<Grid_point*>::iterator it = changed_points.begin();
-//           it != changed_points.end(); ++it)
-//        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
-//      std::cout << std::endl;
-
-//      std::cout << "trial heap: " << std::endl;
-//      for (std::vector<Grid_point*>::iterator it = trial_points.begin();
-//           it != trial_points.end(); ++it)
-//        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
-//      std::cout << std::endl;
+      std::cout << "trial heap: " << std::endl;
+      for (std::vector<Grid_point*>::iterator it = trial_points.begin();
+           it != trial_points.end(); ++it)
+        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
+      std::cout << std::endl;
 
       if(!is_cp_empty)
       {
@@ -1085,7 +1086,7 @@ struct Geo_grid
 
       if(pqs == REBUILD_TRIAL || pqs == REBUILD_BOTH)
         std::make_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
-      else if(pqs == REBUILD_CHANGED || pqs == REBUILD_BOTH)
+      if(pqs == REBUILD_CHANGED || pqs == REBUILD_BOTH)
         std::make_heap(changed_points.begin(), changed_points.end(), Grid_point_comparer<Grid_point>());
 
       is_cp_empty = changed_points.empty();
@@ -1138,8 +1139,19 @@ struct Geo_grid
     return Point_2();
   }
 
-  void refresh_grid_after_new_seed_creation()
+  void refresh_grid_point_states()
   {
+    CGAL_assertion(trial_points.empty());
+    for(std::size_t i=0; i<points.size(); ++i)
+      points[i].state = FAR;
+  }
+
+  void refresh_grid_after_seed_creation()
+  {
+    // todo change this function so that we can insert multiple points at once
+
+    refresh_grid_point_states();
+
     std::size_t seed_id = seeds.size() - 1;
     const Point_2& p = seeds.back();
     locate_and_initialize(p, seed_id);
@@ -1151,15 +1163,15 @@ struct Geo_grid
 #ifdef TMP_REFINEMENT_UGLY_HACK
     std::cout << "insert: " << best_ref_x << " " << best_ref_y << std::endl;
     Point_2 p(best_ref_x, best_ref_y);
-    CGAL_assertion(best_ref_x != 1e30 && best_ref_y != 1e30);
+    CGAL_assertion(best_ref_x != FT_inf && best_ref_y != FT_inf);
 #else
     Point_2 p = compute_refinement_point();
 #endif
     vertices_nv = insert_new_seed(p.x(), p.y());
-    refresh_grid_after_new_seed_creation();
+    refresh_grid_after_seed_creation();
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
-    best_ref_x = 1e30; best_ref_y = 1e30;
+    best_ref_x = FT_inf; best_ref_y = FT_inf;
 #endif
   }
 
@@ -1293,12 +1305,14 @@ struct Geo_grid
         Edge e; e[0] = *it; e[1] = (*++it);
         dual_edges.insert(e);
 
+#ifdef TMP_REFINEMENT_UGLY_HACK
         if(dual_triangles.empty() && gp.distance_to_closest_seed > back_up_farthest)
         {
           // this is just in case we don't find any triangle...
           back_up_farthest = gp.distance_to_closest_seed;
           backup = &gp;
         }
+#endif
       }
       else if(dual_simplex.size() >= 3)
       {
@@ -1338,7 +1352,7 @@ struct Geo_grid
 #endif
   }
 
-  void output_dual() const
+  void output_dual(const std::string str_base) const
   {
     std::set<Edge> dual_edges;
     std::set<Tri> dual_triangles;
@@ -1348,7 +1362,7 @@ struct Geo_grid
     std::cout << dual_edges.size() << " edges, ";
     std::cout << dual_triangles.size() << " triangles" << std::endl;
 
-    std::ofstream out("geo_grid_dual.mesh");
+    std::ofstream out((str_base + "_dual.mesh").c_str());
     out << "MeshVersionFormatted 1" << std::endl;
     out << "Dimension 2" << std::endl;
     out << "Vertices" << std::endl;
@@ -1379,6 +1393,12 @@ void initialize()
 
   vertices_nv = build_seeds();
   CGAL_assertion(vertices_nv > 0 && "No seed in domain..." );
+
+#ifdef TMP_REFINEMENT_UGLY_HACK
+  CGAL_assertion(n_refine > 0 && "don't enable the macro if you're not refining...");
+  if(vertices_nv < 2)
+    CGAL_assertion(false && "can't refine from a 1 seed diagram...");
+#endif
 }
 
 int main(int, char**)
@@ -1395,20 +1415,19 @@ int main(int, char**)
   Geo_grid gg;
   gg.build_grid();
   gg.output_grid("geo_grid_pre");
-  gg.output_dual();
+  gg.output_dual("geo_grid_pre");
 
-  int n_refine = 50;
   for(int i=0; i<n_refine; ++i)
   {
     gg.refine_grid();
     std::ostringstream out;
-    out << "geo_grid_ref_" << i;
+    out << "geo_grid_ref" << i;
     gg.output_grid(out.str());
-    gg.output_dual();
+    gg.output_dual(out.str());
   }
 
   gg.output_grid("geo_grid");
-  gg.output_dual();
+  gg.output_dual("geo_grid");
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cerr << "dur: " << duration << std::endl;
