@@ -26,7 +26,7 @@ public:
   double& c() { return m_c; }
 
 public:
-  virtual Metric compute_metric(const Point_3 &p) const
+  virtual Metric compute_metric(const Point_3&) const
   {
     return this->build_metric(Vector_3(1, 0, 0),
                               Vector_3(0, 1, 0),
@@ -45,7 +45,7 @@ public:
                          const double& b = 1.,
                          const double& c = 1.,
                          FT epsilon_ = 1e-6,
-                         const double& en_factor = 1.)
+                         const double en_factor = 1.)
   : Metric_field<K>(epsilon_, en_factor), m_a(a), m_b(b), m_c(c) { }
 };
 

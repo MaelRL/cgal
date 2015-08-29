@@ -238,9 +238,9 @@ public:
     return SUITABLE_POINT;
   }
 
-  bool test_point_conflict_from_superior_(const Point_3& p,
-                                          const bool is_queue_updated = true,
-                                          const bool need_picking_valid = false) const
+  bool test_point_conflict_from_superior_(const Point_3& /*p*/,
+                                          const bool /*is_queue_updated*/ = true,
+                                          const bool /*need_picking_valid*/ = false) const
   {
     return false; //not used atm, but it would be [return (dist(tp, tc) < dist(tc, tv0))]
   }

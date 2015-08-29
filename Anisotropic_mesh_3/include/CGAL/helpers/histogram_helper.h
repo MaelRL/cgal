@@ -178,7 +178,7 @@ void facet_histogram(const Starset& stars,
   typedef typename Starset::Facet Facet;
   typedef typename Starset::Star_handle Star_handle;
 
-  int divisions = 100;
+  std::size_t divisions = 100;
   std::vector<int> histogram(divisions + 1, 0);
   int count = 0;
   FT max = -1e10, min = 1e10, sum = 0.;
@@ -318,7 +318,7 @@ void facet_histogram(const Starset& stars,
 
   if(verbose)
   {
-    for(unsigned int i = 0; i<divisions; i++)
+    for(std::size_t i = 0; i<divisions; i++)
     {
       double inf = ((double) i)/((double) divisions)*max_val;
       double sup = ((double) i+1)/((double) divisions)*max_val;
@@ -708,8 +708,7 @@ void facet_edge_length_histogram(const Starset& stars,
 
 template<typename Starset, typename Criteria>
 void cell_edge_length_histogram(const Starset& stars,
-                                const Criteria* const criteria,
-                                const bool verbose = false)
+                                const Criteria* const criteria)
 {
   typedef typename Starset::FT FT;
 
@@ -815,7 +814,7 @@ void all_cell_histograms(const Starset& stars,
   cell_histogram(stars, m_criteria, CELL_ANGLE, verbose);
   dihedral_angle_histogram(stars, verbose);
 
-  cell_edge_length_histogram(stars, m_criteria, verbose);
+  cell_edge_length_histogram(stars, m_criteria);
 }
 
 } //namespace Aniso

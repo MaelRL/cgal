@@ -1906,7 +1906,7 @@ public:
 
     Vertex_handle_handle vit = finite_adjacent_vertices_begin();
     Vertex_handle_handle vend = finite_adjacent_vertices_end();
-    if(vend-vit == nbv-1) // -1 due to center
+    if(static_cast<std::size_t>(vend-vit) == nbv-1) // -1 due to center
       return 0; // all the vertices are already adjacent
 
 /*

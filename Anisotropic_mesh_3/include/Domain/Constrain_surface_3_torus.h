@@ -10,7 +10,7 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K>
-class Constrain_surface_3_torus : public Constrain_surface_3_implicit<K> 
+class Constrain_surface_3_torus : public Constrain_surface_3_implicit<K>
 {
 public:
   typedef Constrain_surface_3_implicit<K>            Base;
@@ -27,7 +27,7 @@ public:
   void set_R(const FT& rr) { R = rr; }
   FT get_r() const { return r; }
   FT get_R() const { return R; }
-  
+
   virtual std::string name() const
   {
     std::ostringstream o;
@@ -39,8 +39,8 @@ public:
 
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    typedef typename CGAL::Bbox_3 Bbox; 
-    return Bbox(-(R+r)*1.01, -(R+r)*1.01, -r*1.01, 
+    typedef typename CGAL::Bbox_3 Bbox;
+    return Bbox(-(R+r)*1.01, -(R+r)*1.01, -r*1.01,
                  (R+r)*1.01,  (R+r)*1.01,  r*1.01);
   }
 
@@ -65,12 +65,12 @@ public:
       return CGAL::ON_ORIENTED_BOUNDARY;
   }
 
-  Point_container initial_points(const int nb = 40) const 
+  Point_container initial_points(const int nb = 40) const
   {
     Point_container points;
     std::vector<Point_3> seeds;
     int nb_per_small_circle = 5; // 5 vertices are enough for one small circle
-    int nb_per_large_circle = (int)std::ceil(nb / (nb_per_small_circle + 0.)); 
+    int nb_per_large_circle = (int)std::ceil(nb / (nb_per_small_circle + 0.));
 
     CGAL::Random random;
     FT angle_i = (2. * CGAL_PI / nb_per_small_circle);
@@ -94,7 +94,7 @@ public:
       return Base::initial_points(points,seeds, 0.05, nb);
   }
 
-  Point_3 point_on_surface(const FT& u/*small circle*/, 
+  Point_3 point_on_surface(const FT& u/*small circle*/,
                            const FT& v/*big circle*/) const
   {
     FT x = (R + r * std::cos(u)) * std::cos(v);
@@ -104,16 +104,16 @@ public:
   }
 
   Constrain_surface_3_torus* clone() const // Covariant Return Types
-  { 
-    return new Constrain_surface_3_torus(*this); 
+  {
+    return new Constrain_surface_3_torus(*this);
   }
 
-  Constrain_surface_3_torus(FT R_ = 0.7, FT r_ = 0.3) 
+  Constrain_surface_3_torus(FT R_ = 0.7, FT r_ = 0.3)
     : R(R_), r(r_) {}
 
   Constrain_surface_3_torus(const Constrain_surface_3_torus& t)
-    : R(t.R), r(t.r) {}
-  
+    : Base(), R(t.R), r(t.r) {}
+
   ~Constrain_surface_3_torus() { }
 };
 

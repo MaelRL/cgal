@@ -1538,7 +1538,7 @@ public:
       std::cout << "Conflict zones unknown at insertion time...insert()" << std::endl;
 
     Index id = insert_to_stars(p, conditional);
-    if(id < 0 || id < (int) number_of_stars())
+    if(id < 0 || id < static_cast<int>(number_of_stars()))
       return id;
 
     Star_handle star;
@@ -1547,7 +1547,7 @@ public:
     else
       star = create_inside_star(p, id);
 
-    if(star->index_in_star_set() != number_of_stars())
+    if(star->index_in_star_set() != static_cast<Index>(number_of_stars()))
       std::cout << "WARNING in insert..." << std::endl;
 
     if(conditional)
@@ -1612,7 +1612,7 @@ protected:
     std::vector<Point_3> poles_v;
     std::copy(poles.begin(), poles.end(), std::back_inserter(poles_v));
     std::random_shuffle(poles_v.begin(), poles_v.end());
-    poles_v.resize(std::min((std::size_t) 150, poles_v.size()));
+    poles_v.resize(std::min(static_cast<std::size_t>(150), poles_v.size()));
     //-------------------------------------------------------------------------
 
 #ifdef ANISO_VERBOSE
@@ -1674,11 +1674,10 @@ protected:
       if(nbdone > 0 && nbdone % 100 == 0)
         clean_stars();
 
-      std::size_t this_id = this->m_starset.size();
-      int id = -1;
+      Index this_id = static_cast<int>(this->m_starset.size());
 
       //if(m_refinement_condition(*pi)) TODO
-      id = insert(*pi, false/*under no condition*/, true/*surface point*/);
+      Index id = insert(*pi, false/*under no condition*/, true/*surface point*/);
 
       if(this_id == id)
         nbdone++;

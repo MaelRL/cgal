@@ -1014,7 +1014,7 @@ private:
     typename std::map<Facet_ijk, int>::iterator itf;
     for(itf = facets.begin(); itf != facets.end(); itf++)
     {
-      std::size_t nmax = this->m_starset.size();
+      Index nmax = static_cast<Index>(this->m_starset.size());
       if( (*itf).second != 3) // the face is not there 3 times
       {
         if((*itf).first.is_infinite()) // should not happen

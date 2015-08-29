@@ -258,7 +258,7 @@ public:
       return Object_3();
   }
 
-  Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3& ref) const
+  Object_3 intersection(const Point_3 &p0, const Point_3 &p1, const Point_3&) const
   {
     Point_3 lp = p0, rp = p1, mp = CGAL::midpoint(p0, p1);
     Oriented_side lv = side_of_constraint(lp);

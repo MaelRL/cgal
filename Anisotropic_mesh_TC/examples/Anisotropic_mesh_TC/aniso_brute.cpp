@@ -590,7 +590,7 @@ bool newton(const Simplex& fs,
 //std::cout << "new jacobian determinant : " << jac.determinant() << std::endl;
   }
 
-  if(count==max)
+  if(count == max)
   {
     std::cout << "didn't converge in " << max << " iterations" << std::endl;
     return false;

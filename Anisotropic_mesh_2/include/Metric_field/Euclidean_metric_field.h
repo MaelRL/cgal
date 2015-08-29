@@ -43,7 +43,8 @@ public:
                          const double& b = 1.,
                          FT epsilon_ = 1e-6)
   :
-    Metric_field<K>(epsilon_), m_a(a), m_b(b) { }
+    Metric_field<K>(epsilon_), m_a(a), m_b(b)
+  { }
 };
 
 } // Anisotropic_mesh_2

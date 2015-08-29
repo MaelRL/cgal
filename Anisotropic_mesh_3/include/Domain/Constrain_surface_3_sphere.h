@@ -24,7 +24,7 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K>
-class Constrain_surface_3_sphere : public Constrain_surface_3_implicit<K> 
+class Constrain_surface_3_sphere : public Constrain_surface_3_implicit<K>
 {
 public:
   typedef Constrain_surface_3_implicit<K> Base;
@@ -33,7 +33,7 @@ public:
   typedef typename Base::Point_3          Point_3;
 
 public:
-  virtual std::string name() const { return std::string("Implicit sphere"); } 
+  virtual std::string name() const { return std::string("Implicit sphere"); }
 
   virtual FT get_bounding_radius() const { return 1.1; }
 
@@ -42,12 +42,12 @@ public:
     return CGAL::Bbox_3(-1.1, -1.1, -1.1, 1.1, 1.1, 1.1);
   }
 
-  FT evaluate(const FT x, const FT y, const FT z) const 
+  FT evaluate(const FT x, const FT y, const FT z) const
   {
     return x * x + y * y + z * z - 1.0;
   }
 
-  Point_container initial_points(const int nb = 8) const 
+  Point_container initial_points(const int) const
   {
     Point_container points;
     std::vector<Point_3> seeds;
@@ -72,12 +72,12 @@ public:
 
   Constrain_surface_3_sphere* clone() const // Covariant Return Types
     // see http://www.parashift.com/c++-faq-lite/virtual-functions.html
-  { 
-    return new Constrain_surface_3_sphere(*this); 
+  {
+    return new Constrain_surface_3_sphere(*this);
   }
 
   Constrain_surface_3_sphere() { }
-  Constrain_surface_3_sphere(const Constrain_surface_3_sphere& s) {}
+  Constrain_surface_3_sphere(const Constrain_surface_3_sphere&) : Base() {}
   ~Constrain_surface_3_sphere() { }
 };
 

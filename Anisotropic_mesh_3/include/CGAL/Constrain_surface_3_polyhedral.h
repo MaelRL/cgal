@@ -259,7 +259,7 @@ public:
 
   void find_nearest_vertices(Vertex_handle v,
                              std::vector<Vertex_handle>& points,
-                             int count,
+                             std::size_t count,
                              const double max_sqd = 0.) const
   {
     std::set<Vertex_handle> visited;
@@ -305,7 +305,7 @@ public:
 
   inline void find_nearest_vertices_kanle(Vertex_handle v,
                                           std::vector<Vertex_handle>& points,
-                                          int count)
+                                          std::size_t count)
   {
     const Point_3& p = v->point();
     FT dist = nearest_start_try_radius;

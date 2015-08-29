@@ -3,6 +3,8 @@
 
 #include <CGAL/Metric_field.h>
 
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+
 namespace CGAL
 {
 namespace Anisotropic_mesh_3
@@ -194,7 +196,7 @@ public:
   }
 
 public:
-  Custom_metric_field(FT epsilon_ = 1e-6, FT en_factor = 0.999)
+  Custom_metric_field(FT epsilon_ = 1e-6, FT en_factor = 1.)
   : Metric_field<K>(epsilon_, en_factor) { }
 };
 

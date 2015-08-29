@@ -11,10 +11,6 @@
 // This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
 // WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-//#define ANISO_USE_INSIDE_EXACT
-//#define ANISO_DEBUG
-#define ANISO_VERBOSE
-
 #include <CGAL/Default_configuration.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
