@@ -1,3 +1,5 @@
+// Voronoi painters for simple anisotropic distances (Du/Wang, Labelle/Shewchuk, etc.)
+
 #include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_3.h>
 
@@ -645,11 +647,11 @@ void insert_simplex_if_colored(const std::size_t i0, const std::size_t i1,
   }
 }
 
-void output_smart_grid_points(std::ofstream& out_pts,
-                              std::ofstream& out_bb,
-                              std::size_t offset,
-                              const std::vector<Point_3>& points,
-                              const std::vector<std::size_t>& values)
+void output_adapted_grid_points(std::ofstream& out_pts,
+                                std::ofstream& out_bb,
+                                std::size_t offset,
+                                const std::vector<Point_3>& points,
+                                const std::vector<std::size_t>& values)
 {
   // we're adding new pts to existing points thus we add an offset
   CGAL_assertion(points.size() == values.size());
@@ -664,9 +666,9 @@ void output_smart_grid_points(std::ofstream& out_pts,
   }
 }
 
-void output_smart_grid_tets(std::ofstream& out_tets,
-                            std::size_t offset,
-                            const std::list<Cube>& final_cubes)
+void output_adapted_grid_tets(std::ofstream& out_tets,
+                              std::size_t offset,
+                              const std::list<Cube>& final_cubes)
 {
   // output the cube set (transformed into a triangulation)
   // the tets have LOCAL coordinates, so we need to add an offset
@@ -689,15 +691,15 @@ void output_smart_grid_tets(std::ofstream& out_tets,
   }
 }
 
-void smart_grid(const bool output_grid = false)
+void adapted_grid(const bool output_grid = false)
 {
-  std::ofstream out("smart_grid.mesh");
-  std::ofstream out_bb("smart_grid.bb");
+  std::ofstream out("adapted_grid.mesh");
+  std::ofstream out_bb("adapted_grid.bb");
 
   std::size_t grid_nv = 0., grid_ntet = 0., glob_offset = 0.;
 
-  // idea is to create some kind of octree and refine a square
-  // if its four corners don't have all the same colors (and it's not too small)
+  // idea is to create some kind of octree and refine a cube
+  // if its eight corners don't have all the same colors (and it's not too small)
   FT min_vol = grid_side*grid_side*grid_side*1e-7;
   FT max_vol = grid_side*grid_side*grid_side*1e-3;
 
@@ -724,11 +726,11 @@ void smart_grid(const bool output_grid = false)
 
   Cube c0(0, 1, 2, 3, 4, 5, 6, 7);
 
-// SPLIT AND GO PARALLEL
+// SPLIT
   split_cube(c0, initial_cubes, values, points);
 
-  // remark: we have obvious (small) redundancy in the points of the grid
-  // coming from the borders of each region but it should not create any issue
+  // remark: there is an obvious (small) redundancy in the points of the grid
+  // coming from the borders of each region but it does not create any issue
   // (and it's simpler to do it that way... :^) )
 
   omp_set_num_threads(8);
@@ -824,7 +826,7 @@ void smart_grid(const bool output_grid = false)
 #pragma omp flush(grid_nv)
     local_offset = glob_offset;
     std::cout << "loc off " << glob_offset << " @ " << thread_ID << std::endl;
-    output_smart_grid_points(out, out_bb, local_offset, local_points, local_values);
+    output_adapted_grid_points(out, out_bb, local_offset, local_points, local_values);
 
     //increment the offset for the next thread
     glob_offset += local_values.size();
@@ -843,9 +845,9 @@ void smart_grid(const bool output_grid = false)
 
 #pragma omp critical // print the tetrahedra
 {
-    output_smart_grid_tets(out, local_offset, local_final_cubes);
+    output_adapted_grid_tets(out, local_offset, local_final_cubes);
 
-    //clears shouldn't be needed anymore...
+    //locals shouldn't be needed anymore...
     local_points.clear(); local_final_cubes.clear(); local_values.clear();
     std::cout << "Output done for thread " << thread_ID << std::endl;
 }
@@ -933,7 +935,7 @@ void build_grid()
   simplices.clear();
 
 //  full_grid();
-  smart_grid(true);
+  adapted_grid(true);
 
   output_dual(true);
 }
@@ -951,7 +953,7 @@ int main(int, char**)
   {
     std::cout << "refine: " << i << std::endl;
     simplices.clear();
-    smart_grid(i == (n_refine-1) /* output the grid*/);
+    adapted_grid(i == (n_refine-1) /* output the grid*/);
     output_dual(i == (n_refine-1)  /*compute the self intersections*/);
   }
 
