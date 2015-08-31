@@ -154,9 +154,9 @@ struct Grid_point
 
   Point_2 point;
   std::size_t index;
-  mutable FT distance_to_closest_seed;
-  mutable std::size_t closest_seed_id;
-  mutable  FMM_state state;
+  FT distance_to_closest_seed;
+  std::size_t closest_seed_id;
+  FMM_state state;
   Neighbors neighbors; // 4 neighbors ORDERED (left, up, right, down)
                        // if no neighbor (borders for example) then NULL
   Metric metric;
@@ -787,10 +787,13 @@ struct Grid_point
       else // gp->state == FAR
       {
         CGAL_assertion(gp->state == FAR);
-        gp->compute_closest_seed(this); // always returns true here so no need to test it
-        gp->state = TRIAL;
-        trial_pq.push_back(gp);
-        std::push_heap(trial_pq.begin(), trial_pq.end(), Grid_point_comparer<Grid_point>());
+        if(gp->compute_closest_seed(this))
+        {
+          gp->state = TRIAL;
+          trial_pq.push_back(gp);
+          std::push_heap(trial_pq.begin(), trial_pq.end(),
+                                             Grid_point_comparer<Grid_point>());
+        }
       }
     }
 
@@ -828,7 +831,7 @@ struct Grid_point
   }
 
   void initialize_from_point(const Point_2& p,
-                             const std::size_t seed_id) const
+                             const std::size_t seed_id)
   {
     Vector2d v;
     v(0) = p.x() - point.x();
@@ -838,6 +841,7 @@ struct Grid_point
     closest_seed_id = seed_id;
     distance_to_closest_seed = d;
     state = TRIAL;
+    ancestor = NULL;
   }
 
   Grid_point(const Point_2& point_, const std::size_t index_)

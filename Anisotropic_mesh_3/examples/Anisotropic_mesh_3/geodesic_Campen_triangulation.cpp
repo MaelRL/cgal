@@ -47,7 +47,7 @@ public:
   bool compute_closest_seed(const Base* anc)
   {
     // returns true if we improved the distance
-    CGAL_assertion(anc->state == KNOWN);
+    CGAL_assertion(anc && anc->state == KNOWN);
 
     const int k = 8; // depth of the ancestor edge
     FT d = FT_inf;
@@ -70,6 +70,7 @@ public:
       ancestor_edge(1) = this->point.y() - curr_ancestor->point.y();
       ancestor_edge(2) = this->point.z() - curr_ancestor->point.z();
       FT ancestor_edge_length = ancestor_edge.norm();
+      CGAL_assertion(ancestor_edge_length > 1e-16);
       Vector3d normalized_anc_edge = ancestor_edge / ancestor_edge_length;
 
       // compute the distance for the current depth (i)
@@ -152,12 +153,21 @@ public:
       else // cp->state == FAR
       {
         CGAL_assertion(cp->state == FAR);
-        cp->compute_closest_seed(this); // always returns true here so no need to test it
-        cp->state = TRIAL;
-        trial_pq.push_back(cp);
-        std::push_heap(trial_pq.begin(), trial_pq.end(),
-                       Canvas_point_comparer<Campen_canvas_point>());
+
+        // note that cp->distance_to_closest_seed is not necessarily FT_inf here :
+        // if we're refining, we've assigned FAR to all points after inserting a new
+        // seed, therefore we must verify that compute_closest_seed is an update
+        // before inserting it in the trial_queue
+        if(cp->compute_closest_seed(this))
+        {
+          CGAL_assertion(cp->distance_to_closest_seed != FT_inf);
+          cp->state = TRIAL;
+          trial_pq.push_back(cp);
+          std::push_heap(trial_pq.begin(), trial_pq.end(),
+                         Canvas_point_comparer<Campen_canvas_point>());
+        }
       }
+      CGAL_assertion(cp->distance_to_closest_seed != FT_inf);
     }
     return pqs_ret;
   }

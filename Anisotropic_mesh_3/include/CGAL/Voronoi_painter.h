@@ -441,11 +441,12 @@ public:
   }
 
   void initialize_from_point(const FT d,
-                             const std::size_t seed_id) const
+                             const std::size_t seed_id)
   {
     closest_seed_id = seed_id;
     distance_to_closest_seed = d;
     state = TRIAL;
+    ancestor = NULL;
   }
 
   Canvas_point() { }

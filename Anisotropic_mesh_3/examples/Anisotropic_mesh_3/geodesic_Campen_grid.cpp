@@ -153,11 +153,18 @@ public:
       else // cp->state == FAR
       {
         CGAL_assertion(cp->state == FAR);
-        cp->compute_closest_seed(this); // always returns true here so no need to test it
-        cp->state = TRIAL;
-        trial_pq.push_back(cp);
-        std::push_heap(trial_pq.begin(), trial_pq.end(),
-                       Canvas_point_comparer<Campen_canvas_point>());
+
+        // note that cp->distance_to_closest_seed is not necessarily FT_inf here :
+        // if we're refining, we've assigned FAR to all points after inserting a new
+        // seed, therefore we must verify that compute_closest_seed is an update
+        // before inserting it in the trial_queue
+        if(cp->compute_closest_seed(this))
+        {
+          cp->state = TRIAL;
+          trial_pq.push_back(cp);
+          std::push_heap(trial_pq.begin(), trial_pq.end(),
+                         Canvas_point_comparer<Campen_canvas_point>());
+        }
       }
     }
     return pqs_ret;
