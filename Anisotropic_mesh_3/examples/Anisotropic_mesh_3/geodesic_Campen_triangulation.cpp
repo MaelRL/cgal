@@ -44,9 +44,19 @@ public:
   Neighbors neighbors;
 
   // this function is the heart of the painter
-  bool compute_closest_seed(const Base* anc)
+  bool compute_closest_seed(const Base* anc,
+                            const bool verb = true)
   {
     // returns true if we improved the distance
+
+#if (verbose > 15)
+    std::cout << "------------------------------------------------" << std::endl;
+    std::cout << "compute closest seed for : " << this->index;
+    std::cout << " (" << this->point.x() << " " << this->point.y() << " " << this->point.z() << ") ";
+    std::cout << "curr. dist: " << this->distance_to_closest_seed;
+    std::cout << " anc: " << anc->index << " & ancdist: " << anc->distance_to_closest_seed << std::endl;
+#endif
+
     CGAL_assertion(anc && anc->state == KNOWN);
 
     const int k = 8; // depth of the ancestor edge
@@ -62,6 +72,10 @@ public:
     const Base* curr_ancestor = anc;
     for(int i=1; i<=k; ++i)
     {
+#if (verbose > 25)
+      std::cout << "current ancestor: " << curr_ancestor->index << std::endl;
+#endif
+
       // add the new segment to the ancestor path
       ancestor_path[i] = curr_ancestor;
 
@@ -100,12 +114,23 @@ public:
         FT l = transformed_curr_edge.norm(); // length of the normalized anc edge in the metric
 
         dist_to_ancestor += sp * l;
+#if (verbose > 30)
+        std::cout << "e0: " << e0->point << " e1: " << e1->point << std::endl;
+        std::cout << "normalized_anc_edge: " << normalized_anc_edge.transpose() << std::endl;
+        std::cout << "metrics:" << std::endl << m0.get_mat() << std::endl << m1.get_mat() << std::endl;
+        std::cout << "transf edge: " << transformed_curr_edge.transpose() << std::endl;
+        std::cout << "dist_to_anc building: " << dist_to_ancestor << " " << sp << " " << l << std::endl;
+#endif
       }
       dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);
 
       // add ancestor edge length to the distance at that ancestor
       FT dist_at_anc = curr_ancestor->distance_to_closest_seed;
       FT new_d = dist_at_anc + dist_to_ancestor;
+
+#if (verbose > 25)
+      std::cout << "newd: " << new_d << " " << dist_at_anc << " " << dist_to_ancestor << std::endl;
+#endif
 
       if(new_d < d)
         d = new_d;
@@ -116,8 +141,24 @@ public:
       curr_ancestor = curr_ancestor->ancestor;
     }
 
+#if (verbose > 20)
+    std::cout << "distance with that anc: " << d << std::endl;
+#endif
+
     if(d < this->distance_to_closest_seed)
     {
+      if(verb)
+      {
+        std::cout << "improving distance at " << this->index << " "
+                  << " from: " << this->distance_to_closest_seed
+                  << " to " << d << std::endl;
+        if(this->ancestor)
+          std::cout << "prev anc: " << this->ancestor->index << " dist: " << this->ancestor->distance_to_closest_seed << std::endl;
+        else
+          std::cout << "no prev anc" << std::endl;
+        std::cout << "new anc: " << anc->index << " dist: " << anc->distance_to_closest_seed << std::endl;
+      }
+
       this->ancestor = anc;
       this->distance_to_closest_seed = d;
       this->closest_seed_id = anc->closest_seed_id;

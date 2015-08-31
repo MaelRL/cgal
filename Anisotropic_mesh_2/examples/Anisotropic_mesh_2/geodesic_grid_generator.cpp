@@ -1,3 +1,6 @@
+// This is based on the paper :
+// Konukoglu et al., A recursive anisotropic fast marching approach to reaction diffusion equation
+
 #include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_2.h>
 
@@ -1262,6 +1265,9 @@ struct Geo_grid
       //if only one value at all points, we're okay
       // if more than one, print a unique frontier material
     }
+
+    out_bb << "End" << std::endl;
+    out << "End" << std::endl;
   }
 
   void add_triangles_edges_to_dual_edges(const Tri& tr,

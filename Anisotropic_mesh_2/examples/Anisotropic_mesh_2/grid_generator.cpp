@@ -1,3 +1,5 @@
+// Voronoi painters for simple anisotropic distances (Du/Wang, Labelle/Shewchuk, etc.)
+
 #include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_2.h>
 

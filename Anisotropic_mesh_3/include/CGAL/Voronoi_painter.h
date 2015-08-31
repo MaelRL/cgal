@@ -411,9 +411,9 @@ public:
 
   Point_3 point;
   std::size_t index;
-  mutable FT distance_to_closest_seed;
-  mutable std::size_t closest_seed_id;
-  mutable  FMM_state state;
+  FT distance_to_closest_seed;
+  std::size_t closest_seed_id;
+  FMM_state state;
   Metric metric;
   const Canvas_point* ancestor;
 
@@ -447,6 +447,18 @@ public:
     distance_to_closest_seed = d;
     state = TRIAL;
     ancestor = NULL;
+  }
+
+  void print_ancestor_tree() const
+  {
+    std::cout << "ancestors: ";
+    const Canvas_point* anc = ancestor;
+    while(anc)
+    {
+      std::cout << anc->index << " ";
+      anc = anc->ancestor;
+    }
+    std::cout << std::endl;
   }
 
   Canvas_point() { }
@@ -719,9 +731,8 @@ public:
     }
 
 #if (verbose > 10)
-    std::cout << "looking for p: " << p.x() << " " << p.y() << " " << p.z() << std::endl;
-    std::cout << "found cp: " << cp->index
-              << " [" << cp->point.x() << ", " << cp->point.y() << " " << cp->point.z() << "] ";
+    std::cout << "looking for p: " << p << std::endl;
+    std::cout << "found cp: " << cp->index << " [" << cp->point << "] ";
     std::cout << "at distance: " << std::sqrt(min_d) << std::endl;
 #endif
 
@@ -810,7 +821,7 @@ public:
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 15)
+#if (verbose > 55)
       std::cout << "trial heap: " << std::endl;
       for(typename std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
@@ -825,7 +836,7 @@ public:
       trial_points.pop_back();
 
 #if (verbose > 10)
-      std::cout << "picked n° " << cp->index << " (" << cp->point.x() << ", " << cp->point.y() << ") ";
+      std::cout << "picked n° " << cp->index << " (" << cp->point << ") ";
       std::cout << "at distance : " << cp->distance_to_closest_seed << " from " << cp->closest_seed_id << std::endl;
 #endif
 
@@ -851,6 +862,16 @@ public:
       is_t_empty = trial_points.empty();
     }
 
+#if (verbose > 20)
+    std::cout << "final states after painting: " << std::endl;
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      const Canvas_point* cp = &(points[i]);
+      std::cout << cp->index << "( " << cp->point << ")";
+      std::cout << " at distance: " << cp->distance_to_closest_seed << std::endl;
+      cp->print_ancestor_tree();
+    }
+#endif
     std::cerr << "End of paint. time: ";
     std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
   }
@@ -863,8 +884,13 @@ public:
     for(std::size_t i=0; i<points.size(); ++i)
     {
       Canvas_point* cp = &(points[i]);
+
+      CGAL_assertion(cp->state != FAR);
+
       std::cout << "point " << i << " min distance is supposedly: ";
       std::cout << cp->distance_to_closest_seed << std::endl;
+
+#if 0
       typename Neighbors::const_iterator it = cp->neighbors.begin(),
                                          iend = cp->neighbors.end();
       for(; it!=iend; ++it)
@@ -873,6 +899,12 @@ public:
         if(cq)
           CGAL_assertion(!cp->compute_closest_seed(cq));
       }
+#else
+      if(cp->ancestor)
+        CGAL_assertion(!cp->compute_closest_seed(static_cast<const Canvas_point*>(cp->ancestor)));
+      // other option would be to crtp the base canvas point...
+      // also, can't dynamic cast since there's no polymorphism
+#endif
     }
   }
 
@@ -889,6 +921,10 @@ public:
 
   void refine_seeds(const Point_3 new_seed)
   {
+#if (verbose > 2)
+    std::cout << "refine with : " << new_seed << std::endl;
+#endif
+
     std::size_t old_seed_size =  seeds.size();
     seeds.max_seeds_n = seeds.insert_new_seed(new_seed.x(), new_seed.y(), new_seed.z());
     CGAL_assertion(old_seed_size != seeds.size());
@@ -914,7 +950,6 @@ public:
 
     std::clock_t start = std::clock();
 
-    output_canvas_data_and_dual("pre_ref");
     for(std::size_t i=0; i<n_refine; ++i)
     {
       std::ostringstream out;
@@ -1065,8 +1100,7 @@ public:
     out << "Vertices" << std::endl;
     out << seeds.size() << std::endl;
     for(std::size_t i=0; i<seeds.size(); ++i)
-      out << seeds[i].x() << " " << seeds[i].y() << " " << seeds[i].z()
-          << " " << i+1 << std::endl;
+      out << seeds[i] << " " << i+1 << std::endl;
 
     out << "Edges" << std::endl;
     out << dual_edges.size() << std::endl;
@@ -1187,9 +1221,8 @@ public:
     Canvas_point* cp = &(this->points[index_z*sq_n + index_y*n + index_x]);
 
 #if (verbose > 10)
-    std::cout << "looking for p: " << p.x() << " " << p.y() << " " << p.z() << std::endl;
-    std::cout << "found cp: " << cp->index << " [" << cp->point.x()
-              << ", " << cp->point.y() << " " << cp->point.z() << "]" << std::endl;
+    std::cout << "looking for p: " << p << std::endl;
+    std::cout << "found cp: " << cp->index << " [" << cp->point << "]" << std::endl;
     std::cout << "index: " << index_x << " " << index_y << " " << index_z << std::endl;
     std::cout << "offset: " << offset_x << " " << offset_y << " " << offset_z << std::endl;
 #endif
@@ -1303,7 +1336,7 @@ public:
     for(std::size_t i=0; i<this->points.size(); ++i)
     {
       const Canvas_point& cp = this->points[i];
-      out << cp.point.x() << " " << cp.point.y() << " " << cp.point.z() << " " << i+1 << std::endl;
+      out << cp.point << " " << i+1 << std::endl;
 
 //      out_bb << cp.closest_seed_id << std::endl;
       out_bb << cp.distance_to_closest_seed << std::endl;
@@ -1433,10 +1466,7 @@ public:
       step(side / (n-1)),
       sq_n(n*n)
   { }
-
-
 };
-
 
 }  // Anisotropic_mesh_3
 }  // CGAL

@@ -452,6 +452,16 @@ struct Geo_grid
   mutable const Grid_point* refinement_point;
   mutable FT refinement_distance;
 
+  void clear_dual()
+  {
+    edge_bisectors.clear();
+    dual_edges.clear();
+    dual_triangles.clear();
+
+    refinement_point = NULL;
+    refinement_distance = 0.;
+  }
+
   const Grid_point* locate_point(const Point_2& p) const
   {
     bool found = false;
@@ -605,12 +615,10 @@ struct Geo_grid
 #if (verbose > 5)
     std::cout << "main loop" << std::endl;
 #endif
-    refinement_point = NULL; // prepare for the next refinement point
-    refinement_distance = 0.;
+    clear_dual();
+    Grid_point* gp;
 
     bool is_t_empty = trial_points.empty();
-
-    Grid_point* gp;
     while(!is_t_empty)
     {
       if(known_count%10000 == 0)
@@ -1064,7 +1072,7 @@ void initialize()
 int main(int, char**)
 {
   std::cout.precision(17);
-  //std::freopen("geo_grid_2_log.txt", "w", stdout);
+  //std::freopen("log.txt", "w", stdout);
 
   double duration;
   start = std::clock();
@@ -1077,13 +1085,13 @@ int main(int, char**)
 
   if(n_refine)
   {
-    gg.output_grid_and_dual("geo_grid_2_pre_ref");
+    gg.output_grid_and_dual("pre_ref");
 
     for(int i=0; i<n_refine; ++i)
     {
       gg.refine_grid_with_self_computed_ref_point();
       std::ostringstream out;
-      out << "geo_grid_2_ref_" << i;
+      out << "ref_" << i;
       gg.output_grid_and_dual(out.str());
     }
 
