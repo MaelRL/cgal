@@ -45,7 +45,7 @@ public:
 
   // this function is the heart of the painter
   bool compute_closest_seed(const Base* anc,
-                            const bool verb = true)
+                            const bool verb = false)
   {
     // returns true if we improved the distance
 

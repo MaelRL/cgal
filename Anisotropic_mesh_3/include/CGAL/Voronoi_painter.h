@@ -515,7 +515,8 @@ public:
 #endif
 
 #if (verbose > 0)
-    std::cout << "added new seed: " << x << " " << y << " " << z << std::endl;
+    std::cout << "added new seed: " << x << " " << y << " " << z;
+    std::cout << " (" << seeds.size() << ")" << std::endl;
 #endif
 
     seeds.push_back(Point_3(x, y, z));
@@ -612,13 +613,6 @@ public:
   typedef boost::array<std::size_t, 3>                      Tri;
   typedef boost::array<std::size_t, 4>                      Tet;
 
-  // tricky bit here: the priority queue uses the BASE canvas point type
-  // rather than the derived canvas point type because, when we update distances,
-  // we call a function from the base canvas point and look through the neighbors
-  // while IN THE BASE CLASS (therefore base canvas points). We want to add those
-  // to the priority queue so the PQ has to be pointers to base canvas points.
-  // The point of the derived type is just to provide function overloads, so
-  // everything works out !
   typedef std::vector<Canvas_point*>                        Canvas_point_vector;
   typedef typename Canvas_point::Neighbors                  Neighbors;
   typedef typename Eigen::Matrix<FT, 3, 1>                  Vector3d;
@@ -743,11 +737,7 @@ public:
   {
     canvas_bbox = CGAL::Bbox_3();
     for(std::size_t i=0; i<points.size(); ++i)
-    {
-      canvas_bbox += CGAL::Bbox_3(points[i].point.x(), points[i].point.x(),
-                                  points[i].point.y(), points[i].point.y(),
-                                  points[i].point.z(), points[i].point.z());
-    }
+      canvas_bbox += points[i].point.bbox();
 
     std::cout << "final bbox: x "
               << canvas_bbox.xmin() << " " << canvas_bbox.xmax() << " y "
@@ -777,8 +767,8 @@ public:
     CGAL_assertion(cp->state == KNOWN);
 
     // Check the neighbors of cp for points that have the state KNOWN.
-    // In these, consider those that have a closest_seed_id different than cp's
-    // those give dual simplices.
+    // Amongst these, consider those that have a closest_seed_id different than cp's
+    // to obtain dual simplices (of dim > 1).
 
     std::size_t p_id = cp->closest_seed_id;
     std::set<std::size_t> simplex;
@@ -843,6 +833,7 @@ public:
       cp->state = KNOWN;
       known_count++; // tmp --> use change_state()
 
+      // if we want to build the dual while spreading we can use :
 //      dual_shenanigans(cp);
 //      boost::unordered_set<Canvas_point*>::const_iterator it = cp->neighbors.begin(),
 //                                                        iend = cp->neighbors.end();
@@ -1015,7 +1006,7 @@ public:
 
       add_triangles_edges_to_dual_edges(tr);
     }
-    else if(dual_simplex.size() == 4)
+    else if(dual_simplex.size() == 4) // a tetrahedron!
     {
       Tet tet; tet[0] = *it; tet[1] = (*++it); tet[2] = (*++it); tet[3] = (*++it);
       dual_tetrahedra.insert(tet);
@@ -1079,7 +1070,7 @@ public:
 
   void output_geodesic_dual(std::ostream&) const
   {
-    // todo when the def of a geodesic tet is established...
+    // todo when the definition of a geodesic tet is established...
   }
 
   void output_straight_dual(const std::string str_base) const

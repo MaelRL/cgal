@@ -107,21 +107,26 @@ void fetch_from_mesh(std::ifstream& in,
         facets.push_back(n1-1); facets.push_back(n2-1); facets.push_back(n3-1);
       }
     }
+
+    if(word == "Edges")
+    {
+      std::cerr << "can't handle edges!" << std::endl;
+      return;
+    }
   }
 }
 
-void fetch_mesh(const char* filename,
+void fetch_mesh(const std::string filename,
                 std::vector<Point_2>& points,
                 std::vector<int>& facets)
 {
   std::cout << "fetching...: " << filename << std::endl;
 
-  std::string input_filename = filename;
-  std::string extension = input_filename.substr(input_filename.find_last_of('.'));
+  std::string extension = filename.substr(filename.find_last_of('.'));
 
   if (extension == ".off" || extension == ".OFF")
   {
-    std::ifstream stream(filename);
+    std::ifstream stream(filename.c_str());
     if(!stream)
     {
       std::cerr << "Error: cannot read file " << std::endl;
@@ -131,7 +136,7 @@ void fetch_mesh(const char* filename,
   }
   else if (extension == ".mesh" || extension == ".MESH")
   {
-    std::ifstream stream(filename);
+    std::ifstream stream(filename.c_str());
     if(!stream)
     {
       std::cerr << "Error: cannot read file " << std::endl;
@@ -196,13 +201,14 @@ void compute_metrics(const std::vector<Point_2>& points,
 
 void face_distortion_histogram(const std::vector<Point_2>& points,
                                const std::vector<int>& faces,
-                               const std::vector<Metric>& metrics)
+                               const std::vector<Metric>& metrics,
+                               const std::string filename_core)
 {
   if(faces.empty())
     return;
   std::cout << "face distortion external histo with size: " << faces.size() << std::endl;
 
-  std::ofstream out_bb("max_distortion.bb");
+  std::ofstream out_bb((filename_core + "_distortion.bb").c_str());
   std::vector<FT> max_dists(points.size(), 1.);
   std::vector<FT> values;
 
@@ -264,13 +270,14 @@ FT element_quality(const Metric& m,
 
 void face_quality_histogram(const std::vector<Point_2>& points,
                             const std::vector<int>& faces,
-                            const std::vector<Metric>& metrics)
+                            const std::vector<Metric>& metrics,
+                            const std::string filename_core)
 {
   if(faces.empty())
     return;
   std::cout << "face quality external histo with size: " << faces.size() << std::endl;
 
-  std::ofstream out_bb("min_quality.bb");
+  std::ofstream out_bb((filename_core + "_quality.bb").c_str());
   std::vector<FT> min_quals(faces.size()/3, 1.);
   std::vector<FT> values;
 
@@ -304,13 +311,14 @@ void face_quality_histogram(const std::vector<Point_2>& points,
 
 void face_edge_length_histogram(const std::vector<Point_2>& points,
                                 const std::vector<int>& faces,
-                                const std::vector<Metric>& metrics)
+                                const std::vector<Metric>& metrics,
+                                const std::string filename_core)
 {
   if(faces.empty())
     return;
   std::cout << "face edge external histo with size: " << faces.size() << std::endl;
 
-  std::ofstream out_bb("max_edge_ratio.bb");
+  std::ofstream out_bb((filename_core + "_edge_ratio.bb").c_str());
   std::vector<FT> max_edge_r(points.size(), 1.);
   std::vector<FT> values;
 
@@ -377,14 +385,18 @@ int main(int, char**)
   //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
   Custom_metric_field* metric_field = new Custom_metric_field();
 
-  const char* mesh_filename = "bambimboum.mesh";
-
+  const std::string filename_core = "super_dense_base_mesh_tr_dual";
+  // ------------ pick OFF or MESH ------
+  const std::string mesh_filename = filename_core + ".mesh";
   fetch_mesh(mesh_filename, points, faces);
+//  const std::string off_filemane = filename_core + ".off";
+//  fetch_off(mesh_filename, points, faces);
+
   compute_metrics(points, metric_field, metrics);
 
-  face_distortion_histogram(points, faces, metrics);
-  face_quality_histogram(points, faces, metrics);
-  face_edge_length_histogram(points, faces, metrics);
+  face_distortion_histogram(points, faces, metrics, filename_core);
+  face_quality_histogram(points, faces, metrics, filename_core);
+  face_edge_length_histogram(points, faces, metrics, filename_core);
 
   delete metric_field;
 

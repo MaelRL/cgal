@@ -91,7 +91,7 @@ std::vector<Metric> seeds_m;
 std::vector<FT> ws;
 
 std::set<Tri> simplices; // THESE ARE THE SIMPLICES OF THE DUAL OF THE GRID
-std::vector<int> random_colors;
+std::vector<std::size_t> random_colors;
 
 // witness
 std::vector<std::vector<std::size_t> > witness_grid;

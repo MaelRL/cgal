@@ -129,6 +129,7 @@ Pointd get_pointd_from_RD(const Bare_point& p)
 
 Matrixd get_metric(const Pointd& p)
 {
+  // fixme Use the proper metric files, this function is a bit pathetic...
   Matrixd m;
 
 #ifdef dim1
@@ -592,13 +593,17 @@ bool newton(const Simplex& fs,
 
   if(count == max)
   {
-    std::cout << "didn't converge in " << max << " iterations" << std::endl;
+    std::cout << "didn't converge in " << max << " iterations... ";
+    std::cout << "h: " << h_err.transpose() << std::endl;
     return false;
   }
 
   VectorD vsolD = to_Q(vsol);
   sol = construct_bp(vsolD);
+  std::cout << "We converged in " << count << " iterations ! ";
   std::cout << "final solution : " << vsolD.transpose() << std::endl;
+  std::cout << "final jac/h: " << jac.determinant() << " " << h_err.norm() << std::endl;
+
 
   return true;
 }

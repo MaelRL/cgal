@@ -111,11 +111,15 @@ int insert_new_seed(const FT x, const FT y)
     if(x < offset_x || x > center.x() + grid_side/2. ||
        y < offset_y || y > center.y() + grid_side/2. )
     {
+#if (verbose > 0)
       std::cout << "filtered : " << x << " " << y << std::endl;
+#endif
       return seeds.size();
     }
 #endif
+#if (verbose > 0)
   std::cout << "new seed: " << x << " " << y << " added" << std::endl;
+#endif
   seeds.push_back(Point_2(x, y));
   seeds_m.push_back(mf->compute_metric(seeds.back()));
   return seeds.size();
@@ -146,7 +150,9 @@ int build_seeds()
     if(seeds.size() >= vertices_nv)
       break;
   }
+#if (verbose > 0)
   std::cout << "seeds: " << seeds.size() << std::endl;
+#endif
   return seeds.size();
 }
 
@@ -171,9 +177,11 @@ struct Grid_point
 
   bool compute_closest_seed_1D(const Grid_point* gp)
   {
+#if (verbose > 15)
     std::cout << "compute closest 1D " << index << " to " << gp->index;
     std::cout << " ds " << gp->distance_to_closest_seed;
     std::cout << " resp. " << gp->closest_seed_id << std::endl;
+#endif
 
     CGAL_assertion(gp->state == KNOWN || gp->state == CHANGED);
     bool changed = false;
@@ -186,8 +194,10 @@ struct Grid_point
     FT dcs_at_gp = gp->distance_to_closest_seed;
     FT d = dcs_at_gp + neighbor_d;
 
+#if (verbose > 10)
     std::cout << "min 1D; min : " << d;
     std::cout << " vs current best: " << distance_to_closest_seed << std::endl;
+#endif
 
     if(distance_to_closest_seed - d > recursive_tolerance * d)
     {
@@ -201,7 +211,9 @@ struct Grid_point
       closest_seed_id = gp->closest_seed_id;
       ancestor = gp;
 
+#if (verbose > 10)
       std::cout << "1D new best for " << index << " : " << distance_to_closest_seed << std::endl;
+#endif
     }
     return changed;
   }
@@ -259,15 +271,17 @@ struct Grid_point
     if(delta >= -1e17)
       delta = (std::max)(0., delta);
 
-//    std::cout << "a: " << a << std::endl;
-//    std::cout << "b: " << b << std::endl;
-//    std::cout << "c: " << c << std::endl;
-//    std::cout << "d: " << d << std::endl;
-//    std::cout << "e: " << e << std::endl;
-//    std::cout << "A: " << A << std::endl;
-//    std::cout << "B: " << B << std::endl;
-//    std::cout << "C: " << C << std::endl;
-//    std::cout << "delta: " << delta << std::endl;
+#if (verbose > 20)
+    std::cout << "a: " << a << std::endl;
+    std::cout << "b: " << b << std::endl;
+    std::cout << "c: " << c << std::endl;
+    std::cout << "d: " << d << std::endl;
+    std::cout << "e: " << e << std::endl;
+    std::cout << "A: " << A << std::endl;
+    std::cout << "B: " << B << std::endl;
+    std::cout << "C: " << C << std::endl;
+    std::cout << "delta: " << delta << std::endl;
+#endif
 
     FT min_id = 0.;
     FT min = eval_at_p(0., a, b, c, d, e);
@@ -327,7 +341,10 @@ struct Grid_point
 
   void determine_ancestor(FT lambda = -1.)
   {
-    std::cout << "determine ancestor for " << index << " d: " << distance_to_closest_seed << std::endl;
+#if (verbose > 10)
+    std::cout << "determine ancestor for " << index << " d: ";
+    std::cout << distance_to_closest_seed << std::endl;
+#endif
 
     if(this->closest_seed_id != static_cast<std::size_t>(-1)) // already has a color
       return;
@@ -371,7 +388,11 @@ struct Grid_point
     }
 
     bool same_colors = (gp->closest_seed_id == gq->closest_seed_id);
+
+#if (verbose > 20)
     std::cout << "colors are the same ? " << same_colors << std::endl;
+#endif
+
     if(same_colors)
     {
       closest_seed_id = gp->closest_seed_id;
@@ -536,6 +557,7 @@ struct Grid_point
       lambda_q = (gq_d - distance_to_closest_seed + qe1*step)/(me1 + qe1);
     }
 
+#ifdef DEBUG_LAMBDAS
     // check that we're computing the correct lambdas :
     FT mpx = point.x() + lambda_p * (gp->point.x() - point.x()) / step;
     FT mpy = point.y() + lambda_p * (gp->point.y() - point.y()) / step;
@@ -567,22 +589,28 @@ struct Grid_point
       CGAL_assertion(std::abs(diffp) < 1e-10 );
     if(lambda_q >= -1e-10 && lambda_q <= step+1e-10)
       CGAL_assertion(std::abs(diffq) < 1e-10 );
+#endif
 
+#if (verbose > 20)
     std::cout << "lambdas: " << lambda_p << " " << lambda_q << std::endl;
     std::cout << "step: " << step << " gpd/q: " << gp_d << " " << gq_d << std::endl;
+#endif
+
     // if the colors are different, then the dual intersects the segment [p,q]
     // if we find which of the segment [this p] or [this q] intersects the dual
     // we know which colors to associate to 'this'!
 
-    bool intersect_p = lambda_p >= -1e-10 && lambda_p <= step+1e-10;
-    bool intersect_q = lambda_q >= -1e-10 && lambda_q <= step+1e-10;
+    bool intersect_p = lambda_p >= -1e-2 && lambda_p <= step+1e-10;
+    bool intersect_q = lambda_q >= -1e-2 && lambda_q <= step+1e-10;
 
     if(intersect_p)
     {
       if(intersect_q)
       {
         // we intersect both [this p] and [this q]...
-        std::cout << "mega warning [this p] and [this q]" << std::endl;
+#if (verbose > 5)
+        std::cerr << "mega warning [this p] and [this q]" << std::endl;
+#endif
         best_g = (lambda_q > lambda_p)?gp:gq; // this is shady... fixme...?
       }
       else
@@ -597,7 +625,9 @@ struct Grid_point
     closest_seed_id = best_g->closest_seed_id;
     ancestor = best_g;
 
+#if (verbose > 5)
     std::cout << "ancestor shen @ " << index << " color is : " << closest_seed_id << std::endl;
+#endif
   }
 
   bool compute_closest_seed_2D(const Grid_point* gp, const Grid_point* gq)
@@ -605,10 +635,12 @@ struct Grid_point
     FT gp_d = gp->distance_to_closest_seed;
     FT gq_d = gq->distance_to_closest_seed;
 
+#if (verbose > 15)
     std::cout << "compute closest 2D " << index << " to ";
     std::cout << gp->index << " & " << gq->index;
     std::cout << " ds: " << gp_d << " " << gq_d << " ";
     std::cout << " resp. " << gp->closest_seed_id << " " << gq->closest_seed_id << std::endl;
+#endif
 
     CGAL_assertion((gp->state == KNOWN || gp->state == CHANGED) &&
                    (gq->state == KNOWN || gq->state == CHANGED) );
@@ -618,7 +650,9 @@ struct Grid_point
     const FT d = compute_min_distance_2D(gp, gq, lambda);
     CGAL_assertion(lambda >= -1e-10 && lambda <= 1+1e-10);
 
-    std::cout << "2D new best for " << index << " : " << distance_to_closest_seed << std::endl;
+#if (verbose > 10)
+    std::cout << "min 2D " << d << " vs current best: " << distance_to_closest_seed << std::endl;
+#endif
 
 #ifdef BRUTE_FORCE_CHECK_OPTIMAL_P
     // this is pretty much debug code to verify that compute_min_distance_2D() is correct
@@ -687,7 +721,9 @@ struct Grid_point
       closest_seed_id = gp->closest_seed_id;
       ancestor = gp;
 
+#if (verbose > 10)
       std::cout << "2D new best for " << index << " : " << distance_to_closest_seed << std::endl;
+#endif
     }
 
     return changed;
@@ -696,11 +732,13 @@ struct Grid_point
   bool compute_closest_seed(const Grid_point* anc,
                             const bool ignore_ancestor = false)
   {
+#if (verbose > 10)
     std::cout << "compute closest high level " << index;
     std::cout << " state : " << state;
     std::cout << " dist : " << distance_to_closest_seed;
     std::cout << " color : " << closest_seed_id;
     std::cout << " ancestor: " << anc->index << std::endl;
+#endif
 
     bool changed = false;
     for(std::size_t i=0; i<neighbors.size(); ++i)
@@ -725,15 +763,19 @@ struct Grid_point
       }
     }
 
+#if (verbose > 10)
     std::cout << "color and value: " << closest_seed_id << " " << distance_to_closest_seed << std::endl;
-
+#endif
     return changed;
   }
 
   PQ_state update_neighbors_distances(std::vector<Grid_point*>& changed_pq,
                                       std::vector<Grid_point*>& trial_pq) const
   {
+#if (verbose > 10)
     std::cout << "update neighbors of " << index << std::endl;
+#endif
+
     PQ_state pqs_ret = NOTHING_TO_DO;
 
     // consider all the known neighbors and compute the value to that
@@ -753,11 +795,12 @@ struct Grid_point
         std::size_t ancestor_mem = (gp->ancestor)?gp->ancestor->index:-1;
         if(gp->compute_closest_seed(this))
         {
-          std::cout.precision(17);
+#if (verbose > 15)
           std::cout << "new value at " << gp->index << " : " << gp->distance_to_closest_seed;
           std::cout << " with ancestor: " << gp->ancestor->index;
           std::cout << " (mem: " << mem << " ancestor: " << ancestor_mem << ") ";
           std::cout << " diff: " << gp->distance_to_closest_seed-mem << std::endl;
+#endif
           if(gp->state == KNOWN)
           {
             // if it's already CHANGED we only need to reorder the CHANGED queue
@@ -895,6 +938,7 @@ struct Geo_grid
     trial_points.push_back(gp);
     std::push_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
 
+#if (verbose > 15)
     std::cout << "looking for p: " << p.x() << " " << p.y() << std::endl;
     std::cout << "found: " << gp->index << " [" << gp->point.x() << ", " << gp->point.y() << "]" << std::endl;
     std::cout << "step reminder: " << step << std::endl;
@@ -902,6 +946,7 @@ struct Geo_grid
     std::cout << "found gp: " << gp->index << " [" << gp->point.x() << ", " << gp->point.y() << "]" << std::endl;
     std::cout << "index: " << index_x << " " << index_y << " " << std::endl;
     std::cout << "offset: " << offset_x << " " << offset_y << " " << std::endl;
+#endif
 
     // if we want to initialize a bit more, we initialize all the vertices of the quad
     // that contains p
@@ -1000,7 +1045,9 @@ struct Geo_grid
 
   void determine_ancestors()
   {
+#if (verbose > 5)
     std::cout << "Determine ancestors" << std::endl;
+#endif
 
     // TODO do something smarter when spreading a new color in an already colored
     // grid... One can probably just start from the new seed WITHOUT RESETING EVERYTHING
@@ -1055,7 +1102,10 @@ struct Geo_grid
     Grid_point* gp;
     while(!is_cp_empty || !is_t_empty)
     {
+#if (verbose > 5)
       std::cout << "Queue sizes. Trial: " << trial_points.size() << " Changed: " << changed_points.size() << std::endl;
+#endif
+#if (verbose > 15)
       std::cout << "changed heap: " << std::endl;
       for (std::vector<Grid_point*>::iterator it = changed_points.begin();
            it != changed_points.end(); ++it)
@@ -1067,6 +1117,7 @@ struct Geo_grid
            it != trial_points.end(); ++it)
         std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
       std::cout << std::endl;
+#endif
 
       if(!is_cp_empty)
       {
@@ -1083,10 +1134,13 @@ struct Geo_grid
         trial_points.pop_back();
       }
 
-      if(print_states())
-        break;
+//      if(print_states())
+//        break;
+
+#if (verbose > 10)
       std::cout << "picked n° " << gp->index << " (" << gp->point.x() << ", " << gp->point.y() << ") ";
       std::cout << "at distance : " << gp->distance_to_closest_seed << " from " << gp->closest_seed_id << std::endl;
+#endif
 
       gp->state = KNOWN;
       PQ_state pqs = gp->update_neighbors_distances(changed_points, trial_points);
@@ -1186,6 +1240,7 @@ struct Geo_grid
   {
     std::ofstream out((str_base + ".mesh").c_str());
     std::ofstream out_bb((str_base + ".bb").c_str());
+
     out << "MeshVersionFormatted 1" << std::endl;
     out << "Dimension 2" << std::endl;
     out << "Vertices" << std::endl;
@@ -1282,7 +1337,9 @@ struct Geo_grid
   void compute_dual(std::set<Edge>& dual_edges,
                     std::set<Tri>& dual_triangles) const
   {
+#if (verbose > 5)
     std::cout << "dual computations" << std::endl;
+#endif
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
     FT farthest_dual_distance = 0.;
@@ -1368,9 +1425,11 @@ struct Geo_grid
     std::set<Tri> dual_triangles;
     compute_dual(dual_edges, dual_triangles);
 
+#if (verbose > 5)
     std::cout << "captured: ";
     std::cout << dual_edges.size() << " edges, ";
     std::cout << dual_triangles.size() << " triangles" << std::endl;
+#endif
 
     std::ofstream out((str_base + "_dual.mesh").c_str());
     out << "MeshVersionFormatted 1" << std::endl;

@@ -547,14 +547,14 @@ private:
                              Index relative_point,
                              bool check_if_in = false)
   {
-    /*
+#ifdef ANISO_DEBUG_REFINEMENT_PP
     std::cout << "fill face call with relative " << relative_point << std::endl;
     typename Stars::const_iterator cit = stars.begin();
     typename Stars::const_iterator citend = stars.end();
     for (; cit != citend; cit++)
       std::cout << " " << this->get_star(cit)->index_in_star_set();
     std::cout << std::endl;
-    */
+#endif
 
 #ifdef USE_ANISO_TIMERS
     std::clock_t start_time = clock();

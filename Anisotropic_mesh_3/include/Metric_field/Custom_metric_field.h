@@ -92,11 +92,12 @@ public:
     double v2x = x*v2y/y;
     double v2z = std::sqrt(1-(x*x/(y*y)+1)*v2y*v2y);
 
-    Vector_3 v1(x,y,z);
+    Vector_3 v1(x, y, z);
     Vector_3 v2(v2x, v2y, v2z);
     Vector_3 v3 = CGAL::cross_product(v1, v2);
 
-    return this->build_metric(v1, v2, v3, 1./h1, 1./h2, 1./h3);
+
+    return this->build_metric(v1, v2, v3, 1./(h*h1), 1./(h*h2), 1./(h*h3));
   }
 
   virtual Metric compute_metric(const Point_3 &p) const

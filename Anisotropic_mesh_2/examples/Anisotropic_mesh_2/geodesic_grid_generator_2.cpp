@@ -708,6 +708,10 @@ struct Geo_grid
     CGAL_assertion(trial_points.empty());
     for(std::size_t i=0; i<points.size(); ++i)
       points[i].state = FAR;
+
+    known_count = 0;
+    trial_count = 0;
+    far_count = points.size();
   }
 
   void refine_grid(const Point_2 new_seed)

@@ -25,7 +25,7 @@ public:
   double& b() { return m_b; }
 
 public:
-  virtual Metric compute_metric(const Point_2 &p) const
+  virtual Metric compute_metric(const Point_2 &) const
   {
     return this->build_metric(Vector_2(1, 0),
                               Vector_2(0, 1),

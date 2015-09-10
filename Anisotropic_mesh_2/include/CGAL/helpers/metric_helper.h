@@ -98,7 +98,7 @@ typename Kernel::FT compute_distortion(const Eigen::Matrix2d& matrix1,
 
   double eigen_dis1 = (Fp * Fqm1).operatorNorm();
   double eigen_dis2 = (Fq * Fpm1).operatorNorm();
-  return max(eigen_dis1, eigen_dis2);
+  return (std::max)(eigen_dis1, eigen_dis2);
 }
 
 template<typename Kernel>
