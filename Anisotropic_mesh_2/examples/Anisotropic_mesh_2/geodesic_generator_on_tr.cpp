@@ -26,6 +26,8 @@
 #include <set>
 #include <utility>
 
+#define COMPUTE_PRECISE_VOR_VERTICES
+
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef typename K::FT                                       FT;
 
@@ -925,6 +927,18 @@ struct Grid_point
   { }
 };
 
+inline std::ostream& operator<<(std::ostream& os,
+                                const boost::tuple<Simplex, const Grid_point*, FT>& pqe)
+{
+  std::cout << "PQ entry element:" << std::endl;
+  std::cout << "Simplex: " << pqe.get<0>();
+  std::cout << "gp: " << pqe.get<1>()->index << " [" << pqe.get<1>()->point << "] ";
+  std::cout << pqe.get<1>()->distance_to_closest_seed << std::endl;
+  std::cout << "FT: " << pqe.get<2>() << std::endl;
+
+  return os;
+}
+
 template<typename PQ_entry>
 struct PQ_entry_comparator
 {
@@ -952,26 +966,20 @@ struct PQ_entry_comparator
   }
 };
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const boost::tuple<Simplex, const Grid_point*, FT>& pqe)
-{
-  std::cout << "PQ entry element:" << std::endl;
-  std::cout << "Simplex: " << pqe.get<0>();
-  std::cout << "gp: " << pqe.get<1>()->index << " [" << pqe.get<1>()->point << "] ";
-  std::cout << pqe.get<1>()->distance_to_closest_seed << std::endl;
-  std::cout << "FT: " << pqe.get<2>() << std::endl;
-
-  return os;
-}
-
 struct Base_mesh
 {
-  typedef std::vector<Grid_point*> Grid_point_vector;
+  typedef std::vector<Grid_point*>                           Grid_point_vector;
+
+  typedef std::vector<Grid_point>                            Voronoi_vertices_container;
+  typedef std::vector<Voronoi_vertices_container>            Voronoi_vertices_vector;
+
+  // Refinement
+  typedef boost::tuple<Simplex, const Grid_point*, FT>       PQ_entry;
+  typedef std::set<PQ_entry, PQ_entry_comparator<PQ_entry> > PQ;
 
   // For the approximate geodesic triangulation...
   // the first pair are the IDs of two Voronoi cells (which a non empty inter)
   // the second pair are the two closest points on the bisector (one in each cell)
-
   // WARNING: currently it's on the part of the bisector that exists, not the whole
   // bisector, which means we have a 'local' geodesic triangulation, not the real one...
   typedef std::map<std::pair<std::size_t, std::size_t>,
@@ -990,32 +998,15 @@ struct Base_mesh
   mutable std::set<Tri> dual_triangles;
 
   // Refinement
-  typedef boost::tuple<Simplex, const Grid_point*, FT>           PQ_entry;
-//  typedef std::pair<const Grid_point*, FT>                   PQ_entry;
-  typedef std::set<PQ_entry, PQ_entry_comparator<PQ_entry> > PQ;
-
   PQ size_queue;
   PQ distortion_queue;
   PQ intersection_queue;
   PQ quality_queue;
 
   mutable const Grid_point* refinement_point;
-  mutable FT refinement_distance;
 
-  void clear_dual()
-  {
-    edge_bisectors.clear();
-    dual_edges.clear();
-    dual_triangles.clear();
-
-    size_queue.clear();
-    distortion_queue.clear();
-    intersection_queue.clear();
-    quality_queue.clear();
-
-    refinement_point = NULL;
-    refinement_distance = 0.;
-  }
+  // Llyod
+  Voronoi_vertices_vector Voronoi_vertices;
 
   void initialize_grid_point(Grid_point* gp,
                              const FT dist,
@@ -1181,6 +1172,8 @@ struct Base_mesh
       const Point_2& p = seeds[i];
       locate_and_initialize(p, i);
     }
+    Voronoi_vertices.resize(seeds.size());
+
   }
 
   void print_states() const
@@ -1190,170 +1183,305 @@ struct Base_mesh
     std::cout << " far: " << far_count << std::endl;
   }
 
-  void dual_shenanigans(Grid_point* gp)
+  void fill_edge_bisectors_map(const Grid_point* gp,
+                               const Grid_point* gq)
   {
-    // mega ugly hack to correctly compute the centroid of Voronoi cells who contain
-    // a corner of the domain...
-    if(gp->index < 4)
+    // used to build pseudo geodesic triangulations...
+    std::size_t p_id = gp->closest_seed_id;
+    std::size_t q_id = gq->closest_seed_id;
+    if(p_id != q_id) // we're on the bisector of [PQ]
+    {
+      std::pair<const Grid_point*, const Grid_point*> gp_pair;
+      std::pair<std::size_t, std::size_t> id_pair;
+      if(p_id < q_id)
+      {
+        gp_pair = std::make_pair(gp, gq);
+        id_pair = std::make_pair(p_id, q_id);
+      }
+      else
+      {
+        gp_pair = std::make_pair(gq, gp);
+        id_pair = std::make_pair(q_id, p_id);
+      }
+      std::pair<std::pair<std::size_t, std::size_t>,
+          std::pair<const Grid_point*, const Grid_point*> > value =
+          std::make_pair(id_pair, gp_pair);
+      // the insert below only succeeds if we haven't already found an edge p_id/q_id
+      // therefore the map has for value the closest points on D_pq
+      edge_bisectors.insert(value);
+    }
+  }
+
+  void mark_voronoi_vertices(const Tri& tri,
+                             const Simplex& simplex)
+  {
+    std::size_t ds_size = simplex.size();
+
+    // mark them as Voronoi vertices if the triangle has 3 different colors
+    if(ds_size == 3)
+    {
+      for(std::size_t j=0; j<3; ++j)
+      {
+        Grid_point& gq = points[tri[j]];
+        gq.is_Voronoi_vertex = true;
+//        std::cout << gq.index << " (" << gq.point << ") vor vert for "
+//                  << gq.closest_seed_id << std::endl;
+      }
+    }
+  }
+
+  void visit_neighbors_and_mark(Grid_point* gp,
+                                std::vector<bool>& visited_points)
+  {
+    visited_points[gp->index] = true;
+    std::size_t seed_p = gp->closest_seed_id;
+
+    if(gp->index < 4) // corner hack fixme
       gp->is_Voronoi_vertex = true;
 
+    typename Grid_point::Neighbors::iterator it = gp->border_neighbors.begin();
+    typename Grid_point::Neighbors::iterator end = gp->border_neighbors.end();
+    for(; it!=end; ++it)
+    {
+      Grid_point* gq = *it;
+      CGAL_assertion(gq->is_on_domain_border);
+      if(!visited_points[gq->index])
+      {
+        // check if they have different colors
+        std::size_t seed_q = gq->closest_seed_id;
+        if(seed_p != seed_q)
+        {
+          gp->is_Voronoi_vertex = true;
+          gq->is_Voronoi_vertex = true;
+        }
+
+        // continue visiting from gq
+        visit_neighbors_and_mark(gq, visited_points);
+      }
+    }
+  }
+
+  void mark_voronoi_vertices_on_border()
+  {
+    // Loop through the border of the domain; if a segment has two different colors
+    // then we're on the intersection of a 1-bisector with the border and we add
+    // each extremity of the segment as a voronoi vertex
+
+    // Also, the corners have to be added as Voronoi vertices too
+
+    // find a first point on the border. (points[0] is usually one)
+    std::vector<bool> visited_points(points.size(), false);
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      if(points[i].is_on_domain_border) // todo keep the border neighbor in memory
+      {
+        visit_neighbors_and_mark(&(points[i]), visited_points);
+        break;
+      }
+    }
+  }
+
+  Grid_point Vor_vertex_in_triangle(const Grid_point& gq,
+                                    const Grid_point& gr,
+                                    const Grid_point& gs,
+                                    int call_count)
+  {
+    Point_2 centroid = CGAL::centroid(gq.point, gr.point, gs.point);
+
+    Grid_point gp(centroid, -1, false/*border info*/);
+    // it's actually possible for the centroid to be on the domain border,
+    // but it doesn't matter since it's not a real grid point
+    // and we'll never use this border information
+
+    gp.compute_closest_seed(&gq);
+    gp.compute_closest_seed(&gr);
+    gp.compute_closest_seed(&gs);
+    gp.state = KNOWN;
+
+    // another potential stop is if the (max) distance between the centroid
+    // and a point of the triangle is below a given distance
+    if(call_count > 5)
+      return gp;
+
+    if(gp.closest_seed_id == gq.closest_seed_id)
+      return Vor_vertex_in_triangle(gp, gr, gs, ++call_count);
+    else if(gp.closest_seed_id == gr.closest_seed_id)
+      return Vor_vertex_in_triangle(gp, gq, gs, ++call_count);
+    else
+    {
+      CGAL_assertion(gp.closest_seed_id == gs.closest_seed_id);
+      return Vor_vertex_in_triangle(gp, gq, gr, ++call_count);
+    }
+  }
+
+  void compute_precise_Voronoi_vertices(const Tri& tri,
+                                        const Simplex& simplex)
+  {
+    // The function 'mark_Voronoi_vertices' only picks a point on the base mesh,
+    // which is usually not the real Voronoi vertex of the Voronoi cell.
+    // We need something more precise to compute the center of mass of the cell.
+
+    // the idea is to virtually subdivide the triangle (we don't want to polute
+    // the base mesh with more real triangles that probably will be useless when
+    // another point is inserted and the bisectors move) with its center of mass
+
+    // Then, compute the color at this new point, and subdivide the smaller triangle
+    // that has 3 different colors. Repeat till happy.
+
+    std::size_t ds_size = simplex.size();
+
+    if(ds_size == 3)
+    {
+      const Grid_point& gq = points[tri[0]];
+      const Grid_point& gr = points[tri[1]];
+      const Grid_point& gs = points[tri[2]];
+
+      int call_count = 0;
+      Grid_point centroid = Vor_vertex_in_triangle(gq, gr, gs, call_count);
+
+      for(int i=0; i<3; ++i)
+      {
+        const Grid_point& gp = points[tri[i]];
+        std::size_t seed_id = gp.closest_seed_id;
+        Voronoi_vertices[seed_id].push_back(centroid);
+        Voronoi_vertices[seed_id].back().closest_seed_id = seed_id;
+        Voronoi_vertices[seed_id].back().ancestor = &gp;
+      }
+    }
+  }
+
+  Grid_point Vor_vertex_on_segment(const Grid_point* gq,
+                                   const Grid_point* gr,
+                                   int call_count)
+  {
+    // do the complicated split, see formula on notes // todo
+    // taking the easy way for now
+    Point_2 centroid = CGAL::barycenter(gq->point, 0.5, gr->point, 0.5);
+
+    Grid_point gp(centroid, -1, true/*on border*/);
+
+    gp.compute_closest_seed(gq);
+    gp.compute_closest_seed(gr);
+    gp.state = KNOWN;
+
+    if(call_count > 5)
+      return gp;
+
+    if(gp.closest_seed_id == gq->closest_seed_id)
+      return Vor_vertex_on_segment(&gp, gr, ++call_count);
+    else
+    {
+      CGAL_assertion(gp.closest_seed_id == gr->closest_seed_id);
+      return Vor_vertex_on_segment(&gp, gq, ++call_count);
+    }
+  }
+
+  void visit_neighbors_and_compute(Grid_point* gp,
+                                   std::vector<bool>& visited_points)
+  {
+    visited_points[gp->index] = true;
+    std::size_t seed_p = gp->closest_seed_id;
+
+    if(gp->index < 4) // corner hack fixme
+      Voronoi_vertices[seed_p].push_back(*gp);
+
+    typename Grid_point::Neighbors::iterator it = gp->border_neighbors.begin();
+    typename Grid_point::Neighbors::iterator end = gp->border_neighbors.end();
+    for(; it!=end; ++it)
+    {
+      Grid_point* gq = *it;
+      CGAL_assertion(gq->is_on_domain_border);
+      if(!visited_points[gq->index])
+      {
+        // check if they have different colors
+        std::size_t seed_q = gq->closest_seed_id;
+        if(seed_p != seed_q)
+        {
+          int call_count = 0;
+          Grid_point precise_vor_vertex = Vor_vertex_on_segment(gp, gq, call_count);
+
+          Voronoi_vertices[seed_p].push_back(precise_vor_vertex);
+          Voronoi_vertices[seed_p].back().closest_seed_id = seed_p;
+          Voronoi_vertices[seed_p].back().ancestor = gp;
+
+          Voronoi_vertices[seed_q].push_back(precise_vor_vertex);
+          Voronoi_vertices[seed_q].back().closest_seed_id = seed_q;
+          Voronoi_vertices[seed_q].back().ancestor = gq;
+        }
+
+        // continue visiting from gq
+        visit_neighbors_and_compute(gq, visited_points);
+      }
+    }
+  }
+
+  void compute_precise_Voronoi_vertices_on_border()
+  {
+    // fixme : at the moment, we look for two vertices P and Q with different colors
+    // (let's note them Cp and Cq). We then do some dichotomy-like search to find
+    // a precise point equidistant from the seeds Sp and Sq by recursively
+    // inserting virtual points on the segment [PQ]
+
+    // BUT we force ancestry to stay on the segment, which is probably always the
+    // case but we could theoretically have an ancestry that uses the third
+    // point of the triangle...
+
+    // MOREOEVER the color of that third point is unknown and might be :
+    // - a third different color (in that case it should be handled by
+    //   'compute_voronoi_vertex_in_triangle' anyway
+    // - a color that is either Cp or Cq, and we can hope that it doesn't change
+    //   too much from constraining the ancestry to stay on [PQ]
+
+    // still need to be fixed though...
+
+    // Related to that problem is the handling of a triangle with 3 colors with
+    // a border edge... At the moment, we would compute two Voronoi vertices that
+    // would be very close to each other... another fixme...
+
+    // find a first point on the border. (points[0] is usually one)
+    std::vector<bool> visited_points(points.size(), false);
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      if(points[i].is_on_domain_border)
+      {
+        visit_neighbors_and_compute(&(points[i]), visited_points);
+        break;
+      }
+    }
+  }
+
+  void dual_shenanigans(Grid_point* gp)
+  {
     CGAL_assertion(gp->state == KNOWN);
     // Check the neighbors of gp for points that have the state KNOWN.
-    // In these, consider those that have a closest_seed_id different than gp's
-    // those give dual simplices.
-    // If we have never seen that dual already, then we have also found which
-    // point we will draw to in the geodesic_triangulation
+    // In these, consider those that have a closest_seed_id different than gp's.
+    // Those give the dual simplices.
 
     std::list<std::size_t>::const_iterator it = gp->incident_triangles.begin(),
                                            end = gp->incident_triangles.end();
     for(; it!=end; ++it)
     {
       const Tri& tri = triangles[*it];
-      std::set<std::size_t> dual_simplex;
+      Simplex dual_simplex;
 
       for(std::size_t j=0; j<3; ++j)
       {
-        const Grid_point& gq = points[tri[j]]; // it's possible that gq = gp
+        const Grid_point& gq = points[tri[j]];
         if(gq.state != KNOWN)
           continue;
 
         std::size_t q_id = gq.closest_seed_id;
         CGAL_assertion(q_id != static_cast<std::size_t>(-1));
         dual_simplex.insert(q_id);
-
-/* shenanigans to build pseudo geodesic triangulations...
-        std::size_t p_id = gp->closest_seed_id;
-        if(p_id != q_id) // we're on the bisector of [PQ]
-        {
-          simplex.insert(q_id);
-          std::pair<const Grid_point*, const Grid_point*> gp_pair;
-          std::pair<std::size_t, std::size_t> id_pair;
-          if(p_id < q_id)
-          {
-            gp_pair = std::make_pair(gp, gq);
-            id_pair = std::make_pair(p_id, q_id);
-          }
-          else
-          {
-            gp_pair = std::make_pair(gq, gp);
-            id_pair = std::make_pair(q_id, p_id);
-          }
-          std::pair<std::pair<std::size_t, std::size_t>,
-              std::pair<const Grid_point*, const Grid_point*> > value =
-              std::make_pair(id_pair, gp_pair);
-
-          // the insert below only succeeds if we haven't already found an edge p_id/q_id
-          // therefore the map has for value the closest points on D_pq
-          edge_bisectors.insert(value);
-        }
-*/
+//        fill_edge_bisectors_map(gp, gq);
       }
-
-      std::size_t ds_size = dual_simplex.size();
-      if(ds_size == 2)
-      {
-        // doing it explicitely because it's clearer and there are many subcases atm
-
-        Grid_point& gq = points[tri[0]];
-        Grid_point& gr = points[tri[1]];
-        Grid_point& gs = points[tri[2]];
-
-        // we accept a point as a Voronoi vertex only if there are 2 vertices
-        // on the domain border with different domain colors
-
-        bool gq_on_border = gq.is_on_domain_border;
-        bool gr_on_border = gr.is_on_domain_border;
-        bool gs_on_border = gs.is_on_domain_border;
-
-        // tedious tree ahead, wear a helmet...
-        // it's the most explicit at the moment, is it worth obfuscating it to shorten it ?
-
-        if(gq_on_border) // gq
-        {
-          if(gr_on_border) // gq && gr
-          {
-            if(gs_on_border) // gq && gr && gs
-            {
-              // really rare case: the triangle is a corner AND a bisector...
-              // since we only have two colors, there are 2 points with the same color
-              // we need to keep the one farthest away from the seed
-
-              if(gq.closest_seed_id == gr.closest_seed_id) // gq & gr have the same color
-              {
-                if(gq.distance_to_closest_seed > gr.distance_to_closest_seed)
-                  gq.is_Voronoi_vertex = true;
-                else
-                  gr.is_Voronoi_vertex = true;
-                gs.is_Voronoi_vertex = true; // gs has the second color
-              }
-              else if(gq.closest_seed_id == gs.closest_seed_id) // gq & gs have the same color
-              {
-                if(gq.distance_to_closest_seed > gs.distance_to_closest_seed)
-                  gq.is_Voronoi_vertex = true;
-                else
-                  gs.is_Voronoi_vertex = true;
-                gr.is_Voronoi_vertex = true; // gr has the second color
-              }
-              else // gr & gs have the same color
-              {
-                if(gr.distance_to_closest_seed > gs.distance_to_closest_seed)
-                  gr.is_Voronoi_vertex = true;
-                else
-                  gs.is_Voronoi_vertex = true;
-                gq.is_Voronoi_vertex = true; // gq has the second color
-              }
-            }
-            else // gq && gr && !gs
-            {
-              if(gq.closest_seed_id != gr.closest_seed_id)
-              {
-                gq.is_Voronoi_vertex = true;
-                gr.is_Voronoi_vertex = true;
-              }
-            }
-          }
-          else // gq && !gr
-          {
-            if(gs_on_border) // gq && !gr && gs
-            {
-              if(gq.closest_seed_id != gs.closest_seed_id)
-              {
-                gq.is_Voronoi_vertex = true;
-                gs.is_Voronoi_vertex = true;
-              }
-            }
-            // can't do anything with gq && !gr && !gs
-          }
-        }
-        else // !gq
-        {
-          if(gr_on_border) // !gq && gr
-          {
-            if(gs_on_border) // !gq && gr && gs
-            {
-              if(gr.closest_seed_id != gs.closest_seed_id)
-              {
-                gr.is_Voronoi_vertex = true;
-                gs.is_Voronoi_vertex = true;
-              }
-            }
-            // can't do anything with !gq && gr && !gs
-          }
-          // can't do anything with !gq && !gr (whatever gs is)
-        }
-      }
-      else if(ds_size == 3)
-      {
-        for(std::size_t j=0; j<3; ++j)
-        {
-          Grid_point& gq = points[tri[j]]; // it's possible that gq = gp
-          gq.is_Voronoi_vertex = true;
-//          std::cout << gq.index << " (" << gq.point << ") vor vert for " << gq.closest_seed_id << std::endl;
-        }
-      }
-
-      // the simplex of size ? is added to the dual simplices
       add_simplex_to_triangulation(gp, dual_simplex);
+
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+      compute_precise_Voronoi_vertices(tri, dual_simplex);
+#else
+      mark_voronoi_vertices(tri, dual_simplex);
+#endif
     }
   }
 
@@ -1398,14 +1526,24 @@ struct Base_mesh
       dual_shenanigans(gp);
 
       PQ_state pqs = gp->update_neighbors_distances(trial_points);
-
       if(pqs == REBUILD_TRIAL)
         std::make_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
-
       is_t_empty = trial_points.empty();
     }
 
     std::cerr << "End of spread_distances. time: ";
+    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+
+    // we have only computed the voronoi vertices corresponding to the dual of 3-simplex
+    // to get the full cell we need to know the intersection of the voronoi cell
+    // with the border of the domain
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+    compute_precise_Voronoi_vertices_on_border();
+#else
+    mark_voronoi_vertices_on_border();
+#endif
+
+    std::cerr << "After Voronoi border: ";
     std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
   }
 
@@ -1447,6 +1585,9 @@ struct Base_mesh
     quality_queue.clear();
 
     refinement_point = NULL;
+
+    Voronoi_vertices.clear();
+    Voronoi_vertices.resize(seeds.size());
   }
 
   void reset()
@@ -1789,69 +1930,80 @@ struct Base_mesh
     return theta;
   }
 
-  // we want to have the Voronoi vertices ordered in a cycle
-  struct Voronoi_vertices_comparer
+  Point_2 map_point_to_tangent_space(const Grid_point& gp)
   {
-    const std::vector<Point_2>& mapped_points;
+    const FT r = gp.distance_to_closest_seed;
+    const std::size_t seed_id = gp.closest_seed_id;
+    const Point_2& seed = seeds[seed_id];
 
-    bool operator()(const std::size_t left, const std::size_t right)
-    {
-      const Point_2& left_p = mapped_points[left];
-      const Point_2& right_p = mapped_points[right];
+    // compute the tangent and the angle with the horizontal axis
+    FT theta = compute_tangent_angle(gp, seed);
 
-      FT left_theta = std::atan2(left_p.y(), left_p.x());
-      FT right_theta = std::atan2(right_p.y(), right_p.x());
+    // we don't actually care much for polar coordinates, so we keep them as
+    // Cartesian coordinates instead
+    FT x = r * std::cos(theta);
+    FT y = r * std::sin(theta);
 
-      return left_theta < right_theta;
-    }
+//    std::cout << " mapped: " << gp.point.x() << " " << gp.point.y() << " to "
+//              << x << " " << y << " r/theta: " << r << " " << theta
+//              << " (seed_id : " << seed_id << ")" << std::endl;
 
-    Voronoi_vertices_comparer(const std::vector<Point_2>& mapped_points_)
-      :
-        mapped_points(mapped_points_)
-    { }
-  };
+     return Point_2(x, y);
+  }
 
-  typedef std::set<std::size_t, Voronoi_vertices_comparer>   Voronoi_vertices_container;
-  typedef std::vector<Voronoi_vertices_container>            Voronoi_vertices_vector;
-
-  void map_grid_points_to_tangent_spaces(std::vector<Point_2>& mapped_points,
-                                         Voronoi_vertices_vector& Voronoi_vertices)
+  void map_grid_points_to_tangent_spaces(std::vector<Point_2>& mapped_points)
   {
     std::cout << "build map grids..." << std::endl;
 
-    // transform grid points from the manifold to the tangent space of their
-    // closest seed
+    // transform grid points from the manifold to the 'tangent' space of their
+    // closest seed with the log map.
 
-    // conveniently, we can express it through polar geodesic coordinates
-    // since we know the geodesic distance to the seed.
-    // To determine the angle part of the polar coordinates, we have to compute
-    // the tangent of the geodesic near the seed;
-
-    // if the grid point is also a Voronoi vertex, we keep it in a special memory
+    // The new coordinates are polar geodesic coordinates
+    // - The radius is simply the geodesic distance
+    // - The angle is given by the angle of the tangent of the geodesic at the seed
 
     for(std::size_t i=0; i<points.size(); ++i)
     {
       const Grid_point& gp = points[i];
-      const FT r = gp.distance_to_closest_seed;
-      const std::size_t seed_id = gp.closest_seed_id;
-      const Point_2& seed = seeds[seed_id];
+      mapped_points[i] = map_point_to_tangent_space(gp);
 
-      // compute the tangent and the angle with (Ox)
-      FT theta = compute_tangent_angle(gp, seed);
-
-      // we don't actually care much for polar coordinates, so we keep them as
-      // Cartesian coordinates instead
-      FT x = r * std::cos(theta);
-      FT y = r * std::sin(theta);
-      mapped_points[i] = Point_2(x, y);
-
-//        std::cout << i << " mapped: " << gp.point.x() << " " << gp.point.y() << " to "
-//                  << x << " " << y << " r/theta: " << r << " " << theta
-//                  << " (seed_id at i : " << seed_id << ")" << std::endl;
-
+#ifndef COMPUTE_PRECISE_VOR_VERTICES
+    // If the grid point is also a Voronoi vertex, we keep it in a special memory
       if(gp.is_Voronoi_vertex)
+        Voronoi_vertices[gp.closest_seed_id].push_back(gp);
+#endif
+    }
+  }
+
+  void map_precise_Voronoi_vertices_to_tangent_spaces(std::vector<Point_2>& mapped_points)
+  {
+    CGAL_assertion(Voronoi_vertices.size() == seeds.size());
+    std::cout << "map precise" << std::endl;
+
+    // count the number of precise Voronoi vertices
+    std::size_t precise_Vor_vertices_count = 0;
+    for(std::size_t seed_id=0; seed_id<Voronoi_vertices.size(); ++seed_id)
+      precise_Vor_vertices_count += Voronoi_vertices[seed_id].size();
+
+    // resize the mapped points to add the precise Vor vertices
+    mapped_points.resize(points.size() + precise_Vor_vertices_count);
+
+    // to number the precise Vor vertices (they are not base mesh points)
+    std::size_t precise_Vor_vertex_index = points.size();
+
+    for(std::size_t seed_id=0; seed_id<Voronoi_vertices.size(); ++seed_id)
+    {
+      Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
+      for(std::size_t i=0; i<Vor_vertices.size(); ++i)
       {
-        Voronoi_vertices[seed_id].insert(i);
+        // gp is NOT a point of the base mesh
+        Grid_point& gp = Vor_vertices[i];
+        gp.index = precise_Vor_vertex_index++;
+
+        CGAL_assertion(gp.closest_seed_id == seed_id);
+
+        const Point_2& mapped_p = map_point_to_tangent_space(gp);
+        mapped_points[gp.index] = mapped_p;
       }
     }
   }
@@ -2039,8 +2191,7 @@ struct Base_mesh
     return Point_2(centroid_x, centroid_y);
   }
 
-  Point_2 compute_centroid_with_voronoi_vertices(const std::size_t seed_id,
-                                                 const Voronoi_vertices_vector& Voronoi_vertices)
+  Point_2 compute_centroid_with_voronoi_vertices(const std::size_t seed_id)
   {
     // careful, this is for isotropic only !
 
@@ -2067,8 +2218,8 @@ struct Base_mesh
       if(next_it == end)
         next_it = Vor_vertices.begin();
 
-      const Point_2& pi = points[*it].point;
-      const Point_2& pj = points[*next_it].point;
+      const Point_2& pi = it->point;
+      const Point_2& pj = next_it->point;
 
       FT area = triangle_area(old_seed, pi, pj);
       total_area += area;
@@ -2095,57 +2246,49 @@ struct Base_mesh
     return Point_2(centroid_x, centroid_y);
   }
 
-  Point_2 compute_centroid_with_polygon_centroid(const std::size_t seed_id,
-                                                 const Voronoi_vertices_vector& Voronoi_vertices)
+  Point_2 compute_accurate_centroid_with_Delaunay(const std::size_t seed_id)
   {
-    // careful, this is for isotropic only !
+    // careful, this is only for isotropic !
 
-    // use the formulae to compute the centroid of a polygon with the voronoi vertices
+    // compute an accurate centroid by computing accurate Voronoi vertices
+    // (rather than Vor vertices based on the underlying base mesh)
+    // as the circumcenters of the triangles incident to the seed of id seed_id
+    // in the dual triangulation
 
-    const Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
+    // brute forcy as usual
 
-    if(Vor_vertices.size() < 3)
+    // it's broken as of now : need to compute correctly the Voronoi vertices
+    // that result from the intersection of an unbounded Voronoi cell with the
+    // domain border.
+    CGAL_assertion(false && "fix the computations of the Voronoi vertices first");
+
+    std::vector<Point_2> accurate_vor_vertices;
+    for(typename std::set<Tri>::iterator it = dual_triangles.begin();
+                                         it != dual_triangles.end(); ++it)
     {
-      std::cerr << "WARNING: NOT ENOUGH VORONOI VERTICES TO OPTIMIZE SEED: " << seed_id << std::endl;
-      return Point_2(0.,0.);
+      const Tri& tr = *it;
+      if(tr[0] != seed_id && tr[1] != seed_id && tr[2] != seed_id)
+        continue;
+
+      Point_2 p = seeds[tr[0]];
+      Point_2 q = seeds[tr[1]];
+      Point_2 r = seeds[tr[2]];
+
+      Point_2 c = CGAL::circumcenter(p, q, r);
+      accurate_vor_vertices.push_back(c);
     }
 
-    // compute the centroid of the polygon composed by the mapped Voronoi vertices
-    // see wikipedia for the formulae...
-    FT area = 0;
     FT centroid_x = 0., centroid_y = 0.;
-
-    typename Voronoi_vertices_container::const_iterator it = Vor_vertices.begin();
-    typename Voronoi_vertices_container::const_iterator next_it = ++(Vor_vertices.begin());
-    typename Voronoi_vertices_container::const_iterator end = Vor_vertices.end();
-    for(; it!=end; ++it, ++next_it)
-    {
-      if(next_it == end)
-        next_it = Vor_vertices.begin();
-
-      const Point_2& pi = points[*it].point;
-      const Point_2& pj = points[*next_it].point;
-
-      area += pi.x()*pj.y() - pj.x()*pi.y();
-      centroid_x += (pi.x() + pj.x()) * (pi.x()*pj.y() - pj.x()*pi.y());
-      centroid_y += (pi.y() + pj.y()) * (pi.x()*pj.y() - pj.x()*pi.y());
-    }
-    area *= 0.5;
-    CGAL_assertion(area != 0);
-
-    FT denom = 1./(6.*area);
-
-    centroid_x *= denom;
-    centroid_y *= denom;
+    // order them (transform accurate_vor_vertices in a set sorted by angle, cf
+    // above) and use the polygon centroid's formula
+    // todo
 
     return Point_2(centroid_x, centroid_y);
   }
 
-  FT optimize_seed(const std::size_t seed_id,
-                   const std::vector<Point_2>& mapped_points,
-                   const Voronoi_vertices_vector& Voronoi_vertices)
+  Point_2 compute_mapped_centroid_with_mapped_Vor_vertices(const std::size_t seed_id,
+                                                            const std::vector<Point_2>& mapped_points)
   {
-    const Point_2 old_seed = seeds[seed_id];
     const Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
 
     std::cout << "optimize seed " << seed_id << std::endl;
@@ -2155,7 +2298,7 @@ struct Base_mesh
     if(Vor_vertices.size() < 3)
     {
       std::cerr << "WARNING: NOT ENOUGH VORONOI VERTICES TO OPTIMIZE SEED: " << seed_id << std::endl;
-      return 0.;
+      return Point_2(0.,0.);
     }
 
     // compute the centroid of the polygon composed by the mapped Voronoi vertices
@@ -2171,12 +2314,12 @@ struct Base_mesh
       if(next_it == end)
         next_it = Vor_vertices.begin();
 
-      const Point_2& pi = mapped_points[*it];
-      const Point_2& pj = mapped_points[*next_it];
+      const Point_2& pi = mapped_points[it->index];
+      const Point_2& pj = mapped_points[next_it->index];
 
-      std::cout << "current Vor vertex: " << *it << " " << pi;
-      std::cout << " which is an angle of: " << std::atan2(mapped_points[*it].y(),
-                                                           mapped_points[*it].x()) << std::endl;
+      std::cout << "current Vor vertex: " << it->index << " " << pi;
+      std::cout << " which is an angle of: " << std::atan2(mapped_points[it->index].y(),
+                                                           mapped_points[it->index].x()) << std::endl;
 
       area += pi.x()*pj.y() - pj.x()*pi.y();
       centroid_x += (pi.x() + pj.x()) * (pi.x()*pj.y() - pj.x()*pi.y());
@@ -2192,6 +2335,12 @@ struct Base_mesh
     return Point_2 (centroid_x, centroid_y);
   }
 
+  FT optimize_seed(const std::size_t seed_id,
+                   const std::vector<Point_2>& mapped_points)
+  {
+    const Point_2 old_seed = seeds[seed_id];
+    Point_2 mapped_centroid = compute_mapped_centroid_with_mapped_Vor_vertices(seed_id, mapped_points);
+    std::cout << "(mapped) centroid coordinates from mapped Vor vertices " << mapped_centroid  << std::endl;
 
     // -------------------------------------------------------------------------
     std::cout << "UNMAPPING POSSIBILITIES :" << std::endl;
@@ -2212,8 +2361,8 @@ struct Base_mesh
       Point_2 alt_centroid_2 = compute_centroid_with_voronoi_vertices(seed_id);
       std::cout << "centroid with voronoi vertices " << alt_centroid_2 << std::endl;
 
-      Point_2 alt_centroid_3 = compute_centroid_with_polygon_centroid(seed_id, Voronoi_vertices);
-      std::cout << "centroid with polygon centroid " << alt_centroid_3 << std::endl;
+      //    Point_2 del_centroid = compute_accurate_centroid_with_Delaunay(seed_id);
+//    std::cout << "centroid from Delaunay Vort vertices: " << del_centroid << std::endl;
     // --
 
     std::cout << "ALTERNATIVE MAPPED CENTROID COMPUTATION : " << std::endl;
@@ -2235,12 +2384,73 @@ struct Base_mesh
     FT displacement = sqd(old_seed, new_seed);
     std::cout << "seed: " << seed_id << " displacement: " << displacement << std::endl;
 
-    // fixme
-    // since we reset after computing, it's pointless to initialize now
-    // need to keep it in memory for a little bit and then init after the reset...
-//     initialize_grid_point(points[closest_mapped_grid_point_id], 0., seed_id);
-
     return displacement;
+  }
+
+  // we want to have the Voronoi vertices ordered in a cycle
+  template<typename GP_iter>
+  Point_2 barycenter(GP_iter it, GP_iter end,
+                     const std::vector<Point_2>& mapped_points)
+  {
+    std::size_t n = end - it;
+    FT x = 0., y =0.;
+    for(; it!=end; ++it)
+    {
+      x += mapped_points[it->index].x();
+      y += mapped_points[it->index].y();
+    }
+    CGAL_assertion(n != 0);
+    x /= n;
+    y /= n;
+
+    return Point_2(x, y);
+  }
+
+  struct Voronoi_vertices_comparer
+  {
+    const std::vector<Point_2>& mapped_points;
+    const Point_2& pol_bar;
+
+    bool operator()(const Grid_point& left, const Grid_point& right)
+    {
+      const Point_2& left_p = mapped_points[left.index];
+      const Point_2& right_p = mapped_points[right.index];
+
+      FT left_theta = std::atan2(left_p.y() - pol_bar.y(), left_p.x() - pol_bar.x());
+      FT right_theta = std::atan2(right_p.y() - pol_bar.y(), right_p.x() - pol_bar.x());
+
+      return left_theta < right_theta;
+    }
+
+    Voronoi_vertices_comparer(const std::vector<Point_2>& mapped_points_,
+                              const Point_2& polygon_barycenter_)
+      :
+        mapped_points(mapped_points_),
+        pol_bar(polygon_barycenter_)
+    { }
+  };
+
+  void sort_Voronoi_vertices(const std::vector<Point_2>& mapped_points)
+  {
+    CGAL_assertion(Voronoi_vertices.size() == seeds.size());
+
+    for(std::size_t seed_id=0; seed_id<seeds.size(); ++seed_id)
+    {
+      // we want to sort the Voronoi vertices in a cycle around the seed
+      Voronoi_vertices_container& seed_Vor_vertices = Voronoi_vertices[seed_id];
+      Point_2 mapped_bar = barycenter(seed_Vor_vertices.begin(), seed_Vor_vertices.end(),
+                                      mapped_points);
+
+      std::sort(seed_Vor_vertices.begin(), seed_Vor_vertices.end(),
+                Voronoi_vertices_comparer(mapped_points, mapped_bar));
+
+      // just as debug :
+      std::size_t old_size = seed_Vor_vertices.size();
+      seed_Vor_vertices.erase(std::unique(seed_Vor_vertices.begin(),
+                                           seed_Vor_vertices.end() ),
+                              seed_Vor_vertices.end() );
+      CGAL_assertion(seed_Vor_vertices.size() == old_size);
+    }
   }
 
   void optimize_seeds()
@@ -2256,17 +2466,22 @@ struct Base_mesh
 
     do
     {
+      // the mapped Voronoi vertices (each point mapped according to its closest seed)
       std::vector<Point_2 > mapped_points(points.size());
-      // the mapped Voronoi vertices for all the seeds
-      Voronoi_vertices_vector Voronoi_vertices(seeds.size(),
-                                     Voronoi_vertices_container(mapped_points));
 
-      map_grid_points_to_tangent_spaces(mapped_points, Voronoi_vertices);
+      map_grid_points_to_tangent_spaces(mapped_points);
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+      map_precise_Voronoi_vertices_to_tangent_spaces(mapped_points);
+#endif
 
+      // must sort the Voronoi vertices so that they are ordered in a cycle
+      // to be able to use the polygon centroid's formula
+      sort_Voronoi_vertices(mapped_points);
+
+      // Optimize each seed
       FT cumulated_displacement = 0;
       for(std::size_t i=0; i<seeds.size(); ++i)
-        cumulated_displacement += optimize_seed(i, mapped_points,
-                                                Voronoi_vertices);
+        cumulated_displacement += optimize_seed(i, mapped_points);
 
       std::cout << "at : " << counter << ", cumulated displacement : "
                 << cumulated_displacement << std::endl;
@@ -2615,6 +2830,7 @@ struct Base_mesh
       dual_edges(),
       dual_triangles(),
       refinement_point(NULL),
+      Voronoi_vertices()
   { }
 };
 
