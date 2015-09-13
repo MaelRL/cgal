@@ -697,6 +697,7 @@ struct Grid_point
   std::size_t index;
   Metric metric;
   Neighbors neighbors;
+  Neighbors border_neighbors;
   std::list<std::size_t> incident_triangles;
   bool is_on_domain_border;
 
@@ -883,6 +884,12 @@ struct Grid_point
     ancestor = NULL;
   }
 
+  bool operator==(const Grid_point& gp)
+  {
+    // the only thing that matters is the point
+    return (point == gp.point);
+  }
+
   Grid_point(const Point_2& point_,
              const std::size_t index_,
              const bool is_on_domain_border_ = false)
@@ -891,6 +898,7 @@ struct Grid_point
       index(index_),
       metric(mf->compute_metric(point)),
       neighbors(),
+      border_neighbors(),
       incident_triangles(),
       is_on_domain_border(is_on_domain_border_),
       state(FAR),
@@ -898,6 +906,22 @@ struct Grid_point
       closest_seed_id(-1),
       ancestor(NULL),
       is_Voronoi_vertex(false)
+  { }
+
+  Grid_point(const Grid_point& gp)
+    :
+      point(gp.point),
+      index(gp.index),
+      metric(gp.metric),
+      neighbors(gp.neighbors),
+      border_neighbors(gp.border_neighbors),
+      incident_triangles(gp.incident_triangles),
+      is_on_domain_border(gp.is_on_domain_border),
+      state(gp.state),
+      distance_to_closest_seed(gp.distance_to_closest_seed),
+      closest_seed_id(gp.closest_seed_id),
+      ancestor(gp.ancestor),
+      is_Voronoi_vertex(gp.is_Voronoi_vertex)
   { }
 };
 
@@ -1138,6 +1162,8 @@ struct Base_mesh
         {
           std::size_t id2 = tr[(i+j)%3];
           points[id1].neighbors.insert(&points[id2]);
+          if(points[id1].is_on_domain_border && points[id2].is_on_domain_border)
+            points[tr[i]].border_neighbors.insert(&points[id2]);
         }
         points[id1].incident_triangles.push_back(new_tri_id);
       }
