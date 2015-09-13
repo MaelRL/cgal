@@ -1094,7 +1094,6 @@ struct Base_mesh
     std::string word;
     std::size_t useless, nv, nt, dim;
     FT r_x, r_y;
-    int i1, i2, i3;
 
     in >> word >> useless; // MeshVersionFormatted i
     in >> word >> dim; // Dimension d
@@ -1109,7 +1108,7 @@ struct Base_mesh
       in >> r_x >> r_y >> border_info;
 
       if(border_info != 0 && border_info != 1)
-        CGAL_assertion(false && "you're not using a mesh with border info you ****");
+        CGAL_assertion(false && "you're not using a mesh with border info");
 
       Point_2 p(r_x, r_y);
       Grid_point gp(p, i, border_info);
@@ -1124,23 +1123,24 @@ struct Base_mesh
     in >> word >> nt; // Triangles nt
     for(std::size_t i=0; i<nt; ++i)
     {
-      in >> i1 >> i2 >> i3 >> useless;
-      --i1; --i2; --i3; // because we're reading medit data...
-      points[i1].neighbors.insert(&points[i2]);
-      points[i1].neighbors.insert(&points[i3]);
-      points[i2].neighbors.insert(&points[i1]);
-      points[i2].neighbors.insert(&points[i3]);
-      points[i3].neighbors.insert(&points[i1]);
-      points[i3].neighbors.insert(&points[i2]);
+      Tri tr;
+      in >> tr[0] >> tr[1] >> tr[2] >> useless;
+      --tr[0]; --tr[1]; --tr[2]; // because we're reading medit data
 
-      Tri triangle;
-      triangle[0] = i1; triangle[1] = i2; triangle[2] = i3;
-      triangles.push_back(triangle);
+      triangles.push_back(tr);
+      std::size_t new_tri_id = triangles.size() - 1; // id of the current triangle
 
-      std::size_t new_tri_id = triangles.size() - 1;
-      points[i1].incident_triangles.push_back(new_tri_id);
-      points[i2].incident_triangles.push_back(new_tri_id);
-      points[i3].incident_triangles.push_back(new_tri_id);
+      // initialize the neighbors and border neighbors
+      for(std::size_t i=0; i<3; ++i)
+      {
+        std::size_t id1 = tr[i];
+        for(std::size_t j=1; j<=2; ++j)
+        {
+          std::size_t id2 = tr[(i+j)%3];
+          points[id1].neighbors.insert(&points[id2]);
+        }
+        points[id1].incident_triangles.push_back(new_tri_id);
+      }
     }
 
 #if (verbose > 5)
@@ -1336,7 +1336,6 @@ struct Base_mesh
 #if (verbose > 5)
     std::cout << "main loop" << std::endl;
 #endif
-    clear_dual();
     Grid_point* gp;
 
     bool is_t_empty = trial_points.empty();
@@ -1408,6 +1407,22 @@ struct Base_mesh
     std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
   }
 
+  void clear_dual()
+  {
+    edge_incident_tris.clear();
+
+    edge_bisectors.clear();
+    dual_edges.clear();
+    dual_triangles.clear();
+
+    size_queue.clear();
+    distortion_queue.clear();
+    intersection_queue.clear();
+    quality_queue.clear();
+
+    refinement_point = NULL;
+  }
+
   void reset()
   {
     std::cout << "grid reset" << std::endl;
@@ -1425,6 +1440,8 @@ struct Base_mesh
     known_count = 0;
     trial_count = 0;
     far_count = points.size();
+
+    clear_dual();
   }
 
   void refresh_grid_point_states()
@@ -1585,16 +1602,22 @@ struct Base_mesh
         return;
     }
 
-//    std::cout << "insert " << entry;
-//    std::cout << "queue id: " << i << std::endl;
+#if (verbose > 15)
+    std::cout << "insert " << entry;
+    std::cout << "queue id: " << i << std::endl;
+#endif
     queue.insert(entry);
   }
 
-  void refinement_shenanigans(const Grid_point* gp,
-                              const Simplex& dual_simplex)
+  void test_simplex(const Grid_point* gp,
+                    const Simplex& dual_simplex)
   {
-    // to get the next refinement point (farthest point in a dual...)
-    // Not sure if we should allow dual of edges to be considered...
+    // test the simplex 'dual_simplex' agaisnt the criteria to decide
+    // whether it needs to be refined or not
+
+    // Not sure if we should allow dual of edges to be considered for the size
+    // and distortion criteria
+
     // Maybe only allow the dual of an edge to be considered if the dual is
     // on the border of the domain ?
 
@@ -1656,7 +1679,7 @@ struct Base_mesh
         }
       }
 
-      // quality
+      // quality fixme quality should be radius edge ratio
       if(min_qual > 0.)
       {
         FT qual = compute_quality(tr);
@@ -1672,13 +1695,13 @@ struct Base_mesh
     }
   }
 
-  void refinement_shenanigans(const Tri& grid_tri,
-                              const Simplex& dual_simplex)
+  void test_simplex(const Tri& grid_tri,
+                    const Simplex& dual_simplex)
   {
     typename Tri::const_iterator it = grid_tri.begin();
     typename Tri::const_iterator end = grid_tri.end();
     for(; it!=end; ++it)
-     refinement_shenanigans(&(points[*it]), dual_simplex);
+     test_simplex(&(points[*it]), dual_simplex);
   }
 
   void add_simplex_to_triangulation(const Simplex& dual_simplex)
@@ -1700,7 +1723,7 @@ struct Base_mesh
     }
   }
 
-  // optimization stuff --------------------------------------------------------
+  // Optimization --------------------------------------------------------------
 
   FT compute_tangent_angle(const Grid_point& gp, const Point_2& seed)
   {
@@ -1811,7 +1834,7 @@ struct Base_mesh
                                                           const Point_2& mapped_centroid,
                                                           const std::vector<Point_2>& mapped_points)
   {
-    // find the closest mapped grid point and return its corresponding unmapped grid point
+    // find the closest mapped point and return its corresponding unmapped grid point
 
     std::size_t closest_mapped_grid_point_id;
     FT min_sq_dist = FT_inf;
@@ -1824,7 +1847,7 @@ struct Base_mesh
         continue;
 
       // to constrain to a border: check if the init point on the grid is a border
-      // and ignore points here that are not on the border ?
+      // and ignore points here that are not on the border ? fixme
 
       // ugly hack for now (I know the border seeds all have an id lower than n)
 //      if(seed_id < 8 && !points[i].is_on_domain_border)
@@ -1895,9 +1918,10 @@ struct Base_mesh
     // careful now, this is for isotropic only !
 
     // compute the centroid through the sum c = sum_i (ci*area_i) / sum_i (area_i)
-    // with the tiny triangles of the grid
+    // with the tiny triangles of the base mesh
     // it's not exact because we only consider the triangles with all vertices
-    // having seed_id as closest seed (ignoring border triangles)
+    // having seed_id as closest seed (thus ignoring border triangles that
+    // only have <= 2 vertices that have seed_id as closest_seed)
 
     FT total_area = 0.;
     FT centroid_x = 0., centroid_y = 0.;
@@ -2109,7 +2133,7 @@ struct Base_mesh
     }
 
     // compute the centroid of the polygon composed by the mapped Voronoi vertices
-    // see wikipedia for the formulae...
+    // see wikipedia for the formula...
     FT area = 0;
     FT centroid_x = 0., centroid_y = 0.;
 
@@ -2139,17 +2163,19 @@ struct Base_mesh
 
     centroid_x *= denom;
     centroid_y *= denom;
-    Point_2 mapped_centroid(centroid_x, centroid_y);
+    return Point_2 (centroid_x, centroid_y);
+  }
+
 
     // -------------------------------------------------------------------------
-    std::cout << "TIME TO COMPARE :" << std::endl;
-    std::cout << "new (mapped) centroid coordinates " << centroid_x << " " << centroid_y << std::endl;
+    std::cout << "UNMAPPING POSSIBILITIES :" << std::endl;
 
     Point_2 closest_grid_point_centroid = compute_centroid_as_closest_unmapped_grid_point(seed_id, mapped_centroid, mapped_points);
-    std::cout << "centroid as closest unmapped grid point " << closest_grid_point_centroid << std::endl;
+    std::cout << "unmapped centroid as closest unmapped grid point " << closest_grid_point_centroid << std::endl;
 
     Point_2 bar_centroid = compute_centroid_with_barycentric_info(seed_id, mapped_centroid, mapped_points);
-    std::cout << "centroid from mapped polygon (barycentric) " << bar_centroid << std::endl;
+    std::cout << "unmapped centroid from mapped polygon (barycentric) " << bar_centroid << std::endl;
+
     // --
       std::cout << "FOR REFERENCE, ISOTROPIC GIVES :" << std::endl;
 
@@ -2157,7 +2183,7 @@ struct Base_mesh
       Point_2 alt_centroid_1 = compute_centroid_with_grid_triangles(seed_id);
       std::cout << "centroid with grid triangles " << alt_centroid_1 << std::endl;
 
-      Point_2 alt_centroid_2 = compute_centroid_with_voronoi_vertices(seed_id, Voronoi_vertices);
+      Point_2 alt_centroid_2 = compute_centroid_with_voronoi_vertices(seed_id);
       std::cout << "centroid with voronoi vertices " << alt_centroid_2 << std::endl;
 
       Point_2 alt_centroid_3 = compute_centroid_with_polygon_centroid(seed_id, Voronoi_vertices);
@@ -2170,7 +2196,8 @@ struct Base_mesh
     std::cout << "(mapped) centroid with mapped grid triangles " << mapped_grid_centroid << std::endl;
 
     Point_2 bar_centroid_2 = compute_centroid_with_barycentric_info(seed_id, mapped_grid_centroid, mapped_points);
-    std::cout << "centroid from mapped grid centroid (barycentric) " << bar_centroid_2 << std::endl;
+    std::cout << "unmapped centroid from mapped grid centroid (barycentric) " << bar_centroid_2 << std::endl;
+
     // -------------------------------------------------------------------------
 
     // need seed is now the closest mapped point, unmapped back to the manifold
@@ -2237,7 +2264,9 @@ struct Base_mesh
     if(dual_simplex.size() <= 1)
       return;
 
-    refinement_shenanigans(grid_tri, dual_simplex);
+    // test against criteria should be moved somewhere else than during the dual computations todo
+    test_simplex(grid_tri, dual_simplex);
+
     add_simplex_to_triangulation(dual_simplex);
   }
 
@@ -2247,7 +2276,9 @@ struct Base_mesh
     if(dual_simplex.size() <= 1)
       return;
 
-    refinement_shenanigans(gp, dual_simplex);
+    // test against criteria should be moved somewhere else than during the dual computations todo
+    test_simplex(gp, dual_simplex);
+
     add_simplex_to_triangulation(dual_simplex);
   }
 
@@ -2479,7 +2510,7 @@ struct Base_mesh
 
   FT compute_quality(const Tri& tr)
   {
-    // not efficient fixme
+    // not efficient (just keep the seeds' metric in memory instead) fixme
     const Point_2& p0 = seeds[tr[0]];
     const Point_2& p1 = seeds[tr[1]];
     const Point_2& p2 = seeds[tr[2]];
@@ -2504,45 +2535,6 @@ struct Base_mesh
                          quality(tp0_2, tp1_2, tp2_2));
     return qual;
   }
-
-/*
- * USE THE HISTOGRAM PROGRAM INSTEAD, IT GENERATES THE SAME FILES MORE ROBUSTLY
-  void generate_bb_files(const std::string str_base)
-  {
-    // distortion --------------------------------------------------------------
-    std::ofstream out_bb_dist((str_base + "_dual_distortion.bb").c_str());
-    out_bb_dist << "3 1 " << dual_triangles.size() << " 1" << std::endl;
-    for(typename std::set<Tri>::iterator it = dual_triangles.begin();
-                                         it != dual_triangles.end(); ++it)
-    {
-      const Tri& tr = *it;
-
-      // not efficient fixme
-      const Metric& m0 = mf->compute_metric(seeds[tr[0]]);
-      const Metric& m1 = mf->compute_metric(seeds[tr[1]]);
-      const Metric& m2 = mf->compute_metric(seeds[tr[2]]);
-
-      FT gamma = (std::max)((std::max)(m0.compute_distortion(m1),
-                                       m0.compute_distortion(m2)),
-                            m1.compute_distortion(m2));
-      out_bb_dist << gamma << std::endl;
-    }
-    out_bb_dist << "End" << std::endl;
-
-
-    // quality -----------------------------------------------------------------
-    std::ofstream out_bb_qual((str_base + "_dual_quality.bb").c_str());
-    out_bb_qual << "3 1 " << dual_triangles.size() << " 1" << std::endl;
-    for(typename std::set<Tri>::iterator it = dual_triangles.begin();
-                                         it != dual_triangles.end(); ++it)
-    {
-      const Tri& tr = *it;
-      FT qual = compute_quality(tr);
-      out_bb_qual << qual << std::endl;
-    }
-    out_bb_qual << "End" << std::endl;
-  }
-*/
 
   void output_straight_dual(const std::string str_base)
   {
@@ -2597,7 +2589,6 @@ struct Base_mesh
       dual_edges(),
       dual_triangles(),
       refinement_point(NULL),
-      refinement_distance(0.)
   { }
 };
 
