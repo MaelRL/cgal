@@ -389,6 +389,8 @@ std::vector<Metric> seeds_m;
 const std::string str_base_mesh = "rough_base_mesh";
 CGAL::Bbox_2 base_mesh_bbox;
 
+bool use_dual_shenanigans = true;
+
 //refinement
 int n_refine = 0;
 
@@ -571,6 +573,7 @@ FT triangle_area(const Point_2& p, const Point_2& q, const Point_2& r)
 void compute_bary_weights(const Point_2&p , const Point_2& a, const Point_2& b, const Point_2& c,
                           FT& lambda_a, FT& lambda_b, FT& lambda_c)
 {
+  CGAL_assertion(!(Triangle(a,b,c)).is_degenerate());
   Vector2d v_ab, v_ac, v_ap;
   v_ab(0) = b.x() - a.x();
   v_ab(1) = b.y() - a.y();
@@ -1450,7 +1453,8 @@ struct Base_mesh
     }
   }
 
-  void dual_shenanigans(Grid_point* gp)
+  void dual_shenanigans(Grid_point* gp,
+                        const bool are_Voronoi_vertices_needed)
   {
     CGAL_assertion(gp->state == KNOWN);
     // Check the neighbors of gp for points that have the state KNOWN.
@@ -1477,16 +1481,23 @@ struct Base_mesh
       }
       add_simplex_to_triangulation(gp, dual_simplex);
 
+      if(are_Voronoi_vertices_needed)
+      {
 #ifdef COMPUTE_PRECISE_VOR_VERTICES
-      compute_precise_Voronoi_vertices(tri, dual_simplex);
+        compute_precise_Voronoi_vertices(tri, dual_simplex);
 #else
-      mark_voronoi_vertices(tri, dual_simplex);
+        mark_voronoi_vertices(tri, dual_simplex);
 #endif
+      }
     }
   }
 
-  void spread_distances()
+  void spread_distances(bool are_Voronoi_vertices_needed = true /*fixme*/)
   {
+    // fixme above : it's pointless to recompute the Voronoi vertices every time
+    // but need a good criterion to decide when we need it (typically the last
+    // time we spread_distance before optimizing...
+
 #if (verbose > 5)
     std::cout << "main loop" << std::endl;
 #endif
@@ -1523,7 +1534,8 @@ struct Base_mesh
       gp->state = KNOWN;
       known_count++; // tmp --> use change_state()
 
-      dual_shenanigans(gp);
+      if(use_dual_shenanigans)
+        dual_shenanigans(gp, are_Voronoi_vertices_needed);
 
       PQ_state pqs = gp->update_neighbors_distances(trial_points);
       if(pqs == REBUILD_TRIAL)
@@ -1534,17 +1546,19 @@ struct Base_mesh
     std::cerr << "End of spread_distances. time: ";
     std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
 
-    // we have only computed the voronoi vertices corresponding to the dual of 3-simplex
-    // to get the full cell we need to know the intersection of the voronoi cell
-    // with the border of the domain
+    if(are_Voronoi_vertices_needed && use_dual_shenanigans)
+    {
+      // we have only computed the voronoi vertices corresponding to the dual of 3-simplex
+      // to get the full cell we need to know the intersection of the voronoi cell
+      // with the border of the domain
 #ifdef COMPUTE_PRECISE_VOR_VERTICES
-    compute_precise_Voronoi_vertices_on_border();
+      compute_precise_Voronoi_vertices_on_border();
 #else
-    mark_voronoi_vertices_on_border();
+      mark_voronoi_vertices_on_border();
 #endif
-
-    std::cerr << "After Voronoi border: ";
-    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+      std::cerr << "After Voronoi border: ";
+      std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+    }
   }
 
   void debug()
@@ -1627,7 +1641,7 @@ struct Base_mesh
     vertices_nv = insert_new_seed(new_seed.x(), new_seed.y());
     refresh_grid_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
     locate_and_initialize(new_seed, seeds.size()-1);
-
+    clear_dual();
     spread_distances();
   }
 
@@ -2664,8 +2678,14 @@ struct Base_mesh
     std::cout << failed_blob_counter << " out of " << dual_map.size() << " failed" << std::endl;
   }
 
-  void compute_dual()
+  void compute_dual(const bool are_Voronoi_vertices_needed = true)
   {
+    // todo, we don't always need to compute the voronoi cell vertices
+
+    // need to have everything KNOWN for voronoi cell vertices computation
+    for(std::size_t i=0; i<points.size(); ++i)
+      points[i].state = KNOWN;
+
 #if (verbose > 5)
     std::cout << "dual computations" << std::endl;
 #endif
@@ -2677,7 +2697,29 @@ struct Base_mesh
 
       for(int j=0; j<3; ++j)
         dual_simplex.insert(points[triangle[j]].closest_seed_id);
+
       add_simplex_to_triangulation(triangle, dual_simplex);
+
+      if(are_Voronoi_vertices_needed)
+      {
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+        compute_precise_Voronoi_vertices(triangle, dual_simplex);
+#else
+        mark_voronoi_vertices(triangle, dual_simplex);
+#endif
+      }
+    }
+
+    if(are_Voronoi_vertices_needed)
+    {
+      // we have only computed the voronoi vertices corresponding to the dual of 3-simplex
+      // to get the full cell we need to know the intersection of the voronoi cell
+      // with the border of the domain
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+      compute_precise_Voronoi_vertices_on_border();
+#else
+      mark_voronoi_vertices_on_border();
+#endif
     }
   }
 
@@ -2867,11 +2909,17 @@ int main(int, char**)
 
     for(int i=0; i<n_refine; ++i)
     {
+      // can't compute the dual while spreading if we're refining since we have already a layer
+      // of paint laying on the canvas...
+      use_dual_shenanigans = false;
+
+      bool successful_insert = bm.refine_grid_with_self_computed_ref_point();
+
       std::ostringstream out;
       out << "ref_" << i;
       bm.output_grid_data_and_dual(out.str());
 
-      if(!bm.refine_grid_with_self_computed_ref_point())
+      if(!successful_insert)
         break;
     }
 
@@ -2879,6 +2927,7 @@ int main(int, char**)
     std::cerr << "End refinement: " << duration << std::endl;
   }
 
+  use_dual_shenanigans = true;
   bm.output_grid_data_and_dual(str_base_mesh + "_tr");
   bm.check_edelsbrunner();
 
