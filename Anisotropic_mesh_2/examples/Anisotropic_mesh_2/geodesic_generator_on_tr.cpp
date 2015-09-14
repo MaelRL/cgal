@@ -2389,6 +2389,9 @@ struct Base_mesh
 
     // -------------------------------------------------------------------------
 
+    // output the mapping
+    output_mapping(seed_id, mapped_grid_centroid, mapped_points);
+
     // need seed is now the closest mapped point, unmapped back to the manifold
     const Point_2& new_seed = alt_centroid_2;
     seeds[seed_id] = new_seed;
@@ -2861,6 +2864,117 @@ struct Base_mesh
   {
     output_grid(str_base);
     output_straight_dual(str_base);
+  }
+
+  void output_mapping(const std::size_t seed_id,
+                      const Point_2& mapped_centroid,
+                      const std::vector<Point_2>& mapped_points) const
+  {
+    typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
+
+    // outputs the mapped points for a given seed_id
+    std::ostringstream filename, filename_bb;
+    filename << "deformation_" << seed_id << ".mesh";
+    filename_bb << "deformation_" << seed_id << ".bb";
+    std::ofstream out(filename.str().c_str());
+    std::ofstream out_bb(filename_bb.str().c_str());
+
+    std::size_t vertices_count = 0;
+    std::ostringstream vertices_out, vertices_out_bb;
+
+    // don't really wanna output all the vertices so keep a renumbering map
+    std::map<std::size_t, std::size_t> local;
+
+    // first output the 'real' grid points (mapped)
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      const Grid_point& gp = points[i];
+      if(gp.closest_seed_id != seed_id)
+        continue;
+
+      local[gp.index] = vertices_count++;
+      vertices_out << mapped_points[gp.index] << " " << gp.is_Voronoi_vertex << std::endl;
+      vertices_out_bb << sqd(mapped_centroid, mapped_points[gp.index]) << std::endl;
+    }
+
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+    // then output the 'virtual' grid points if there are any
+    const Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
+
+    for(std::size_t i=0; i<Vor_vertices.size(); ++i)
+    {
+      const Grid_point& gp = Vor_vertices[i];
+      CGAL_assertion(gp.closest_seed_id == seed_id);
+      local[gp.index] = vertices_count++;
+
+      vertices_out << mapped_points[gp.index] << " " << gp.is_Voronoi_vertex << std::endl;
+      vertices_out_bb << sqd(mapped_centroid, mapped_points[gp.index]) << std::endl;
+    }
+#endif
+
+    std::size_t triangles_count = 0;
+    std::ostringstream triangles_out;
+
+    // gather the edges for self intersection tests
+    std::set<Edge> edges;
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& tr = triangles[i];
+      if(points[tr[0]].closest_seed_id != seed_id ||
+         points[tr[1]].closest_seed_id != seed_id ||
+         points[tr[2]].closest_seed_id != seed_id)
+        continue;
+
+      // no need to sort as long as we keep the indices in order
+      Edge e;
+      e[0] = tr[0]; e[1] = tr[1]; edges.insert(e);
+      e[0] = tr[0]; e[1] = tr[2]; edges.insert(e);
+      e[0] = tr[1]; e[1] = tr[2]; edges.insert(e);
+    }
+
+    //output the triangles for 'real' vertices
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& tr = triangles[i];
+      if(points[tr[0]].closest_seed_id != seed_id ||
+         points[tr[1]].closest_seed_id != seed_id ||
+         points[tr[2]].closest_seed_id != seed_id)
+        continue;
+
+      triangles_count++;
+      triangles_out << local[tr[0]]+1 << " " << local[tr[1]]+1 << " " << local[tr[2]]+1 // +1 due to medit
+                    << " 1" << std::endl; // 'is_triangle_intersected' ?
+      // gotta change that function since it uses seeds and not mapped points though
+    }
+
+    // output everything neatly to the file
+    out << "MeshVersionFormatted 1" << std::endl;
+    out << "Dimension 2" << std::endl;
+    out << "Vertices" << std::endl;
+    out << vertices_count << std::endl;
+    out << vertices_out.str().c_str() << std::endl;
+
+    out_bb << "2 1 " << points.size() << " 2" << std::endl;
+    out_bb << vertices_out_bb.str().c_str() << std::endl;
+    out_bb << "End" << std::endl;
+
+    out << "Triangles" << std::endl;
+    out << triangles_count << std::endl;
+    out << triangles_out.str().c_str() << std::endl;
+
+    //output edges between the Voronoi vertices
+    std::size_t edges_count = Vor_vertices.size();
+
+    out << "Edges" << std::endl;
+    out << edges_count << std::endl;
+    for(std::size_t i=0; i<edges_count; ++i)
+    {
+      std::size_t j = (i+1) % edges_count;
+      out << local[Vor_vertices[i].index]+1 << " "
+          << local[Vor_vertices[j].index]+1 << " 0" << std::endl; // +1 due to medit
+    }
+
+    out << "End" << std::endl;
   }
 
   Base_mesh()
