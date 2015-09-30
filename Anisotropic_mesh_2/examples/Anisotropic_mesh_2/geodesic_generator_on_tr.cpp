@@ -1046,37 +1046,20 @@ struct Base_mesh
     for(std::size_t i=0; i<triangles.size(); ++i)
     {
       const Tri& tr = triangles[i];
-      const Point_2& p = points[tr[0]].point;
-      const Point_2& q = points[tr[1]].point;
-      const Point_2& r = points[tr[2]].point;
 
-      CGAL::Sign o1 = CGAL::orientation(p, q, s);
-      CGAL::Sign o2 = CGAL::orientation(q, r, s);
-      CGAL::Sign o3 = CGAL::orientation(r, p, s);
+      const Triangle t(points[tr[0]].point, points[tr[1]].point, points[tr[2]].point);
 
-//      std::cout << i << " " << o1 << " " << o2 << " " << o3 << std::endl;
-
-      if((o1 >= 0 && o2 >=0 && o3 >= 0) ||
-         (o1 <= 0 && o2 <=0 && o3 <= 0))
+      if(K().has_on_bounded_side_2_object()(t, s) ||
+         K().has_on_boundary_2_object()(t, s))
       {
-        // just to be sure ! (useless stuff)
-        Triangle t(p,q,r);
-        Triangle t_p(q,r,s), t_q(r,p,s), t_r(p,q,s);
-        FT asd = t_p.area() / t.area();
-        FT bsd = t_q.area() / t.area();
-        FT csd = t_r.area() / t.area();
-        CGAL_assertion(asd >= 0. && bsd >= 0. && csd >= 0.);
 #if (verbose > 10)
         std::cout << "locating seed " << seed_id
-                  << " point: " << p.x() << " " << p.y() << std::endl;
+                  << " point: " << s.x() << " " << s.y() << std::endl;
         std::cout << "found triangle: " << i << std::endl;
         std::cout << tr[0] << " [" << p << "] " << std::endl;
         std::cout << tr[1] << " [" << q << "] " << std::endl;
         std::cout << tr[2] << " [" << r << "] " << std::endl;
 #endif
-        // end of useless stuff
-        if(found)
-          continue;
 
         // we're inside! compute the distance to the vertices of the triangle
         for(int j=0; j<3; ++j)
@@ -1095,7 +1078,7 @@ struct Base_mesh
         }
 
         found = true;
-        //break;
+        break;
       }
     }
     CGAL_assertion(found);
@@ -1457,9 +1440,6 @@ struct Base_mesh
                         const bool are_Voronoi_vertices_needed)
   {
     CGAL_assertion(gp->state == KNOWN);
-    // Check the neighbors of gp for points that have the state KNOWN.
-    // In these, consider those that have a closest_seed_id different than gp's.
-    // Those give the dual simplices.
 
     std::list<std::size_t>::const_iterator it = gp->incident_triangles.begin(),
                                            end = gp->incident_triangles.end();
@@ -2022,9 +2002,9 @@ struct Base_mesh
     }
   }
 
-  Point_2 compute_centroid_as_closest_unmapped_grid_point(const std::size_t seed_id,
-                                                          const Point_2& mapped_centroid,
-                                                          const std::vector<Point_2>& mapped_points)
+  Point_2 compute_centroid_as_closest_grid_point(const std::size_t seed_id,
+                                                 const Point_2& mapped_centroid,
+                                                 const std::vector<Point_2>& mapped_points)
   {
     // find the closest mapped point and return its corresponding unmapped grid point
 
@@ -2350,7 +2330,8 @@ struct Base_mesh
   }
 
   FT optimize_seed(const std::size_t seed_id,
-                   const std::vector<Point_2>& mapped_points)
+                   const std::vector<Point_2>& mapped_points,
+                   const int counter)
   {
     const Point_2 old_seed = seeds[seed_id];
     Point_2 mapped_centroid = compute_mapped_centroid_with_mapped_Vor_vertices(seed_id, mapped_points);
@@ -2359,11 +2340,12 @@ struct Base_mesh
     // -------------------------------------------------------------------------
     std::cout << "UNMAPPING POSSIBILITIES :" << std::endl;
 
-    Point_2 closest_grid_point_centroid = compute_centroid_as_closest_unmapped_grid_point(seed_id, mapped_centroid, mapped_points);
+    Point_2 closest_grid_point_centroid = compute_centroid_as_closest_grid_point(seed_id, mapped_centroid, mapped_points);
     std::cout << "unmapped centroid as closest unmapped grid point " << closest_grid_point_centroid << std::endl;
 
-    Point_2 bar_centroid = compute_centroid_with_barycentric_info(seed_id, mapped_centroid, mapped_points);
-    std::cout << "unmapped centroid from mapped polygon (barycentric) " << bar_centroid << std::endl;
+    // disabled till degenerate mapped triangles is fixed fixme
+//    Point_2 bar_centroid = compute_centroid_with_barycentric_info(seed_id, mapped_centroid, mapped_points);
+//    std::cout << "unmapped centroid from mapped polygon (barycentric) " << bar_centroid << std::endl;
 
     // --
       std::cout << "FOR REFERENCE, ISOTROPIC GIVES :" << std::endl;
@@ -2384,16 +2366,23 @@ struct Base_mesh
     Point_2 mapped_grid_centroid = compute_centroid_with_mapped_grid_triangles(seed_id, mapped_points);
     std::cout << "(mapped) centroid with mapped grid triangles " << mapped_grid_centroid << std::endl;
 
-    Point_2 bar_centroid_2 = compute_centroid_with_barycentric_info(seed_id, mapped_grid_centroid, mapped_points);
-    std::cout << "unmapped centroid from mapped grid centroid (barycentric) " << bar_centroid_2 << std::endl;
+    Point_2 closest_grid_point_centroid_alternate =
+        compute_centroid_as_closest_grid_point(seed_id, mapped_grid_centroid, mapped_points);
+    std::cout << "unmapped centroid as closest unmapped grid point (alternate)"
+              << closest_grid_point_centroid_alternate << std::endl;
+
+
+    // disabled till degenerate mapped triangles is fixed fixme
+//    Point_2 bar_centroid_2 = compute_centroid_with_barycentric_info(seed_id, mapped_grid_centroid, mapped_points);
+//    std::cout << "unmapped centroid from mapped grid centroid (barycentric) " << bar_centroid_2 << std::endl;
 
     // -------------------------------------------------------------------------
 
     // output the mapping
-    output_mapping(seed_id, mapped_grid_centroid, mapped_points);
+//    output_mapping(seed_id, mapped_grid_centroid, mapped_points, counter);
 
     // need seed is now the closest mapped point, unmapped back to the manifold
-    const Point_2& new_seed = alt_centroid_2;
+    const Point_2& new_seed = closest_grid_point_centroid;
     seeds[seed_id] = new_seed;
 
     // squared displacement between the old and the new seed
@@ -2498,7 +2487,7 @@ struct Base_mesh
       // Optimize each seed
       FT cumulated_displacement = 0;
       for(std::size_t i=0; i<seeds.size(); ++i)
-        cumulated_displacement += optimize_seed(i, mapped_points);
+        cumulated_displacement += optimize_seed(i, mapped_points, counter);
 
       std::cout << "at : " << counter << ", cumulated displacement : "
                 << cumulated_displacement << std::endl;
@@ -2506,9 +2495,13 @@ struct Base_mesh
       locate_and_initialize_seeds();
       spread_distances();
 
-      output_grid_data_and_dual("optimized_" + str_base_mesh + "_tr");
+      std::ostringstream opti_out;
+      opti_out << "optimized_" << str_base_mesh << "_tr_" << counter << std::ends;
+      output_grid_data_and_dual(opti_out.str().c_str());
 
-      is_optimized = (++counter > 100); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
+      is_optimized = (++counter > 500); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
+      if(cumulated_displacement == 0.0)
+        break;
     }
     while(!is_optimized);
 
@@ -2796,13 +2789,12 @@ struct Base_mesh
 
   FT compute_quality(const Tri& tr)
   {
-    // not efficient (just keep the seeds' metric in memory instead) fixme
     const Point_2& p0 = seeds[tr[0]];
     const Point_2& p1 = seeds[tr[1]];
     const Point_2& p2 = seeds[tr[2]];
-    const Metric& m0 = mf->compute_metric(p0);
-    const Metric& m1 = mf->compute_metric(p1);
-    const Metric& m2 = mf->compute_metric(p2);
+    const Metric& m0 = seeds_m[tr[0]];
+    const Metric& m1 = seeds_m[tr[1]];
+    const Metric& m2 = seeds_m[tr[2]];
 
     const Point_2 tp0_0 = m0.transform(p0);
     const Point_2 tp1_0 = m0.transform(p1);
@@ -2868,14 +2860,15 @@ struct Base_mesh
 
   void output_mapping(const std::size_t seed_id,
                       const Point_2& mapped_centroid,
-                      const std::vector<Point_2>& mapped_points) const
+                      const std::vector<Point_2>& mapped_points,
+                      const int counter) const
   {
     typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
 
     // outputs the mapped points for a given seed_id
     std::ostringstream filename, filename_bb;
-    filename << "deformation_" << seed_id << ".mesh";
-    filename_bb << "deformation_" << seed_id << ".bb";
+    filename << "mapping_" << seed_id << "_" << counter << ".mesh";
+    filename_bb << "mapping_" << seed_id << "_" << counter << ".bb";
     std::ofstream out(filename.str().c_str());
     std::ofstream out_bb(filename_bb.str().c_str());
 
