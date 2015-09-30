@@ -7,7 +7,7 @@
 
 #include <boost/array.hpp>
 
-// The purpose of this file is to rebuild manually triangulations from a c3t3
+// The purpose of this file is to rebuild manually a triangulation from a c3t3
 // output file (because generating a new triangulation every time is expensive)
 
 namespace CGAL
@@ -199,7 +199,7 @@ output_to_medit_all_cells(std::ostream& os,
 
 // -- If we're given every cell (finite & infinite), we can easily build
 //    the full triangulation with the same connectivity than the input !
-// -- If we're only given every finite cell, we can deduce the finite cells and
+// -- If we're only given every finite cell, we can deduce the infinite cells and
 //    build the full triangulation
 // -- If we're only given the cells in complex, well... Since the cells in complex
 //    are usually not the convex hull of the points it's problematic and the input
@@ -587,7 +587,7 @@ bool build_triangulation_from_file(std::istream& is,
   {
     // The finite interior cells better be the convex hulls of the point
     std::cerr << "WARNING: no finite exterior cell provided..." << std::endl;
-    // todo, remesh it with Mesh_3
+    // todo, remesh the provided triangulation with Mesh_3
   }
   CGAL_precondition(!finite_cells.empty());
 

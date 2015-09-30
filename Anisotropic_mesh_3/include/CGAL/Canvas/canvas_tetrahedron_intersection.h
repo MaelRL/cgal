@@ -71,7 +71,6 @@ struct Intersect_tetrahedra
     std::cout << "orientations: " << o1 << " " << o2 << " " << o3 << " " << o4 << std::endl;
 #endif
 
-    // just checking that the correct order is taken...
     if((o1 >= 0 && o2 >=0 && o3 >= 0 && o4 >= 0) ||
        (o1 <= 0 && o2 <=0 && o3 <= 0 && o4 <= 0))
     {
