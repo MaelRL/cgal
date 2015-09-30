@@ -127,8 +127,8 @@ MainWindow::MainWindow()
   QActionGroup* ag = new QActionGroup(this);
   ag->addAction(this->actionInsertPoint);
 
-  // Check two actions 
-  this->actionInsertPoint->setChecked(true);
+  // Check two actions
+  this->actionInsertPoint->setChecked(false);
   this->actionShowRegular->setChecked(true);
 
   //

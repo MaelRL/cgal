@@ -594,7 +594,7 @@
     <string>Re&amp;center scene</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+C</string>
+    <string>Shift+C</string>
    </property>
   </action>
   <action name="actionSetBackgroundColor">

@@ -198,10 +198,10 @@ RegularTriangulationGraphicsItem<T>::paintVertices(QPainter *painter)
     
     for(typename T::Finite_vertices_iterator it = t->finite_vertices_begin();
         it != t->finite_vertices_end();
-        it++){
-
-      typename K::Circle_2 circ(it->point().point(), it->point().weight()); 
-      painterostream << circ;
+        it++)
+    {
+      typename K::Circle_2 circ(it->point().point(), it->point().weight());
+      //painterostream << circ;
     }
 
 
@@ -211,6 +211,29 @@ RegularTriangulationGraphicsItem<T>::paintVertices(QPainter *painter)
         it != t->finite_vertices_end();
         it++){
       QPointF point = matrix.map(convert(it->point().point()));
+      painter->drawPoint(point);
+    }
+
+    for(int i=-100; i<100; ++i)
+    {
+      typename T::Point p(i/50., 0.);
+      QPointF point = matrix.map(convert(p));
+      painter->drawPoint(point);
+    }
+
+    for(int i=-100; i<100; ++i)
+    {
+      typename T::Point p(i/50., i*i/2500.);
+      QPointF point = matrix.map(convert(p));
+      painter->drawPoint(point);
+    }
+
+    for(int i=-100; i<200; ++i)
+    {
+      double j = i/50.;
+      double res = -7 + 6*j- 1*j*j;
+      typename T::Point p(j, res);
+      QPointF point = matrix.map(convert(p));
       painter->drawPoint(point);
     }
   }

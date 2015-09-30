@@ -73,6 +73,7 @@ void test2(){
   typedef typename K1::Ray_d R;
   typedef typename K1::Iso_box_d IB;
   typedef typename K1::Flat_orientation_d FO;
+  typedef typename K1::Weighted_point_d WP;
 
   //typedef K1::Construct_point CP;
   typedef typename K1::Construct_point_d CP;
@@ -196,7 +197,7 @@ void test2(){
   assert(pd(a)==2);
   assert(pv(a)[1]==4);
   P b=vp(cv(5,6,7));
-  assert(fabs(b[0]-5./7)<.0001);
+  assert(abs(b[0]-5./7)<.0001);
   assert(lc(b,a,1));
   assert(!lc(a,b,0));
   int rr[]={3,5,2};
@@ -210,8 +211,8 @@ void test2(){
   assert(cl(a,c)==CGAL::SMALLER);
   assert(ll(b,c));
   assert(cl(c,b)==CGAL::LARGER);
-  assert(fabs(m(a,c)[0]-3)<.0001);
-  assert(fabs(m(a,c)[1]-4.5)<.0001);
+  assert(abs(m(a,c)[0]-3)<.0001);
+  assert(abs(m(a,c)[1]-4.5)<.0001);
   P d=cp(r,r+3,CGAL::Homogeneous_tag());
   S s=cs(c,d);
   std::cout << cc(a,1) << std::endl;
@@ -329,11 +330,13 @@ void test2(){
   Sp sp = csp(tabz+0,tabz+3);
   P cent0=cos(sp);
   P cent1=cos(tabz+0,tabz+3);
-  assert(fabs(cent0[0]-2)<.0001);
-  assert(fabs(cent0[1]+3)<.0001);
-  assert(fabs(cent1[0]-2)<.0001);
-  assert(fabs(cent1[1]+3)<.0001);
-  assert(fabs(sp.squared_radius()-25)<.0001);
+  assert(abs(cent0[0]-2)<.0001);
+  assert(abs(cent0[1]+3)<.0001);
+  assert(abs(cent1[0]-2)<.0001);
+  assert(abs(cent1[1]+3)<.0001);
+  assert(abs(sp.squared_radius()-25)<.0001);
+#if 1
+  // Fails for an exact kernel
   P psp0=ps(sp,0);
   P psp1=ps(sp,1);
   P psp2=ps(sp,2);
@@ -471,7 +474,7 @@ void test3(){
     std::cout << *i << ' ';
   std::cout << '\n';
   P e=cp(-2,3,0);
-  assert(fabs(sd(e,a)-32)<.0001);
+  assert(abs(sd(e,a)-32)<.0001);
   P tab[]={a,b,c,d,e};
   std::cout << po (&tab[0],tab+4) << ' ';
   std::cout << sos(&tab[0],tab+5) << ' ';
@@ -524,6 +527,7 @@ void test3(){
   P x4=cp(0,0,1);
   P x5=cp(0,0,0);
   P x6=cp(0,0,-1);
+  assert(!ed(x1,x2));
   P tab2[]={x1,x2,x3,x4,x5};
   assert(cis(tab2+0,tab2+4,x5));
   assert(po(tab2+0,tab2+4)==CGAL::POSITIVE);

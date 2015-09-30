@@ -745,6 +745,9 @@ public:
   Vertex_handle infinite_vertex() const
     { return infinite; }
 
+  Vertex_handle& infinite_vertex()
+    { return infinite; }
+
   void set_infinite_vertex(Vertex_handle v)
     { infinite=v;}
 

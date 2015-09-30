@@ -42,6 +42,11 @@ Alpha_shapes_3/test/Alpha_shapes_3/cgal_test_with_cmake
 Alpha_shapes_3/test/Alpha_shapes_3/test_alpha_shape_3
 Alpha_shapes_3/test/Alpha_shapes_3/test_fixed_alpha_shape_3
 Alpha_shapes_3/test/Alpha_shapes_3/test_weighted_alpha_shape_3
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/experiments/
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/*.mesh*
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/*.cvs*
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/*.off*
+Anisotropic_mesh_3/examples/Anisotropic_mesh_3/*.txt*
 Apollonius_graph_2/demo/Apollonius_graph_2/Makefile
 Apollonius_graph_2/demo/Apollonius_graph_2/apollonius_graph_2
 Arithmetic_kernel/test/Arithmetic_kernel/Arithmetic_kernel

@@ -1,0 +1,51 @@
+==========================================================
+This file explains why the meshes in this folder are there
+==========================================================
+
+--Implicit surfaces--
+
+.Chairs :
+	 .Good looking mesh of an implicit surface endowed with a curvature metric field.
+	 .The algorithm deals with parabolic points, whatever the direction of the vanishing curvature is.
+	 .High-ish number of points (60k) without problems.
+	 .More technical : influence of the epsilon parameter on the final mesh (approximation error is constant for both meshes),
+	the mesher can honor curves of parabolic points with very high anisotropy if that is desired (so called over-refinement).
+
+.Ellipsoids :
+	 .The two ellipsoids have the same number of points and the approximation is constant. Since the bigger
+	one has 10 times the surface area, it shows the stretching capabilities and also more implicitely the
+	good ratio of vertices between an anisotropic and an isotropic mesh of the same surface for a given approximation.
+	 .Also shows 1/500 ratio of anisotropy (mesher can go higher than that, but we can't really observe 1/500 + ratios)
+
+.Sphere :
+	.This illustrates the use of a custom metric field on an implicit surface by the mesher.
+
+.Torus & cyclid :
+	.More or less the same as the others (good looking, parabolic points, decent anisotropy), just different geometries.
+
+
+
+
+--Polyhedral surfaces --
+
+.Helmet and fertility
+	.Simple curvature metric field results, good anisotropy, deals with tunnels through the surface and flat regions.
+
+.Elephant
+	.Mesher can use a custom metric field or curvature related metric field by the mesher on a polyhedral surfaces.
+
+
+
+
+Folder of post-processed meshes
+-------------------------------
+
+This folder contains meshes that were toyed a bit with using Polyhedron's simplification/subdivision operations after their
+creation with the aniso mesher.
+
+Fertility simpli and subdiv :
+	.One simplification of half the edges into subdivion by sqrt(3). Really good looking final mesh, but using a big simplification
+	like this is sort of cheating since it creates anisotropy on its own when it removes edges.
+
+Fertility subtle simplification :
+	.Removed only 5% of the edges. Goal was to remove only clusters without abusing of simplification's inner anisotropy. Works nicely.

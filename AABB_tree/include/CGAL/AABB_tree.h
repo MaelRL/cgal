@@ -198,6 +198,8 @@ namespace CGAL {
     /// Adds a primitive to the set of primitives of the tree.
     inline void insert(const Primitive& p);
 
+    inline void update_primitive(const Primitive& primitive);
+
 		/// Clears and destroys the tree.
 		~AABB_tree()
 		{
@@ -550,23 +552,23 @@ public:
                         }
 		}
 
-	public:
+  public:
 
     /// \internal
-		template <class Query, class Traversal_traits>
-		void traversal(const Query& query, Traversal_traits& traits) const
-		{
-			switch(size())
-			{
-			case 0:
-				break;
-			case 1:
-				traits.intersection(query, singleton_data());
-				break;
-			default: // if(size() >= 2)
-				root_node()->template traversal<Traversal_traits,Query>(query, traits, m_primitives.size());
-			}
-		}
+    template <class Query, class Traversal_traits>
+    void traversal(const Query& query, Traversal_traits& traits) const
+    {
+      switch(size())
+      {
+      case 0:
+        break;
+      case 1:
+        traits.intersection(query, singleton_data());
+        break;
+      default: // if(size() >= 2)
+        root_node()->template traversal<Traversal_traits,Query>(query, traits, m_primitives.size());
+      }
+    }
 
 	private:
 		typedef AABB_node<AABBTraits> Node;
@@ -813,12 +815,12 @@ public:
     m_need_build = true;
   }
 
-	template<typename Tr>
+  template<typename Tr>
 	template<typename ConstPrimitiveIterator, typename T1>
 	void AABB_tree<Tr>::insert(ConstPrimitiveIterator first,
                              ConstPrimitiveIterator beyond,
                              T1& t1)
-	{
+  {
     set_shared_data(t1);
 		while(first != beyond)
 		{
@@ -826,6 +828,18 @@ public:
 			++first;
 		}
     m_need_build = true;
+  }
+
+  template<typename Tr>
+  void AABB_tree<Tr>::update_primitive(const Primitive& primitive)
+  {
+#ifdef DEBUG_UPDATE_AABB_TREE
+    std::cout << "updating for primitive : " << primitive.id() << " " << primitive.reference_point() << " " << m_primitives.size() << std::endl;
+#endif
+    if(size() >= 2)
+      m_p_root_node->update_primitive(primitive,
+                                      primitive.reference_point(),
+                                      m_primitives.size());
   }
   
 	template<typename Tr>

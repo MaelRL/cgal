@@ -178,9 +178,21 @@ struct Detect_polylines {
     do {
       CGAL_assertion(!set_of_indices_of_current_edge.empty());
       CGAL_assertion(is_feature(current_he));
-      CGAL_assertion_code(const size_type n = )
-        edges_to_consider.erase(canonical(current_he));
-      CGAL_assertion(n > 0);
+      if(edges_to_consider.erase(canonical(current_he)) == 0)
+      {
+        Vertex_handle v = current_he->opposite()->vertex();
+#ifdef CGAL_MESH_3_PROTECTION_DEBUG
+        std::cerr << "New corner vertex " << v->point() << std::endl;
+        std::cerr << "  because of a border edge seen twice:\n"
+                  << "  (" << v->point()
+                  << " , " << current_he->vertex()->point() << ")\n";
+#endif
+        ++v->nb_of_feature_edges;
+        corner_vertices.insert(v);
+        polyline.context.adjacent_patches_ids=set_of_indices_of_current_edge;
+        *polylines_out++ = polyline;
+        break;
+      }
       Vertex_handle v = current_he->vertex();
       polyline.polyline_content.push_back(v->point());
       // std::cerr << v->point() << std::endl;
@@ -341,6 +353,7 @@ struct Detect_polylines {
       if(!eit->is_feature_edge()) continue;
       edges_to_consider.insert(canonical(eit));
       typename Polyhedron::Vertex_handle v = eit->vertex();
+      // fake loop on *eit and its opposite
       for(unsigned i = 0; i < 2; ++i) {
         if(++feature_vertices[v] == 3)
           corner_vertices.insert(v);

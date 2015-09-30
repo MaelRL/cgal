@@ -49,7 +49,6 @@ private: // DATA MEMBERS
     Data    data_;
 
 public:
-
     using Base::vertices_begin;
     using Base::vertices_end;
 
@@ -59,7 +58,7 @@ public:
         typedef typename Base::template Rebind_TDS<TDS2>::Other TDSFullCell2;
         typedef Triangulation_full_cell<TriangulationTraits, Data_, TDSFullCell2> Other;
     };
- 
+
     Triangulation_full_cell(const int d)
         : Base(d), data_() {}
 
