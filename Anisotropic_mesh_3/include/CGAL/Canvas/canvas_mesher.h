@@ -136,7 +136,7 @@ public:
       FT gamma = cp->distortion_to_seed();
       if(gamma > max_distortion)
       {
-        refinement_queue.push(primal_simplex, gamma, 1);
+        refinement_queue.push(primal_simplex, gamma, 0);
         return;
       }
     }
@@ -147,7 +147,7 @@ public:
       FT cpd = cp->distance_to_closest_seed();
       if(cpd > max_size)
       {
-        refinement_queue.push(primal_simplex, cpd, 0);
+        refinement_queue.push(primal_simplex, cpd, 1);
         return;
       }
     }
@@ -250,7 +250,10 @@ public:
 
     if(max_refine_n < 1)
       return 0;
-    canvas.output_canvas_data_and_primal("ref_0");
+
+    std::ostringstream out_init;
+    out_init << "ref_" << canvas.seeds.size();
+    canvas.output_canvas_data_and_primal(out_init.str());
 
     for(std::size_t i=1; i<=max_refine_n; ++i)
     {
@@ -264,7 +267,7 @@ public:
       refine(new_seed);
 
       std::ostringstream out;
-      out << "ref_" << i;
+      out << "ref_" << canvas.seeds.size();
       canvas.output_canvas_data_and_primal(out.str());
     }
 

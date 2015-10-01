@@ -1447,7 +1447,7 @@ struct Geo_grid
       const Tri& tr = *it;
       for(std::size_t i=0; i<tr.size(); ++i)
         out << tr[i] + 1 << " ";
-      out << "1" << std::endl; // fixme do the is_intersected from grid_gen.cpp
+      out << "1" << std::endl; // fixme add 'is_intersected' like in grid_gen.cpp
     }
     out << "End" << std::endl;
   }

@@ -19,8 +19,11 @@ namespace Anisotropic_mesh_3
 template<typename Canvas, std::size_t size>
 struct Primal_simplex
 {
-  typedef Primal_simplex<Canvas, size>        Self;
+  typedef Primal_simplex<Canvas, size>                 Self;
   typedef boost::array<std::size_t, size>              BSimplex;
+
+  typedef typename Canvas::FT                          FT;
+  typedef typename Canvas::Metric                      Metric;
   typedef typename Canvas::Canvas_point                Canvas_point;
 
   BSimplex m_simplex;
@@ -29,6 +32,27 @@ struct Primal_simplex
 
   const Canvas_point* dual_point() const { return m_dual_point; }
   const BSimplex& simplex() const { return m_simplex; }
+
+  FT compute_distortion(const std::vector<Metric>& seeds_metrics) const
+  {
+    // return the largest distortion between two vertices of the primal simplex
+    FT dist = 1.;
+
+    typedef std::vector<boost::array<std::size_t, 2> >     RT_type;
+    RT_type combis = combinations<2>(m_simplex);
+
+    typename RT_type::const_iterator cit = combis.begin();
+    for(; cit!=combis.end(); ++cit)
+    {
+      const boost::array<std::size_t, 2>& ids = *cit;
+      const Metric& m0 = seeds_metrics[ids[0]];
+      const Metric& m1 = seeds_metrics[ids[1]];
+      FT loc_dist = m0.compute_distortion(m1);
+      dist = (std::max)(loc_dist, dist);
+    }
+    return dist;
+  }
+
 
   std::size_t& operator[](std::size_t i)
   {

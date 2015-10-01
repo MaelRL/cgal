@@ -663,6 +663,23 @@ public:
     are_tetrahedra_intersection_computed = true;
   }
 
+  void check_canvas_density() const
+  {
+    // we have taken the farthest witness point as dual information, we check
+    // how many ancestors they have, if they have very few ancestors, the canvas
+    // is most likely not dense enough for the seed set.
+
+    PTC_iterator ptit = primal_tetrahedra.begin();
+    for(; ptit!=primal_tetrahedra.end(); ++ptit)
+    {
+      const Primal_tetrahedron& pt = *ptit;
+      const Canvas_point* dual_point = pt.dual_point();
+      std::size_t ancestor_n = dual_point->count_ancestors();
+      if(ancestor_n < 8)
+        std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // output related functions
 
@@ -720,7 +737,8 @@ public:
     }
 #endif
 
-    out_bb << "3 1 " << primal_triangles.size() << " 1" << std::endl;
+    std::size_t bb_entries_n = primal_triangles.size() + primal_tetrahedra.size();
+    out_bb << "3 1 " << bb_entries_n << " 1" << std::endl;
     out << "Triangles" << std::endl;
     out << primal_triangles.size() << std::endl;
     for(typename Primal_triangles_container::iterator it = primal_triangles.begin();
@@ -735,16 +753,9 @@ public:
 #else
       out << tr.m_is_intersected << std::endl;
 #endif
-
-      const Metric& m0 = seeds.seeds_metrics[tr[0]];
-      const Metric& m1 = seeds.seeds_metrics[tr[1]];
-      const Metric& m2 = seeds.seeds_metrics[tr[2]];
-      FT gamma = (std::max)((std::max)(m0.compute_distortion(m1),
-                                       m0.compute_distortion(m2)),
-                            m1.compute_distortion(m2));
+      FT gamma = tr.compute_distortion(seeds.metrics());
       out_bb << gamma << std::endl;
     }
-    out_bb << "End" << std::endl;
 
     out << "Tetrahedra" << std::endl;
     out << primal_tetrahedra.size() << std::endl;
@@ -756,7 +767,11 @@ public:
       for(std::size_t i=0; i<4; ++i)
         out << tet[i] + 1 << " ";
       out << tet.m_is_intersected << std::endl;
+
+      FT gamma = tet.compute_distortion(seeds.metrics());
+      out_bb << gamma << std::endl;
     }
+    out_bb << "End" << std::endl;
     out << "End" << std::endl;
   }
 
@@ -765,6 +780,7 @@ public:
     compute_primal();
     detect_tetrahedra_self_intersections();
 
+    check_canvas_density();
     output_canvas(str_base);
     output_straight_primal(str_base);
   }

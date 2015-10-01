@@ -136,6 +136,18 @@ public:
     return gamma;
   }
 
+  std::size_t count_ancestors() const
+  {
+    std::size_t i = 1;
+    const Canvas_point* anc = ancestor();
+    while(anc)
+    {
+      ++i;
+      anc = anc->ancestor();
+    }
+    return i;
+  }
+
   Canvas_point() { }
 
   template<typename MF>

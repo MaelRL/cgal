@@ -159,7 +159,7 @@ public:
 #if (verbosity > 2)
         std::cerr << "vertex " << c->vertex(li)->info()->index()
                   << " is not acceptable for seed " << seed_id
-                  << " 's initialization" << std::endl;
+                  << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
 #ifndef ANISO_GEO_FORCE_SEED_INITIALIZATION
         return;
@@ -191,8 +191,9 @@ public:
       {
 #if (verbosity > 2)
         std::cerr << "edge " << c->vertex(li)->info()->index() << " "
-                             << c->vertex(lj)->info()->index() << " is not acceptable"
-                             << " for seed " << seed_id << " 's initialization" << std::endl;
+                             << c->vertex(lj)->info()->index()
+                  << " is not acceptable for seed " << seed_id
+                  << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
 #ifndef ANISO_GEO_FORCE_SEED_INITIALIZATION
         return;
@@ -217,9 +218,9 @@ public:
 #if (verbosity > 2)
         std::cerr << "face " << c->vertex((li + 1) % 4)->info()->index() << " "
                              << c->vertex((li + 2) % 4)->info()->index() << " "
-                             << c->vertex((li + 3) % 4)->info()->index() << " "
-                             << " is not acceptable for seed " << seed_id
-                             << " 's initialization" << std::endl;
+                             << c->vertex((li + 3) % 4)->info()->index()
+                  << " is not acceptable for seed " << seed_id
+                  << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
 #ifndef ANISO_GEO_FORCE_SEED_INITIALIZATION
         return;
@@ -242,9 +243,9 @@ public:
         std::cerr << "cell " << c->vertex(0)->info()->index() << " "
                              << c->vertex(1)->info()->index() << " "
                              << c->vertex(2)->info()->index() << " "
-                             << c->vertex(3)->info()->index() << " "
-                             << " is not acceptable for seed " << seed_id
-                             << " 's initialization" << std::endl;
+                             << c->vertex(3)->info()->index()
+                  << " is not acceptable for seed " << seed_id
+                  << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
 #ifndef ANISO_GEO_FORCE_SEED_INITIALIZATION
       return;

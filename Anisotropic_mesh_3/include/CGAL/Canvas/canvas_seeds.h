@@ -40,6 +40,8 @@ public:
   Point_3& operator[] (const int i) { return seeds[i]; }
   std::size_t size() const { return seeds.size(); }
 
+  const std::vector<Metric>& metrics() const { return seeds_metrics; }
+
   std::size_t insert_new_seed(const FT x, const FT y, const FT z)
   {
 #ifdef ANISO_GEO_FILTER_SEEDS_OUTSIDE_CANVAS_BBOX

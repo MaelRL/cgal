@@ -291,6 +291,7 @@ void output_cdt_to_mesh(const CDT& cdt,
            Vertex_map_comparator<typename CDT::Vertex> > vertex_map;
 
   std::ofstream out((str_base + ".mesh").c_str());
+  out << std::setprecision(17);
   out << "MeshVersionFormatted 1" << std::endl;
   out << "Dimension 2" << std::endl;
   out << "Vertices" << std::endl;
@@ -384,6 +385,9 @@ std::size_t vertices_nv = 1;
 // the metric field and the seeds
 std::vector<Point_2> seeds;
 std::vector<Metric> seeds_m;
+
+// seeds
+const std::string str_seeds = "super_dense_base_mesh_tr_dual";
 
 // base mesh
 const std::string str_base_mesh = "rough_base_mesh";
@@ -663,7 +667,7 @@ int insert_new_seed(const FT x, const FT y)
 
 int build_seeds()
 {
-  std::ifstream in("adapted_base_mesh_tr_dual.mesh");
+  std::ifstream in((str_seeds + ".mesh").c_str());
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y;
@@ -1476,7 +1480,7 @@ struct Base_mesh
   {
     // fixme above : it's pointless to recompute the Voronoi vertices every time
     // but need a good criterion to decide when we need it (typically the last
-    // time we spread_distance before optimizing...
+    // time we spread_distance before optimizing)...
 
 #if (verbose > 5)
     std::cout << "main loop" << std::endl;
@@ -2516,7 +2520,8 @@ struct Base_mesh
       return;
 
     // test against criteria should be moved somewhere else than during the dual computations todo
-    test_simplex(grid_tri, dual_simplex);
+    if(dual_simplex.size() == 3)
+      test_simplex(grid_tri, dual_simplex);
 
     add_simplex_to_triangulation(dual_simplex);
   }
@@ -2528,7 +2533,8 @@ struct Base_mesh
       return;
 
     // test against criteria should be moved somewhere else than during the dual computations todo
-    test_simplex(gp, dual_simplex);
+    if(dual_simplex.size() == 3)
+      test_simplex(gp, dual_simplex);
 
     add_simplex_to_triangulation(dual_simplex);
   }
@@ -3023,7 +3029,7 @@ int main(int, char**)
       bool successful_insert = bm.refine_grid_with_self_computed_ref_point();
 
       std::ostringstream out;
-      out << "ref_" << i;
+      out << "ref_" << seeds.size();
       bm.output_grid_data_and_dual(out.str());
 
       if(!successful_insert)
