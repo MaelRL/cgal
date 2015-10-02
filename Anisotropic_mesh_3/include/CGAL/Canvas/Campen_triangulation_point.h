@@ -26,20 +26,25 @@ namespace CGAL
 namespace Anisotropic_mesh_3
 {
 
-template<typename K>
+template<typename K, typename Metric_field>
+class Campen_canvas;
+
+template<typename K, typename Metric_field>
 class Campen_canvas_point :
     public Canvas_point<K>
 {
 private:
-  typedef Campen_canvas_point<K>                                      Self;
+  typedef Campen_canvas_point<K, Metric_field>                        Self;
 
 public:
   typedef typename std::vector<Campen_canvas_point>                   Campen_canvas_point_vector;
   typedef Self*                                                       Campen_canvas_point_handle;
-  typedef Campen_canvas_point_handle                                  Vertex_Info;
-  typedef int                                                         Cell_Info; // inside or not
+
+  typedef int                                  Vertex_Info; // index of the canvas point
+  typedef int                                  Cell_Info; // index of the subdomain
 
   typedef Canvas_point<K>                                             Base;
+  typedef Campen_canvas<K, Metric_field>                              Canvas;
 
   typedef typename K::FT                                              FT;
   typedef typename K::Point_3                                         Point_3;
@@ -61,6 +66,7 @@ public:
 
   Vertex_handle m_v; // corresponding vertex in the triangulation
   Tr* m_tr;
+  Canvas* m_canvas;
 
   mutable bool m_is_vertices_cache_dirty, m_is_cells_cache_dirty;
   mutable Vertex_handle_vector m_finite_interior_adjacent_vertices_cache;
@@ -329,56 +335,45 @@ public:
     for(; it!=end; ++it)
     {
       Vertex_handle v = *it;
-      Campen_canvas_point_handle cp = v->info();
-      if(cp->state() == KNOWN)
+      Self& cp = m_canvas->canvas_points[v->info()];
+      if(cp.state() == KNOWN)
         continue;
-      else if(cp->state() == TRIAL)
+      else if(cp.state() == TRIAL)
       {
         // note that we don't insert in trial_pq since it's already in
-        if(cp->compute_closest_seed(this))
+        if(cp.compute_closest_seed(this))
           pqs_ret = REBUILD_TRIAL;
       }
-      else // cp->state == FAR
+      else // cp.state == FAR
       {
-        CGAL_assertion(cp->state() == FAR);
+        CGAL_assertion(cp.state() == FAR);
 
-        // note that cp->distance_to_closest_seed is not necessarily FT_inf here :
+        // note that cp.distance_to_closest_seed is not necessarily FT_inf here :
         // if we're refining, we've assigned FAR to all points after inserting a new
         // seed, therefore we must verify that compute_closest_seed is an update
         // before inserting it in the trial_queue
-        if(cp->compute_closest_seed(this))
+        if(cp.compute_closest_seed(this))
         {
-          CGAL_assertion(cp->distance_to_closest_seed() != FT_inf);
-          cp->state() = TRIAL;
-          trial_pq.push_back(cp);
+          CGAL_assertion(cp.distance_to_closest_seed() != FT_inf);
+          cp.state() = TRIAL;
+          trial_pq.push_back(&cp);
           std::push_heap(trial_pq.begin(), trial_pq.end(),
                          Canvas_point_comparer<Self>());
         }
       }
-      CGAL_assertion(cp->distance_to_closest_seed() != FT_inf);
+      CGAL_assertion(cp.distance_to_closest_seed() != FT_inf);
     }
     return pqs_ret;
   }
 
   template<typename MF>
-  Campen_canvas_point(const Point_3& p, std::size_t index, const MF mf)
-    :
-      Base(p, index, mf),
-      m_v(NULL),
-      m_tr(NULL),
-      m_is_vertices_cache_dirty(true),
-      m_is_cells_cache_dirty(true),
-      m_finite_interior_adjacent_vertices_cache(),
-      m_finite_interior_incident_cells_cache()
-  { }
-
-  template<typename MF>
   Campen_canvas_point(const Point_3& p, std::size_t index, const MF mf,
-                      Vertex_handle v, Tr* tr)
+                      Vertex_handle v, Tr* tr, Canvas* canvas)
     :
       Base(p, index, mf),
       m_v(v),
       m_tr(tr),
+      m_canvas(canvas),
       m_is_vertices_cache_dirty(true),
       m_is_cells_cache_dirty(true),
       m_finite_interior_adjacent_vertices_cache(),

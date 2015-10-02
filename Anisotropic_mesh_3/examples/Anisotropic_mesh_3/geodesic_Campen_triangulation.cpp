@@ -30,7 +30,7 @@ int main(int, char**)
 //  typedef Euclidean_metric_field<K>*                           MF;
   typedef Custom_metric_field<K>*                              MF;
 
-  typedef Campen_canvas_point<K>                               Campen_canvas_point;
+  typedef Campen_canvas_point<K, MF>                           Campen_canvas_point;
   typedef Canvas<K, Campen_canvas_point, MF>                   Base_canvas;
   typedef Campen_canvas<K, MF>                                 Canvas;
   typedef Canvas_mesher<Base_canvas>                           Canvas_mesher;

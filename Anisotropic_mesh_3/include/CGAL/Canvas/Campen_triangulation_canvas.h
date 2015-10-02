@@ -29,14 +29,14 @@ namespace Anisotropic_mesh_3
 
 template<typename K, typename Metric_field>
 class Campen_canvas :
-    public Canvas<K, Campen_canvas_point<K>, Metric_field>
+    public Canvas<K, Campen_canvas_point<K, Metric_field>, Metric_field>
 {
 public:
-  typedef Campen_canvas_point<K>                                  Canvas_point;
+  typedef Campen_canvas_point<K, Metric_field>                    Canvas_point;
   typedef Canvas_point*                                           Canvas_point_handle;
 
-  typedef Canvas_point_handle                                     Vertex_Info;
-  typedef int                                                     Cell_Info;
+  typedef int                                  Vertex_Info; // index of the canvas point
+  typedef int                                  Cell_Info; // index of the subdomain
 
   typedef Canvas<K, Canvas_point, Metric_field>                   Base;
 
@@ -87,19 +87,15 @@ public:
     bool is_tr_well_built = CGAL::build_triangulation_from_file(is, m_tr);
     CGAL_assertion(is_tr_well_built);
 
-    // THIS IS EXTREMELY IMPORTANT BECAUSE WE NEED TO HAVE NO RESIZE TO KEEP POINTERS VALID
-    this->canvas_points.reserve(m_tr.number_of_vertices());
-
     // build the canvas points
     std::size_t vertex_counter = 0;
     Finite_vertices_iterator vit = m_tr.finite_vertices_begin();
     for(; vit!=m_tr.finite_vertices_end(); ++vit)
     {
-      Canvas_point cp(vit->point(), vertex_counter++, this->mf, vit, &m_tr);
+      Canvas_point cp(vit->point(), vertex_counter++, this->mf, vit, &m_tr, this);
       this->canvas_points.push_back(cp);
-      vit->info() = &(this->canvas_points.back());
-      CGAL_assertion(vit->info()->point() == vit->point() &&
-                     vit->info()->index() == vertex_counter-1);
+      vit->info() = this->canvas_points.size() - 1;
+      CGAL_postcondition(this->canvas_points[vit->info()]->point() == vit->point());
     }
     CGAL_postcondition(this->canvas_points.size() == m_tr.number_of_vertices());
 
@@ -129,15 +125,14 @@ public:
     const Metric& seed_m = this->seeds.seeds_metrics[seed_id];
 
     CGAL_assertion(!m_tr.is_infinite(vh));
-    CGAL_assertion(vh->info());
-    Canvas_point* cp = vh->info();
-    const Metric& v_m = cp->metric();
+    Canvas_point& cp = this->canvas_points[vh->info()];
+    const Metric& v_m = cp.metric();
     const Eigen::Matrix3d& f = get_interpolated_transformation(seed_m, v_m);
 
     Vector3d v;
-    v(0) = t.x() - cp->point().x();
-    v(1) = t.y() - cp->point().y();
-    v(2) = t.z() - cp->point().z();
+    v(0) = t.x() - cp.point().x();
+    v(1) = t.y() - cp.point().y();
+    v(2) = t.z() - cp.point().z();
     v = f * v;
     FT d = v.norm(); // d = std::sqrt(v^t * M * v) = (f*v).norm()
     Base::initialize_canvas_point(cp, d, seed_id);
@@ -150,14 +145,15 @@ public:
     if(c->info() < 1)
     {
       // there has to exist an incident finite interior cell or the seed is rejected
-      Cell_handle_handle b = vh->info()->finite_interior_incident_cells_begin();
-      Cell_handle_handle e = vh->info()->finite_interior_incident_cells_end();
+      Canvas_point& cp = this->canvas_points[vh->info()];
+      Cell_handle_handle b = cp.finite_interior_incident_cells_begin();
+      Cell_handle_handle e = cp.finite_interior_incident_cells_end();
       std::ptrdiff_t d = e - b;
 
       if(d == 0)
       {
 #if (verbosity > 2)
-        std::cerr << "vertex " << c->vertex(li)->info()->index()
+        std::cerr << "vertex " << c->vertex(li)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
@@ -190,8 +186,8 @@ public:
       if(!found)
       {
 #if (verbosity > 2)
-        std::cerr << "edge " << c->vertex(li)->info()->index() << " "
-                             << c->vertex(lj)->info()->index()
+        std::cerr << "edge " << c->vertex(li)->info() << " "
+                             << c->vertex(lj)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
@@ -216,9 +212,9 @@ public:
       if(c_mirror->info() < 1)
       {
 #if (verbosity > 2)
-        std::cerr << "face " << c->vertex((li + 1) % 4)->info()->index() << " "
-                             << c->vertex((li + 2) % 4)->info()->index() << " "
-                             << c->vertex((li + 3) % 4)->info()->index()
+        std::cerr << "face " << c->vertex((li + 1) % 4)->info() << " "
+                             << c->vertex((li + 2) % 4)->info() << " "
+                             << c->vertex((li + 3) % 4)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
@@ -240,10 +236,10 @@ public:
     if(c->info() < 1)
     {
 #if (verbosity > 2)
-        std::cerr << "cell " << c->vertex(0)->info()->index() << " "
-                             << c->vertex(1)->info()->index() << " "
-                             << c->vertex(2)->info()->index() << " "
-                             << c->vertex(3)->info()->index()
+        std::cerr << "cell " << c->vertex(0)->info() << " "
+                             << c->vertex(1)->info() << " "
+                             << c->vertex(2)->info() << " "
+                             << c->vertex(3)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
@@ -278,9 +274,8 @@ public:
     {
       Vertex_handle vh = c->vertex(i);
       CGAL_assertion(!m_tr.is_infinite(vh));
-      CGAL_assertion(vh->info());
       std::cout << "point: " << c->vertex(i)->point() << std::endl;
-      std::cout << vh->info()->index() << " || " << vh->info()->point() << std::endl;
+      std::cout << vh->info() << " || " << this->canvas_points[vh->info()]->point() << std::endl;
     }
 #endif
 
@@ -334,12 +329,11 @@ public:
       {
         const Vertex_handle vh = c->vertex(j);
         CGAL_assertion(!m_tr.is_infinite(vh));
-        CGAL_assertion(vh->info());
-        const Canvas_point* cq = vh->info();
-        if(cq->state() != KNOWN)
+        const Canvas_point& cq = this->canvas_points[vh->info()];
+        if(cq.state() != KNOWN)
           continue;
 
-        candidates.insert(cq);
+        candidates.insert(&cq);
 //        fill_edge_bisectors_map(cp, cq); // pseudo bisectors
       }
 
@@ -550,7 +544,7 @@ public:
 
       Candidates_set candidates;
       for(std::size_t j=0; j<4; ++j)
-        candidates.insert(cit->vertex(j)->info());
+        candidates.insert(&(this->canvas_points[cit->vertex(j)->info()]));
 
       Base::construct_primal_elements_from_candidates(candidates);
       // todo add mark/compute Voronoi vertices
@@ -608,8 +602,8 @@ public:
       boost::unordered_set<std::size_t> materials;
       for(std::size_t j=0; j<4; ++j)
       {
-        materials.insert(cit->vertex(j)->info()->closest_seed_id());
-        out << cit->vertex(j)->info()->index() + 1 << " ";
+        materials.insert(this->canvas_points[cit->vertex(j)->info()].closest_seed_id());
+        out << cit->vertex(j)->info() + 1 << " ";
       }
       std::size_t mat = (materials.size()==1) ? (*(materials.begin())) :
                                                 (this->seeds.size());

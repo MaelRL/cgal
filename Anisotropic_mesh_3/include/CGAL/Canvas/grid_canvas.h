@@ -61,20 +61,20 @@ public:
     int index_y = std::floor((p.y()-offset_y)/step);
     int index_z = std::floor((p.z()-offset_z)/step);
 
-    Canvas_point* cp = &(this->canvas_points[index_z*sq_n + index_y*n + index_x]);
+    Canvas_point& cp = this->canvas_points[index_z*sq_n + index_y*n + index_x];
 
 #if (verbosity > 10)
     std::cout << "looking for p: " << p << std::endl;
-    std::cout << "found cp: " << cp->index() << " [" << cp->point() << "]" << std::endl;
+    std::cout << "found cp: " << cp.index() << " [" << cp.point() << "]" << std::endl;
     std::cout << "index: " << index_x << " " << index_y << " " << index_z << std::endl;
     std::cout << "offset: " << offset_x << " " << offset_y << " " << offset_z << std::endl;
 #endif
 
     Vector3d v;
-    v(0) = p.x() - cp->point().x();
-    v(1) = p.y() - cp->point().y();
-    v(2) = p.z() - cp->point().z();
-    const Eigen::Matrix3d& m = cp->metric().get_mat();
+    v(0) = p.x() - cp.point().x();
+    v(1) = p.y() - cp.point().y();
+    v(2) = p.z() - cp.point().z();
+    const Eigen::Matrix3d& m = cp.metric().get_mat();
     FT d = std::sqrt(v.transpose() * m * v);
 
     Base::initialize_canvas_point(cp, d, seed_id);

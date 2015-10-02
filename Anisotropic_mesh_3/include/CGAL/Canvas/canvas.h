@@ -141,25 +141,25 @@ public:
     virtual_points.clear();
   }
 
-  void initialize_canvas_point(Canvas_point* cp,
+  void initialize_canvas_point(Canvas_point& cp,
                                const FT distance_from_seed,
                                const std::size_t seed_id)
   {
-    if(cp->closest_seed_id() != static_cast<std::size_t>(-1))
+    if(cp.closest_seed_id() != static_cast<std::size_t>(-1))
     {
       std::cerr << "WARNING: a new seed is overwriting the closest seed id";
       std::cerr << " of a canvas point!" << std::endl;
-      std::cerr << "seed: " << seed_id << " wants to initialize point: " << cp->index() << "(" << cp->point() << ")";
-      std::cerr << " but seed " << cp->closest_seed_id() << " has done it already" << std::endl;
+      std::cerr << "seed: " << seed_id << " wants to initialize point: " << cp.index() << "(" << cp.point() << ")";
+      std::cerr << " but seed " << cp.closest_seed_id() << " has done it already" << std::endl;
     }
 
     // We can't accept two seeds for one canvas point
-    if(cp->state() == TRIAL)
+    if(cp.state() == TRIAL)
       CGAL_assertion(false && "the canvas is not dense enough for the input seeds...");
 
-    cp->initialize_from_point(distance_from_seed, seed_id);
+    cp.initialize_from_point(distance_from_seed, seed_id);
 
-    trial_points.push_back(cp);
+    trial_points.push_back(&cp);
     std::push_heap(trial_points.begin(), trial_points.end(),
                    Canvas_point_comparer<Canvas_point>());
   }
@@ -170,7 +170,7 @@ public:
     // something pretty todo...
     // for now: brutally find the canvas point closest to the seed
 
-    Canvas_point* cp = NULL; // this will be the closest seed
+    int cp_id = -1; // index of the closest seed
 
     FT min_d = FT_inf;
     for(std::size_t i=0; i<canvas_points.size(); ++i)
@@ -185,13 +185,15 @@ public:
       if(d < min_d)
       {
         min_d = d;
-        cp = &(canvas_points[i]);
+        cp_id = i;
       }
     }
 
+    Canvas_point& cp = canvas_points[cp_id];
+
 #if (verbosity > 15)
     std::cout << "looking for p: " << p << std::endl;
-    std::cout << "found cp: " << cp->index() << " [" << cp->point() << "] ";
+    std::cout << "found cp: " << cp.index() << " [" << cp.point() << "] ";
     std::cout << "at distance: " << std::sqrt(min_d) << std::endl;
 #endif
 
