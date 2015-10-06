@@ -148,6 +148,14 @@ public:
     return i;
   }
 
+  void reset_paint()
+  {
+    m_state = FAR;
+    m_distance_to_closest_seed = FT_inf;
+    m_closest_seed_id = -1;
+    m_ancestor = NULL;
+  }
+
   Canvas_point() { }
 
   template<typename MF>

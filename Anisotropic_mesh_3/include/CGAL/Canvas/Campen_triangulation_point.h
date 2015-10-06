@@ -106,7 +106,10 @@ public:
     CGAL_assertion(m_v != Vertex_handle());
     CGAL_assertion(m_tr->dimension() > 1); // doesn't make sense for dim=-1,0,1
 
-    std::vector<Vertex_handle> tmp_vertices; // vertices whose extractor bool will need to be reset
+    // keep in memory the vertices whose extractor boolean will need to be reset
+    std::vector<Vertex_handle> tmp_vertices;
+    m_v->visited_for_vertex_extractor = true;
+    tmp_vertices.push_back(m_v);
 
     Cell_handle_handle cit = finite_interior_incident_cells_begin();
     Cell_handle_handle cend = finite_interior_incident_cells_end();

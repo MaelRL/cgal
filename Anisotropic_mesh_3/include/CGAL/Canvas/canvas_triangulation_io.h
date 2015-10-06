@@ -230,8 +230,8 @@ void build_vertices(Tr& tr,
 template<class Tr>
 void add_facet_to_incident_cells_map(const typename Tr::Cell_handle c, int i,
                                      std::map<std::set<typename Tr::Vertex_handle>,
-                                     std::vector<std::pair<typename Tr::Cell_handle,
-                                                           int> > >& incident_cells_map)
+                                              std::vector<std::pair<typename Tr::Cell_handle,
+                                                                    int> > >& incident_cells_map)
 {
   typedef typename Tr::Vertex_handle                            Vertex_handle;
   typedef typename Tr::Cell_handle                              Cell_handle;
@@ -403,23 +403,32 @@ void build_infinite_cells(Tr& tr,
       Cell_handle c = it->second[0].first;
       int i = it->second[0].second;
 
-      // put the infinite vertex in 2nd position for positive orientation
-      Cell_handle opp_c = tr.tds().create_cell(c->vertex((i+1)%4),
-                                               tr.infinite_vertex(),
-                                               c->vertex((i+2)%4),
-                                               c->vertex((i+3)%4));
-
-      CGAL_postcondition(CGAL::orientation(opp_c->vertex(0)->point(),
-                                           opp_c->vertex(1)->point(),
-                                           opp_c->vertex(2)->point(),
-                                           opp_c->vertex(3)->point()) == POSITIVE);
+      Cell_handle opp_c;
+      // the infinite cell that we are creating needs to be well oriented...
+      int inf_vert_position_in_opp_c = -1;
+      if(i == 0 || i == 2)
+      {
+        inf_vert_position_in_opp_c = 1;
+        opp_c = tr.tds().create_cell(c->vertex((i+3)%4),
+                                     tr.infinite_vertex(),
+                                     c->vertex((i+1)%4),
+                                     c->vertex((i+2)%4));
+      }
+      else
+      {
+        inf_vert_position_in_opp_c = 0;
+        opp_c = tr.tds().create_cell(tr.infinite_vertex(),
+                                     c->vertex((i+1)%4),
+                                     c->vertex((i+2)%4),
+                                     c->vertex((i+3)%4));
+      }
 
       // set the infinite_vertex's incident cell
       if(tr.infinite_vertex()->cell() == Cell_handle())
         tr.infinite_vertex()->set_cell(opp_c);
 
       // add the facets to the incident cells map
-      int inf_vert_position_in_opp_c = 1; // just so it's not confusing
+
 
       // the only finite facet
       it->second.push_back(std::make_pair(opp_c, inf_vert_position_in_opp_c));

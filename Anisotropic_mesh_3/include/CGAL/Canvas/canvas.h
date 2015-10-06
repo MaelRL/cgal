@@ -65,10 +65,12 @@ public:
                                         Primal_simplex_hash<Canvas, 2>,
                                         Primal_simplex_comparer<Canvas, 2> >
                                                             Primal_edges_container;
+  typedef typename Primal_edges_container::iterator         PEC_iterator;
   typedef typename boost::unordered_set<Primal_triangle,
                                         Primal_simplex_hash<Canvas, 3>,
                                         Primal_simplex_comparer<Canvas, 3> >
                                                             Primal_triangles_container;
+  typedef typename Primal_triangles_container::iterator     PTrC_iterator;
   typedef typename boost::unordered_set<Primal_tetrahedron,
                                         Primal_simplex_hash<Canvas, 4>,
                                         Primal_simplex_comparer<Canvas, 4> >
@@ -229,7 +231,7 @@ public:
     std::cout << " far: " << far_count << std::endl;
   }
 
-  virtual void paint(const bool refining = true)
+  virtual void paint(const bool refining = false)
   {
 #if (verbosity > 5)
     std::cout << "Paiting..." << std::endl;
@@ -240,10 +242,17 @@ public:
     Canvas_point* cp;
 
     bool is_t_empty = trial_points.empty();
+
+    if(is_t_empty)
+      std::cerr << "Trying to paint without anything in the PQ..." << std::endl;
+    else
+      std::cout << trial_points.size() << " initial points in the queue" << std::endl;
+
     while(!is_t_empty)
     {
 #if (verbosity > 10)
-      if(known_count % (canvas_points.size() / 100) == 0)
+      if(known_count % ((std::max)(static_cast<std::size_t>(1),
+                                   canvas_points.size()/100)) == 0)
         print_states();
 #endif
 
@@ -330,15 +339,20 @@ public:
     }
   }
 
+  void reset_counters()
+  {
+    known_count = 0;
+    trial_count = 0;
+    far_count = canvas_points.size();
+  }
+
   void refresh_canvas_point_states()
   {
     CGAL_assertion(trial_points.empty());
     for(std::size_t i=0; i<canvas_points.size(); ++i)
       canvas_points[i].state() = FAR;
 
-    known_count = 0;
-    trial_count = 0;
-    far_count = canvas_points.size();
+    reset_counters();
   }
 
   // ---------------------------------------------------------------------------
@@ -782,7 +796,6 @@ public:
     compute_primal();
     detect_tetrahedra_self_intersections();
 
-    check_canvas_density();
     output_canvas(str_base);
     output_straight_primal(str_base);
   }

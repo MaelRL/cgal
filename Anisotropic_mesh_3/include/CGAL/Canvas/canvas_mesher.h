@@ -1,6 +1,7 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CANVAS_MESHER_H
 #define CGAL_ANISOTROPIC_MESH_3_CANVAS_MESHER_H
 
+#include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/canvas_refine_queue.h>
 
 #include <CGAL/intersections.h>
@@ -125,8 +126,8 @@ public:
     const TSimplex& tet = primal_simplex.simplex();
 
     // todo criteria in a criteria class...
-    FT max_size = 4.59; // <= 0 means unused
     FT max_distortion = 1.; // <= 1 means unused
+    FT max_size = 1.0; // <= 0 means unused
     bool intersection_ref = true;
     FT min_qual = 0.8; // <= 0 means unsused
 
@@ -211,7 +212,7 @@ public:
     }
   }
 
-  bool get_next_refinement_point(Point_3& new_seed) const
+  bool get_next_refinement_point(const Canvas_point* new_seed) const
   {
     typename Canvas_queues::Queue_entry_iterator e;
     if(!refinement_queue.top(e))
@@ -220,7 +221,7 @@ public:
       return false;
     }
 
-    new_seed = e->dual_point()->point();
+    new_seed = e->dual_point();
     return true;
   }
 
@@ -260,11 +261,11 @@ public:
       build_refinement_queue();
       refinement_queue.print_queues();
 
-      Point_3 new_seed;
+      const Canvas_point* new_seed;
       if(!get_next_refinement_point(new_seed))
         break;
 
-      refine(new_seed);
+      refine(new_seed->point());
 
       std::ostringstream out;
       out << "ref_" << canvas.seeds.size();

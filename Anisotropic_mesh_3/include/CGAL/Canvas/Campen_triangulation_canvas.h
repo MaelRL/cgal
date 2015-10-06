@@ -31,6 +31,9 @@ template<typename K, typename Metric_field>
 class Campen_canvas :
     public Canvas<K, Campen_canvas_point<K, Metric_field>, Metric_field>
 {
+private:
+  typedef Campen_canvas<K, Metric_field>                          Self;
+
 public:
   typedef Campen_canvas_point<K, Metric_field>                    Canvas_point;
   typedef Canvas_point*                                           Canvas_point_handle;
@@ -95,7 +98,7 @@ public:
       Canvas_point cp(vit->point(), vertex_counter++, this->mf, vit, &m_tr, this);
       this->canvas_points.push_back(cp);
       vit->info() = this->canvas_points.size() - 1;
-      CGAL_postcondition(this->canvas_points[vit->info()]->point() == vit->point());
+      CGAL_postcondition(this->canvas_points[vit->info()].point() == vit->point());
     }
     CGAL_postcondition(this->canvas_points.size() == m_tr.number_of_vertices());
 
@@ -275,7 +278,7 @@ public:
       Vertex_handle vh = c->vertex(i);
       CGAL_assertion(!m_tr.is_infinite(vh));
       std::cout << "point: " << c->vertex(i)->point() << std::endl;
-      std::cout << vh->info() << " || " << this->canvas_points[vh->info()]->point() << std::endl;
+      std::cout << vh->info() << " || " << this->canvas_points[vh->info()].point() << std::endl;
     }
 #endif
 
