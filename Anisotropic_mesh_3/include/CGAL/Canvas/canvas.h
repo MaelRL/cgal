@@ -679,11 +679,36 @@ public:
     are_tetrahedra_intersection_computed = true;
   }
 
-  void check_canvas_density() const
+  std::set<int> check_canvas_density(const std::size_t ancestor_minimum_length = 10) const
   {
+#if (verbose > 10)
+    std::cout << "density check" << std::endl;
+#endif
+    std::set<int> subdomain_indices;
+
     // we have taken the farthest witness point as dual information, we check
     // how many ancestors they have, if they have very few ancestors, the canvas
     // is most likely not dense enough for the seed set.
+
+    PEC_iterator peit = primal_edges.begin();
+    for(; peit!=primal_edges.end(); ++peit)
+    {
+      const Primal_edge& pt = *peit;
+      const Canvas_point* dual_point = pt.dual_point();
+      std::size_t ancestor_n = dual_point->count_ancestors();
+      if(ancestor_n < ancestor_minimum_length)
+        std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+    }
+
+    PTrC_iterator ptrit = primal_triangles.begin();
+    for(; ptrit!=primal_triangles.end(); ++ptrit)
+    {
+      const Primal_triangle& pt = *ptrit;
+      const Canvas_point* dual_point = pt.dual_point();
+      std::size_t ancestor_n = dual_point->count_ancestors();
+      if(ancestor_n < ancestor_minimum_length)
+        std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+    }
 
     PTC_iterator ptit = primal_tetrahedra.begin();
     for(; ptit!=primal_tetrahedra.end(); ++ptit)
@@ -691,9 +716,15 @@ public:
       const Primal_tetrahedron& pt = *ptit;
       const Canvas_point* dual_point = pt.dual_point();
       std::size_t ancestor_n = dual_point->count_ancestors();
-      if(ancestor_n < 8)
+      if(ancestor_n < ancestor_minimum_length)
+      {
+        for(int i=0; i<4; ++i)
+          subdomain_indices.insert(pt[i]);
         std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+      }
     }
+
+    return subdomain_indices;
   }
 
   // ---------------------------------------------------------------------------

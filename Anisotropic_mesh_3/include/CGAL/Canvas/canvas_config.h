@@ -11,6 +11,10 @@
 
 #define CGAL_MESH_3_VERBOSE
 
+  // if we want to make sure the (Campen) canvas is always dense enough around
+  // a new seed
+#define CGAL_ANISO_CHECK_CANVAS_DENSITY
+
 #include <limits>
 
 namespace CGAL

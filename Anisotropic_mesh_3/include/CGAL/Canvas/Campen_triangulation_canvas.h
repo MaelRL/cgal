@@ -4,6 +4,7 @@
 #include <CGAL/Canvas/canvas.h>
 #include <CGAL/Canvas/Campen_triangulation_point.h>
 #include <CGAL/Canvas/canvas_triangulation_io.h>
+#include <CGAL/Canvas/canvas_subdiviser.h>
 
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/Triangulation_cell_base_with_info_3.h>
@@ -519,6 +520,23 @@ public:
     primal_shenanigans(cp);
   }
 
+  void refine_canvas()
+  {
+    // verify that the canvas is dense enough for this new point to have a proper
+    // Voronoi cell. If it's not the case, refine the canvas.
+
+#ifndef CGAL_ANISO_CHECK_CANVAS_DENSITY
+    // kinda ugly, fixme
+    return;
+#endif
+
+    typedef CGAL::Subdomain_criterion<Self> SCriterion;
+    SCriterion criterion(this);
+    this->check_canvas_density();
+    CGAL::Canvas_subdivider<Self, SCriterion> canvas_sub(this, criterion);
+    canvas_sub.subdivide_cells();
+  }
+
   void compute_primal()
   {
 #if (verbosity > 5)
@@ -527,6 +545,10 @@ public:
     if(!this->primal_edges.empty() || !this->primal_triangles.empty() || !this->primal_tetrahedra.empty())
     {
       std::cerr << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
+#ifdef CGAL_ANISO_CHECK_CANVAS_DENSITY
+      refine_canvas();
+#endif
+
       return;
     }
 
