@@ -27,6 +27,8 @@
 
 namespace CGAL
 {
+namespace  Anisotropic_mesh_3
+{
 
 template<class Canvas>
 struct Subdomain_criterion
@@ -46,7 +48,6 @@ struct Subdomain_criterion
     {
       Vertex_handle vh = c->vertex(i);
       int seed_index = (m_canvas->canvas_points[vh->info()]).closest_seed_id();
-      if(seed_index != 0) return false;
       if(seed_indices.find(seed_index) == seed_indices.end())
         return false;
     }
@@ -296,7 +297,7 @@ struct Canvas_subdivider
 
   void paint_new_canvas()
   {
-#if (verbose > 25)
+#if (verbosity > 20)
     std::cout << "must reset everything with color : ";
     std::set<int>::iterator strit = seeds_to_reset.begin();
     for(; strit!=seeds_to_reset.end(); ++strit)
@@ -315,6 +316,7 @@ struct Canvas_subdivider
         cp.reset_paint();
     }
 
+    CGAL_assertion(!seeds_to_reset.empty());
     std::set<int>::iterator sit = seeds_to_reset.begin();
     for(; sit!=seeds_to_reset.end(); ++sit)
       m_canvas->locate_and_initialize(m_canvas->seeds[*sit], *sit);
@@ -329,6 +331,7 @@ struct Canvas_subdivider
     CGAL_postcondition(tr().is_valid(true));
     CGAL_postcondition(m_canvas->canvas_points.size() == tr().number_of_vertices());
 
+    // check the correspondence between canvas points & triangulation points
     for(std::size_t i=0; i<m_canvas->canvas_points.size(); ++i)
     {
       const Canvas_point& cp = m_canvas->canvas_points[i];
@@ -336,13 +339,12 @@ struct Canvas_subdivider
     }
 
 CGAL_expensive_assertion_code(
-    // make sure everything is reachable
+    // make sure everything is reachable in the new canvas
     std::vector<int> visited(m_canvas->canvas_points.size(), 0);
     // 0 = not visited, 1 = in queue, 2 = visited
 
     std::list<int> to_be_visited;
     std::size_t visited_counter = 0;
-
     to_be_visited.push_back(0);
     while(!to_be_visited.empty())
     {
@@ -351,9 +353,6 @@ CGAL_expensive_assertion_code(
       visited[cp.index()] = 2;
       visited_counter++;
       to_be_visited.pop_front();
-
-      std::cout << "vi are at : " << cp.index();
-      std::cout << " to_be_visited's size: " << to_be_visited.size() << std::endl;
 
       typename std::vector<Vertex_handle>::iterator it =
                                     cp.finite_interior_adjacent_vertices_begin();
@@ -364,7 +363,6 @@ CGAL_expensive_assertion_code(
         const Canvas_point& cq = m_canvas->canvas_points[(*it)->info()];
         if(visited[cq.index()] == 0)
         {
-          std::cout << "vi must nao visit : " << cq.index() << std::endl;
           visited[cq.index()] = 1;
           to_be_visited.push_back(cq.index());
         }
@@ -374,9 +372,12 @@ CGAL_expensive_assertion_code(
               << m_canvas->canvas_points.size() << std::endl;
 
     for(std::size_t i=0; i<m_canvas->canvas_points.size(); ++i)
+    {
       CGAL_assertion(visited[i] == 2);
+    }
 ); // CGAL expensive assertion
 
+    // check that the cell info() are reasonable
     Cell_handle ch = tr().all_cells_begin();
     for(; ch!=tr().all_cells_end(); ++ch)
     {
@@ -386,25 +387,28 @@ CGAL_expensive_assertion_code(
       CGAL_assertion(ch->info() >= 0);
     }
 
+    // only functions that are not debug code in this function
     paint_new_canvas();
     m_canvas->output_canvas("subdivided_canvas");
 
     for(std::size_t i=0; i<m_canvas->canvas_points.size(); ++i)
     {
       const Canvas_point& cp = m_canvas->canvas_points[i];
-      CGAL_postcondition(cp.state() == Anisotropic_mesh_3::KNOWN);
+      CGAL_postcondition(cp.state() == KNOWN);
+      CGAL_postcondition(cp.distance_to_closest_seed() != FT_inf);
       CGAL_postcondition(cp.closest_seed_id() != static_cast<std::size_t>(-1));
     }
   }
 
-  void subdivide_cells()
+  std::size_t subdivide_cells()
   {
-#if (verbose > 15)
+    std::size_t init_point_count = m_canvas->canvas_points.size();
+#if (verbosity > 15)
     std::cout << "split cells" << std::endl;
-    std::cout << "before split: " << m_canvas->canvas_points.size() << " vertices" << std::endl;
+    std::cout << "before split: " << init_point_count << " vertices" << std::endl;
 #endif
 
-#if (verbose > 25)
+#if (verbosity > 20)
     std::cout << "the ids to subdivide are: ";
     std::set<int>::iterator it = m_criterion.seed_indices.begin();
     for(; it!=m_criterion.seed_indices.end(); ++it)
@@ -440,9 +444,19 @@ CGAL_expensive_assertion_code(
       subdivide_facet(c);
     }
 
-#if (verbose > 15)
-    std::cout << "after split: " << m_canvas->canvas_points.size() << " vertices" << std::endl;
+    std::size_t final_point_count = m_canvas->canvas_points.size();
+#if (verbosity > 15)
+    std::cout << "after split: " << final_point_count << " vertices" << std::endl;
 #endif
+    CGAL_assertion(final_point_count >= init_point_count);
+    return final_point_count - init_point_count;
+  }
+
+  void subdivide()
+  {
+    std::size_t new_points_count = subdivide_cells();
+    if(new_points_count == 0)
+      return;
     post_subdivide();
   }
 
@@ -456,6 +470,7 @@ CGAL_expensive_assertion_code(
   { }
 };
 
+} // namespace Anisotropic_mesh_3
 } // namespace CGAL
 
 #endif // CGAL_ANISOTROPIC_MESH_3_Canvas_subdivider_H

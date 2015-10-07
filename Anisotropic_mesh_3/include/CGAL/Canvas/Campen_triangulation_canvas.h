@@ -1,6 +1,7 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_CANVAS_H
 #define CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_CANVAS_H
 
+#include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/canvas.h>
 #include <CGAL/Canvas/Campen_triangulation_point.h>
 #include <CGAL/Canvas/canvas_triangulation_io.h>
@@ -520,21 +521,16 @@ public:
     primal_shenanigans(cp);
   }
 
-  void refine_canvas()
+  void check_canvas_density()
   {
     // verify that the canvas is dense enough for this new point to have a proper
     // Voronoi cell. If it's not the case, refine the canvas.
 
-#ifndef CGAL_ANISO_CHECK_CANVAS_DENSITY
-    // kinda ugly, fixme
-    return;
-#endif
-
-    typedef CGAL::Subdomain_criterion<Self> SCriterion;
+    typedef CGAL::Anisotropic_mesh_3::Subdomain_criterion<Self> SCriterion;
     SCriterion criterion(this);
-    this->check_canvas_density();
-    CGAL::Canvas_subdivider<Self, SCriterion> canvas_sub(this, criterion);
-    canvas_sub.subdivide_cells();
+    criterion.seed_indices = this->check_canvas_density_with_primals();
+    CGAL::Anisotropic_mesh_3::Canvas_subdivider<Self, SCriterion> canvas_sub(this, criterion);
+    canvas_sub.subdivide();
   }
 
   void compute_primal()
@@ -546,9 +542,8 @@ public:
     {
       std::cerr << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
 #ifdef CGAL_ANISO_CHECK_CANVAS_DENSITY
-      refine_canvas();
+      check_canvas_density();
 #endif
-
       return;
     }
 
@@ -575,6 +570,9 @@ public:
       // todo add mark/compute Voronoi vertices
     }
     // todo add mark/compute Voronoi vertices etc.
+#ifdef CGAL_ANISO_CHECK_CANVAS_DENSITY
+      check_canvas_density();
+#endif
   }
 
   void output_canvas(const std::string str_base) const

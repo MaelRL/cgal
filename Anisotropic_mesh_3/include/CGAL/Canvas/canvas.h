@@ -601,7 +601,7 @@ public:
     for(typename Candidates_set::iterator it=candidates.begin(); it!=candidates.end(); ++it)
       colors.insert((*it)->closest_seed_id());
 
-#if (verbosity > 15)
+#if (verbosity > 25)
     std::cout << "construct from canditate : ";
     typename Candidates_set::iterator it = candidates.begin();
     for(; it!=candidates.end(); ++it)
@@ -679,9 +679,9 @@ public:
     are_tetrahedra_intersection_computed = true;
   }
 
-  std::set<int> check_canvas_density(const std::size_t ancestor_minimum_length = 10) const
+  std::set<int> check_canvas_density_with_primals(const std::size_t ancestor_minimum_length = 10) const
   {
-#if (verbose > 10)
+#if (verbosity > 10)
     std::cout << "density check" << std::endl;
 #endif
     std::set<int> subdomain_indices;
