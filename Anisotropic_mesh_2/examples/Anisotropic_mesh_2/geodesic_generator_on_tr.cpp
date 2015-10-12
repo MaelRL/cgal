@@ -138,8 +138,8 @@ public:
       const Point_2& pb = fh->vertex(1)->point();
       const Point_2& pc = fh->vertex(2)->point();
 
-      q.get<0>() = 0;
-      if( distortion_bound != 0 )
+      q.get<0>() = 1;
+      if( distortion_bound > 1)
       {
         const Metric& ma = mf->compute_metric(pa);
         const Metric& mb = mf->compute_metric(pb);
