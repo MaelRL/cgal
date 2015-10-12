@@ -770,6 +770,18 @@ struct Grid_point
     state = new_state;
   }
 
+  std::size_t ancestor_path_length() const
+  {
+    std::size_t i = 1;
+    const Grid_point* anc = ancestor;
+    while(anc)
+    {
+      ++i;
+      anc = anc->ancestor;
+    }
+    return i;
+  }
+
   bool compute_closest_seed(const Grid_point* anc)
   {
     CGAL_assertion(anc->state == KNOWN);
@@ -2498,6 +2510,25 @@ struct Base_mesh
   }
 
   // output stuff --------------------------------------------------------------
+  void add_simplex_to_triangulation(const Grid_point* gp,
+                                    const Simplex& dual_simplex)
+  {
+    if(dual_simplex.size() <= 1)
+      return;
+
+    std::size_t length = gp->ancestor_path_length();
+    if(length < 8)
+      std::cerr << "the canvas is thin (" << length << ") at : " << gp->index << " ("
+                << gp->point << ") dual simplex of size: " << dual_simplex.size()
+                << " and cellid: " << gp->closest_seed_id << std::endl;
+
+    // test against criteria should be moved somewhere else than during the dual computations todo
+    if(dual_simplex.size() == 3 ||
+       (dual_simplex.size() == 2 && gp->is_on_domain_border))
+      test_simplex(gp, dual_simplex);
+
+    add_simplex_to_triangulation(dual_simplex);
+  }
 
   void add_simplex_to_triangulation(const Tri& grid_tri,
                                     const std::set<std::size_t>& dual_simplex)
@@ -2505,24 +2536,32 @@ struct Base_mesh
     if(dual_simplex.size() <= 1)
       return;
 
-    // test against criteria should be moved somewhere else than during the dual computations todo
-    if(dual_simplex.size() == 3)
-      test_simplex(grid_tri, dual_simplex);
+    int max_dist_p = -1;
+    FT max = -FT_inf;
+    for(int i=0; i<3; ++i)
+    {
+      const Grid_point& gp = points[grid_tri[i]];
+      const FT d = gp.distance_to_closest_seed;
 
-    add_simplex_to_triangulation(dual_simplex);
-  }
+      if(gp.is_on_domain_border)
+        std::cout << gp.index << " on border in add_simplex" << std::endl;
 
-  void add_simplex_to_triangulation(const Grid_point* gp,
-                                    const Simplex& dual_simplex)
-  {
-    if(dual_simplex.size() <= 1)
-      return;
+      if(d > max)
+      {
+        max = d;
+        max_dist_p = grid_tri[i];
+      }
+    }
 
-    // test against criteria should be moved somewhere else than during the dual computations todo
-    if(dual_simplex.size() == 3)
-      test_simplex(gp, dual_simplex);
+    // only if the triangle contains a border point...
+    if(points[grid_tri[0]].is_on_domain_border ||
+       points[grid_tri[1]].is_on_domain_border ||
+       points[grid_tri[2]].is_on_domain_border)
+      std::cout << "picked " << points[max_dist_p].index << std::endl;
 
-    add_simplex_to_triangulation(dual_simplex);
+    // keep as dual point the farthest grid point -- at least until we have
+    // precise Voronoi computations)
+    return add_simplex_to_triangulation(&(points[max_dist_p]), dual_simplex);
   }
 
   void check_edelsbrunner()
@@ -2817,6 +2856,7 @@ struct Base_mesh
 
 #if (verbose > 5)
     std::cout << "captured: ";
+    std::cout << points.size() << " points, ";
     std::cout << dual_edges.size() << " edges, ";
     std::cout << dual_triangles.size() << " triangles" << std::endl;
 #endif
