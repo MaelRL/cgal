@@ -2247,46 +2247,6 @@ struct Base_mesh
     return Point_2(centroid_x, centroid_y);
   }
 
-  Point_2 compute_accurate_centroid_with_Delaunay(const std::size_t seed_id)
-  {
-    // careful, this is only for isotropic !
-
-    // compute an accurate centroid by computing accurate Voronoi vertices
-    // (rather than Vor vertices based on the underlying base mesh)
-    // as the circumcenters of the triangles incident to the seed of id seed_id
-    // in the dual triangulation
-
-    // brute forcy as usual
-
-    // it's broken as of now : need to compute correctly the Voronoi vertices
-    // that result from the intersection of an unbounded Voronoi cell with the
-    // domain border.
-    CGAL_assertion(false && "fix the computations of the Voronoi vertices first");
-
-    std::vector<Point_2> accurate_vor_vertices;
-    for(typename std::set<Tri>::iterator it = dual_triangles.begin();
-                                         it != dual_triangles.end(); ++it)
-    {
-      const Tri& tr = *it;
-      if(tr[0] != seed_id && tr[1] != seed_id && tr[2] != seed_id)
-        continue;
-
-      Point_2 p = seeds[tr[0]];
-      Point_2 q = seeds[tr[1]];
-      Point_2 r = seeds[tr[2]];
-
-      Point_2 c = CGAL::circumcenter(p, q, r);
-      accurate_vor_vertices.push_back(c);
-    }
-
-    FT centroid_x = 0., centroid_y = 0.;
-    // order them (transform accurate_vor_vertices in a set sorted by angle, cf
-    // above) and use the polygon centroid's formula
-    // todo
-
-    return Point_2(centroid_x, centroid_y);
-  }
-
   Point_2 compute_mapped_centroid_with_mapped_Vor_vertices(const std::size_t seed_id,
                                                             const std::vector<Point_2>& mapped_points)
   {
@@ -2363,9 +2323,6 @@ struct Base_mesh
 
       Point_2 alt_centroid_2 = compute_centroid_with_voronoi_vertices(seed_id);
       std::cout << "centroid with voronoi vertices " << alt_centroid_2 << std::endl;
-
-      //    Point_2 del_centroid = compute_accurate_centroid_with_Delaunay(seed_id);
-//    std::cout << "centroid from Delaunay Vort vertices: " << del_centroid << std::endl;
     // --
 
     std::cout << "ALTERNATIVE MAPPED CENTROID COMPUTATION : " << std::endl;
