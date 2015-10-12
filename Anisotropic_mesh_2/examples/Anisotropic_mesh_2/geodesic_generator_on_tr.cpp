@@ -548,6 +548,9 @@ FT sq_bbox_diagonal_length(const CGAL::Bbox_2& bbox)
 
 FT triangle_area(const Point_2& p, const Point_2& q, const Point_2& r)
 {
+  typename K::Compute_area_2 o;
+  return std::abs(o(p, q, r));
+
   FT pq_x = q.x() - p.x();
   FT pq_y = q.y() - p.y();
   FT sq_pq = pq_x*pq_x + pq_y*pq_y;
@@ -575,6 +578,31 @@ FT triangle_area(const Point_2& p, const Point_2& q, const Point_2& r)
 
   FT area = 0.25 * std::sqrt(diff);
   return area;
+}
+
+FT triangle_area_in_metric(const Point_2& p, const Point_2& q, const Point_2& r)
+{
+  // compute the interpolated's metric transformation
+  FT third = 1./3.;
+  Eigen::Matrix2d f = third*(mf->compute_metric(p).get_transformation() +
+                             mf->compute_metric(q).get_transformation() +
+                             mf->compute_metric(r).get_transformation());
+
+  // transform the points
+  Eigen::Vector2d v(p.x(), p.y());
+  v = f*v;
+  const Point_2 tp(v(0), v(1));
+
+  v(0) = q.x(); v(1) = q.y();
+  v = f*v;
+  const Point_2 tq(v(0), v(1));
+
+  v(0) = r.x(); v(1) = r.y();
+  v = f*v;
+  const Point_2 tr(v(0), v(1));
+
+  typename K::Compute_area_2 o;
+  return std::abs(o(tp, tq, tr));
 }
 
 void compute_bary_weights(const Point_2&p , const Point_2& a, const Point_2& b, const Point_2& c,
@@ -2094,8 +2122,6 @@ struct Base_mesh
 
   Point_2 compute_centroid_with_grid_triangles(const std::size_t seed_id)
   {
-    // careful now, this is for isotropic only !
-
     // compute the centroid through the sum c = sum_i (ci*area_i) / sum_i (area_i)
     // with the tiny triangles of the base mesh
     // it's not exact because we only consider the triangles with all vertices
@@ -2117,7 +2143,8 @@ struct Base_mesh
          gr.closest_seed_id != seed_id)
         continue;
 
-      FT area = triangle_area(gp.point, gq.point, gr.point);
+//      FT area = triangle_area(gp.point, gq.point, gr.point);
+      FT area = triangle_area_in_metric(gp.point, gq.point, gr.point);
 
       total_area += area;
       Point_2 local_centroid = CGAL::centroid(gp.point, gq.point, gr.point);
@@ -2194,8 +2221,6 @@ struct Base_mesh
 
   Point_2 compute_centroid_with_voronoi_vertices(const std::size_t seed_id)
   {
-    // careful, this is for isotropic only !
-
     // in isotropic, the bisectors are segments between the voronoi vertices,
     // so we just decompose the full Voronoi cells in triangles of the form :
     // [seed, vor_vert_1, Vor_vert_2]
@@ -2222,7 +2247,8 @@ struct Base_mesh
       const Point_2& pi = it->point;
       const Point_2& pj = next_it->point;
 
-      FT area = triangle_area(old_seed, pi, pj);
+//      FT area = triangle_area(old_seed, pi, pj);
+      FT area = triangle_area_in_metric(old_seed, pi, pj);
       total_area += area;
 
       Point_2 local_centroid = CGAL::centroid(old_seed, pi, pj);
@@ -2310,17 +2336,17 @@ struct Base_mesh
     Point_2 closest_grid_point_centroid = compute_centroid_as_closest_grid_point(seed_id, mapped_centroid, mapped_points);
     std::cout << "unmapped centroid as closest unmapped grid point " << closest_grid_point_centroid << std::endl;
 
-    // disabled till degenerate mapped triangles is fixed fixme
+    // disabled till degenerate mapped triangles are fixed fixme
 //    Point_2 bar_centroid = compute_centroid_with_barycentric_info(seed_id, mapped_centroid, mapped_points);
 //    std::cout << "unmapped centroid from mapped polygon (barycentric) " << bar_centroid << std::endl;
 
     // --
-      std::cout << "FOR REFERENCE, ISOTROPIC GIVES :" << std::endl;
+      std::cout << "FOR REFERENCE, WITHOUT TRANSFORMATION GIVES :" << std::endl;
 
-      // the following alt centroid computations are only relevant in isotropic
       Point_2 alt_centroid_1 = compute_centroid_with_grid_triangles(seed_id);
       std::cout << "centroid with grid triangles " << alt_centroid_1 << std::endl;
 
+      // below is not a good idea if the metric field is not uniform
       Point_2 alt_centroid_2 = compute_centroid_with_voronoi_vertices(seed_id);
       std::cout << "centroid with voronoi vertices " << alt_centroid_2 << std::endl;
     // --
@@ -2346,7 +2372,7 @@ struct Base_mesh
 //    output_mapping(seed_id, mapped_grid_centroid, mapped_points, counter);
 
     // need seed is now the closest mapped point, unmapped back to the manifold
-    const Point_2& new_seed = closest_grid_point_centroid;
+    const Point_2& new_seed = alt_centroid_1;
     seeds[seed_id] = new_seed;
 
     // squared displacement between the old and the new seed
