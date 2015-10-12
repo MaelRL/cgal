@@ -398,6 +398,9 @@ bool use_dual_shenanigans = true;
 //refinement
 int n_refine = 0;
 
+// optimization
+int max_opti_n = 500;
+
 //debug & info
 int known_count=0, trial_count=0, far_count=0;
 std::clock_t start;
@@ -2503,7 +2506,7 @@ struct Base_mesh
       opti_out << "optimized_" << str_base_mesh << "_tr_" << counter << std::ends;
       output_grid_data_and_dual(opti_out.str().c_str());
 
-      is_optimized = (++counter > 500); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
+      is_optimized = (++counter > max_opti_n); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
       if(cumulated_displacement == 0.0)
         break;
     }
