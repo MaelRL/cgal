@@ -393,9 +393,7 @@ const std::string str_seeds = "super_dense_base_mesh_tr_dual";
 const std::string str_base_mesh = "rough_base_mesh";
 CGAL::Bbox_2 base_mesh_bbox;
 
-bool use_dual_shenanigans = true;
-
-//refinement
+// refinement
 int n_refine = 0;
 
 // optimization
@@ -984,7 +982,7 @@ inline std::ostream& operator<<(std::ostream& os,
   std::cout << "Simplex: " << pqe.get<0>();
   std::cout << "gp: " << pqe.get<1>()->index << " [" << pqe.get<1>()->point << "] ";
   std::cout << pqe.get<1>()->distance_to_closest_seed << std::endl;
-  std::cout << "FT: " << pqe.get<2>() << std::endl;
+  std::cout << "val: " << pqe.get<2>() << std::endl;
 
   return os;
 }
@@ -1519,7 +1517,15 @@ struct Base_mesh
     }
   }
 
-  void spread_distances(bool are_Voronoi_vertices_needed = true /*fixme*/)
+  void spread_distances_from_one_seed(const int seed_id)
+  {
+    // spread distances from the seed_id, until it has reached its neighboring
+    // seeds
+
+  }
+
+  void spread_distances(const bool use_dual_shenanigans,
+                        const bool are_Voronoi_vertices_needed = true /*fixme*/)
   {
     // fixme above : it's pointless to recompute the Voronoi vertices every time
     // but need a good criterion to decide when we need it (typically the last
@@ -1531,6 +1537,10 @@ struct Base_mesh
     Grid_point* gp;
 
     bool is_t_empty = trial_points.empty();
+
+    if(is_t_empty)
+      std::cerr << "WARNING: trial points shouldn't be empty !" << std::endl;
+
     while(!is_t_empty)
     {
       if(known_count%10000 == 0)
@@ -1669,7 +1679,7 @@ struct Base_mesh
     refresh_grid_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
     locate_and_initialize(new_seed, seeds.size()-1);
     clear_dual();
-    spread_distances();
+    spread_distances(false/*use_dual_shenanigans*/);
   }
 
   bool refine_grid_with_self_computed_ref_point()
@@ -1684,10 +1694,10 @@ struct Base_mesh
 
     if(!size_queue.empty())
        best_entry = *(size_queue.begin());
-    else if(!distortion_queue.empty())
-      best_entry = *(distortion_queue.begin());
     else if(!intersection_queue.empty())
       best_entry = *(intersection_queue.begin());
+    else if(!distortion_queue.empty())
+      best_entry = *(distortion_queue.begin());
     else if(!quality_queue.empty())
       best_entry = *(quality_queue.begin());
 
@@ -3040,7 +3050,7 @@ int main(int, char**)
   initialize_seeds();
   bm.locate_and_initialize_seeds();
 
-  bm.spread_distances();
+  bm.spread_distances(true/*use_dual_shenanigans*/);
 
   if(n_refine)
   {
@@ -3050,8 +3060,6 @@ int main(int, char**)
     {
       // can't compute the dual while spreading if we're refining since we have already a layer
       // of paint laying on the canvas...
-      use_dual_shenanigans = false;
-
       bool successful_insert = bm.refine_grid_with_self_computed_ref_point();
 
       std::ostringstream out;
@@ -3066,13 +3074,15 @@ int main(int, char**)
     std::cerr << "End refinement: " << duration << std::endl;
   }
 
-  use_dual_shenanigans = true;
   bm.output_grid_data_and_dual(str_base_mesh + "_tr");
   bm.check_edelsbrunner();
 
   // optimize stuff
-  bm.optimize_seeds();
-  bm.output_grid_data_and_dual("optimized_" + str_base_mesh + "_tr");
+  if(max_opti_n)
+  {
+    bm.optimize_seeds();
+    bm.output_grid_data_and_dual("bis_optimized_" + str_base_mesh + "_tr");
+  }
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cerr << "duration: " << duration << std::endl;

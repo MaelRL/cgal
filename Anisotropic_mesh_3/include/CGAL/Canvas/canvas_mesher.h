@@ -261,7 +261,7 @@ public:
       build_refinement_queue();
       refinement_queue.print_queues();
 
-      const Canvas_point* new_seed;
+      const Canvas_point* new_seed = NULL;
       if(!get_next_refinement_point(new_seed))
         break;
 

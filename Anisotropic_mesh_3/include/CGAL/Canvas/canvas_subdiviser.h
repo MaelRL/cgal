@@ -218,7 +218,8 @@ struct Canvas_subdivider
     if(c->info() >= -1)
       return;
 
-    CGAL_assertion(c->info() < -1 && c->info() >= -(extra_info.size()+1));
+    CGAL_assertion(c->info() < -1 &&
+                   c->info() >= static_cast<int>(-(extra_info.size()+1)));
     int real_index = -(c->info() + 2);
     const boost::tuple<Cell_handle, int, int>& tup = extra_info[real_index];
     CGAL_assertion(c == tup.template get<0>());
