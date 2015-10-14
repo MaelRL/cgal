@@ -2396,6 +2396,7 @@ struct Base_mesh
     // need seed is now the closest mapped point, unmapped back to the manifold
     const Point_2& new_seed = alt_centroid_1;
     seeds[seed_id] = new_seed;
+    seeds_m[seed_id] = mf->compute_metric(new_seed);
 
     // squared displacement between the old and the new seed
     typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
