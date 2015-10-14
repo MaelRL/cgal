@@ -402,7 +402,7 @@ struct Grid_point
 
     FT gp_d = gp->distance_to_closest_seed;
     FT gq_d = gq->distance_to_closest_seed;
-    const Grid_point* best_g;
+    const Grid_point* best_g = NULL;
 #if 0
     // compute p_mid, the limit value to decide which seed id to give depending on p
     // p_mid defined as the point of [pq] on the dual..
@@ -541,7 +541,7 @@ struct Grid_point
     FT qe1 = std::sqrt(mq(0,0)), qe2 = std::sqrt(mq(1,1));
     FT me1 = std::sqrt(m(0,0)), me2 = std::sqrt(m(1,1));
 
-    FT lambda_p, lambda_q;
+    FT lambda_p = -1., lambda_q = -1.;
     if(gp->index == index + 1 || gp->index == index - 1)
     {
       // [this gp] is horizontal and [this,gq] is vertical

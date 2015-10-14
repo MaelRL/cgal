@@ -66,7 +66,7 @@ void fetch_from_mesh(std::ifstream& in,
   if(!in)
     std::cerr << "Error: cannot read file " << std::endl;
 
-  int nv, nf, nc;
+  int nv, nf;
   std::string useless, word;
 
   in >> useless >> useless; // MeshVersionFormatted 1
@@ -318,7 +318,7 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
     return;
   std::cout << "face edge external histo with size: " << faces.size() << std::endl;
 
-  std::ofstream out_bb((filename_core + "_edge_ratio.bb").c_str());
+  std::ofstream out_bb((filename_core + "_edge_length.bb").c_str());
   std::vector<FT> max_edge_r(points.size(), 1.);
   std::vector<FT> values;
 

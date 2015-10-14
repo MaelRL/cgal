@@ -327,7 +327,7 @@ public:
   typedef typename Star::Face                                      Face;
   typedef typename Star::Face_handle                               Face_handle;
   typedef typename Star::Vector_2                                  Vector_2;
-  typedef typename Star::Domain                         Domain;
+  typedef typename Star::Domain                                    Domain;
   typedef typename Star::Criteria                                  Criteria;
 
   typedef CGAL::Anisotropic_mesh_2::Starset<K>                     Starset;
@@ -835,7 +835,7 @@ public:
     Star_handle star;
     star = create_star(p, id);
 
-    if(star->index_in_star_set() != number_of_stars())
+    if(star->index_in_star_set() != static_cast<Index>(number_of_stars()))
       std::cout << "WARNING in insert..." << std::endl;
 
     if(conditional)
@@ -912,7 +912,7 @@ protected:
       //if(m_refinement_condition(*pi)) TODO
       id = insert(*pi, false/*under no condition*/);
 
-      if(this_id == id)
+      if(static_cast<Index>(this_id) == id)
         nbdone++;
     }
     clean_stars();

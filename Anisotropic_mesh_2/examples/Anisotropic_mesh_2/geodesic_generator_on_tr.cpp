@@ -2557,7 +2557,6 @@ struct Base_mesh
     std::cout << "unmapped centroid as closest unmapped grid point (alternate)"
               << closest_grid_point_centroid_alternate << std::endl;
 
-
     // disabled till degenerate mapped triangles is fixed fixme
 //    Point_2 bar_centroid_2 = compute_centroid_with_barycentric_info(seed_id, mapped_grid_centroid, mapped_points);
 //    std::cout << "unmapped centroid from mapped grid centroid (barycentric) " << bar_centroid_2 << std::endl;
