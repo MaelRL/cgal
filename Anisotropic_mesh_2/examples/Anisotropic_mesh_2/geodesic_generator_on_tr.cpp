@@ -941,6 +941,22 @@ struct Grid_point
     return (point == gp.point);
   }
 
+  Grid_point()
+    :
+      point(),
+      index(static_cast<std::size_t>(-1)),
+      metric(),
+      neighbors(),
+      border_neighbors(),
+      incident_triangles(),
+      is_on_domain_border(false),
+      state(FAR),
+      distance_to_closest_seed(FT_inf),
+      closest_seed_id(-1),
+      ancestor(NULL),
+      is_Voronoi_vertex(false)
+  { }
+
   Grid_point(const Point_2& point_,
              const std::size_t index_,
              const bool is_on_domain_border_ = false)
@@ -1316,8 +1332,9 @@ struct Base_mesh
   Grid_point Vor_vertex_in_triangle(const Grid_point& gq,
                                     const Grid_point& gr,
                                     const Grid_point& gs,
-                                    int call_count)
+                                    int call_count = 0)
   {
+    // centroid is probably not the most optimal...
     Point_2 centroid = CGAL::centroid(gq.point, gr.point, gs.point);
 
     Grid_point gp(centroid, -1, false/*border info*/);
@@ -1368,8 +1385,7 @@ struct Base_mesh
       const Grid_point& gr = points[tri[1]];
       const Grid_point& gs = points[tri[2]];
 
-      int call_count = 0;
-      Grid_point centroid = Vor_vertex_in_triangle(gq, gr, gs, call_count);
+      Grid_point centroid = Vor_vertex_in_triangle(gq, gr, gs);
 
       for(int i=0; i<3; ++i)
       {
@@ -1382,9 +1398,9 @@ struct Base_mesh
     }
   }
 
-  Grid_point Vor_vertex_on_segment(const Grid_point* gq,
-                                   const Grid_point* gr,
-                                   int call_count)
+  Grid_point Vor_vertex_on_edge(const Grid_point* gq,
+                                const Grid_point* gr,
+                                int call_count = 0)
   {
     // do the complicated split, see formula on notes // todo
     // taking the easy way for now
@@ -1400,11 +1416,11 @@ struct Base_mesh
       return gp;
 
     if(gp.closest_seed_id == gq->closest_seed_id)
-      return Vor_vertex_on_segment(&gp, gr, ++call_count);
+      return Vor_vertex_on_edge(&gp, gr, ++call_count);
     else
     {
       CGAL_assertion(gp.closest_seed_id == gr->closest_seed_id);
-      return Vor_vertex_on_segment(&gp, gq, ++call_count);
+      return Vor_vertex_on_edge(&gp, gq, ++call_count);
     }
   }
 
@@ -1429,8 +1445,7 @@ struct Base_mesh
         std::size_t seed_q = gq->closest_seed_id;
         if(seed_p != seed_q)
         {
-          int call_count = 0;
-          Grid_point precise_vor_vertex = Vor_vertex_on_segment(gp, gq, call_count);
+          Grid_point precise_vor_vertex = Vor_vertex_on_edge(gp, gq);
 
           Voronoi_vertices[seed_p].push_back(precise_vor_vertex);
           Voronoi_vertices[seed_p].back().closest_seed_id = seed_p;
@@ -2143,6 +2158,159 @@ struct Base_mesh
     return Point_2(unmapped_centroid_x, unmapped_centroid_y);
   }
 
+  void add_to_centroids(const Grid_point& a, const Grid_point& b, const Grid_point& c,
+                        std::vector<std::vector<std::pair<Point_2, FT> > >& centroids)
+  {
+    // this function inserts the centroid of abc in the centroid map
+    // FOR THE SEED CORRESPONDING TO 'a' !!
+
+    Point_2 centroid = CGAL::centroid(a.point, b.point, c.point);
+    FT area = triangle_area_in_metric(a.point, b.point, c.point);
+    CGAL_postcondition(area != 0.);
+
+    std::size_t seed_id = a.closest_seed_id;
+    CGAL_precondition(seed_id < seeds.size());
+    centroids[seed_id].push_back(std::make_pair(centroid, area));
+  }
+
+  void compute_all_centroids(std::vector<std::vector<std::pair<Point_2, FT> > >& centroids)
+  {
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& triangle = triangles[i];
+
+      Simplex colors;
+      for(int i=0; i<3; ++i)
+        colors.insert(points[triangle[i]].closest_seed_id);
+
+      if(colors.size() == 1)
+      {
+        add_to_centroids(points[triangle[0]], points[triangle[1]], points[triangle[2]],
+                         centroids);
+      }
+      else if(colors.size() == 2)
+      {
+        // compute the midpoint on the edges who have different colors
+        int pos = 0;
+        int third_edge_first_point_id = -1; // the edge for which both extremities have the same color
+        boost::array<Grid_point, 2> mid_pts;
+        for(int i=0; i<3; ++i)
+        {
+          const Grid_point& gp0 = points[triangle[i]];
+          const Grid_point& gp1 = points[triangle[(i+1)%3]];
+
+          if(gp0.closest_seed_id == gp1.closest_seed_id)
+          {
+            third_edge_first_point_id = i;
+            continue;
+          }
+
+          CGAL_assertion(pos == 0 || pos == 1);
+          mid_pts[pos++] = Vor_vertex_on_edge(&gp0, &gp1);
+        }
+
+        CGAL_postcondition(i >= 0 && i < 3);
+
+        // 'triangle' is split in 3 smaller triangles.
+        // a is the one with the different color
+        // a-i1-i2 associated to the seed that 'a' is linked to
+        // b-i2-i1 and c-b-i2 are associated to the seed that 'b' and 'c' are linked to
+
+        //            a
+        //           / |
+        //          /  |
+        //         /   |
+        //       i0----i1
+        //       /    /|
+        //      /   /  |
+        //     /  /    |
+        //    / /      |
+        // b //________| c
+
+        const Grid_point& b = points[triangle[third_edge_first_point_id]];
+        const Grid_point& c = points[triangle[(third_edge_first_point_id + 1)%3]];
+        const Grid_point& a = points[triangle[(third_edge_first_point_id + 2)%3]];
+
+        // Which of mid_pt_1 and mid_pt_2 are i1 and i2 depends on where the edge
+        // with same colors is...
+        // for example, if i = 1, we first looked at ab so mid_pt_1 is on [ab]
+        const Grid_point& i0 = (third_edge_first_point_id == 1) ? mid_pts[0] : mid_pts[1];
+        const Grid_point& i1 = (third_edge_first_point_id == 1) ? mid_pts[1] : mid_pts[0];
+
+        add_to_centroids(a, i0, i1, centroids);
+        add_to_centroids(b, i1, i0, centroids);
+        add_to_centroids(c, i1, b, centroids);
+      }
+      else // colors.size() == 3
+      {
+        // compute the on the edges
+        boost::array<Grid_point,3> mid_pts;
+        for(int i=0; i<3; ++i)
+        {
+          const Grid_point& gp0 = points[triangle[i]];
+          const Grid_point& gp1 = points[triangle[(i+1)%3]];
+          mid_pts[i] = Vor_vertex_on_edge(&gp0, &gp1);
+        }
+
+        // compute roughly the center point
+        Grid_point v = Vor_vertex_in_triangle(points[triangle[0]],
+                                              points[triangle[1]],
+                                              points[triangle[2]]);
+
+        // 'triangle' is split in 6 smaller triangles.
+        // a-i1-v & a-i3-v --> associated to the seed a->closest_seed_id
+        // b-i1-v & b-i2-v --> associated to the seed b->closest_seed_id
+        // c-i2-v & c-i3-v --> associated to the seed c->closest_seed_id
+
+        //            a
+        //           / |
+        //          /  |
+        //         /   |
+        //       i1    |
+        //       /|    |
+        //      /  |   |
+        //     /   v---i3
+        //    /    |   |
+        // b /____i2___| c
+
+        add_to_centroids(points[triangle[0]], v, mid_pts[0], centroids);
+        add_to_centroids(points[triangle[0]], v, mid_pts[2], centroids);
+
+        add_to_centroids(points[triangle[1]], v, mid_pts[0], centroids);
+        add_to_centroids(points[triangle[1]], v, mid_pts[1], centroids);
+
+        add_to_centroids(points[triangle[2]], v, mid_pts[1], centroids);
+        add_to_centroids(points[triangle[2]], v, mid_pts[2], centroids);
+      }
+    }
+  }
+
+  Point_2 compute_centroid_with_grid_triangles_precomputed(const std::size_t seed_id,
+                         std::vector<std::vector<std::pair<Point_2, FT> > > centroids)
+  {
+    CGAL_precondition(seed_id < centroids.size());
+    const std::vector<std::pair<Point_2, FT> >& seed_centroids = centroids[seed_id];
+
+    FT total_area = 0.;
+    FT centroid_x = 0., centroid_y = 0.;
+    for(std::size_t i=0; i<seed_centroids.size(); ++i)
+    {
+      const std::pair<Point_2, FT>& centroid = seed_centroids[i];
+      const Point_2& c = centroid.first;
+      FT area = centroid.second;
+
+      total_area += area;
+      centroid_x += area * c.x();
+      centroid_y += area * c.y();
+    }
+
+    CGAL_assertion(total_area != 0.);
+    centroid_x /= total_area;
+    centroid_y /= total_area;
+
+    return Point_2(centroid_x, centroid_y);
+  }
+
   Point_2 compute_centroid_with_grid_triangles(const std::size_t seed_id)
   {
     // compute the centroid through the sum c = sum_i (ci*area_i) / sum_i (area_i)
@@ -2347,6 +2515,7 @@ struct Base_mesh
 
   FT optimize_seed(const std::size_t seed_id,
                    const std::vector<Point_2>& mapped_points,
+                   const std::vector<std::vector<std::pair<Point_2, FT> > >& centroids,
                    const int counter)
   {
     const Point_2 old_seed = seeds[seed_id];
@@ -2369,9 +2538,13 @@ struct Base_mesh
       Point_2 alt_centroid_1 = compute_centroid_with_grid_triangles(seed_id);
       std::cout << "centroid with grid triangles " << alt_centroid_1 << std::endl;
 
+      Point_2 alt_centroid_2 = compute_centroid_with_grid_triangles_precomputed(seed_id,
+                                                                                centroids);
+      std::cout << "centroid with grid triangles " << alt_centroid_2 << std::endl;
+
       // below is not a good idea if the metric field is not uniform
-      Point_2 alt_centroid_2 = compute_centroid_with_voronoi_vertices(seed_id);
-      std::cout << "centroid with voronoi vertices " << alt_centroid_2 << std::endl;
+      Point_2 alt_centroid_3 = compute_centroid_with_voronoi_vertices(seed_id);
+      std::cout << "centroid with voronoi vertices " << alt_centroid_3 << std::endl;
     // --
 
     std::cout << "ALTERNATIVE MAPPED CENTROID COMPUTATION : " << std::endl;
@@ -2494,6 +2667,9 @@ struct Base_mesh
       map_precise_Voronoi_vertices_to_tangent_spaces(mapped_points);
 #endif
 
+      std::vector<std::vector<std::pair<Point_2, FT> > > centroids(seeds.size());
+      compute_all_centroids(centroids);
+
       // must sort the Voronoi vertices so that they are ordered in a cycle
       // to be able to use the polygon centroid's formula
       sort_Voronoi_vertices(mapped_points);
@@ -2501,13 +2677,13 @@ struct Base_mesh
       // Optimize each seed
       FT cumulated_displacement = 0;
       for(std::size_t i=0; i<seeds.size(); ++i)
-        cumulated_displacement += optimize_seed(i, mapped_points, counter);
+        cumulated_displacement += optimize_seed(i, mapped_points, centroids, counter);
 
       std::cout << "at : " << counter << ", cumulated displacement : "
                 << cumulated_displacement << std::endl;
       reset();
       locate_and_initialize_seeds();
-      spread_distances();
+      spread_distances(true/*use_dual_shenanigans*/);
 
       std::ostringstream opti_out;
       opti_out << "optimized_" << str_base_mesh << "_tr_" << counter << std::ends;
