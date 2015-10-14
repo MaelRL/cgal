@@ -60,6 +60,59 @@ public:
     return Metric(v0, v1, e0, e1, epsilon);
   }
 
+  template<typename PointIterator>
+  void draw(PointIterator pit, PointIterator end) const
+  {
+    std::ofstream first_vector_field_os("vector_field_first.polylines.cgal");
+    std::ofstream second_vector_field_os("vector_field_second.polylines.cgal");
+
+    PointIterator pit_cpy = pit;
+
+    CGAL::Bbox_2 box;
+    for(; pit_cpy!=end; ++pit_cpy)
+    {
+      const Point_2& p = *pit_cpy;
+      const CGAL::Bbox_2 pb(p.x(), p.y(), p.x(), p.y());
+      box = box + pb;
+    }
+
+    FT x_diff = box.xmax() - box.xmin();
+    FT y_diff = box.ymax() - box.ymin();
+
+    FT scaling = std::sqrt(x_diff*x_diff + y_diff*y_diff) * 0.02;
+
+    for(; pit!=end; ++pit)
+    {
+      FT e0, e1;
+      Vector_2 v0, v1;
+
+      const Point_2& p = *pit;
+      const Metric& m = compute_metric(p);
+
+      get_eigen_vecs_and_vals<K>(m.get_transformation(), v0, v1, e0, e1);
+
+      e0 = 1./std::sqrt(std::abs(e0));
+      e1 = 1./std::sqrt(std::abs(e1));
+
+      if(e0 > e1)
+      {
+        first_vector_field_os << "2 " << p << " 0 " << (p + scaling*e0*v0) << " 0" << std::endl;
+        second_vector_field_os << "2 " << p << " 0 " << (p + scaling*e1*v1) << " 0" << std::endl;
+      }
+      else
+      {
+        first_vector_field_os << "2 " << p << " 0 " << (p + scaling*e1*v1) << " 0" << std::endl;
+        second_vector_field_os << "2 " << p << " 0 " << (p + scaling*e0*v0) << " 0" << std::endl;
+      }
+    }
+  }
+
+  template<typename Point_container>
+  void draw(const Point_container& points) const
+  {
+    return draw(points.begin(), points.end());
+  }
+
   // this function is used to report the setting of the metric
   virtual void report(typename std::ofstream &fx) const = 0;
 

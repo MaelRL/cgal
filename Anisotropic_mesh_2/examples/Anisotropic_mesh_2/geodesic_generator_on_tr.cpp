@@ -17,6 +17,7 @@
 #include <omp.h>
 #include <boost/array.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/iterator/transform_iterator.hpp>
 
 #include <iostream>
 #include <functional>
@@ -3032,14 +3033,17 @@ void initialize_seeds()
   CGAL_assertion(vertices_nv > 0 && "No seed in domain..." );
 }
 
+struct Point_extracter
+    : public std::unary_function<Grid_point, Point_2>
+{
+  const Point_2 operator()(const Grid_point& gp) const
+  {
+    return gp.point;
+  }
+};
+
 int main(int, char**)
 {
-  mf = new Euclidean_metric_field<K>(1., 1.);
-//  mf = new Custom_metric_field<K>();
-
-//  generate_grid();
-//  exit(0);
-
   std::cout.precision(17);
 //  std::freopen("log.txt", "w", stdout);
   double duration;
@@ -3048,6 +3052,13 @@ int main(int, char**)
 
   Base_mesh bm;
   bm.initialize_base_mesh();
+
+//  typedef boost::transform_iterator<Point_extracter,
+//              std::vector<Grid_point>::const_iterator> Extracted_iterator;
+//  mf->draw(Extracted_iterator(bm.points.begin(), Point_extracter()),
+//           Extracted_iterator(bm.points.end(), Point_extracter()));
+//  exit(0);
+
   initialize_seeds();
   bm.locate_and_initialize_seeds();
 
