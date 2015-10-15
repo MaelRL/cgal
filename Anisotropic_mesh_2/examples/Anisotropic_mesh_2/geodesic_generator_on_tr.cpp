@@ -2937,60 +2937,6 @@ struct Base_mesh
     }
   }
 
-  void output_geodesic_dual(std::ostream& out) const
-  {
-    // now loop on the map of dual edges...
-    // each entry gives us the following : 2 cell ids and 2 points that are
-    // on each side of the bisector
-    // The dual edge is made of a generator to one point, then the edge between
-    // both points, and the second point to the second generator
-    // we navigate the ancestors to find our way to the respective generators
-
-    std::stringstream os;
-    std::size_t edge_n = 0;
-
-    typename Edge_bisec_map::const_iterator edmit = edge_bisectors.begin();
-    typename Edge_bisec_map::const_iterator edmend = edge_bisectors.end();
-    for(; edmit!=edmend; ++edmit)
-    {
-//      const std::size_t p_id = edmit->first.first;
-//      const std::size_t q_id = edmit->first.second;
-      const Grid_point* gp = edmit->second.first;
-      const Grid_point* gq = edmit->second.second;
-
-      edge_n++;
-      os << gp->index+1 << " " << gq->index+1 << " 6" << std::endl;
-
-//      std::cout << "p: " << gp->index << " and his tree: " << std::endl;
-      const Grid_point* p_anc = gp->ancestor;
-      while(p_anc)
-      {
-//        std::cout << p_anc->index << " ";
-        edge_n++;
-        os << gp->index+1 << " " << p_anc->index+1 << " 7" << std::endl;
-        gp = gp->ancestor;
-        p_anc = p_anc->ancestor;
-      }
-//      std::cout << std::endl;
-
-//      std::cout << "q: " << gq->index << " and his tree: " << std::endl;
-      const Grid_point* q_anc = gq->ancestor;
-      while(q_anc)
-      {
-//        std::cout << q_anc->index << " ";
-        edge_n++;
-        os << gq->index+1 << " " << q_anc->index+1 << " 8" << std::endl;
-        gq = gq->ancestor;
-        q_anc = q_anc->ancestor;
-      }
-//      std::cout << std::endl << std::endl;
-    }
-
-    out << "Edges" << std::endl;
-    out << edge_n << std::endl;
-    out << os.str();
-  }
-
   FT quality(const Point_2& p, const Point_2& q, const Point_2& r)
   {
     typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
