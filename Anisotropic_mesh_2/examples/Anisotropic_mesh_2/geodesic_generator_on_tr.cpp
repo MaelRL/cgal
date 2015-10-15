@@ -833,6 +833,7 @@ struct Base_mesh
 
   std::vector<Grid_point> points;
   std::vector<Tri> triangles;
+  std::vector<Tri> triangles_buffer; // if we're refining the grid
   Grid_point_vector trial_points;
 
   // extra info: map[edge e] = triangles incident to e
@@ -1451,6 +1452,473 @@ struct Base_mesh
 
     std::cout << "End of debug. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+  }
+
+  std::size_t probe_edge_midpoints_map(const std::size_t n_p,
+                                       const std::size_t n_q,
+                                       std::map<std::pair<std::size_t, std::size_t>,
+                                       std::size_t>& edge_mid_points,
+                                       bool create_if_not_found = true)
+  {
+    typedef std::map<std::pair<std::size_t, std::size_t>, std::size_t> Edge_mpts_map;
+
+    std::size_t n_pq = -1;
+
+    bool ordered = (n_p < n_q);
+    int nmin = ordered ? n_p : n_q;
+    int nmax = ordered ? n_q : n_p;
+
+    std::pair<typename Edge_mpts_map::iterator, bool> is_insert_succesful =
+        edge_mid_points.insert(std::make_pair(std::make_pair(nmin, nmax), -1)); // -1 is a placeholder
+
+    if(!is_insert_succesful.second) // already exists in the map
+      n_pq = is_insert_succesful.first->second;
+    else if(create_if_not_found) // the mid point hasn't been computed yet and we want to build it
+    {
+      Point_2 mid_point = CGAL::barycenter(points[n_p].point, 0.5,
+                                           points[n_q].point, 0.5);
+      bool border_info = (points[n_p].is_on_domain_border && points[n_q].is_on_domain_border);
+      n_pq = points.size();
+
+      Grid_point gm(this, mid_point, n_pq, border_info);
+      points.push_back(gm);
+      is_insert_succesful.first->second = n_pq;
+
+      if(border_info)
+      {
+        points[n_p].border_neighbors.insert(n_pq);
+        points[n_q].border_neighbors.insert(n_pq);
+        points.back().border_neighbors.insert(n_p);
+        points.back().border_neighbors.insert(n_q);
+      }
+    }
+
+    return n_pq;
+  }
+
+  std::size_t create_new_triangle(const std::size_t n_p, const std::size_t n_q,
+                                  const std::size_t n_r)
+  {
+    Tri new_tri;
+    new_tri[0] = n_p;
+    new_tri[1] = n_q;
+    new_tri[2] = n_r;
+    triangles_buffer.push_back(new_tri);
+    return triangles.size() + triangles_buffer.size() - 1;
+  }
+
+  void split_1(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
+               const std::size_t n_pq, const std::size_t i,
+               std::map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
+  {
+    CGAL_assertion(probe_edge_midpoints_map(n_p, n_q, m, false) == n_pq);
+
+    // n_p, n_q & n_r belong to i but they are not necessarily the 0th, 1st, and 2nd coordinates
+    Tri& triangle = triangles[i];
+    Grid_point& gp = points[n_p];
+    Grid_point& gq = points[n_q];
+    Grid_point& gr = points[n_r];
+
+    // p and r have the new i as incident triangle so only needs to be removed in q
+    gq.remove_from_incident_triangles(i);
+
+    triangle[0] = n_p;
+    triangle[1] = n_pq;
+    triangle[2] = n_r;
+
+    std::size_t new_tri_id = create_new_triangle(n_pq, n_q, n_r);
+
+    gr.incident_triangles.push_back(new_tri_id);
+    gq.incident_triangles.push_back(new_tri_id);
+    points[n_pq].incident_triangles.push_back(new_tri_id);
+    points[n_pq].incident_triangles.push_back(i);
+
+    // neighbors
+    gp.remove_from_neighbors(n_q);
+    gp.neighbors.insert(n_pq);
+
+    gq.remove_from_neighbors(n_q);
+    gq.neighbors.insert(n_pq);
+
+    gr.neighbors.insert(n_pq);
+  }
+
+  void split_2(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
+               const std::size_t n_pq, const std::size_t n_qr, const std::size_t i,
+               std::map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
+  {
+    CGAL_assertion(probe_edge_midpoints_map(n_p, n_q, m, false) == n_pq);
+    CGAL_assertion(probe_edge_midpoints_map(n_q, n_r, m, false) == n_qr);
+
+    // n_p, n_q & n_r belong to i but they are not necessarily the 0th, 1st, and 2nd coordinates
+    Tri& triangle = triangles[i];
+    Grid_point& gp = points[n_p];
+    Grid_point& gq = points[n_q];
+    Grid_point& gr = points[n_r];
+
+    // r has the new i as incident triangle so removed in p & q
+    gp.remove_from_incident_triangles(i);
+    gr.remove_from_incident_triangles(i);
+
+    triangle[0] = n_pq;
+    triangle[1] = n_q;
+    triangle[2] = n_qr;
+
+    std::size_t new_tri_1_id = create_new_triangle(n_p, n_pq, n_r);
+    std::size_t new_tri_2_id = create_new_triangle(n_pq, n_qr, n_r);
+
+    gp.incident_triangles.push_back(new_tri_1_id);
+    gr.incident_triangles.push_back(new_tri_1_id);
+    gr.incident_triangles.push_back(new_tri_2_id);
+    points[n_pq].incident_triangles.push_back(new_tri_1_id);
+    points[n_pq].incident_triangles.push_back(new_tri_2_id);
+    points[n_pq].incident_triangles.push_back(i);
+    points[n_qr].incident_triangles.push_back(new_tri_2_id);
+    points[n_qr].incident_triangles.push_back(i);
+
+    // neighbors
+    gp.remove_from_neighbors(n_q);
+    gp.neighbors.insert(n_pq);
+
+    gq.remove_from_neighbors(n_p);
+    gq.remove_from_neighbors(n_r);
+    gq.neighbors.insert(n_pq);
+    gq.neighbors.insert(n_qr);
+
+    gr.remove_from_neighbors(n_q);
+    gr.neighbors.insert(n_qr);
+  }
+
+  void split_3(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
+               const std::size_t n_pq, const std::size_t n_qr, const std::size_t n_pr,
+               const std::size_t i,
+               std::map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
+  {
+    CGAL_assertion(probe_edge_midpoints_map(n_p, n_q, m, false) == n_pq);
+    CGAL_assertion(probe_edge_midpoints_map(n_q, n_r, m, false) == n_qr);
+    CGAL_assertion(probe_edge_midpoints_map(n_p, n_r, m, false) == n_pr);
+
+    // n_p, n_q & n_r belong to i but they are not necessarily the 0th, 1st, and 2nd coordinates
+    Tri& triangle = triangles[i];
+    Grid_point& gp = points[n_p];
+    Grid_point& gq = points[n_q];
+    Grid_point& gr = points[n_r];
+    gp.remove_from_incident_triangles(i);
+    gq.remove_from_incident_triangles(i);
+    gr.remove_from_incident_triangles(i);
+
+    triangle[0] = n_pq;
+    triangle[1] = n_qr;
+    triangle[2] = n_pr;
+
+    std::size_t new_tri_1_id = create_new_triangle(n_p, n_pq, n_pr);
+    std::size_t new_tri_2_id = create_new_triangle(n_pq, n_q, n_qr);
+    std::size_t new_tri_3_id = create_new_triangle(n_qr, n_r, n_pr);
+
+    gp.incident_triangles.push_back(new_tri_1_id);
+    gq.incident_triangles.push_back(new_tri_2_id);
+    gr.incident_triangles.push_back(new_tri_3_id);
+
+    points[n_pq].incident_triangles.push_back(new_tri_1_id);
+    points[n_pq].incident_triangles.push_back(new_tri_2_id);
+    points[n_pq].incident_triangles.push_back(i);
+
+    points[n_qr].incident_triangles.push_back(new_tri_3_id);
+    points[n_qr].incident_triangles.push_back(new_tri_2_id);
+    points[n_qr].incident_triangles.push_back(i);
+
+    points[n_pr].incident_triangles.push_back(new_tri_1_id);
+    points[n_pr].incident_triangles.push_back(new_tri_3_id);
+    points[n_pr].incident_triangles.push_back(i);
+
+    // neighbors
+    gp.remove_from_neighbors(n_q);
+    gp.remove_from_neighbors(n_r);
+    gp.neighbors.insert(n_pq);
+    gp.neighbors.insert(n_pr);
+
+    gq.remove_from_neighbors(n_p);
+    gq.remove_from_neighbors(n_r);
+    gq.neighbors.insert(n_pq);
+    gq.neighbors.insert(n_qr);
+
+    gr.remove_from_neighbors(n_p);
+    gr.remove_from_neighbors(n_q);
+    gr.neighbors.insert(n_qr);
+    gr.neighbors.insert(n_pr);
+  }
+
+  void refine_grid()
+  {
+    // tedious function so it's written in a very clear way... it's, as usual,
+    // not the most efficient but the most straight forward
+
+    // can't use ref or pointers to 'points' since they are regularly invalidated
+    // by point insertions
+
+    // todo
+    // make it nice with subfunctions and efficient stuff when cleaning up the code
+
+    std::set<std::size_t> seeds_to_refine;
+    std::set<std::size_t> seeds_to_rebuild;
+    std::vector<bool> refined_triangles(triangles.size(), false);
+    std::map<std::pair<std::size_t, std::size_t>, std::size_t> edge_mid_points;
+
+#if 1
+    // determine which seeds need to be refined
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& triangle = triangles[i];
+      std::set<std::size_t> colors;
+
+      for(int j=0; j<3; ++j)
+        colors.insert(points[triangle[j]].closest_seed_id);
+
+      if(colors.size() > 1) // bisector of at least an edge or higher dimensional simplex
+      {
+        for(int j=0; j<3; ++j)
+        {
+          std::size_t ap_length = points[triangle[j]].ancestor_path_length();
+          if(ap_length < min_ancestor_path_length)
+            seeds_to_refine.insert(points[triangle[j]].closest_seed_id);
+        }
+      }
+    }
+#else
+    seeds_to_refine.insert(0);
+#endif
+
+    std::cout << triangles.size() << " triangles before grid refinement" << std::endl;
+
+    // base mesh refining, not seeds refining !
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      Tri& triangle = triangles[i];
+
+      // the triangle must be refined if at least one of its colors is in seeds_to_refine
+      bool must_be_refined = false;
+      for(int j=0; j<3; ++j)
+      {
+        const Grid_point& gp = points[triangle[j]];
+        if(seeds_to_refine.find(gp.closest_seed_id) != seeds_to_refine.end())
+        {
+          must_be_refined = true;
+          break;
+        }
+      }
+
+      if(!must_be_refined)
+        continue;
+
+      refined_triangles[i] = true;
+
+      // we use the triforce split to get similar triangles
+      // the index 'i' will correspond to the new triangle in the middle
+      // and we must build three new triangles
+
+      // triforce split :
+      //        a
+      //       /|
+      //      / |
+      // f   /__| e
+      //    /| /|
+      // b /_|/_| c
+      //     d
+
+      // doing it explicitely (lengthy) because it's clearer than fancy loops
+      const std::size_t n_p = triangle[0];
+      const std::size_t n_q = triangle[1];
+      const std::size_t n_r = triangle[2];
+
+      // clean off the neighbors, border neighbors and incident triangles info
+      points[n_p].remove_from_incident_triangles(i);
+      points[n_q].remove_from_incident_triangles(i);
+      points[n_r].remove_from_incident_triangles(i);
+
+      points[n_p].remove_from_neighbors(points[n_q].index);
+      points[n_p].remove_from_neighbors(points[n_r].index);
+      points[n_q].remove_from_neighbors(points[n_p].index);
+      points[n_q].remove_from_neighbors(points[n_r].index);
+      points[n_r].remove_from_neighbors(points[n_p].index);
+      points[n_r].remove_from_neighbors(points[n_q].index);
+
+      if(points[n_p].is_on_domain_border && points[n_q].is_on_domain_border)
+      {
+        points[n_p].remove_from_border_neighbors(points[n_q].index);
+        points[n_q].remove_from_border_neighbors(points[n_p].index);
+      }
+
+      if(points[n_q].is_on_domain_border && points[n_r].is_on_domain_border)
+      {
+        points[n_q].remove_from_border_neighbors(points[n_r].index);
+        points[n_r].remove_from_border_neighbors(points[n_q].index);
+      }
+
+      if(points[n_p].is_on_domain_border && points[n_r].is_on_domain_border)
+      {
+        points[n_p].remove_from_border_neighbors(points[n_r].index);
+        points[n_r].remove_from_border_neighbors(points[n_p].index);
+      }
+
+      // points[n_r]ab the colors that we will need to paint again
+      seeds_to_rebuild.insert(points[n_p].closest_seed_id);
+      seeds_to_rebuild.insert(points[n_q].closest_seed_id);
+      seeds_to_rebuild.insert(points[n_r].closest_seed_id);
+
+      // points[n_r]ab (or create) the edge points
+      const std::size_t n_pq = probe_edge_midpoints_map(n_p, n_q, edge_mid_points);
+      const std::size_t n_qr = probe_edge_midpoints_map(n_q, n_r, edge_mid_points);
+      const std::size_t n_pr = probe_edge_midpoints_map(n_p, n_r, edge_mid_points);
+
+      CGAL_postcondition(n_pq != static_cast<std::size_t>(-1) &&
+                         n_qr != static_cast<std::size_t>(-1) &&
+                         n_pr != static_cast<std::size_t>(-1));
+
+      // create the three new triangles
+      std::size_t new_tri_1_id = create_new_triangle(n_p, n_pq, n_pr);
+      std::size_t new_tri_2_id = create_new_triangle(n_q, n_pq, n_qr);
+      std::size_t new_tri_3_id = create_new_triangle(n_r, n_pr, n_qr);
+
+      refined_triangles.push_back(true);
+      refined_triangles.push_back(true);
+      refined_triangles.push_back(true);
+
+      // change the triangle 'i' to be the middle triangle
+      triangle[0] = n_pq;
+      triangle[1] = n_qr;
+      triangle[2] = n_pr;
+
+      // build the new incident_triangle information      points[n_p].incident_triangles.push_back(new_tri_1_id);
+      points[n_q].incident_triangles.push_back(new_tri_2_id);
+      points[n_r].incident_triangles.push_back(new_tri_3_id);
+
+      points[n_pq].incident_triangles.push_back(i);
+      points[n_pq].incident_triangles.push_back(new_tri_1_id);
+      points[n_pq].incident_triangles.push_back(new_tri_2_id);
+
+      points[n_qr].incident_triangles.push_back(i);
+      points[n_qr].incident_triangles.push_back(new_tri_2_id);
+      points[n_qr].incident_triangles.push_back(new_tri_3_id);
+
+      points[n_pr].incident_triangles.push_back(i);
+      points[n_pr].incident_triangles.push_back(new_tri_1_id);
+      points[n_pr].incident_triangles.push_back(new_tri_3_id);
+
+      // build the new neighboring information (border info is dealt with at point creation)
+      points[n_p].neighbors.insert(n_pq);
+      points[n_p].neighbors.insert(n_pr);
+      points[n_q].neighbors.insert(n_pq);
+      points[n_q].neighbors.insert(n_qr);
+      points[n_r].neighbors.insert(n_qr);
+      points[n_r].neighbors.insert(n_pr);
+
+      points[n_pq].neighbors.insert(n_p);
+      points[n_pq].neighbors.insert(n_pr);
+      points[n_pq].neighbors.insert(n_qr);
+      points[n_pq].neighbors.insert(n_q);
+
+      points[n_qr].neighbors.insert(n_q);
+      points[n_qr].neighbors.insert(n_pq);
+      points[n_qr].neighbors.insert(n_pr);
+      points[n_qr].neighbors.insert(n_r);
+
+      points[n_pr].neighbors.insert(n_p);
+      points[n_pr].neighbors.insert(n_pq);
+      points[n_pr].neighbors.insert(n_qr);
+      points[n_pr].neighbors.insert(n_r);
+    }
+
+    // to have a proper triangulation, we need to refine some triangles who were
+    // not split but have gotten a point inserted on at least one of their edges
+
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      if(refined_triangles[i]) // already refined (or new), nothing to do
+        continue;
+
+      Tri& triangle = triangles[i];
+
+      // check if the edges were refined
+      const std::size_t n_p = triangle[0];
+      const std::size_t n_q = triangle[1];
+      const std::size_t n_r = triangle[2];
+
+      const std::size_t n_pq = probe_edge_midpoints_map(n_p, n_q, edge_mid_points,
+                                                        false/* don't create*/);
+      const std::size_t n_qr = probe_edge_midpoints_map(n_q, n_r, edge_mid_points,
+                                                        false/* don't create*/);
+      const std::size_t n_pr = probe_edge_midpoints_map(n_p, n_r, edge_mid_points,
+                                                        false/* don't create*/);
+
+      // Alright, now we want to subdivide the triangle properly
+      // - 0 mid point --> nothing to do
+      // - 1 mid point --> split in 2 triangles
+      // - 2 mid points --> split in 3 triangles
+      // - 3 mid points --> triforce split
+
+      bool is_split_pq = (n_pq != static_cast<std::size_t>(-1));
+      bool is_split_qr = (n_qr != static_cast<std::size_t>(-1));
+      bool is_split_pr = (n_pr != static_cast<std::size_t>(-1));
+
+      if(!is_split_pq && !is_split_qr && !is_split_pr)
+        continue;
+
+      seeds_to_rebuild.insert(points[n_p].closest_seed_id);
+      seeds_to_rebuild.insert(points[n_q].closest_seed_id);
+      seeds_to_rebuild.insert(points[n_r].closest_seed_id);
+
+      if(is_split_pq) // pq
+        if(is_split_qr) // pq & qr
+          if(is_split_pr) // pq & qr & pr
+            split_3(n_p, n_q, n_r, n_pq, n_qr, n_pr, i, edge_mid_points);
+          else // pq & qr & !pr
+            split_2(n_p, n_q, n_r, n_pq, n_qr, i, edge_mid_points);
+        else // pq & !qr
+          if(is_split_pr) // pq & !qr & pr
+            split_2(n_r, n_p, n_q, n_pr, n_pq, i, edge_mid_points);
+          else // pq & !qr & !pr
+            split_1(n_p, n_q, n_r, n_pq, i, edge_mid_points);
+      else // !pq
+        if(is_split_qr) // !pq & qr
+          if(is_split_pr) // !pq & qr & pr
+            split_2(n_p, n_r, n_q, n_pr, n_qr, i, edge_mid_points);
+          else // !pq & qr & !pr
+            split_1(n_q, n_r, n_p, n_qr, i, edge_mid_points);
+        else // !pq & !qr
+          if(is_split_pr) // !pq & !qr & pr
+            split_1(n_r, n_p, n_q, n_pr, i, edge_mid_points);
+          // else // !pq & !qr & !pr --> nothing to do
+    }
+
+    // merge the buffer triangles in the main triangles
+    triangles.insert(triangles.end(), triangles_buffer.begin(), triangles_buffer.end());
+    triangles_buffer.clear();
+
+    std::cout << triangles.size() << " triangles after grid refinement" << std::endl;
+
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      Grid_point& gp = points[i];
+      if(seeds_to_rebuild.find(gp.closest_seed_id) != seeds_to_rebuild.end())
+        gp.reset();
+    }
+
+    std::cout << "must rebuild: ";
+    std::set<std::size_t>::iterator it = seeds_to_rebuild.begin(),
+                                    end = seeds_to_rebuild.end();
+    for(; it!=end; ++it)
+    {
+      const Point_2& p = seeds[*it];
+      std::cout << *it << " ";
+      locate_and_initialize(p, *it);
+    }
+    std::cout << std::endl;
+
+    clear_dual();
+    spread_distances(false);
+    //debug();
+
+    output_grid_data_and_dual("after_split");
   }
 
   void clear_dual()
@@ -2938,6 +3406,7 @@ struct Base_mesh
     :
       points(),
       triangles(),
+      triangles_buffer(),
       trial_points(),
       edge_bisectors(),
       dual_edges(),
