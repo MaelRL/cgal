@@ -9,6 +9,7 @@
 #include <CGAL/Canvas/mesher.h>
 #include <CGAL/Canvas/canvas_mesh_3.h>
 #include <CGAL/Canvas/canvas_triangulation_io.h>
+#include <CGAL/Canvas/optimizer_cvt.h>
 
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
@@ -34,6 +35,7 @@ int main(int, char**)
   typedef Canvas<K, Campen_canvas_point, MF>                   Base_canvas;
   typedef Campen_canvas<K, MF>                                 Canvas;
   typedef Canvas_mesher<Base_canvas>                           Canvas_mesher;
+  typedef CVT_optimizer<Canvas>                                CVT_optimizer;
 
   std::cout.precision(17);
   std::freopen("log.txt", "w", stdout);
@@ -64,6 +66,12 @@ int main(int, char**)
   mesher.refine();
 
   canvas.output_canvas_data_and_primal(canvas_str + "_tr");
+  canvas.output_canvas(canvas_str + "_tr");
+
+  // Optimization
+  std::size_t max_opti_iter = 1000;
+  CVT_optimizer optimizer(canvas, max_opti_iter);
+  optimizer.optimize_seeds(canvas_str);
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cerr << "duration: " << duration << std::endl;

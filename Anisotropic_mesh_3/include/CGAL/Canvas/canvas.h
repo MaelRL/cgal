@@ -355,6 +355,33 @@ public:
     reset_counters();
   }
 
+  void set_points_states_to_known()
+  {
+    for(std::size_t i=0; i<canvas_points.size(); ++i)
+      canvas_points[i].state() = KNOWN;
+
+    known_count = canvas_points.size();
+    trial_count = 0;
+    far_count = 0;
+  }
+
+  void reset()
+  {
+    // Remove everything related to "paint" but not the geometric information
+    // (therefore the point position, metric, neighbors, etc. aren't reset)
+
+    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    {
+      Canvas_point& cp = canvas_points[i];
+      cp.state() = FAR;
+      cp.distance_to_closest_seed() = FT_inf;
+      cp.closest_seed_id() = -1;
+      cp.m_ancestor = NULL;
+    }
+    reset_counters();
+    clear_primal();
+  }
+
   // ---------------------------------------------------------------------------
   // Functions to insert in primal data structure
 
