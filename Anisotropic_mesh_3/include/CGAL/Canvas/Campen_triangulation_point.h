@@ -370,11 +370,12 @@ public:
     return pqs_ret;
   }
 
-  template<typename MF>
-  Campen_canvas_point(const Point_3& p, std::size_t index, const MF mf,
+  Campen_canvas_point() : Base() { }
+
+  Campen_canvas_point(const Point_3& p, std::size_t index,
                       Vertex_handle v, Tr* tr, Canvas* canvas)
     :
-      Base(p, index, mf),
+      Base(p, index, canvas->mf),
       m_v(v),
       m_tr(tr),
       m_canvas(canvas),

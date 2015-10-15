@@ -97,7 +97,7 @@ public:
     Finite_vertices_iterator vit = m_tr.finite_vertices_begin();
     for(; vit!=m_tr.finite_vertices_end(); ++vit)
     {
-      Canvas_point cp(vit->point(), vertex_counter++, this->mf, vit, &m_tr, this);
+      Canvas_point cp(vit->point(), vertex_counter++, vit, &m_tr, this);
       this->canvas_points.push_back(cp);
       vit->info() = this->canvas_points.size() - 1;
       CGAL_postcondition(this->canvas_points[vit->info()].point() == vit->point());
