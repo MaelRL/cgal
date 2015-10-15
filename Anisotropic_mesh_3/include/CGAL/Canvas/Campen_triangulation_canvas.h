@@ -120,7 +120,7 @@ public:
     Base::locate_seeds_on_canvas();
 
 #if (verbosity > 5)
-    std::cout << "canvas initialized" << std::endl;
+    std::cout << "canvas initialized with " << this->seeds.size() << " seeds" << std::endl;
 #endif
   }
 
@@ -212,7 +212,7 @@ public:
   {
     if(c->info() < 1)
     {
-      // there has to be an incident finite interior cell of the seed is rejected
+      // there has to be an incident finite interior cell or the seed is rejected
       Cell_handle c_mirror = c->neighbor(li);
       if(c_mirror->info() < 1)
       {
@@ -270,11 +270,13 @@ public:
     int li, lj;
     Cell_handle c = m_tr.locate(t, lt, li, lj);
 
+    if(m_tr.is_infinite(c))
+      std::cerr << "WARNING: seed located in an infinite cell" << std::endl;
+
 #if (verbosity > 15)
     std::cout << "locate in triangulation : " << std::endl;
     std::cout << "locate type: " << lt << " li/j: " << li << " " << lj << std::endl;
     std::cout << "cell : " << &*c << " with info : " << c->info() << std::endl;
-    CGAL_assertion(!m_tr.is_infinite(c));
     for(int i=0; i<4; ++i)
     {
       Vertex_handle vh = c->vertex(i);
@@ -345,6 +347,58 @@ public:
       Base::construct_primal_elements_from_candidates(candidates);
       //todo mark/compute Voronoi vertices
     }
+  }
+
+  void compute_local_primal_elements(const Canvas_point* cp)
+  {
+    primal_shenanigans(cp);
+  }
+
+  void check_canvas_density()
+  {
+    // verify that the canvas is dense enough for this new point to have a proper
+    // Voronoi cell. If it's not the case, refine the canvas.
+
+    typedef CGAL::Anisotropic_mesh_3::Subdomain_criterion<Self> SCriterion;
+    SCriterion criterion(this);
+    criterion.seed_indices = this->check_canvas_density_with_primals();
+    CGAL::Anisotropic_mesh_3::Canvas_subdivider<Self, SCriterion> canvas_sub(this, criterion);
+    canvas_sub.subdivide();
+  }
+
+  void compute_primal()
+  {
+    if(this->primal_edges.empty() && this->primal_triangles.empty() && this->primal_tetrahedra.empty())
+    {
+#if (verbosity > 5)
+    std::cout << "Primal computations" << std::endl;
+#endif
+      typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+      Finite_cells_iterator cit = m_tr.finite_cells_begin();
+      Finite_cells_iterator end = m_tr.finite_cells_end();
+      for(; cit!=end; ++cit)
+      {
+        // ignore exterior cells to ignore triangulation neighbors that are not canvas neighbors
+        if(cit->info() < 1)
+          continue;
+
+        Candidates_set candidates;
+        for(std::size_t j=0; j<4; ++j)
+          candidates.insert(&(this->canvas_points[cit->vertex(j)->info()]));
+
+        Base::construct_primal_elements_from_candidates(candidates);
+        // todo add mark/compute Voronoi vertices
+      }
+      // todo add mark/compute Voronoi vertices etc.
+    }
+    else
+      std::cerr << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
+
+#ifdef CGAL_ANISO_REFINE_LOW_CANVAS_DENSITY
+    check_canvas_density();
+#else
+    this->check_canvas_density_with_primals();
+#endif
   }
 
   void check_edelsbrunner()
@@ -514,65 +568,6 @@ public:
     std::cout << "end edelsbrunner" << std::endl;
     std::cout << failed_blob_counter << " out of " << dual_map.size()
               << " failed" << std::endl;
-  }
-
-  void compute_local_primal_elements(const Canvas_point* cp)
-  {
-    primal_shenanigans(cp);
-  }
-
-  void check_canvas_density()
-  {
-    // verify that the canvas is dense enough for this new point to have a proper
-    // Voronoi cell. If it's not the case, refine the canvas.
-
-    typedef CGAL::Anisotropic_mesh_3::Subdomain_criterion<Self> SCriterion;
-    SCriterion criterion(this);
-    criterion.seed_indices = this->check_canvas_density_with_primals();
-    CGAL::Anisotropic_mesh_3::Canvas_subdivider<Self, SCriterion> canvas_sub(this, criterion);
-    canvas_sub.subdivide();
-  }
-
-  void compute_primal()
-  {
-#if (verbosity > 5)
-    std::cout << "primal computations" << std::endl;
-#endif
-    if(!this->primal_edges.empty() || !this->primal_triangles.empty() || !this->primal_tetrahedra.empty())
-    {
-      std::cerr << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
-#ifdef CGAL_ANISO_CHECK_CANVAS_DENSITY
-      check_canvas_density();
-#endif
-      return;
-    }
-
-    // m_tr is a triangulation of the convex hull, but we're only interested
-    // in neighbors in the canvas (and usually canvas!=triangulation of the convex
-    // hull)
-    // it is sufficient to ignore cells that are marked as 'outside' to gather
-    // only the neighbors in the canvas space
-
-    typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
-    Finite_cells_iterator cit = m_tr.finite_cells_begin();
-    Finite_cells_iterator end = m_tr.finite_cells_end();
-    for(; cit!=end; ++cit)
-    {
-      // ignore exterior cells to ignore triangulation neighbors that are not canvas neighbors
-      if(cit->info() < 1)
-        continue;
-
-      Candidates_set candidates;
-      for(std::size_t j=0; j<4; ++j)
-        candidates.insert(&(this->canvas_points[cit->vertex(j)->info()]));
-
-      Base::construct_primal_elements_from_candidates(candidates);
-      // todo add mark/compute Voronoi vertices
-    }
-    // todo add mark/compute Voronoi vertices etc.
-#ifdef CGAL_ANISO_CHECK_CANVAS_DENSITY
-      check_canvas_density();
-#endif
   }
 
   void output_canvas(const std::string str_base) const

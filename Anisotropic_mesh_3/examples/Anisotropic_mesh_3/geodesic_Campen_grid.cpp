@@ -40,7 +40,6 @@ int main(int, char**)
   const std::string canvas_str = "grid";
   const std::string seeds_str = "base_mesh.mesh";
   std::size_t max_seeds_n = 1;
-  std::size_t n_refine = 0;
 
   // canvas geometry
   Point_3 center(1., 1., 1.);

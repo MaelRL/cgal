@@ -37,11 +37,11 @@ private:
   typedef Campen_canvas_point<K, Metric_field>                        Self;
 
 public:
-  typedef typename std::vector<Campen_canvas_point>                   Campen_canvas_point_vector;
-  typedef Self*                                                       Campen_canvas_point_handle;
+  typedef typename std::vector<Campen_canvas_point>   Campen_canvas_point_vector;
+  typedef Self*                                       Campen_canvas_point_handle;
 
-  typedef int                                  Vertex_Info; // index of the canvas point
-  typedef int                                  Cell_Info; // index of the subdomain
+  typedef int                          Vertex_Info; // index of the canvas point
+  typedef int                          Cell_Info; // index of the subdomain
 
   typedef Canvas_point<K>                                             Base;
   typedef Campen_canvas<K, Metric_field>                              Canvas;
@@ -212,7 +212,8 @@ public:
     std::cout << " anc: " << anc->index() << " & ancdist: " << anc->distance_to_closest_seed() << std::endl;
 #endif
 
-    CGAL_assertion(anc && anc->state() == KNOWN);
+    CGAL_assertion(anc);
+    CGAL_assertion(anc->state() == KNOWN);
 
     const int k = 8; // depth of the ancestor edge
     FT d = FT_inf;

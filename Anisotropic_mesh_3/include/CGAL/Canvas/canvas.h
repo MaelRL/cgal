@@ -679,7 +679,7 @@ public:
     are_tetrahedra_intersection_computed = true;
   }
 
-  std::set<int> check_canvas_density_with_primals(const std::size_t ancestor_minimum_length = 10) const
+  std::set<int> check_canvas_density_with_primals(const std::size_t ancestor_minimum_length = 8) const
   {
 #if (verbosity > 10)
     std::cout << "density check" << std::endl;
@@ -695,9 +695,10 @@ public:
     {
       const Primal_edge& pt = *peit;
       const Canvas_point* dual_point = pt.dual_point();
-      std::size_t ancestor_n = dual_point->count_ancestors();
-      if(ancestor_n < ancestor_minimum_length)
-        std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+      std::size_t ap_length = dual_point->count_ancestors();
+      if(ap_length < ancestor_minimum_length)
+        std::cerr << "WARNING : the canvas is thin (" << ap_length
+                  << ") for the primal : "<< pt << std::endl;
     }
 
     PTrC_iterator ptrit = primal_triangles.begin();
@@ -705,9 +706,10 @@ public:
     {
       const Primal_triangle& pt = *ptrit;
       const Canvas_point* dual_point = pt.dual_point();
-      std::size_t ancestor_n = dual_point->count_ancestors();
-      if(ancestor_n < ancestor_minimum_length)
-        std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+      std::size_t ap_length = dual_point->count_ancestors();
+      if(ap_length < ancestor_minimum_length)
+        std::cerr << "WARNING : the canvas is thin (" << ap_length
+                  << ") for the primal : " << pt << std::endl;
     }
 
     PTC_iterator ptit = primal_tetrahedra.begin();
@@ -715,12 +717,13 @@ public:
     {
       const Primal_tetrahedron& pt = *ptit;
       const Canvas_point* dual_point = pt.dual_point();
-      std::size_t ancestor_n = dual_point->count_ancestors();
-      if(ancestor_n < ancestor_minimum_length)
+      std::size_t ap_length = dual_point->count_ancestors();
+      if(ap_length < ancestor_minimum_length)
       {
         for(int i=0; i<4; ++i)
           subdomain_indices.insert(pt[i]);
-        std::cerr << "WARNING : the canvas is not dense for the primal : " << pt << std::endl;
+        std::cerr << "WARNING : the canvas is thin (" << ap_length
+                  << ") for the primal : " << pt << std::endl;
       }
     }
 
@@ -745,6 +748,7 @@ public:
 
 #if (verbosity > 6)
     std::cout << "captured: ";
+    std::cout << seeds.size() << " vertices ";
     std::cout << primal_edges.size() << " edges, ";
     std::cout << primal_triangles.size() << " triangles, ";
     std::cout << primal_tetrahedra.size() << " tetrahedra ";

@@ -23,9 +23,9 @@ namespace CGAL
 template<typename K>
 typename K::FT cube_function(const typename K::Point_3& p)
 {
-  if( p.x() >= 0 && p.x() <= 2 &&
-      p.y() >= 0 && p.y() <= 2 &&
-      p.z() >= 0 && p.z() <= 2 )
+  if( p.x() >= 0. && p.x() <= 2. &&
+      p.y() >= 0. && p.y() <= 2. &&
+      p.z() >= 0. && p.z() <= 2. )
     return -1.;
   return 1.;
 }
@@ -44,66 +44,66 @@ void create_polylines(std::list<std::vector<typename K::Point_3> >& polylines)
   // bot 4 edges
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(0,0,0));
-    polyline.push_back(Point_3(side_x,0,0));
+    polyline.push_back(Point_3(0, 0, 0));
+    polyline.push_back(Point_3(side_x, 0, 0));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(side_x,0,0));
-    polyline.push_back(Point_3(side_x,side_y,0));
+    polyline.push_back(Point_3(side_x, 0, 0));
+    polyline.push_back(Point_3(side_x, side_y, 0));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(side_x,side_y,0));
-    polyline.push_back(Point_3(0,side_y,0));
+    polyline.push_back(Point_3(side_x, side_y, 0));
+    polyline.push_back(Point_3(0, side_y, 0));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(0,side_y,0));
-    polyline.push_back(Point_3(0,0,0));
+    polyline.push_back(Point_3(0, side_y, 0));
+    polyline.push_back(Point_3(0, 0, 0));
     polylines.push_back(polyline);
   }
 
   // vertical edges
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(0,0,0));
-    polyline.push_back(Point_3(0,0,side_z));
+    polyline.push_back(Point_3(0, 0, 0));
+    polyline.push_back(Point_3(0, 0, side_z));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(side_x,0,0));
-    polyline.push_back(Point_3(side_x,0,side_z));
+    polyline.push_back(Point_3(side_x, 0, 0));
+    polyline.push_back(Point_3(side_x, 0, side_z));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(0,side_y,0));
-    polyline.push_back(Point_3(0,side_y,side_z));
+    polyline.push_back(Point_3(0, side_y, 0));
+    polyline.push_back(Point_3(0, side_y, side_z));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(side_x,side_y,0));
-    polyline.push_back(Point_3(side_x,side_y,side_z));
+    polyline.push_back(Point_3(side_x, side_y, 0));
+    polyline.push_back(Point_3(side_x, side_y, side_z));
     polylines.push_back(polyline);
   }
 
   // top 4 edges
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(0,0,side_z));
-    polyline.push_back(Point_3(side_x,0,side_z));
+    polyline.push_back(Point_3(0, 0, side_z));
+    polyline.push_back(Point_3(side_x, 0, side_z));
     polylines.push_back(polyline);
   }
   {
     Polyline_3 polyline;
-    polyline.push_back(Point_3(side_x,0,side_z));
-    polyline.push_back(Point_3(side_x,side_y,side_z));
+    polyline.push_back(Point_3(side_x, 0, side_z));
+    polyline.push_back(Point_3(side_x, side_y, side_z));
     polylines.push_back(polyline);
   }
   {

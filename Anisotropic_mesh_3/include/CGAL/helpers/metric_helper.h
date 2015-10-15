@@ -324,12 +324,21 @@ template<typename Point>
 Point transform(const Eigen::Matrix3d& f,
                 const Point& p)
 {
+  // without creating the Vector3d
+  return Point(f(0,0)*p[0] + f(0,1)*p[1] + f(0,2)*p[2],
+               f(1,0)*p[0] + f(1,1)*p[1] + f(1,2)*p[2],
+               f(2,0)*p[0] + f(2,1)*p[1] + f(2,2)*p[2]);
+}
+
+template<typename Point>
+Point old_transform(const Eigen::Matrix3d& f,
+                    const Point& p)
+{
   Eigen::Vector3d ep(p.x(),p.y(),p.z());
   ep = f * ep;
   Point result(ep[0],ep[1],ep[2]);
   return result;
 }
-
 
 } //namespace Aniso
 } //namespace CGAL
