@@ -142,6 +142,28 @@ class Mesh_cell_criteria_w_distortion_3 :
   //todo
 };
 
+// Sizing field
+template<typename Tr>
+struct Spherical_sizing_field
+{
+  typedef typename Tr::Geom_traits                               Gt;
+  typedef typename Gt::FT                                        FT;
+  typedef typename Gt::Point_3                                   Point_3;
+
+  typedef FT (Function)(const Point_3&);
+  typedef Implicit_mesh_domain_3<Function, Gt>                   Mesh_domain;
+  typedef typename Mesh_domain::Index                            Index;
+
+  FT operator()(const Point_3& p, const int, const Index&) const
+  {
+    FT sq_d_to_origin = CGAL::squared_distance(p, Point_3(CGAL::ORIGIN));
+
+    return 0.04;
+
+    return CGAL::abs( sq_d_to_origin - 5.) / 25. + 0.005;
+  }
+};
+
 template<typename K>
 void generate_canvas()
 {
@@ -174,9 +196,10 @@ void generate_canvas()
   domain.add_features(polylines.begin(), polylines.end());
 
   // Set mesh criteria
-  Edge_criteria edge_criteria(0.01);
-  Facet_criteria facet_criteria(30, 0.01, 0.01); // angle, size, approximation
-  Cell_criteria cell_criteria(2., 0.01); // radius-edge ratio, size
+  Spherical_sizing_field<Tr> size;
+  Edge_criteria edge_criteria(size);
+  Facet_criteria facet_criteria(30, size, 0.05); // angle, size, approximation
+  Cell_criteria cell_criteria(2., size); // radius-edge ratio, size
   Mesh_criteria criteria(edge_criteria, facet_criteria, cell_criteria);
 
   // Mesh generation
