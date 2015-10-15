@@ -6,7 +6,7 @@
 #include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/Campen_triangulation_canvas.h>
 #include <CGAL/Canvas/Campen_triangulation_point.h>
-#include <CGAL/Canvas/canvas_mesher.h>
+#include <CGAL/Canvas/mesher.h>
 #include <CGAL/Canvas/canvas_mesh_3.h>
 #include <CGAL/Canvas/canvas_triangulation_io.h>
 

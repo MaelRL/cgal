@@ -2,7 +2,7 @@
 #define CGAL_ANISOTROPIC_MESH_3_CANVAS_MESHER_H
 
 #include <CGAL/Canvas/canvas_config.h>
-#include <CGAL/Canvas/canvas_refine_queue.h>
+#include <CGAL/Canvas/refine_queue.h>
 
 #include <CGAL/intersections.h>
 #include <CGAL/Tetrahedron_3_Tetrahedron_3_do_intersect.h>
@@ -127,9 +127,9 @@ public:
 
     // todo criteria in a criteria class...
     FT max_distortion = 1.; // <= 1 means unused
-    FT max_size = 1.0; // <= 0 means unused
-    bool intersection_ref = true;
-    FT min_qual = 0.8; // <= 0 means unsused
+    FT max_size = 0.1; // <= 0 means unused
+    bool intersection_ref = false;
+    FT min_qual = 0.; // <= 0 means unsused
 
     // distortion
     if(max_distortion > 1.)
@@ -146,6 +146,7 @@ public:
     if(max_size > 0.)
     {
       FT cpd = cp->distance_to_closest_seed();
+      std::cout << "cpd: " << cp->distance_to_closest_seed() << std::endl;
       if(cpd > max_size)
       {
         refinement_queue.push(primal_simplex, cpd, 1);
@@ -212,7 +213,7 @@ public:
     }
   }
 
-  bool get_next_refinement_point(const Canvas_point* new_seed) const
+  bool get_next_refinement_point(const Canvas_point*& new_seed) const
   {
     typename Canvas_queues::Queue_entry_iterator e;
     if(!refinement_queue.top(e))
@@ -271,6 +272,8 @@ public:
       out << "ref_" << canvas.seeds.size();
       canvas.output_canvas_data_and_primal(out.str());
     }
+
+    canvas.set_points_states_to_known();
 
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cerr << "End refinement: " << duration << std::endl;

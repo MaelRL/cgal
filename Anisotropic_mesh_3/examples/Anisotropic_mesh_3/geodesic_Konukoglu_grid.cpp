@@ -5,7 +5,7 @@
 
 #include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/Konukoglu_canvas.h>
-#include <CGAL/Canvas/canvas_mesher.h>
+#include <CGAL/Canvas/mesher.h>
 
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
