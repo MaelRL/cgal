@@ -1118,13 +1118,15 @@ struct Base_mesh
     }
   }
 
-  Grid_point Vor_vertex_in_triangle(const Grid_point& gq,
-                                    const Grid_point& gr,
-                                    const Grid_point& gs,
-                                    int call_count = 0)
+  Grid_point Vor_vertex_in_triangle(const std::size_t n_q, const std::size_t n_r,
+                                    const std::size_t n_s, int call_count = 0)
   {
+    CGAL_precondition(n_q < points.size() && n_r < points.size() && n_s < points.size());
+
     // centroid is probably not the most optimal...
-    Point_2 centroid = CGAL::centroid(gq.point, gr.point, gs.point);
+    Point_2 centroid = CGAL::centroid(points[n_q].point,
+                                      points[n_r].point,
+                                      points[n_s].point);
 
     std::size_t id = points.size();
     Grid_point c(this, centroid, id, false/*border info*/);
@@ -1136,9 +1138,9 @@ struct Base_mesh
     points.push_back(c);
 
     Grid_point& gp = points.back();
-    gp.compute_closest_seed(gq.index);
-    gp.compute_closest_seed(gr.index);
-    gp.compute_closest_seed(gs.index);
+    gp.compute_closest_seed(n_q);
+    gp.compute_closest_seed(n_r);
+    gp.compute_closest_seed(n_s);
     gp.state = KNOWN;
 
     // another potential stop is if the (max) distance between the centroid
@@ -1146,25 +1148,21 @@ struct Base_mesh
     if(call_count > max_depth)
       return gp;
 
-    if(gp.closest_seed_id == gq.closest_seed_id)
-      return Vor_vertex_in_triangle(gp, gr, gs, ++call_count);
-    else if(gp.closest_seed_id == gr.closest_seed_id)
-      return Vor_vertex_in_triangle(gp, gq, gs, ++call_count);
+    if(gp.closest_seed_id == points[n_q].closest_seed_id)
+      return Vor_vertex_in_triangle(id, n_r, n_s, ++call_count);
+    else if(gp.closest_seed_id == points[n_r].closest_seed_id)
+      return Vor_vertex_in_triangle(id, n_q, n_s, ++call_count);
     else
     {
-      CGAL_assertion(gp.closest_seed_id == gs.closest_seed_id);
-      return Vor_vertex_in_triangle(gp, gq, gr, ++call_count);
+      CGAL_assertion(gp.closest_seed_id == points[n_s].closest_seed_id);
+      return Vor_vertex_in_triangle(id, n_q, n_r, ++call_count);
     }
   }
 
   Grid_point compute_precise_Voronoi_vertex(const Tri& tri)
   {
-    const Grid_point& gq = points[tri[0]];
-    const Grid_point& gr = points[tri[1]];
-    const Grid_point& gs = points[tri[2]];
-
     std::size_t real_points_n = points.size();
-    Grid_point centroid = Vor_vertex_in_triangle(gq, gr, gs);
+    Grid_point centroid = Vor_vertex_in_triangle(tri[0], tri[1], tri[2]);
 
     // clean off the virtual points created by Vor_vertex_in_triangle
     shave_off_virtual_points(real_points_n);
@@ -1202,13 +1200,14 @@ struct Base_mesh
     }
   }
 
-  Grid_point Vor_vertex_on_edge(const Grid_point* gq,
-                                const Grid_point* gr,
+  Grid_point Vor_vertex_on_edge(const std::size_t n_q, const std::size_t n_r,
                                 int call_count = 0)
   {
     // do the complicated split, see formula on notes // todo
     // taking the easy way for now
-    Point_2 centroid = CGAL::barycenter(gq->point, 0.5, gr->point, 0.5);
+
+    Point_2 centroid = CGAL::barycenter(points[n_q].point, 0.5,
+                                        points[n_r].point, 0.5);
 
     std::size_t id = points.size();
     Grid_point c(this, centroid, id, true/*on border*/);
@@ -1217,56 +1216,58 @@ struct Base_mesh
     points.push_back(c);
 
     Grid_point& gp = points.back();
-    gp.compute_closest_seed(gq->index);
-    gp.compute_closest_seed(gr->index);
+    gp.compute_closest_seed(n_q);
+    gp.compute_closest_seed(n_r);
     gp.state = KNOWN;
 
-    if(call_count > 5) // don't hardcode stuff like that fixme
+    if(call_count > max_depth) // don't hardcode stuff like that fixme
       return gp;
 
-    if(gp.closest_seed_id == gq->closest_seed_id)
-      return Vor_vertex_on_edge(&gp, gr, ++call_count);
+    if(gp.closest_seed_id == points[n_q].closest_seed_id)
+      return Vor_vertex_on_edge(gp.index, n_r, ++call_count);
     else
     {
-      CGAL_assertion(gp.closest_seed_id == gr->closest_seed_id);
-      return Vor_vertex_on_edge(&gp, gq, ++call_count);
+      CGAL_assertion(gp.closest_seed_id == points[n_r].closest_seed_id);
+      return Vor_vertex_on_edge(gp.index, n_q, ++call_count);
     }
   }
 
-  void visit_neighbors_and_compute(Grid_point* gp,
+  void visit_neighbors_and_compute(const std::size_t n_p,
                                    std::vector<bool>& visited_points)
   {
-    visited_points[gp->index] = true;
-    std::size_t seed_p = gp->closest_seed_id;
+    const Grid_point& gp = points[n_p];
 
-    if(gp->index < 4) // corner hack fixme
-      Voronoi_vertices[seed_p].push_back(*gp);
+    visited_points[n_p] = true;
+    std::size_t seed_p = gp.closest_seed_id;
 
-    typename Grid_point::Neighbors::iterator it = gp->border_neighbors.begin();
-    typename Grid_point::Neighbors::iterator end = gp->border_neighbors.end();
+    if(n_p < 4) // corner hack fixme
+      Voronoi_vertices[seed_p].push_back(gp);
+
+    typename Grid_point::Neighbors::iterator it = gp.border_neighbors.begin();
+    typename Grid_point::Neighbors::iterator end = gp.border_neighbors.end();
     for(; it!=end; ++it)
     {
-      Grid_point* gq = &points[*it];
-      CGAL_assertion(gq->is_on_domain_border);
-      if(!visited_points[gq->index])
+      const Grid_point& gq = points[*it];
+      CGAL_assertion(gq.is_on_domain_border);
+      if(!visited_points[gq.index])
       {
         // check if they have different colors
-        std::size_t seed_q = gq->closest_seed_id;
+        std::size_t seed_q = gq.closest_seed_id;
         if(seed_p != seed_q)
         {
-          Grid_point precise_vor_vertex = Vor_vertex_on_edge(gp, gq);
+          Grid_point precise_vor_vertex = Vor_vertex_on_edge(n_p, gq.index);
 
           Voronoi_vertices[seed_p].push_back(precise_vor_vertex);
           Voronoi_vertices[seed_p].back().closest_seed_id = seed_p;
-          Voronoi_vertices[seed_p].back().ancestor = gp->index;
+          Voronoi_vertices[seed_p].back().ancestor = gp.index;
 
           Voronoi_vertices[seed_q].push_back(precise_vor_vertex);
           Voronoi_vertices[seed_q].back().closest_seed_id = seed_q;
-          Voronoi_vertices[seed_q].back().ancestor = gq->index;
+          Voronoi_vertices[seed_q].back().ancestor = gq.index;
         }
 
         // continue visiting from gq
-        visit_neighbors_and_compute(gq, visited_points);
+        visit_neighbors_and_compute(gq.index, visited_points);
       }
     }
   }
@@ -1302,7 +1303,7 @@ struct Base_mesh
     {
       if(points[i].is_on_domain_border)
       {
-        visit_neighbors_and_compute(&(points[i]), visited_points);
+        visit_neighbors_and_compute(i, visited_points);
         break;
       }
     }
@@ -2023,7 +2024,7 @@ struct Base_mesh
           }
 
           CGAL_assertion(pos == 0 || pos == 1);
-          mid_pts[pos++] = Vor_vertex_on_edge(&gp0, &gp1);
+          mid_pts[pos++] = Vor_vertex_on_edge(gp0.index, gp1.index);
         }
 
         CGAL_postcondition(third_edge_first_point_id >= 0 &&
@@ -2067,7 +2068,7 @@ struct Base_mesh
         {
           const Grid_point& gp0 = points[triangle[i]];
           const Grid_point& gp1 = points[triangle[(i+1)%3]];
-          mid_pts[i] = Vor_vertex_on_edge(&gp0, &gp1);
+          mid_pts[i] = Vor_vertex_on_edge(gp0.index, gp1.index);
         }
 
         // compute roughly the center point
@@ -2984,14 +2985,14 @@ std::size_t Grid_point::ancestor_path_length() const
 void Grid_point::remove_from_neighbors(const std::size_t n_p)
 {
   typename Neighbors::iterator it = neighbors.find(n_p);
-  CGAL_assertion(it != neighbors.end());
-  neighbors.quick_erase(it);
+  if(it != neighbors.end()) // might already have been removed from the other side
+    neighbors.quick_erase(it);
 }
 
 void Grid_point::remove_from_border_neighbors(const std::size_t n_p)
 {
   typename Neighbors::iterator it = border_neighbors.find(n_p);
-  CGAL_assertion(it != border_neighbors.end());
+  CGAL_assertion(it != border_neighbors.end()); // no other side here though !
   border_neighbors.quick_erase(it);
 }
 
