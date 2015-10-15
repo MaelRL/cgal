@@ -1689,7 +1689,7 @@ struct Base_mesh
     far_count = points.size();
   }
 
-  void refine_grid(const Point_2 new_seed)
+  void refine_seeds(const Point_2 new_seed)
   {
     vertices_nv = insert_new_seed(new_seed.x(), new_seed.y());
     refresh_grid_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
@@ -1698,7 +1698,7 @@ struct Base_mesh
     spread_distances(false/*use_dual_shenanigans*/);
   }
 
-  bool refine_grid_with_self_computed_ref_point()
+  bool refine_seeds_with_self_computed_ref_point()
   {
     std::cout << "state of the queues: "
               << " size: " << size_queue.size()
@@ -1733,7 +1733,7 @@ struct Base_mesh
 //      std::exit(EXIT_FAILURE);
     }
     else
-      refine_grid(refinement_point->point);
+      refine_seeds(refinement_point->point);
     return true;
   }
 
@@ -3247,7 +3247,7 @@ int main(int, char**)
     {
       // can't compute the dual while spreading if we're refining since we have already a layer
       // of paint laying on the canvas...
-      bool successful_insert = bm.refine_grid_with_self_computed_ref_point();
+      bool successful_insert = bm.refine_seeds_with_self_computed_ref_point();
 
       std::ostringstream out;
       out << "ref_" << seeds.size();
