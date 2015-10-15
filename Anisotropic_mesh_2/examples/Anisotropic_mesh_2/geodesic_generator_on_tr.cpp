@@ -665,6 +665,50 @@ enum PQ_state
   REBUILD_TRIAL
 };
 
+struct Base_mesh;
+
+struct Grid_point
+{
+  typedef boost::unordered_set<std::size_t> Neighbors;
+
+  // immuable stuff
+  Base_mesh* bm;
+  Point_2 point;
+  std::size_t index;
+  Metric metric;
+  Neighbors neighbors;
+  Neighbors border_neighbors;
+  std::list<std::size_t> incident_triangles;
+  bool is_on_domain_border;
+
+  // stuff that depends on the seeds
+  FMM_state state;
+  FT distance_to_closest_seed;
+  std::size_t closest_seed_id;
+  std::size_t ancestor;
+  bool is_Voronoi_vertex;
+
+  void change_state(FMM_state new_state);
+  std::size_t ancestor_path_length() const;
+  void remove_from_neighbors(const std::size_t n_p);
+  void remove_from_border_neighbors(const std::size_t n_p);
+  void remove_from_incident_triangles(const std::size_t i);
+  bool compute_closest_seed(const std::size_t n_anc);
+  PQ_state update_neighbors_distances(std::vector<Grid_point*>& trial_pq) const;
+  FT distortion_to_seed() const;
+  void reset();
+  void initialize_from_point(const FT d, const std::size_t seed_id);
+
+  bool operator==(const Grid_point& gp) const;
+
+  Grid_point();
+  Grid_point(Base_mesh* bm_,
+             const Point_2& point_,
+             const std::size_t index_,
+             const bool is_on_domain_border_ = false);
+  Grid_point(const Grid_point& gp);
+};
+
 template<typename Gp>
 struct Grid_point_comparer
 {
@@ -726,271 +770,6 @@ int build_seeds()
 #endif
   return seeds.size();
 }
-
-struct Grid_point
-{
-  typedef boost::unordered_set<Grid_point*> Neighbors;
-
-  // immuable stuff
-  Point_2 point;
-  std::size_t index;
-  Metric metric;
-  Neighbors neighbors;
-  Neighbors border_neighbors;
-  std::list<std::size_t> incident_triangles;
-  bool is_on_domain_border;
-
-  // stuff that depends on the seeds
-  FMM_state state;
-  FT distance_to_closest_seed;
-  std::size_t closest_seed_id;
-  const Grid_point* ancestor;
-  bool is_Voronoi_vertex;
-
-  void change_state(FMM_state new_state)
-  {
-    if(new_state == state)
-      std::cerr << "WARNING: useless state change..." << std::endl;
-
-    if(state == KNOWN)
-      known_count--;
-    else if(state == TRIAL)
-      trial_count--;
-    else if(state == FAR)
-      far_count--;
-
-    if(new_state == KNOWN)
-      known_count++;
-    else if(new_state == TRIAL)
-      trial_count++;
-    else if(new_state == FAR)
-      far_count++;
-
-    state = new_state;
-  }
-
-  std::size_t ancestor_path_length() const
-  {
-    std::size_t i = 1;
-    const Grid_point* anc = ancestor;
-    while(anc)
-    {
-      ++i;
-      anc = anc->ancestor;
-    }
-    return i;
-  }
-
-  bool compute_closest_seed(const Grid_point* anc)
-  {
-    CGAL_assertion(anc->state == KNOWN);
-
-    const int k = 8; // depth of the ancestor edge
-    FT d = FT_inf;
-
-    // the path is 'this' to ancestor1, ancestor1 to ancestor2, etc.
-    // stored as 'this', ancestor1, ancestor2, etc.
-    boost::array<const Grid_point*, k+1> ancestor_path;
-    for(int i=1; i<k+1; ++i)
-      ancestor_path[i] = NULL;
-    ancestor_path[0] = this;
-
-    const Grid_point* curr_ancestor = anc;
-    for(int i=1; i<=k; ++i)
-    {
-      // add the new segment to the ancestor path
-      ancestor_path[i] = curr_ancestor;
-
-      Vector2d ancestor_edge;
-      ancestor_edge(0) = point.x() - curr_ancestor->point.x();
-      ancestor_edge(1) = point.y() - curr_ancestor->point.y();
-      FT ancestor_edge_length = ancestor_edge.norm();
-      Vector2d normalized_anc_edge = ancestor_edge/ancestor_edge_length;
-
-      // compute the distance for the current depth (i)
-      FT dist_to_ancestor = 0.;
-      for(int j=0; j<i; ++j) // we add a part for each edge in the path
-      {
-        // get the metric for the current edge
-        const Grid_point* e0 = ancestor_path[j];
-        const Grid_point* e1 = ancestor_path[j+1];
-
-        CGAL_assertion(e0 && e1);
-
-        const Metric& m0 = e0->metric;
-        const Metric& m1 = e1->metric;
-
-        Vector2d curr_edge;
-        curr_edge(0) = e0->point.x() - e1->point.x();
-        curr_edge(1) = e0->point.y() - e1->point.y();
-
-        // interpolate between both metric and transform the normalized edge
-        // then we have (transformed_edge).norm() = || e ||_M = sqrt(e^t M e)
-        const Eigen::Matrix2d& f = get_interpolated_transformation(m0, m1);
-        Vector2d transformed_curr_edge = f*normalized_anc_edge;
-
-        FT sp = curr_edge.dot(normalized_anc_edge);
-        FT l = transformed_curr_edge.norm(); // length of the normalized anc edge in the metric
-
-        dist_to_ancestor += sp * l;
-      }
-      dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);
-
-      // add ancestor edge length to the distance at that ancestor
-      FT dist_at_anc = curr_ancestor->distance_to_closest_seed;
-      FT new_d = dist_at_anc + dist_to_ancestor;
-
-      if(new_d < d)
-        d = new_d;
-
-      if(!curr_ancestor->ancestor) // can't go any farther up in the ancestor tree
-        break;
-
-      curr_ancestor = curr_ancestor->ancestor;
-    }
-
-    if(d < distance_to_closest_seed)
-    {
-      ancestor = anc;
-      distance_to_closest_seed = d;
-      closest_seed_id = anc->closest_seed_id;
-      return true;
-    }
-    return false;
-  }
-
-  PQ_state update_neighbors_distances(std::vector<Grid_point*>& trial_pq) const
-  {
-    // consider all the neighbors of a KNOWN point and compute their distance to 'this'
-#if (verbose > 10)
-    std::cout << "update neighbors of " << index << std::endl;
-#endif
-    CGAL_assertion(state == KNOWN);
-
-    PQ_state pqs_ret = NOTHING_TO_DO;
-    boost::unordered_set<Grid_point*>::const_iterator it = neighbors.begin(),
-                                                      end = neighbors.end();
-    for(; it!=end; ++it)
-    {
-      Grid_point* gp = *it;
-      if(!gp)
-        continue;
-      else if(gp->state == KNOWN)
-        continue;
-      else if(gp->state == TRIAL)
-      {
-        // note that we don't insert in trial_pq since it's already in
-        if(gp->compute_closest_seed(this))
-          pqs_ret = REBUILD_TRIAL;
-      }
-      else // gp->state == FAR
-      {
-        CGAL_assertion(gp->state == FAR);
-        if(gp->compute_closest_seed(this))
-        {
-          gp->state = TRIAL;
-          trial_pq.push_back(gp);
-          std::push_heap(trial_pq.begin(), trial_pq.end(), Grid_point_comparer<Grid_point>());
-        }
-      }
-    }
-    return pqs_ret;
-  }
-
-  FT distortion_to_seed() const
-  {
-    FT gamma = 1.;
-//    std::cout << "init gamma: " << gamma << " " << index << std::endl;
-    const Grid_point* curr = this;
-    const Grid_point* anc = ancestor;
-
-    while(anc)
-    {
-      const Metric& m1 = anc->metric;
-      const Metric& m2 = curr->metric;
-      FT loc_gamma = m1.compute_distortion(m2);
-//      std::cout << "loc: " << loc_gamma << " " << anc->index << std::endl;
-#if 1
-      gamma *= loc_gamma;
-#else
-      gamma = (std::max)(loc_gamma, gamma);
-#endif
-//      std::cout << "gamma: " << gamma << std::endl;
-      anc = anc->ancestor;
-    }
-
-    gamma = (std::min)(25., gamma);
-
-//    std::cout << "final gamma:" << gamma << std::endl;
-//    exit(0);
-    return gamma;
-  }
-
-  void initialize_from_point(const FT d,
-                             const std::size_t seed_id)
-  {
-    closest_seed_id = seed_id;
-    distance_to_closest_seed = d;
-    state = TRIAL;
-    ancestor = NULL;
-  }
-
-  bool operator==(const Grid_point& gp)
-  {
-    // the only thing that matters is the point
-    return (point == gp.point);
-  }
-
-  Grid_point()
-    :
-      point(),
-      index(static_cast<std::size_t>(-1)),
-      metric(),
-      neighbors(),
-      border_neighbors(),
-      incident_triangles(),
-      is_on_domain_border(false),
-      state(FAR),
-      distance_to_closest_seed(FT_inf),
-      closest_seed_id(-1),
-      ancestor(NULL),
-      is_Voronoi_vertex(false)
-  { }
-
-  Grid_point(const Point_2& point_,
-             const std::size_t index_,
-             const bool is_on_domain_border_ = false)
-    :
-      point(point_),
-      index(index_),
-      metric(mf->compute_metric(point)),
-      neighbors(),
-      border_neighbors(),
-      incident_triangles(),
-      is_on_domain_border(is_on_domain_border_),
-      state(FAR),
-      distance_to_closest_seed(FT_inf),
-      closest_seed_id(-1),
-      ancestor(NULL),
-      is_Voronoi_vertex(false)
-  { }
-
-  Grid_point(const Grid_point& gp)
-    :
-      point(gp.point),
-      index(gp.index),
-      metric(gp.metric),
-      neighbors(gp.neighbors),
-      border_neighbors(gp.border_neighbors),
-      incident_triangles(gp.incident_triangles),
-      is_on_domain_border(gp.is_on_domain_border),
-      state(gp.state),
-      distance_to_closest_seed(gp.distance_to_closest_seed),
-      closest_seed_id(gp.closest_seed_id),
-      ancestor(gp.ancestor),
-      is_Voronoi_vertex(gp.is_Voronoi_vertex)
-  { }
-};
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const boost::tuple<Simplex, const Grid_point*, FT>& pqe)
@@ -1174,7 +953,7 @@ struct Base_mesh
         CGAL_assertion(false && "you're not using a mesh with border info");
 
       Point_2 p(r_x, r_y);
-      Grid_point gp(p, i, border_info);
+      Grid_point gp(this, p, i, border_info);
       points.push_back(gp);
     }
 
@@ -1200,9 +979,9 @@ struct Base_mesh
         for(std::size_t j=1; j<=2; ++j)
         {
           std::size_t id2 = tr[(i+j)%3];
-          points[id1].neighbors.insert(&points[id2]);
+          points[id1].neighbors.insert(id2);
           if(points[id1].is_on_domain_border && points[id2].is_on_domain_border)
-            points[tr[i]].border_neighbors.insert(&points[id2]);
+            points[id1].border_neighbors.insert(id2);
         }
         points[id1].incident_triangles.push_back(new_tri_id);
       }
@@ -1260,6 +1039,14 @@ struct Base_mesh
     }
   }
 
+  void shave_off_virtual_points(const std::size_t real_points_n)
+  {
+    std::cout << "shaving: " << points.size() << " to " << real_points_n << std::endl;
+    typename std::vector<Grid_point>::iterator it = points.begin();
+    std::advance(it, real_points_n);
+    points.erase(it, points.end());
+  }
+
   void mark_voronoi_vertices(const Tri& tri,
                              const Simplex& simplex)
   {
@@ -1291,7 +1078,7 @@ struct Base_mesh
     typename Grid_point::Neighbors::iterator end = gp->border_neighbors.end();
     for(; it!=end; ++it)
     {
-      Grid_point* gq = *it;
+      Grid_point* gq = &(points[*it]);
       CGAL_assertion(gq->is_on_domain_border);
       if(!visited_points[gq->index])
       {
@@ -1337,14 +1124,23 @@ struct Base_mesh
     // centroid is probably not the most optimal...
     Point_2 centroid = CGAL::centroid(gq.point, gr.point, gs.point);
 
-    Grid_point gp(centroid, -1, false/*border info*/);
+    std::size_t id = points.size();
+    Grid_point c(this, centroid, id, false/*border info*/);
     // it's actually possible for the centroid to be on the domain border,
     // but it doesn't matter since it's not a real grid point
     // and we'll never use this border information
 
-    gp.compute_closest_seed(&gq);
-    gp.compute_closest_seed(&gr);
-    gp.compute_closest_seed(&gs);
+    // need to push it back to points anyway for compute_closest_seed to work
+    points.push_back(c);
+
+//    CGAL_assertion(gq.state == points[gq.index].state);
+//    CGAL_assertion(gr.state == points[gr.index].state);
+//    CGAL_assertion(gs.state == points[gs.index].state);
+
+    Grid_point& gp = points.back();
+    gp.compute_closest_seed(gq.index);
+    gp.compute_closest_seed(gr.index);
+    gp.compute_closest_seed(gs.index);
     gp.state = KNOWN;
 
     // another potential stop is if the (max) distance between the centroid
@@ -1363,8 +1159,23 @@ struct Base_mesh
     }
   }
 
-  void compute_precise_Voronoi_vertices(const Tri& tri,
-                                        const Simplex& simplex)
+  Grid_point compute_precise_Voronoi_vertex(const Tri& tri)
+  {
+    const Grid_point& gq = points[tri[0]];
+    const Grid_point& gr = points[tri[1]];
+    const Grid_point& gs = points[tri[2]];
+
+    std::size_t real_points_n = points.size();
+    Grid_point centroid = Vor_vertex_in_triangle(gq, gr, gs);
+
+    // clean off the virtual points created by Vor_vertex_in_triangle
+    shave_off_virtual_points(real_points_n);
+
+    return centroid;
+  }
+
+  void compute_precise_Voronoi_vertex(const Tri& tri,
+                                      const Simplex& simplex)
   {
     // The function 'mark_Voronoi_vertices' only picks a point on the base mesh,
     // which is usually not the real Voronoi vertex of the Voronoi cell.
@@ -1378,14 +1189,9 @@ struct Base_mesh
     // that has 3 different colors. Repeat till happy.
 
     std::size_t ds_size = simplex.size();
-
     if(ds_size == 3)
     {
-      const Grid_point& gq = points[tri[0]];
-      const Grid_point& gr = points[tri[1]];
-      const Grid_point& gs = points[tri[2]];
-
-      Grid_point centroid = Vor_vertex_in_triangle(gq, gr, gs);
+      const Grid_point& centroid = compute_precise_Voronoi_vertex(tri);
 
       for(int i=0; i<3; ++i)
       {
@@ -1393,7 +1199,7 @@ struct Base_mesh
         std::size_t seed_id = gp.closest_seed_id;
         Voronoi_vertices[seed_id].push_back(centroid);
         Voronoi_vertices[seed_id].back().closest_seed_id = seed_id;
-        Voronoi_vertices[seed_id].back().ancestor = &gp;
+        Voronoi_vertices[seed_id].back().ancestor = gp.index;
       }
     }
   }
@@ -1406,13 +1212,18 @@ struct Base_mesh
     // taking the easy way for now
     Point_2 centroid = CGAL::barycenter(gq->point, 0.5, gr->point, 0.5);
 
-    Grid_point gp(centroid, -1, true/*on border*/);
+    std::size_t id = points.size();
+    Grid_point c(this, centroid, id, true/*on border*/);
 
-    gp.compute_closest_seed(gq);
-    gp.compute_closest_seed(gr);
+    // need to push it to points (temporarily) for compute_closest_seed to work
+    points.push_back(c);
+
+    Grid_point& gp = points.back();
+    gp.compute_closest_seed(gq->index);
+    gp.compute_closest_seed(gr->index);
     gp.state = KNOWN;
 
-    if(call_count > 5)
+    if(call_count > 5) // don't hardcode stuff like that fixme
       return gp;
 
     if(gp.closest_seed_id == gq->closest_seed_id)
@@ -1437,7 +1248,7 @@ struct Base_mesh
     typename Grid_point::Neighbors::iterator end = gp->border_neighbors.end();
     for(; it!=end; ++it)
     {
-      Grid_point* gq = *it;
+      Grid_point* gq = &points[*it];
       CGAL_assertion(gq->is_on_domain_border);
       if(!visited_points[gq->index])
       {
@@ -1449,11 +1260,11 @@ struct Base_mesh
 
           Voronoi_vertices[seed_p].push_back(precise_vor_vertex);
           Voronoi_vertices[seed_p].back().closest_seed_id = seed_p;
-          Voronoi_vertices[seed_p].back().ancestor = gp;
+          Voronoi_vertices[seed_p].back().ancestor = gp->index;
 
           Voronoi_vertices[seed_q].push_back(precise_vor_vertex);
           Voronoi_vertices[seed_q].back().closest_seed_id = seed_q;
-          Voronoi_vertices[seed_q].back().ancestor = gq;
+          Voronoi_vertices[seed_q].back().ancestor = gq->index;
         }
 
         // continue visiting from gq
@@ -1485,6 +1296,8 @@ struct Base_mesh
     // a border edge... At the moment, we would compute two Voronoi vertices that
     // would be very close to each other... another fixme...
 
+    std::size_t real_points_n = points.size();
+
     // find a first point on the border. (points[0] is usually one)
     std::vector<bool> visited_points(points.size(), false);
     for(std::size_t i=0; i<points.size(); ++i)
@@ -1495,6 +1308,9 @@ struct Base_mesh
         break;
       }
     }
+
+    // clean off the virtual points created by Vor_vertex_on_edge
+    shave_off_virtual_points(real_points_n);
   }
 
   void dual_shenanigans(Grid_point* gp,
@@ -1525,7 +1341,7 @@ struct Base_mesh
       if(are_Voronoi_vertices_needed)
       {
 #ifdef COMPUTE_PRECISE_VOR_VERTICES
-        compute_precise_Voronoi_vertices(tri, dual_simplex);
+        compute_precise_Voronoi_vertex(tri, dual_simplex);
 #else
         mark_voronoi_vertices(tri, dual_simplex);
 #endif
@@ -1551,7 +1367,6 @@ struct Base_mesh
     std::cout << "main loop" << std::endl;
 #endif
     Grid_point* gp;
-
     bool is_t_empty = trial_points.empty();
 
     if(is_t_empty)
@@ -1624,13 +1439,13 @@ struct Base_mesh
       Grid_point* gp = &(points[i]);
       std::cout << "point " << i << " min distance is supposedly: ";
       std::cout << gp->distance_to_closest_seed << std::endl;
-      boost::unordered_set<Grid_point*>::const_iterator it = gp->neighbors.begin(),
-                                                        end = gp->neighbors.end();
+      typename Grid_point::Neighbors::const_iterator it = gp->neighbors.begin(),
+                                                     end = gp->neighbors.end();
       for(; it!=end; ++it)
       {
-        const Grid_point* gq = *it;
+        const Grid_point* gq = &points[*it];
         if(gq)
-          CGAL_assertion(!gp->compute_closest_seed(gq));
+          CGAL_assertion(!gp->compute_closest_seed(gq->index));
       }
     }
 
@@ -1667,7 +1482,7 @@ struct Base_mesh
       gp.state = FAR;
       gp.distance_to_closest_seed = FT_inf;
       gp.closest_seed_id = -1;
-      gp.ancestor = NULL;
+      gp.ancestor = -1;
       gp.is_Voronoi_vertex = false;
     }
 
@@ -1970,11 +1785,12 @@ struct Base_mesh
     std::deque<const Grid_point*> geodesic_path; // starting at the grid point closest to seed
     geodesic_path.push_front(&gp);
 
-    const Grid_point* anc = gp.ancestor;
-    while(anc)
+    std::size_t n_anc = gp.ancestor;
+    while(n_anc != static_cast<std::size_t>(-1))
     {
-      geodesic_path.push_front(anc);
-      anc = anc->ancestor;
+      const Grid_point& anc = points[n_anc];
+      geodesic_path.push_front(&anc);
+      n_anc = anc.ancestor;
     }
 
     // determine gq
@@ -2175,6 +1991,7 @@ struct Base_mesh
 
   void compute_all_centroids(std::vector<std::vector<std::pair<Point_2, FT> > >& centroids)
   {
+    std::size_t real_points_n = points.size();
     for(std::size_t i=0; i<triangles.size(); ++i)
     {
       const Tri& triangle = triangles[i];
@@ -2253,9 +2070,7 @@ struct Base_mesh
         }
 
         // compute roughly the center point
-        Grid_point v = Vor_vertex_in_triangle(points[triangle[0]],
-                                              points[triangle[1]],
-                                              points[triangle[2]]);
+        const Grid_point& v = compute_precise_Voronoi_vertex(triangle);
 
         // 'triangle' is split in 6 smaller triangles.
         // a-i1-v & a-i3-v --> associated to the seed a->closest_seed_id
@@ -2283,6 +2098,7 @@ struct Base_mesh
         add_to_centroids(points[triangle[2]], v, mid_pts[2], centroids);
       }
     }
+    shave_off_virtual_points(real_points_n);
   }
 
   Point_2 compute_centroid_with_grid_triangles_precomputed(const std::size_t seed_id,
@@ -2917,7 +2733,7 @@ struct Base_mesh
       if(are_Voronoi_vertices_needed)
       {
 #ifdef COMPUTE_PRECISE_VOR_VERTICES
-        compute_precise_Voronoi_vertices(triangle, dual_simplex);
+        compute_precise_Voronoi_vertex(triangle, dual_simplex);
 #else
         mark_voronoi_vertices(triangle, dual_simplex);
 #endif
@@ -3147,6 +2963,293 @@ struct Base_mesh
       Voronoi_vertices()
   { }
 };
+
+
+void Grid_point::change_state(FMM_state new_state)
+{
+  if(new_state == state)
+    std::cerr << "WARNING: useless state change..." << std::endl;
+
+  if(state == KNOWN)
+    known_count--;
+  else if(state == TRIAL)
+    trial_count--;
+  else if(state == FAR)
+    far_count--;
+
+  if(new_state == KNOWN)
+    known_count++;
+  else if(new_state == TRIAL)
+    trial_count++;
+  else if(new_state == FAR)
+    far_count++;
+
+  state = new_state;
+}
+
+std::size_t Grid_point::ancestor_path_length() const
+{
+  std::size_t i = 1;
+  std::size_t n_anc = ancestor;
+  while(n_anc != static_cast<std::size_t>(-1))
+  {
+    ++i;
+    const Grid_point& anc = bm->points[n_anc];
+    n_anc = anc.ancestor;
+  }
+  return i;
+}
+
+void Grid_point::remove_from_neighbors(const std::size_t n_p)
+{
+  typename Neighbors::iterator it = neighbors.find(n_p);
+  CGAL_assertion(it != neighbors.end());
+  neighbors.quick_erase(it);
+}
+
+void Grid_point::remove_from_border_neighbors(const std::size_t n_p)
+{
+  typename Neighbors::iterator it = border_neighbors.find(n_p);
+  CGAL_assertion(it != border_neighbors.end());
+  border_neighbors.quick_erase(it);
+}
+
+void Grid_point::remove_from_incident_triangles(const std::size_t i)
+{
+  std::list<std::size_t>::iterator it = std::find(incident_triangles.begin(),
+                                                  incident_triangles.end(), i);
+  CGAL_assertion(it != incident_triangles.end());
+  incident_triangles.erase(it);
+}
+
+bool Grid_point::compute_closest_seed(const std::size_t n_anc)
+{
+  CGAL_precondition(n_anc < bm->points.size());
+  const Grid_point& anc = bm->points[n_anc];
+  CGAL_assertion(anc.state == KNOWN);
+
+  const int k = 8; // depth of the ancestor edge
+  FT d = FT_inf;
+
+  // the path is 'this' to ancestor1, ancestor1 to ancestor2, etc.
+  // stored as 'this', ancestor1, ancestor2, etc.
+  boost::array<std::size_t, k+1> ancestor_path;
+  for(int i=1; i<k+1; ++i)
+    ancestor_path[i] = -1;
+  ancestor_path[0] = this->index;
+  CGAL_assertion(ancestor_path[0] != static_cast<std::size_t>(-1));
+
+  std::size_t n_curr_ancestor = n_anc;
+  for(int i=1; i<=k; ++i)
+  {
+    // add the new segment to the ancestor path
+    ancestor_path[i] = n_curr_ancestor;
+    const Grid_point& curr_ancestor = bm->points[n_curr_ancestor];
+
+    Vector2d ancestor_edge;
+    ancestor_edge(0) = point.x() - curr_ancestor.point.x();
+    ancestor_edge(1) = point.y() - curr_ancestor.point.y();
+    FT ancestor_edge_length = ancestor_edge.norm();
+    Vector2d normalized_anc_edge = ancestor_edge/ancestor_edge_length;
+
+    // compute the distance for the current depth (i)
+    FT dist_to_ancestor = 0.;
+    for(int j=0; j<i; ++j) // we add a part for each edge in the path
+    {
+      // get the metric for the current edge
+
+      CGAL_assertion(ancestor_path[j] < bm->points.size() &&
+                     ancestor_path[j+1] < bm->points.size());
+      const Grid_point& e0 = (j==0)?*this:bm->points[ancestor_path[j]];
+      const Grid_point& e1 = bm->points[ancestor_path[j+1]];
+
+      const Metric& m0 = e0.metric;
+      const Metric& m1 = e1.metric;
+
+      Vector2d curr_edge;
+      curr_edge(0) = e0.point.x() - e1.point.x();
+      curr_edge(1) = e0.point.y() - e1.point.y();
+
+      // interpolate between both metric and transform the normalized edge
+      // then we have (transformed_edge).norm() = || e ||_M = sqrt(e^t M e)
+      const Eigen::Matrix2d& f = get_interpolated_transformation(m0, m1);
+      Vector2d transformed_curr_edge = f*normalized_anc_edge;
+
+      FT sp = curr_edge.dot(normalized_anc_edge);
+      FT l = transformed_curr_edge.norm(); // length of the normalized anc edge in the metric
+
+      dist_to_ancestor += sp * l;
+    }
+    dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);
+
+    // add ancestor edge length to the distance at that ancestor
+    FT dist_at_anc = curr_ancestor.distance_to_closest_seed;
+    FT new_d = dist_at_anc + dist_to_ancestor;
+
+    if(new_d < d)
+      d = new_d;
+
+    // check if we can go any farther up in the ancestor tree
+    if(curr_ancestor.ancestor == static_cast<std::size_t>(-1))
+      break;
+
+    n_curr_ancestor = curr_ancestor.ancestor;
+  }
+
+  if(d < distance_to_closest_seed)
+  {
+    ancestor = n_anc;
+    distance_to_closest_seed = d;
+    closest_seed_id = anc.closest_seed_id;
+    return true;
+  }
+  return false;
+}
+
+PQ_state Grid_point::update_neighbors_distances(std::vector<Grid_point*>& trial_pq) const
+{
+  // consider all the neighbors of a KNOWN point and compute their distance to 'this'
+#if (verbose > 10)
+  std::cout << "update neighbors of " << index << std::endl;
+#endif
+  CGAL_assertion(state == KNOWN);
+
+  PQ_state pqs_ret = NOTHING_TO_DO;
+  typename Neighbors::const_iterator it = neighbors.begin(),
+      end = neighbors.end();
+  for(; it!=end; ++it)
+  {
+    Grid_point& gp = bm->points[*it];
+
+    if(gp.state == KNOWN)
+      continue;
+    else if(gp.state == TRIAL)
+    {
+      // note that we don't insert in trial_pq since it's already in
+      if(gp.compute_closest_seed(this->index))
+        pqs_ret = REBUILD_TRIAL;
+    }
+    else // gp.state == FAR
+    {
+      CGAL_assertion(gp.state == FAR);
+      if(gp.compute_closest_seed(this->index))
+      {
+        gp.state = TRIAL;
+        trial_pq.push_back(&gp);
+        std::push_heap(trial_pq.begin(), trial_pq.end(), Grid_point_comparer<Grid_point>());
+      }
+    }
+  }
+  return pqs_ret;
+}
+
+FT Grid_point::distortion_to_seed() const
+{
+  FT gamma = 1.;
+  //    std::cout << "init gamma: " << gamma << " " << index << std::endl;
+  const Grid_point* curr = this;
+  std::size_t n_anc = ancestor;
+
+  while(n_anc != static_cast<std::size_t>(-1))
+  {
+    const Grid_point& anc = bm->points[n_anc];
+    const Metric& m1 = anc.metric;
+    const Metric& m2 = curr->metric;
+    FT loc_gamma = m1.compute_distortion(m2);
+    //      std::cout << "loc: " << loc_gamma << " " << anc->index << std::endl;
+#if 1
+    gamma *= loc_gamma;
+#else
+    gamma = (std::max)(loc_gamma, gamma);
+#endif
+    //      std::cout << "gamma: " << gamma << std::endl;
+    n_anc = anc.ancestor;
+    curr = &anc;
+  }
+
+  gamma = (std::min)(25., gamma);
+
+  //    std::cout << "final gamma:" << gamma << std::endl;
+  //    exit(0);
+  return gamma;
+}
+
+void Grid_point::reset()
+{
+  state = FAR;
+  distance_to_closest_seed = FT_inf;
+  closest_seed_id = -1;
+  ancestor = -1;
+  is_Voronoi_vertex = false;
+}
+
+void Grid_point::initialize_from_point(const FT d,
+                                       const std::size_t seed_id)
+{
+  closest_seed_id = seed_id;
+  distance_to_closest_seed = d;
+  state = TRIAL;
+  ancestor = -1;
+}
+bool Grid_point::operator==(const Grid_point& gp) const
+{
+  // the only thing that matters is the point
+  return (point == gp.point);
+}
+
+Grid_point::Grid_point()
+  :
+    bm(NULL),
+    point(),
+    index(static_cast<std::size_t>(-1)),
+    metric(),
+    neighbors(),
+    border_neighbors(),
+    incident_triangles(),
+    is_on_domain_border(false),
+    state(FAR),
+    distance_to_closest_seed(FT_inf),
+    closest_seed_id(-1),
+    ancestor(-1),
+    is_Voronoi_vertex(false)
+{ }
+
+Grid_point::Grid_point(Base_mesh* bm_,
+                       const Point_2& point_,
+                       const std::size_t index_,
+                       const bool is_on_domain_border_)
+  :
+    bm(bm_),
+    point(point_),
+    index(index_),
+    metric(mf->compute_metric(point)),
+    neighbors(),
+    border_neighbors(),
+    incident_triangles(),
+    is_on_domain_border(is_on_domain_border_),
+    state(FAR),
+    distance_to_closest_seed(FT_inf),
+    closest_seed_id(-1),
+    ancestor(-1),
+    is_Voronoi_vertex(false)
+{ }
+
+Grid_point::Grid_point(const Grid_point& gp)
+  :
+    bm(gp.bm),
+    point(gp.point),
+    index(gp.index),
+    metric(gp.metric),
+    neighbors(gp.neighbors),
+    border_neighbors(gp.border_neighbors),
+    incident_triangles(gp.incident_triangles),
+    is_on_domain_border(gp.is_on_domain_border),
+    state(gp.state),
+    distance_to_closest_seed(gp.distance_to_closest_seed),
+    closest_seed_id(gp.closest_seed_id),
+    ancestor(gp.ancestor),
+    is_Voronoi_vertex(gp.is_Voronoi_vertex)
+{ }
 
 void initialize_seeds()
 {
