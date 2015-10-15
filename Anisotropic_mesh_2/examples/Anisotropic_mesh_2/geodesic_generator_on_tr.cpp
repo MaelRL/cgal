@@ -867,9 +867,9 @@ struct Base_mesh
   {
     if(gp->closest_seed_id != static_cast<std::size_t>(-1))
     {
-      std::cerr << "WARNING: a new seed is overwriting the closest seed id";
-      std::cerr << " of a grid point! previous index is: " << gp->closest_seed_id;
-      std::cerr << " (seeds: " << seeds.size() << ")" << std::endl;
+      std::cout << "WARNING: a new seed is overwriting the closest seed id";
+      std::cout << " of a grid point! previous index is: " << gp->closest_seed_id;
+      std::cout << " (seeds: " << seeds.size() << ")" << std::endl;
     }
 
     if(gp->state == TRIAL)
@@ -1369,7 +1369,7 @@ struct Base_mesh
     bool is_t_empty = trial_points.empty();
 
     if(is_t_empty)
-      std::cerr << "WARNING: trial points shouldn't be empty !" << std::endl;
+      std::cout << "WARNING: trial points shouldn't be empty !" << std::endl;
 
     while(!is_t_empty)
     {
@@ -1410,8 +1410,8 @@ struct Base_mesh
       is_t_empty = trial_points.empty();
     }
 
-    std::cerr << "End of spread_distances. time: ";
-    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+    std::cout << "End of spread_distances. time: ";
+    std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
 
     if(are_Voronoi_vertices_needed && use_dual_shenanigans)
     {
@@ -1423,8 +1423,8 @@ struct Base_mesh
 #else
       mark_voronoi_vertices_on_border();
 #endif
-      std::cerr << "After Voronoi border: ";
-      std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+      std::cout << "After Voronoi border: ";
+      std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
     }
   }
 
@@ -1449,8 +1449,8 @@ struct Base_mesh
       }
     }
 
-    std::cerr << "End of debug. time: ";
-    std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+    std::cout << "End of debug. time: ";
+    std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
   }
 
   void clear_dual()
@@ -1543,7 +1543,7 @@ struct Base_mesh
 
     if(!refinement_point)
     {
-      std::cerr << "Couldn't find a ref point, need more initial points" << std::endl;
+      std::cout << "Couldn't find a ref point, need more initial points" << std::endl;
       return false;
 //      std::exit(EXIT_FAILURE);
     }
@@ -2237,7 +2237,7 @@ struct Base_mesh
     const Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
     if(Vor_vertices.size() < 3)
     {
-      std::cerr << "WARNING: NOT ENOUGH VORONOI VERTICES TO OPTIMIZE SEED: " << seed_id << std::endl;
+      std::cout << "WARNING: NOT ENOUGH VORONOI VERTICES TO OPTIMIZE SEED: " << seed_id << std::endl;
       return Point_2(0.,0.);
     }
 
@@ -2293,7 +2293,7 @@ struct Base_mesh
 
     if(Vor_vertices.size() < 3)
     {
-      std::cerr << "WARNING: NOT ENOUGH VORONOI VERTICES TO OPTIMIZE SEED: " << seed_id << std::endl;
+      std::cout << "WARNING: NOT ENOUGH VORONOI VERTICES TO OPTIMIZE SEED: " << seed_id << std::endl;
       return Point_2(0.,0.);
     }
 
@@ -2523,7 +2523,7 @@ struct Base_mesh
 
     std::size_t length = gp->ancestor_path_length();
     if(length < min_ancestor_path_length)
-      std::cerr << "the canvas is thin (" << length << ") at : " << gp->index << " ("
+      std::cout << "the canvas is thin (" << length << ") at : " << gp->index << " ("
                 << gp->point << ") dual simplex of size: " << dual_simplex.size()
                 << " and cellid: " << gp->closest_seed_id << std::endl;
 
@@ -2950,7 +2950,7 @@ struct Base_mesh
 void Grid_point::change_state(FMM_state new_state)
 {
   if(new_state == state)
-    std::cerr << "WARNING: useless state change..." << std::endl;
+    std::cout << "WARNING: useless state change..." << std::endl;
 
   if(state == KNOWN)
     known_count--;
@@ -3292,7 +3292,7 @@ int main(int, char**)
       bm.points[i].state = KNOWN;
 
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cerr << "End refinement: " << duration << std::endl;
+    std::cout << "End refinement: " << duration << std::endl;
   }
 
   bm.output_grid_data_and_dual(str_base_mesh + "_tr");
@@ -3306,5 +3306,5 @@ int main(int, char**)
   }
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-  std::cerr << "duration: " << duration << std::endl;
+  std::cout << "duration: " << duration << std::endl;
 }
