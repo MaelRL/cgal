@@ -153,7 +153,7 @@ public:
         FT max_gamma = (std::max)((std::max)(gamma_ab, gamma_ac), gamma_bc);
         q.get<0>() = max_gamma / distortion_bound;
 
-//        std::cout << max_gamma / distortion_bound << std::endl;
+//        std::cout << max_gamma << std::endl;
 
         if( q.distortion() > 1 )
         {
@@ -396,9 +396,11 @@ CGAL::Bbox_2 base_mesh_bbox;
 
 // refinement
 int n_refine = 0;
+std::size_t min_ancestor_path_length = 6;
 
 // optimization
-int max_opti_n = 500;
+int max_opti_n = 0;
+int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
 
 //debug & info
 int known_count=0, trial_count=0, far_count=0;
@@ -852,6 +854,13 @@ struct Base_mesh
   // Llyod
   Voronoi_vertices_vector Voronoi_vertices;
 
+  void print_states() const
+  {
+    std::cout << "known: " << known_count;
+    std::cout << " trial: " << trial_count;
+    std::cout << " far: " << far_count << std::endl;
+  }
+
   void initialize_grid_point(Grid_point* gp,
                              const FT dist,
                              const std::size_t seed_id)
@@ -897,9 +906,9 @@ struct Base_mesh
         std::cout << "locating seed " << seed_id
                   << " point: " << s.x() << " " << s.y() << std::endl;
         std::cout << "found triangle: " << i << std::endl;
-        std::cout << tr[0] << " [" << p << "] " << std::endl;
-        std::cout << tr[1] << " [" << q << "] " << std::endl;
-        std::cout << tr[2] << " [" << r << "] " << std::endl;
+        std::cout << tr[0] << " [" << points[tr[0]].point << "] " << std::endl;
+        std::cout << tr[1] << " [" << points[tr[1]].point << "] " << std::endl;
+        std::cout << tr[2] << " [" << points[tr[2]].point << "] " << std::endl;
 #endif
 
         // we're inside! compute the distance to the vertices of the triangle
@@ -942,8 +951,6 @@ struct Base_mesh
     CGAL_assertion(dim == 2);
 
     in >> word >> nv; // Vertices nv
-    std::cout << "base mesh made of " << nv << " vertices" << std::endl;
-
     for(std::size_t i=0; i<nv; ++i)
     {
       int border_info;
@@ -989,6 +996,8 @@ struct Base_mesh
 
 #if (verbose > 5)
     std::cout << "base mesh initialized" << std::endl;
+    std::cout << nv << " vertices" << std::endl;
+    std::cout << nt << " triangles" << std::endl;
 #endif
   }
 
@@ -1001,13 +1010,6 @@ struct Base_mesh
     }
     Voronoi_vertices.resize(seeds.size());
 
-  }
-
-  void print_states() const
-  {
-    std::cout << "known: " << known_count;
-    std::cout << " trial: " << trial_count;
-    std::cout << " far: " << far_count << std::endl;
   }
 
   void fill_edge_bisectors_map(const Grid_point* gp,
@@ -1041,7 +1043,7 @@ struct Base_mesh
 
   void shave_off_virtual_points(const std::size_t real_points_n)
   {
-    std::cout << "shaving: " << points.size() << " to " << real_points_n << std::endl;
+//    std::cout << "shaving: " << points.size() << " to " << real_points_n << std::endl;
     typename std::vector<Grid_point>::iterator it = points.begin();
     std::advance(it, real_points_n);
     points.erase(it, points.end());
@@ -1133,10 +1135,6 @@ struct Base_mesh
     // need to push it back to points anyway for compute_closest_seed to work
     points.push_back(c);
 
-//    CGAL_assertion(gq.state == points[gq.index].state);
-//    CGAL_assertion(gr.state == points[gr.index].state);
-//    CGAL_assertion(gs.state == points[gs.index].state);
-
     Grid_point& gp = points.back();
     gp.compute_closest_seed(gq.index);
     gp.compute_closest_seed(gr.index);
@@ -1145,7 +1143,7 @@ struct Base_mesh
 
     // another potential stop is if the (max) distance between the centroid
     // and a point of the triangle is below a given distance
-    if(call_count > 5)
+    if(call_count > max_depth)
       return gp;
 
     if(gp.closest_seed_id == gq.closest_seed_id)
@@ -1437,6 +1435,7 @@ struct Base_mesh
     for(std::size_t i=0; i<points.size(); ++i)
     {
       Grid_point* gp = &(points[i]);
+      CGAL_assertion(gp->state == KNOWN);
       std::cout << "point " << i << " min distance is supposedly: ";
       std::cout << gp->distance_to_closest_seed << std::endl;
       typename Grid_point::Neighbors::const_iterator it = gp->neighbors.begin(),
@@ -2011,8 +2010,9 @@ struct Base_mesh
         int pos = 0;
         int third_edge_first_point_id = -1; // the edge for which both extremities have the same color
         boost::array<Grid_point, 2> mid_pts;
-        for(int i=0; i<3; ++i)
+        for(std::size_t i=0; i<3; ++i)
         {
+          CGAL_assertion(triangle[i] < points.size());
           const Grid_point& gp0 = points[triangle[i]];
           const Grid_point& gp1 = points[triangle[(i+1)%3]];
 
@@ -2026,7 +2026,8 @@ struct Base_mesh
           mid_pts[pos++] = Vor_vertex_on_edge(&gp0, &gp1);
         }
 
-        CGAL_postcondition(i >= 0 && i < 3);
+        CGAL_postcondition(third_edge_first_point_id >= 0 &&
+                           third_edge_first_point_id < 3);
 
         // 'triangle' is split in 3 smaller triangles.
         // a is the one with the different color
@@ -2520,7 +2521,7 @@ struct Base_mesh
       return;
 
     std::size_t length = gp->ancestor_path_length();
-    if(length < 8)
+    if(length < min_ancestor_path_length)
       std::cerr << "the canvas is thin (" << length << ") at : " << gp->index << " ("
                 << gp->point << ") dual simplex of size: " << dual_simplex.size()
                 << " and cellid: " << gp->closest_seed_id << std::endl;
@@ -2546,8 +2547,10 @@ struct Base_mesh
       const Grid_point& gp = points[grid_tri[i]];
       const FT d = gp.distance_to_closest_seed;
 
-      if(gp.is_on_domain_border)
-        std::cout << gp.index << " on border in add_simplex" << std::endl;
+      // fixme we want to always take the pt on the border, it might not always
+      // be the case
+//      if(gp.is_on_domain_border)
+//        std::cout << gp.index << " on border in add_simplex" << std::endl;
 
       if(d > max)
       {
@@ -2556,11 +2559,10 @@ struct Base_mesh
       }
     }
 
-    // only if the triangle contains a border point...
-    if(points[grid_tri[0]].is_on_domain_border ||
-       points[grid_tri[1]].is_on_domain_border ||
-       points[grid_tri[2]].is_on_domain_border)
-      std::cout << "picked " << points[max_dist_p].index << std::endl;
+//    if(points[grid_tri[0]].is_on_domain_border ||
+//       points[grid_tri[1]].is_on_domain_border ||
+//       points[grid_tri[2]].is_on_domain_border)
+//      std::cout << "picked " << points[max_dist_p].index << std::endl;
 
     // keep as dual point the farthest grid point -- at least until we have
     // precise Voronoi computations)
@@ -2712,10 +2714,6 @@ struct Base_mesh
   {
     // todo, we don't always need to compute the voronoi cell vertices
 
-    // need to have everything KNOWN for voronoi cell vertices computation
-    for(std::size_t i=0; i<points.size(); ++i)
-      points[i].state = KNOWN;
-
 #if (verbose > 5)
     std::cout << "dual computations" << std::endl;
 #endif
@@ -2805,7 +2803,7 @@ struct Base_mesh
 
 #if (verbose > 5)
     std::cout << "captured: ";
-    std::cout << points.size() << " points, ";
+    std::cout << seeds.size() << " points, ";
     std::cout << dual_edges.size() << " edges, ";
     std::cout << dual_triangles.size() << " triangles" << std::endl;
 #endif
@@ -2889,23 +2887,6 @@ struct Base_mesh
     std::size_t triangles_count = 0;
     std::ostringstream triangles_out;
 
-    // gather the edges for self intersection tests
-    std::set<Edge> edges;
-    for(std::size_t i=0; i<triangles.size(); ++i)
-    {
-      const Tri& tr = triangles[i];
-      if(points[tr[0]].closest_seed_id != seed_id ||
-         points[tr[1]].closest_seed_id != seed_id ||
-         points[tr[2]].closest_seed_id != seed_id)
-        continue;
-
-      // no need to sort as long as we keep the indices in order
-      Edge e;
-      e[0] = tr[0]; e[1] = tr[1]; edges.insert(e);
-      e[0] = tr[0]; e[1] = tr[2]; edges.insert(e);
-      e[0] = tr[1]; e[1] = tr[2]; edges.insert(e);
-    }
-
     //output the triangles for 'real' vertices
     for(std::size_t i=0; i<triangles.size(); ++i)
     {
@@ -2917,8 +2898,7 @@ struct Base_mesh
 
       triangles_count++;
       triangles_out << local[tr[0]]+1 << " " << local[tr[1]]+1 << " " << local[tr[2]]+1 // +1 due to medit
-                    << " 1" << std::endl; // 'is_triangle_intersected' ?
-      // gotta change that function since it uses seeds and not mapped points though
+                    << " 1" << std::endl;
     }
 
     // output everything neatly to the file
@@ -2936,7 +2916,8 @@ struct Base_mesh
     out << triangles_count << std::endl;
     out << triangles_out.str().c_str() << std::endl;
 
-    //output edges between the Voronoi vertices
+#ifdef COMPUTE_PRECISE_VOR_VERTICES
+    // output edges between the Voronoi vertices
     std::size_t edges_count = Vor_vertices.size();
 
     out << "Edges" << std::endl;
@@ -2947,6 +2928,7 @@ struct Base_mesh
       out << local[Vor_vertices[i].index]+1 << " "
           << local[Vor_vertices[j].index]+1 << " 0" << std::endl; // +1 due to medit
     }
+#endif
 
     out << "End" << std::endl;
   }
@@ -2963,7 +2945,6 @@ struct Base_mesh
       Voronoi_vertices()
   { }
 };
-
 
 void Grid_point::change_state(FMM_state new_state)
 {
@@ -3116,7 +3097,7 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<Grid_point*>& trial_
 
   PQ_state pqs_ret = NOTHING_TO_DO;
   typename Neighbors::const_iterator it = neighbors.begin(),
-      end = neighbors.end();
+                                     end = neighbors.end();
   for(; it!=end; ++it)
   {
     Grid_point& gp = bm->points[*it];
@@ -3305,6 +3286,9 @@ int main(int, char**)
       if(!successful_insert)
         break;
     }
+
+    for(std::size_t i=0; i<bm.points.size(); ++i)
+      bm.points[i].state = KNOWN;
 
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cerr << "End refinement: " << duration << std::endl;
