@@ -2,13 +2,15 @@
 // Campen et al, Practical Anisotropic Geodesy EG 2013
 
 #include <CGAL/Starset.h>
-#include <CGAL/Stretched_Delaunay_2.h>
-
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
 
 #include <CGAL/Delaunay_mesh_size_criteria_2.h>
 #include <CGAL/Delaunay_mesher_2.h>
+
+#include <CGAL/AABB_tree.h>
+#include <CGAL/AABB_traits.h>
+#include <CGAL/AABB_triangle_primitive.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
@@ -35,9 +37,7 @@ typedef typename K::FT                                       FT;
 using namespace CGAL::Anisotropic_mesh_2;
 
 typedef typename K::Vector_2                                 Vector;
-
-typedef Stretched_Delaunay_2<K>                              Star;
-typedef typename Star::Metric                                Metric;
+typedef Metric_base<K>                                       Metric;
 
 // 'bit ugly to have the metric field running around here but we need to pass
 // it around and around and around and it's faster this way !
@@ -344,27 +344,29 @@ void generate_grid()
   cdt.insert_constraint(vd, va);
 
   FT shape = 0.125;
-  FT size = 0.002;
-  FT distortion = 1.;
-  CGAL::refine_Delaunay_mesh_2(cdt, Criteria(shape, size, distortion));
+  FT distortion = 1.05; // > 1 to use
+  CGAL::refine_Delaunay_mesh_2(cdt, Criteria(shape, distortion));
 
   std::cout << "Number of vertices: " << cdt.number_of_vertices() << std::endl;
 
-  output_cdt_to_mesh(cdt, "rough_base_mesh");
+  output_cdt_to_mesh(cdt, "input_base_mesh");
 }
 
 // -----------------------------------------------------------------------------
 // Geodesic stuff now !
 // -----------------------------------------------------------------------------
 
-typedef typename Star::Point_2                               Point_2;
+typedef typename K::Point_2                                  Point_2;
+typedef typename K::Point_3                                  Point_3;
 typedef std::set<std::size_t>                                Simplex;
 typedef boost::array<std::size_t, 2>                         Edge;
 typedef boost::array<std::size_t, 3>                         Tri;
 typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
 
 typedef typename K::Segment_2                                Segment;
-typedef typename K::Triangle_2                               Triangle;
+typedef typename K::Triangle_2                               Triangle_2;
+typedef typename K::Segment_3                                Segment_3;
+typedef typename K::Triangle_3                               Triangle_3;
 
 typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
 typedef typename KExact::Point_2                             EPoint;
@@ -488,7 +490,7 @@ bool is_triangle_intersected(const Tri& tri, const std::set<Edge>& edges)
   const Point_2& p0 = seeds[i0];
   const Point_2& p1 = seeds[i1];
   const Point_2& p2 = seeds[i2];
-  const Triangle triangle(p0, p1, p2);
+  const Triangle_2 triangle(p0, p1, p2);
 
 #pragma omp parallel shared(is_intersected, edges, p0, p1, p2)
   {
@@ -609,7 +611,7 @@ FT triangle_area_in_metric(const Point_2& p, const Point_2& q, const Point_2& r)
 void compute_bary_weights(const Point_2&p , const Point_2& a, const Point_2& b, const Point_2& c,
                           FT& lambda_a, FT& lambda_b, FT& lambda_c)
 {
-  CGAL_assertion(!(Triangle(a,b,c)).is_degenerate());
+  CGAL_assertion(!(Triangle_2(a,b,c)).is_degenerate());
   Vector2d v_ab, v_ac, v_ap;
   v_ab(0) = b.x() - a.x();
   v_ab(1) = b.y() - a.y();
@@ -831,9 +833,40 @@ struct Base_mesh
   typedef std::map<std::pair<std::size_t, std::size_t>,
                    std::pair<const Grid_point*, const Grid_point*> > Edge_bisec_map;
 
+  // for fast seed locate (cheating by pretending we're in 3D)
+
+  struct Base_mesh_primitive
+  {
+    typedef int                            Id;
+
+    typedef typename K::Point_3            Point;
+    typedef typename K::Triangle_3         Datum;
+
+    Id m_it;
+    Datum m_datum; // cache the datum
+    Point m_p; // cache the reference point
+
+    Base_mesh_primitive() { }
+    Base_mesh_primitive(int i, const Datum& datum, const Point& point)
+      :
+        m_it(i),
+        m_datum(datum),
+        m_p(point)
+    { }
+
+     Id id() const { return m_it; }
+     Datum datum() const { return m_datum; }
+     Point reference_point() const { return m_p; }
+  };
+
+  typedef Base_mesh_primitive                             Primitive;
+  typedef typename Primitive::Id                          Primitive_Id;
+  typedef CGAL::AABB_traits<K, Primitive>                 AABB_triangle_traits;
+  typedef CGAL::AABB_tree<AABB_triangle_traits>           Tree;
+
   std::vector<Grid_point> points;
   std::vector<Tri> triangles;
-  std::vector<Tri> triangles_buffer; // if we're refining the grid
+  std::vector<Tri> triangles_buffer; // used while refining the grid
   Grid_point_vector trial_points;
 
   // extra info: map[edge e] = triangles incident to e
@@ -854,6 +887,9 @@ struct Base_mesh
 
   // Llyod
   Voronoi_vertices_vector Voronoi_vertices;
+
+  // AABB tree
+  Tree tree;
 
   void print_states() const
   {
@@ -889,24 +925,29 @@ struct Base_mesh
   {
     // find the triangle that contains the seed and initialize the distance at
     // these three points accordingly.
-
-    // something pretty todo... (aka triangulation_2's locate once the canvas derives from Tr_2)
-    // for now: brutally loop the triangles and orientation tests!
-
     bool found = false;
-    for(std::size_t i=0; i<triangles.size(); ++i)
+
+    Segment_3 query(Point_3(s.x(), s.y(), -1.), Point_3(s.x(), s.y(), 1.));
+    std::list<Primitive_Id> intersections;
+    tree.all_intersected_primitives(query, std::back_inserter(intersections));
+
+    typename std::list<Primitive_Id>::const_iterator it = intersections.begin(),
+                                                     end = intersections.end();
+    for(; it!=end; ++it)
     {
-      const Tri& tr = triangles[i];
+      const Tri& tr = triangles[*it];
+      const Triangle_2 tr_2(points[tr[0]].point,
+                            points[tr[1]].point,
+                            points[tr[2]].point);
 
-      const Triangle t(points[tr[0]].point, points[tr[1]].point, points[tr[2]].point);
-
-      if(K().has_on_bounded_side_2_object()(t, s) ||
-         K().has_on_boundary_2_object()(t, s))
+      if(K().has_on_bounded_side_2_object()(tr_2, s) ||
+         K().has_on_boundary_2_object()(tr_2, s))
       {
+        found = true;
 #if (verbose > 10)
         std::cout << "locating seed " << seed_id
                   << " point: " << s.x() << " " << s.y() << std::endl;
-        std::cout << "found triangle: " << i << std::endl;
+        std::cout << "found triangle: " << *it << std::endl;
         std::cout << tr[0] << " [" << points[tr[0]].point << "] " << std::endl;
         std::cout << tr[1] << " [" << points[tr[1]].point << "] " << std::endl;
         std::cout << tr[2] << " [" << points[tr[2]].point << "] " << std::endl;
@@ -927,12 +968,31 @@ struct Base_mesh
           FT d = v.norm(); // d = std::sqrt(v^t * M * v) = (f*v).norm()
           initialize_grid_point(&gp, d, seed_id);
         }
-
-        found = true;
-        break;
+        break; // no need to check the other primitives
       }
     }
     CGAL_assertion(found);
+  }
+
+  void build_aabb_tree()
+  {
+    std::cout << "build aabb tree" << std::endl;
+    tree.clear();
+
+    // create an aabb tree of triangles to fasten it
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& t = triangles[i];
+      const Point_2& p0 = points[t[0]].point;
+      const Point_2& p1 = points[t[1]].point;
+      const Point_2& p2 = points[t[2]].point;
+      Point_3 p(p0.x(), p0.y(), 0.);
+      Triangle_3 tr_3(p,
+                      Point_3(p1.x(), p1.y(), 0.),
+                      Point_3(p2.x(), p2.y(), 0.));
+      Primitive pri(i, tr_3, p);
+      tree.insert(pri);
+    }
   }
 
   void initialize_base_mesh()
@@ -994,6 +1054,8 @@ struct Base_mesh
         points[id1].incident_triangles.push_back(new_tri_id);
       }
     }
+
+    build_aabb_tree();
 
 #if (verbose > 5)
     std::cout << "base mesh initialized" << std::endl;
@@ -2188,7 +2250,7 @@ struct Base_mesh
       {
         if(is_triangle_intersected(tr, dual_edges))
         {
-          Triangle tri(seeds[tr[0]], seeds[tr[1]], seeds[tr[2]]);
+          Triangle_2 tri(seeds[tr[0]], seeds[tr[1]], seeds[tr[2]]);
           FT area = tri.area();
           PQ_entry pqe = boost::make_tuple(dual_simplex, gp, area);
           insert_in_PQ(pqe, intersection_queue, 2);
