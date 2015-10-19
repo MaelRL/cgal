@@ -417,6 +417,7 @@ typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
 To_exact to_exact;
 Back_from_exact back_from_exact;
 
+#define REFINE_GRID
 #define FILTER_SEEDS_OUTSIDE_GRID
 #define verbose 6
 const FT FT_inf = std::numeric_limits<FT>::infinity();
@@ -1533,23 +1534,40 @@ struct Base_mesh
   void debug()
   {
     CGAL_assertion(trial_points.empty() );
+    bool failed = false;
 
-    std::cout << "BRUTE FORCE CHECK THAT WE ARE REALLY FINISHED : " << std::endl;
+    for(std::size_t i=0; i<points.size(); ++i)
+      points[i].state = KNOWN;
+
     for(std::size_t i=0; i<points.size(); ++i)
     {
-      Grid_point* gp = &(points[i]);
-      CGAL_assertion(gp->state == KNOWN);
-      std::cout << "point " << i << " min distance is supposedly: ";
-      std::cout << gp->distance_to_closest_seed << std::endl;
-      typename Grid_point::Neighbors::const_iterator it = gp->neighbors.begin(),
-                                                     end = gp->neighbors.end();
-      for(; it!=end; ++it)
+      const Grid_point& gp = points[i];
+
+      if(gp.distance_to_closest_seed == FT_inf || gp.closest_seed_id >= seeds.size() ||
+         (gp.ancestor != static_cast<std::size_t>(-1) &&
+                  points[gp.ancestor].closest_seed_id != gp.closest_seed_id))
       {
-        const Grid_point* gq = &points[*it];
-        if(gq)
-          CGAL_assertion(!gp->compute_closest_seed(gq->index));
+        failed = true;
+        std::cout << "debug: " << i << " [" << gp.point << "] " << " at distance : ";
+        std::cout << gp.distance_to_closest_seed << " from " << gp.closest_seed_id;
+        std::cout << " ancestor: " << gp.ancestor;
+        std::cout << " ancid: ";
+        if(gp.ancestor==static_cast<std::size_t>(-1))
+           std::cout << "-1" << std::endl;
+        else
+          std::cout << points[gp.ancestor].closest_seed_id << std::endl;
+        std::cout << "this failing point is found in the neighbors of : ";
+        for(std::size_t j=0; j<points.size(); ++j)
+        {
+          const Grid_point& gq = points[j];
+          if(gq.neighbors.find(gp.index) != gq.neighbors.end())
+            std::cout << j << " ";
+        }
+        std::cout << std::endl;
       }
     }
+    if(failed)
+      CGAL_assertion(false);
 
     std::cout << "End of debug. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
@@ -1642,6 +1660,8 @@ struct Base_mesh
     gq.neighbors.insert(n_pq);
 
     gr.neighbors.insert(n_pq);
+
+    points[n_pq].neighbors.insert(n_r); // n_p & n_q already added when n_pq was created
   }
 
   void split_2(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
@@ -1657,7 +1677,7 @@ struct Base_mesh
     Grid_point& gq = points[n_q];
     Grid_point& gr = points[n_r];
 
-    // r has the new i as incident triangle so removed in p & q
+    // q has the new i as incident triangle so removed in p & r
     gp.remove_from_incident_triangles(i);
     gr.remove_from_incident_triangles(i);
 
@@ -1687,7 +1707,12 @@ struct Base_mesh
     gq.neighbors.insert(n_qr);
 
     gr.remove_from_neighbors(n_q);
-    gr.neighbors.insert(n_qr);
+    gr.neighbors.insert(n_pq);
+
+    points[n_pq].neighbors.insert(n_r);
+    points[n_pq].neighbors.insert(n_qr);
+
+    points[n_qr].neighbors.insert(n_pq);
   }
 
   void split_3(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
@@ -1747,10 +1772,30 @@ struct Base_mesh
     gr.remove_from_neighbors(n_q);
     gr.neighbors.insert(n_qr);
     gr.neighbors.insert(n_pr);
+
+    points[n_pq].neighbors.insert(n_qr);
+    points[n_pq].neighbors.insert(n_pr);
+
+    points[n_qr].neighbors.insert(n_pq);
+    points[n_qr].neighbors.insert(n_pr);
+
+    points[n_pr].neighbors.insert(n_pq);
+    points[n_pr].neighbors.insert(n_qr);
   }
 
   void refine_grid()
   {
+    bool needs_to_be_refined = false;
+    do
+    {
+      needs_to_be_refined = refine_grid_one_step();
+    } while(needs_to_be_refined);
+  }
+
+  bool refine_grid_one_step()
+  {
+    std::cout << "refine grid one step" << std::endl;
+
     // tedious function so it's written in a very clear way... it's, as usual,
     // not the most efficient but the most straight forward
 
@@ -1765,7 +1810,6 @@ struct Base_mesh
     std::vector<bool> refined_triangles(triangles.size(), false);
     std::map<std::pair<std::size_t, std::size_t>, std::size_t> edge_mid_points;
 
-#if 1
     // determine which seeds need to be refined
     for(std::size_t i=0; i<triangles.size(); ++i)
     {
@@ -1779,16 +1823,24 @@ struct Base_mesh
       {
         for(int j=0; j<3; ++j)
         {
-          std::size_t ap_length = points[triangle[j]].ancestor_path_length();
+          const Grid_point& gp = points[triangle[j]];
+          std::size_t ap_length = gp.ancestor_path_length();
           if(ap_length < min_ancestor_path_length)
-            seeds_to_refine.insert(points[triangle[j]].closest_seed_id);
+          {
+            seeds_to_refine.insert(gp.closest_seed_id);
+            std::cout << "the canvas is thin (" << ap_length << ") at : "
+                      << gp.index << " (" << gp.point
+                      << ") dual simplex of size: " << colors.size()
+                      << " and cellid: " << gp.closest_seed_id << std::endl;
+          }
         }
       }
     }
-#else
-    seeds_to_refine.insert(0);
-#endif
 
+    if(seeds_to_refine.empty())
+      return false;
+
+    std::cout << points.size() << " points before grid refinement" << std::endl;
     std::cout << triangles.size() << " triangles before grid refinement" << std::endl;
 
     // base mesh refining, not seeds refining !
@@ -1880,16 +1932,13 @@ struct Base_mesh
       std::size_t new_tri_2_id = create_new_triangle(n_q, n_pq, n_qr);
       std::size_t new_tri_3_id = create_new_triangle(n_r, n_pr, n_qr);
 
-      refined_triangles.push_back(true);
-      refined_triangles.push_back(true);
-      refined_triangles.push_back(true);
-
       // change the triangle 'i' to be the middle triangle
       triangle[0] = n_pq;
       triangle[1] = n_qr;
       triangle[2] = n_pr;
 
-      // build the new incident_triangle information      points[n_p].incident_triangles.push_back(new_tri_1_id);
+      // build the new incident_triangle information
+      points[n_p].incident_triangles.push_back(new_tri_1_id);
       points[n_q].incident_triangles.push_back(new_tri_2_id);
       points[n_r].incident_triangles.push_back(new_tri_3_id);
 
@@ -1931,7 +1980,10 @@ struct Base_mesh
 
     // to have a proper triangulation, we need to refine some triangles who were
     // not split but have gotten a point inserted on at least one of their edges
+    std::cout << triangles_buffer.size() << " buffer size before handling border "
+              << triangles.size() + triangles_buffer.size() << std::endl;
 
+    CGAL_assertion(triangles.size() == refined_triangles.size());
     for(std::size_t i=0; i<triangles.size(); ++i)
     {
       if(refined_triangles[i]) // already refined (or new), nothing to do
@@ -1995,13 +2047,54 @@ struct Base_mesh
     triangles.insert(triangles.end(), triangles_buffer.begin(), triangles_buffer.end());
     triangles_buffer.clear();
 
+
+    std::cout << points.size() << " points after grid refinement" << std::endl;
     std::cout << triangles.size() << " triangles after grid refinement" << std::endl;
 
+    // some quick debug on incidency and adjacency
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& triangle = triangles[i];
+      const Grid_point& gp = points[triangle[0]];
+      const Grid_point& gq = points[triangle[1]];
+      const Grid_point& gr = points[triangle[2]];
+
+      CGAL_assertion(gp.neighbors.find(gq.index) != gp.neighbors.end());
+      CGAL_assertion(gp.neighbors.find(gq.index) != gp.neighbors.end());
+      CGAL_assertion(gq.neighbors.find(gp.index) != gq.neighbors.end());
+      CGAL_assertion(gq.neighbors.find(gr.index) != gq.neighbors.end());
+      CGAL_assertion(gr.neighbors.find(gq.index) != gr.neighbors.end());
+      CGAL_assertion(gr.neighbors.find(gp.index) != gr.neighbors.end());
+
+      CGAL_assertion(std::find(gp.incident_triangles.begin(),
+                               gp.incident_triangles.end(), i) != gp.incident_triangles.end());
+      CGAL_assertion(std::find(gq.incident_triangles.begin(),
+                               gq.incident_triangles.end(), i) != gq.incident_triangles.end());
+      CGAL_assertion(std::find(gr.incident_triangles.begin(),
+                               gr.incident_triangles.end(), i) != gr.incident_triangles.end());
+    }
+
+    build_aabb_tree();
+
+#ifdef USE_FULL_REBUILDS
+    reset();
+    locate_and_initialize_seeds();
+#else
+    // if you allow other cells to be modified without reseting them fully,
+    // you can create orphans, which must NOT happen...
+    refresh_grid_point_states();
+    for(std::size_t i=0; i<points.size(); ++i)
+      points[i].state = KNOWN;
+
+    // go an extra step (is it necessary) for points whose colors we are spreading:
     for(std::size_t i=0; i<points.size(); ++i)
     {
       Grid_point& gp = points[i];
       if(seeds_to_rebuild.find(gp.closest_seed_id) != seeds_to_rebuild.end())
+      {
+//        std::cout << "reseting: " << i << "(id: " << gp.closest_seed_id << ")" << std::endl;
         gp.reset();
+      }
     }
 
     std::cout << "must rebuild: ";
@@ -2014,12 +2107,10 @@ struct Base_mesh
       locate_and_initialize(p, *it);
     }
     std::cout << std::endl;
-
+#endif
     clear_dual();
     spread_distances(false);
-    //debug();
-
-    output_grid_data_and_dual("after_split");
+    return true;
   }
 
   void clear_dual()
@@ -3283,9 +3374,12 @@ struct Base_mesh
   void compute_dual(const bool are_Voronoi_vertices_needed = true)
   {
     // todo, we don't always need to compute the voronoi cell vertices
-
 #if (verbose > 5)
     std::cout << "dual computations" << std::endl;
+#endif
+
+#ifdef REFINE_GRID
+    refine_grid();
 #endif
 
     for(std::size_t i=0; i<triangles.size(); ++i)
@@ -3576,6 +3670,12 @@ void Grid_point::remove_from_incident_triangles(const std::size_t i)
 
 bool Grid_point::compute_closest_seed(const std::size_t n_anc)
 {
+#if (verbose > 20)
+  std::cout << "closest seed at " << index << " from " << n_anc;
+  std::cout << " (current d/a: " << distance_to_closest_seed << " " << ancestor;
+  std::cout << " seed: " << closest_seed_id << ")" << std::endl;
+#endif
+
   CGAL_precondition(n_anc < bm->points.size());
   const Grid_point& anc = bm->points[n_anc];
   CGAL_assertion(anc.state == KNOWN);
