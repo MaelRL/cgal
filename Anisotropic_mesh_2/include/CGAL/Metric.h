@@ -37,6 +37,7 @@ public:
   const Vector_2& get_vmax() const { return v_max; }
   void get_min_eigenvector(Vector_2& v) const { v = v_min; }
   void get_max_eigenvector(Vector_2& v) const { v = v_max; }
+  FT get_anisotropic_ratio() const { return e_max/e_min; }
   double get_min_eigenvalue() const { return e_min; }
   double get_max_eigenvalue() const { return e_max; }
   void set_min_eigenvalue(double emin) const { e_min = emin; }

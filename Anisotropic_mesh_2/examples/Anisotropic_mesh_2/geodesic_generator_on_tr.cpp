@@ -627,6 +627,8 @@ FT triangle_area_in_metric(const Point_2& p, const Point_2& q, const Point_2& r)
 {
   // compute the interpolated's metric transformation
   FT third = 1./3.;
+
+  // very unefficient fixme
   Eigen::Matrix2d f = third*(mf->compute_metric(p).get_transformation() +
                              mf->compute_metric(q).get_transformation() +
                              mf->compute_metric(r).get_transformation());
@@ -737,7 +739,7 @@ struct Grid_point
   void remove_from_neighbors(const std::size_t n_p);
   void remove_from_border_neighbors(const std::size_t n_p);
   void remove_from_incident_triangles(const std::size_t i);
-  bool compute_closest_seed(const std::size_t n_anc);
+  bool compute_closest_seed(const std::size_t n_anc, const bool overwrite = true);
   PQ_state update_neighbors_distances(std::vector<Grid_point*>& trial_pq) const;
   FT distortion_to_seed() const;
   void reset();
@@ -1112,7 +1114,6 @@ struct Base_mesh
       locate_and_initialize(p, i);
     }
     Voronoi_vertices.resize(seeds.size());
-
   }
 
   void fill_edge_bisectors_map(const Grid_point* gp,
@@ -1497,8 +1498,10 @@ struct Base_mesh
       trial_points.pop_back();
 
 #if (verbose > 10)
+      std::cout << "-------------------------------------------------------" << std::endl;
       std::cout << "picked n° " << gp->index << " (" << gp->point.x() << ", " << gp->point.y() << ") ";
-      std::cout << "at distance : " << gp->distance_to_closest_seed << " from " << gp->closest_seed_id << std::endl;
+      std::cout << "at distance : " << gp->distance_to_closest_seed << " from "
+                << gp->closest_seed_id << " ancestor : " << gp->ancestor << std::endl;
 #endif
 
       gp->state = KNOWN;
@@ -1512,6 +1515,8 @@ struct Base_mesh
         std::make_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
       is_t_empty = trial_points.empty();
     }
+
+    debug();
 
     std::cout << "End of spread_distances. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
@@ -2183,6 +2188,12 @@ struct Base_mesh
 
     PQ_entry best_entry;
 
+//    std::cout << "queues: " << std::endl;
+//    std::cout << "size queue : " << size_queue.size() << std::endl;
+//    typename PQ::const_iterator pqcit = size_queue.begin();
+//    for(; pqcit!=size_queue.end(); ++pqcit)
+//      std::cout << *pqcit << std::endl;
+
     if(!size_queue.empty())
        best_entry = *(size_queue.begin());
     else if(!intersection_queue.empty())
@@ -2196,7 +2207,7 @@ struct Base_mesh
 
     if(refinement_point)
     {
-      std::cout << "naturally we picked : " << refinement_point->index << "[";
+      std::cout << "naturally we picked : " << refinement_point->index << " [";
       std::cout << refinement_point->point << "]" << std::endl;
       std::cout << "second was: " << best_entry.get<2>() << std::endl;
     }
@@ -2214,10 +2225,6 @@ struct Base_mesh
 
   void output_grid(const std::string str_base) const
   {
-#if (verbose > 5)
-    std::cout << "output grid" << std::endl;
-#endif
-
     std::ofstream out((str_base + ".mesh").c_str());
     std::ofstream out_bb((str_base + ".bb").c_str());
 //    std::ofstream out_distortion_bb((str_base + "_distortion.bb").c_str());
@@ -3482,12 +3489,10 @@ struct Base_mesh
 
   void output_straight_dual(const std::string str_base)
   {
-#if (verbose > 5)
-    std::cout << "output straight dual" << std::endl;
-#endif
-
     if(dual_edges.empty() && dual_triangles.empty())
       compute_dual();
+    else
+      std::cout << "dual already computed" << std::endl;
 
 #if (verbose > 5)
     std::cout << "captured: ";
@@ -3504,7 +3509,6 @@ struct Base_mesh
     out << seeds.size() << std::endl;
     for(std::size_t i=0; i<seeds.size(); ++i)
       out << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << std::endl;
-
 
     out << "Triangles" << std::endl;
     out << dual_triangles.size() << std::endl;
@@ -3692,7 +3696,8 @@ void Grid_point::remove_from_incident_triangles(const std::size_t i)
   incident_triangles.erase(it);
 }
 
-bool Grid_point::compute_closest_seed(const std::size_t n_anc)
+bool Grid_point::compute_closest_seed(const std::size_t n_anc,
+                                      const bool overwrite)
 {
 #if (verbose > 20)
   std::cout << "closest seed at " << index << " from " << n_anc;
@@ -3774,9 +3779,14 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc)
 
   if(d < distance_to_closest_seed)
   {
-    ancestor = n_anc;
-    distance_to_closest_seed = d;
-    closest_seed_id = anc.closest_seed_id;
+//    std::cout << "improving " << distance_to_closest_seed << " from " << ancestor << " (" << closest_seed_id << ")";
+//    std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id << ")" << std::endl;
+    if(overwrite)
+    {
+      ancestor = n_anc;
+      distance_to_closest_seed = d;
+      closest_seed_id = anc.closest_seed_id;
+    }
     return true;
   }
   return false;
@@ -3942,6 +3952,14 @@ struct Point_extracter
   }
 };
 
+void draw_metric_field(const MF mf, const Base_mesh& bm)
+{
+  typedef boost::transform_iterator<Point_extracter,
+      std::vector<Grid_point>::const_iterator> Extracted_iterator;
+  mf->draw(Extracted_iterator(bm.points.begin(), Point_extracter()),
+           Extracted_iterator(bm.points.end(), Point_extracter()));
+}
+
 int main(int, char**)
 {
   std::cout.precision(17);
@@ -3964,7 +3982,7 @@ int main(int, char**)
 
   bm.spread_distances(true/*use_dual_shenanigans*/);
 
-  if(n_refine)
+  if(n_refine > 0)
   {
     bm.output_grid_data_and_dual("pre_ref");
 
@@ -3993,7 +4011,7 @@ int main(int, char**)
   bm.check_edelsbrunner();
 
   // optimize stuff
-  if(max_opti_n)
+  if(max_opti_n > 0)
   {
     bm.optimize_seeds();
     bm.output_grid_data_and_dual("bis_optimized_" + str_base_mesh + "_tr");
