@@ -47,6 +47,8 @@ public:
   Metric hyberbolic_shock(const Point_2 &p,
                           const FT delta = 0.6) const
   {
+    FT h = 0.1;
+
     FT x = p.x();
     FT y = p.y();
     FT tanhder = tanh((2.0 * x - sin(5.0 * y)) / delta);
@@ -64,7 +66,7 @@ public:
 
     Vector_2 v1 = (1./l1) * Vector_2(x1, y1);
     Vector_2 v2 = (1./l2) * Vector_2(x2, y2);
-    return Metric(v1, v2, l1, l2, this->epsilon);
+    return Metric(v1, v2, l1 / h, l2 / h, this->epsilon);
   }
 
   Metric yang_liu_cube_shock_1D(const Point_2& p) const
