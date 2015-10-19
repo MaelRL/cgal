@@ -3123,6 +3123,26 @@ struct Base_mesh
     }
   }
 
+  FT compute_CVT_energy() const
+  {
+    FT e = 0.;
+    FT third = 1./3.;
+
+    for(std::size_t i=0; i<triangles.size(); ++i)
+    {
+      const Tri& tr = triangles[i];
+      const Grid_point& gp = points[tr[0]];
+      const Grid_point& gq = points[tr[1]];
+      const Grid_point& gr = points[tr[2]];
+
+      FT dist = third * (gp.closest_seed_id + gq.closest_seed_id + gr.closest_seed_id);
+      FT area = triangle_area_in_metric(gp.point, gq.point, gr.point);
+      e += area * dist * dist;
+    }
+
+    return e;
+  }
+
   void optimize_seeds()
   {
     std::cout << "optimize seeds" << std::endl;
@@ -3156,8 +3176,12 @@ struct Base_mesh
       for(std::size_t i=0; i<seeds.size(); ++i)
         cumulated_displacement += optimize_seed(i, mapped_points, centroids, counter);
 
+      FT e = compute_CVT_energy();
+
       std::cout << "at : " << counter << ", cumulated displacement : "
                 << cumulated_displacement << std::endl;
+      std::cout << "energy at : " << e << std::endl;
+
       reset();
       locate_and_initialize_seeds();
       spread_distances(true/*use_dual_shenanigans*/);
