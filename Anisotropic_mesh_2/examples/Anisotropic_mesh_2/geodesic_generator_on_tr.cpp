@@ -7,6 +7,7 @@
 
 #include <CGAL/Delaunay_mesh_size_criteria_2.h>
 #include <CGAL/Delaunay_mesher_2.h>
+#include <CGAL/Mesh_2/Sizing_field_2.h>
 
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
@@ -52,15 +53,47 @@ namespace CGAL
 {
 
 template<class CDT>
+class Geo_sizing_field
+    : public virtual CGAL::Sizing_field_2<CDT>
+{
+public:
+  typedef typename CDT::Geom_traits             GT;
+  typedef typename GT::FT                       FT;
+  typedef typename GT::Point_2                  Point_2;
+
+  FT operator()(const Point_2& p) const
+  {
+    FT base = 10.;
+
+    const Metric& m = mf->compute_metric(p);
+    const FT width = 1./(m.get_max_eigenvalue());
+
+    CGAL_assertion(m.get_max_eigenvalue() >= m.get_min_eigenvalue());
+
+    FT discretization = 6.;
+    FT metric_based_size = width / discretization;
+
+    std::cout << "sizing field: " << base << " " << m.get_max_eigenvalue() << " " << metric_based_size << std::endl;
+
+    return (std::min)(base, metric_based_size);
+  }
+
+  Geo_sizing_field() { }
+};
+
+template<class CDT>
 class Delaunay_mesh_distortion_criteria_2 :
-    public virtual CGAL::Delaunay_mesh_size_criteria_2<CDT>
+    public virtual CGAL::Delaunay_mesh_criteria_2<CDT>
 {
 protected:
   typedef typename CDT::Geom_traits                          Geom_traits;
+  typedef Geo_sizing_field<CDT>                              Sizing_field;
+
   FT distortionbound;
+  Sizing_field sizing_field;
 
 public:
-  typedef CGAL::Delaunay_mesh_size_criteria_2<CDT>           Base;
+  typedef CGAL::Delaunay_mesh_criteria_2<CDT>           Base;
 
   FT distortion_bound() const { return distortionbound; }
   void set_distortion_bound(const double db) { distortionbound = db; }
@@ -115,6 +148,8 @@ public:
   {
   protected:
     FT distortion_bound;
+    const Sizing_field* sizing_field;
+
   public:
     typedef typename Base::Is_bad::Point_2                   Point_2;
 
@@ -203,9 +238,12 @@ public:
       }
 
       q.get<1>() = 0;
-      if( this->squared_size_bound != 0 )
+      const Point_2& g = centroid(pa, pb, pc);
+      FT squared_size_bound = sizing_field->operator()(g);
+      squared_size_bound *= squared_size_bound;
+      if( squared_size_bound != 0 )
       {
-        q.get<1>() = max_sq_length / this->squared_size_bound;
+        q.get<1>() = max_sq_length / squared_size_bound;
         // normalized by size bound to deal with size field
         if( q.size() > 1 )
         {
@@ -225,28 +263,29 @@ public:
     }
 
     Is_bad(const FT aspect_bound,
-           const FT size_bound,
+           const Sizing_field* sizing_field_,
            const FT dist_bound,
            const Geom_traits& traits)
       :
-        Base::Is_bad(aspect_bound, size_bound, traits),
-        distortion_bound(dist_bound)
+        Base::Is_bad(aspect_bound, traits),
+        distortion_bound(dist_bound),
+        sizing_field(sizing_field_)
     { }
   };
 
   Is_bad is_bad_object() const
   {
-    return Is_bad(this->bound(), this->size_bound(), this->distortion_bound(),
+    return Is_bad(this->bound(), &sizing_field, this->distortion_bound(),
                   this->traits /* from the bad class */);
   }
 
   Delaunay_mesh_distortion_criteria_2(const FT aspect_bound = 0.125,
-                                      const FT size_bound = 0.,
                                       const FT distortion_bound = 0.,
                                       const Geom_traits& traits = Geom_traits())
     :
-      Base(aspect_bound, size_bound, traits),
-      distortionbound(distortion_bound)
+      Base(aspect_bound, traits),
+      distortionbound(distortion_bound),
+      sizing_field()
   { }
 };
 }
