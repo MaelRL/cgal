@@ -145,8 +145,8 @@ class Mesh_cell_criteria_w_distortion_3 :
 };
 
 // Sizing field
-template<typename Tr>
-struct Spherical_sizing_field
+template<typename Tr, typename MF>
+struct Geo_sizing_field
 {
   typedef typename Tr::Geom_traits                               Gt;
   typedef typename Gt::FT                                        FT;
@@ -156,14 +156,31 @@ struct Spherical_sizing_field
   typedef Implicit_mesh_domain_3<Function, Gt>                   Mesh_domain;
   typedef typename Mesh_domain::Index                            Index;
 
+  typedef typename MF::Metric                                    Metric;
+
+  const MF& mf;
+
   FT operator()(const Point_3& p, const int, const Index&) const
   {
-    FT sq_d_to_origin = CGAL::squared_distance(p, Point_3(CGAL::ORIGIN));
+    const FT base = 10.;
 
-    return 0.04;
+    const Metric& m = mf.compute_metric(p);
+    const FT e_max = m.get_max_eigenvalue();
+    const FT e_min = m.get_min_eigenvalue();
+    const FT e_third = m.get_third_eigenvalue();
+    CGAL_precondition(e_max >= e_min);
+    const FT max = (std::max)(e_max, e_third);
+    const FT width = 1. / max;
 
-    return CGAL::abs( sq_d_to_origin - 5.) / 25. + 0.005;
+    const FT discretization = 6.;
+    const FT metric_based_size = width / discretization;
+
+    std::cout << metric_based_size << std::endl;
+
+    return (std::min)(base, metric_based_size);
   }
+
+  Geo_sizing_field(const MF& mf_) : mf(mf_) { }
 };
 
 template<typename K, typename MF>
@@ -198,7 +215,7 @@ void generate_canvas(const MF& mf)
   domain.add_features(polylines.begin(), polylines.end());
 
   // Set mesh criteria
-  Spherical_sizing_field<Tr> size;
+  Geo_sizing_field<Tr, MF> size(mf);
   Edge_criteria edge_criteria(size);
   Facet_criteria facet_criteria(30, size, 0.05); // angle, size, approximation
   Cell_criteria cell_criteria(2., size); // radius-edge ratio, size
