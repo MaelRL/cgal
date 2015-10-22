@@ -28,22 +28,35 @@ public:
   typedef typename Canvas::Kernel                                Kernel;
   typedef typename Kernel::FT                                    FT;
   typedef typename Kernel::Point_3                               Point_3;
+  typedef typename Kernel::Point_3                               TPoint_3;
   typedef typename Kernel::Segment_3                             Segment_3;
   typedef typename Kernel::Triangle_3                            Triangle_3;
   typedef typename Kernel::Tetrahedron_3                         Tetrahedron_3;
 
   typedef typename Canvas::Canvas_point                          Canvas_point;
   typedef typename Canvas::Metric                                Metric;
+  typedef typename Canvas::Primal_triangle                       Primal_triangle;
   typedef typename Canvas::Primal_tetrahedron                    Primal_tetrahedron;
+  typedef typename Primal_triangle::BSimplex                     TrSimplex;
   typedef typename Primal_tetrahedron::BSimplex                  TSimplex;
+  typedef typename Canvas::Primal_triangles_container            Primal_triangles_container;
   typedef typename Canvas::Primal_tetrahedra_container           Primal_tetrahedra_container;
 
-  typedef Canvas_refinement_queue<Canvas, 4>                     Canvas_queues;
-  typedef typename Canvas_queues::Queue                          Ref_queue;
+  typedef Canvas_refinement_queue<Canvas, 3>                     Face_queues;
+  typedef typename Face_queues::Queue_entry_iterator             F_Queue_it;
+  typedef Canvas_refinement_queue<Canvas, 4>                     Tet_queues;
+  typedef typename Tet_queues::Queue_entry_iterator              T_Queue_it;
 
   Canvas& canvas;
-  Canvas_queues refinement_queue;
+  Face_queues fqueues;
+  Tet_queues tqueues;
   std::size_t max_refine_n;
+
+  FT compute_volume(const Point_3& p, const Point_3& q, const Point_3& r) const
+  {
+    typename Kernel::Compute_area_3 o;
+    return std::abs(o(p, q, r));
+  }
 
   FT compute_volume(const Point_3& p, const Point_3& q, const Point_3& r, const Point_3& s) const
   {
@@ -51,10 +64,57 @@ public:
     return std::abs(o(p, q, r, s));
   }
 
-  FT compute_volume(const Point_3& p, const Point_3& q, const Point_3& r) const
+  template<typename PSimplex>
+  FT compute_volume(const PSimplex& s)
   {
-    typename Kernel::Compute_area_3 o;
-    return std::abs(o(p, q, r));
+    if(s.size() == 3)
+      return compute_volume(canvas.seeds[s[0]], canvas.seeds[s[1]],
+                            canvas.seeds[s[2]]);
+    else if(s.size() == 4)
+      return compute_volume(canvas.seeds[s[0]], canvas.seeds[s[1]],
+                            canvas.seeds[s[2]], canvas.seeds[s[3]]);
+  }
+
+  FT quality(const Point_3& p, const Point_3& q, const Point_3& r) const
+  {
+    typename Kernel::Compute_squared_distance_3 sqd =
+                                    Kernel().compute_squared_distance_3_object();
+
+    FT alpha = 4.*std::sqrt(3.);
+    FT A = compute_volume(p, q, r);
+    FT a = sqd(p, q);
+    FT b = sqd(p, r);
+    FT c = sqd(q, r);
+    FT quality = alpha*A/(a+b+c);
+    return quality;
+  }
+
+  FT compute_quality(const TrSimplex& tr) const
+  {
+    const Point_3& p0 = canvas.seeds[tr[0]];
+    const Point_3& p1 = canvas.seeds[tr[1]];
+    const Point_3& p2 = canvas.seeds[tr[2]];
+
+    const Metric& m0 = canvas.seeds.seeds_metrics[tr[0]];
+    const Metric& m1 = canvas.seeds.seeds_metrics[tr[1]];
+    const Metric& m2 = canvas.seeds.seeds_metrics[tr[2]];
+
+    const TPoint_3& tp0_0 = m0.transform(p0);
+    const TPoint_3& tp1_0 = m0.transform(p1);
+    const TPoint_3& tp2_0 = m0.transform(p2);
+
+    const TPoint_3& tp0_1 = m1.transform(p0);
+    const TPoint_3& tp1_1 = m1.transform(p1);
+    const TPoint_3& tp2_1 = m1.transform(p2);
+
+    const TPoint_3& tp0_2 = m2.transform(p0);
+    const TPoint_3& tp1_2 = m2.transform(p1);
+    const TPoint_3& tp2_2 = m2.transform(p2);
+
+    FT qual = (std::min)((std::min)(quality(tp0_0, tp1_0, tp2_0),
+                                    quality(tp0_1, tp1_1, tp2_1)),
+                                    quality(tp0_2, tp1_2, tp2_2));
+    return qual;
   }
 
   FT quality(const Point_3& p, const Point_3& q, const Point_3& r, const Point_3& s) const
@@ -85,25 +145,25 @@ public:
     const Metric& m2 = canvas.seeds.seeds_metrics[tet[2]];
     const Metric& m3 = canvas.seeds.seeds_metrics[tet[3]];
 
-    const Point_3& tp0_0 = m0.transform(p0);
-    const Point_3& tp1_0 = m0.transform(p1);
-    const Point_3& tp2_0 = m0.transform(p2);
-    const Point_3& tp3_0 = m0.transform(p3);
+    const TPoint_3& tp0_0 = m0.transform(p0);
+    const TPoint_3& tp1_0 = m0.transform(p1);
+    const TPoint_3& tp2_0 = m0.transform(p2);
+    const TPoint_3& tp3_0 = m0.transform(p3);
 
-    const Point_3& tp0_1 = m1.transform(p0);
-    const Point_3& tp1_1 = m1.transform(p1);
-    const Point_3& tp2_1 = m1.transform(p2);
-    const Point_3& tp3_1 = m1.transform(p3);
+    const TPoint_3& tp0_1 = m1.transform(p0);
+    const TPoint_3& tp1_1 = m1.transform(p1);
+    const TPoint_3& tp2_1 = m1.transform(p2);
+    const TPoint_3& tp3_1 = m1.transform(p3);
 
-    const Point_3& tp0_2 = m2.transform(p0);
-    const Point_3& tp1_2 = m2.transform(p1);
-    const Point_3& tp2_2 = m2.transform(p2);
-    const Point_3& tp3_2 = m2.transform(p3);
+    const TPoint_3& tp0_2 = m2.transform(p0);
+    const TPoint_3& tp1_2 = m2.transform(p1);
+    const TPoint_3& tp2_2 = m2.transform(p2);
+    const TPoint_3& tp3_2 = m2.transform(p3);
 
-    const Point_3& tp0_3 = m3.transform(p0);
-    const Point_3& tp1_3 = m3.transform(p1);
-    const Point_3& tp2_3 = m3.transform(p2);
-    const Point_3& tp3_3 = m3.transform(p3);
+    const TPoint_3& tp0_3 = m3.transform(p0);
+    const TPoint_3& tp1_3 = m3.transform(p1);
+    const TPoint_3& tp2_3 = m3.transform(p2);
+    const TPoint_3& tp3_3 = m3.transform(p3);
 
     FT qual = (std::min)((std::min)((std::min)(quality(tp0_0, tp1_0, tp2_0, tp3_0),
                                                quality(tp0_1, tp1_1, tp2_1, tp3_1)),
@@ -119,15 +179,16 @@ public:
     // Tedious... todo
   }
 
-  void test_primal_simplex(const Primal_tetrahedron& primal_simplex)
+  template<typename PSimplex, typename Queue>
+  void test_primal_simplex(const PSimplex& primal_simplex, Queue& queue)
   {
     // todo this whole thing can be extended to a primal simplex of any dimension
     const Canvas_point* cp = primal_simplex.dual_point();
-    const TSimplex& tet = primal_simplex.simplex();
+    const PSimplex& s = primal_simplex.simplex();
 
     // todo criteria in a criteria class...
     FT max_distortion = 1.; // <= 1 means unused
-    FT max_size = 0.1; // <= 0 means unused
+    FT max_size = 1.; // <= 0 means unused
     bool intersection_ref = false;
     FT min_qual = 0.; // <= 0 means unsused
 
@@ -137,7 +198,7 @@ public:
       FT gamma = cp->distortion_to_seed();
       if(gamma > max_distortion)
       {
-        refinement_queue.push(primal_simplex, gamma, 0);
+        queue.push(primal_simplex, gamma, 0/*queue_id*/);
         return;
       }
     }
@@ -146,10 +207,9 @@ public:
     if(max_size > 0.)
     {
       FT cpd = cp->distance_to_closest_seed();
-      std::cout << "cpd: " << cp->distance_to_closest_seed() << std::endl;
       if(cpd > max_size)
       {
-        refinement_queue.push(primal_simplex, cpd, 1);
+        queue.push(primal_simplex, cpd, 1/*queue_id*/);
         return;
       }
     }
@@ -159,9 +219,8 @@ public:
     {
       if(primal_simplex.m_is_intersected)
       {
-        FT vol = compute_volume(canvas.seeds[tet[0]], canvas.seeds[tet[1]],
-                                canvas.seeds[tet[2]], canvas.seeds[tet[3]]);
-        refinement_queue.push(primal_simplex, vol, 2);
+        FT vol = compute_volume(s);
+        queue.push(primal_simplex, vol, 2/*queue_id*/);
         return;
       }
     }
@@ -174,7 +233,7 @@ public:
       {
         CGAL_assertion(qual > 1e-17);
         // 1./qual to refine the worst element first
-        refinement_queue.push(primal_simplex, 1./qual, 3);
+        queue.push(primal_simplex, 1./qual, 3/*queue_id*/);
         return;
       }
     }
@@ -193,12 +252,20 @@ public:
     std::cout << "build refinement queue" << std::endl;
 #endif
 
-    if(canvas.primal_tetrahedra.empty())
+    if(canvas.primal_tetrahedra.empty() && canvas.primal_triangles.empty())
       canvas.compute_primal();
 
-    refinement_queue.clear();
+    fqueues.clear();
+    tqueues.clear();
 
     // loop border triangles & test them ? need a triangle ref queue too then
+    for(typename Primal_triangles_container::iterator it = canvas.primal_triangles.begin();
+                                                      it != canvas.primal_triangles.end();
+                                                      ++it)
+    {
+      const Primal_triangle& primal_tr = *it;
+      test_primal_simplex(primal_tr, fqueues);
+    }
 
     // make sure we've computed the potential intersections between tetrahedra
     canvas.detect_tetrahedra_self_intersections();
@@ -209,20 +276,33 @@ public:
                                                        ++it)
     {
       const Primal_tetrahedron& primal_tet = *it;
-      test_primal_simplex(primal_tet);
+      //test_primal_simplex(primal_tet, tqueues);
     }
   }
 
   bool get_next_refinement_point(const Canvas_point*& new_seed) const
   {
-    typename Canvas_queues::Queue_entry_iterator e;
-    if(!refinement_queue.top(e))
+    F_Queue_it fe;
+    T_Queue_it te;
+    if(!fqueues.top(fe))
     {
-      std::cerr << "Couldn't find a ref point..." << std::endl;
-      return false;
+      if(!tqueues.top(te))
+      {
+        std::cerr << "Couldn't find a ref point..." << std::endl;
+        return false;
+      }
+      else
+      {
+        std::cout << "selected ref point from cell queue" << std::endl;
+        new_seed = te->dual_point();
+      }
+    }
+    else
+    {
+      std::cout << "selected ref point from face queue" << std::endl;
+      new_seed = fe->dual_point();
     }
 
-    new_seed = e->dual_point();
     return true;
   }
 
@@ -238,12 +318,18 @@ public:
                                                             new_seed.z());
     CGAL_assertion(old_seed_size != canvas.seeds.size());
 
+#ifdef USE_FULL_REBUILD
+    canvas.reset();
+    canvas.locate_seeds_on_canvas();
+#else
     // we can't spread from the new seed if all states are 'KNOWN'
     canvas.refresh_canvas_point_states();
     canvas.locate_and_initialize(new_seed, canvas.seeds.size()-1);
-    canvas.paint(true/*refining*/);
+#endif
 
-    refinement_queue.pop();
+    canvas.paint(true/*refining*/);
+    if(!fqueues.pop())
+      tqueues.pop();
   }
 
   FT refine()
@@ -260,7 +346,8 @@ public:
     for(std::size_t i=1; i<=max_refine_n; ++i)
     {
       build_refinement_queue();
-      refinement_queue.print_queues();
+      fqueues.print_queues();
+      tqueues.print_queues();
 
       const Canvas_point* new_seed = NULL;
       if(!get_next_refinement_point(new_seed))
@@ -283,7 +370,8 @@ public:
   Canvas_mesher(Canvas& canvas_, std::size_t max_refine_n_)
     :
       canvas(canvas_),
-      refinement_queue(),
+      fqueues(),
+      tqueues(),
       max_refine_n(max_refine_n_)
   { }
 };
