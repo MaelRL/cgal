@@ -144,7 +144,7 @@ public:
                         Queue_value_comparer<Queue_entry_iterator> >   Queue;
   typedef typename Queue::iterator                                     Queue_value_iterator;
 
-  static const int nb_queues = 4;
+  static const std::size_t nb_queues = 4;
   static const int over_distortion_queue = 0;
   static const int over_circumradius_queue = 1;
   static const int bad_shape_queue = 2;
@@ -204,9 +204,13 @@ public:
     }
   }
 
-  bool empty(int start_id = 0, int end_id = nb_queues - 1) const
+  bool empty(std::size_t start_id = 0, std::size_t end_id = nb_queues - 1) const
   {
-    for (int i=start_id; i<=end_id; i++)
+    CGAL_precondition(start_id < nb_queues &&
+                      start_id <= end_id &&
+                      end_id < nb_queues);
+
+    for (std::size_t i=start_id; i<=end_id; i++)
     {
       if (!queues[i]->empty())
         return false;
@@ -214,9 +218,14 @@ public:
     return true;
   }
 
-  bool top(Queue_entry_iterator& e, int start_id = 0, int end_id = nb_queues - 1) const
+  bool top(Queue_entry_iterator& e, std::size_t start_id = 0,
+                                    std::size_t end_id = nb_queues - 1) const
   {
-    for (int i=start_id; i<=end_id; i++)
+    CGAL_precondition(start_id < nb_queues &&
+                      start_id <= end_id &&
+                      end_id < nb_queues);
+
+    for (std::size_t i=start_id; i<=end_id; i++)
     {
       if(!queues[i]->empty())
       {
@@ -227,9 +236,13 @@ public:
     return false;
   }
 
-  bool pop(int start_id = 0, int end_id = nb_queues - 1)
+  bool pop(std::size_t start_id = 0, std::size_t end_id = nb_queues - 1)
   {
-    for (int i=start_id; i<=end_id; i++)
+    CGAL_precondition(start_id < nb_queues &&
+                      start_id <= end_id &&
+                      end_id < nb_queues);
+
+    for (std::size_t i=start_id; i<=end_id; i++)
     {
       if (!queues[i]->empty())
       {
@@ -252,10 +265,13 @@ public:
     // and delete them from the queue... Tedious to code so todo...
   }
 
-  void clear(int start_id = 0, int end_id = nb_queues - 1)
+  void clear(std::size_t start_id = 0, std::size_t end_id = nb_queues - 1)
   {
+    CGAL_precondition(start_id < nb_queues &&
+                      start_id <= end_id &&
+                      end_id < nb_queues);
     queues_entries.clear();
-    for(int i=start_id; i<=end_id; i++)
+    for(std::size_t i=start_id; i<=end_id; i++)
       queues[i]->clear();
   }
 
@@ -269,7 +285,7 @@ public:
       std::cout << *qeit;
   }
 
-  void print_queue(int queue_type)
+  void print_queue(std::size_t queue_type)
   {
     std::cout << "queue : " << queue_type
               << " (size: " << queues[queue_type]->size() << ")" << std::endl;
@@ -280,9 +296,9 @@ public:
       std::cout << **vit;
   }
 
-  void print_queues(int start_id = 0, int end_id = nb_queues - 1)
+  void print_queues(std::size_t start_id = 0, std::size_t end_id = nb_queues - 1)
   {
-    for(int i=start_id; i<= end_id; ++i)
+    for(std::size_t i=start_id; i<= end_id; ++i)
       print_queue(i);
   }
 

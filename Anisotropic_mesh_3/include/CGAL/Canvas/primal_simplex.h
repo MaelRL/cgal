@@ -16,11 +16,11 @@ namespace Anisotropic_mesh_3
 // BSimplex is a boost::array that we must keep sorted because we use it
 // as key in the unordered sets "primal_*" of the canvas
 
-template<typename Canvas, std::size_t size>
+template<typename Canvas, std::size_t size_>
 struct Primal_simplex
 {
-  typedef Primal_simplex<Canvas, size>                 Self;
-  typedef boost::array<std::size_t, size>              BSimplex;
+  typedef Primal_simplex<Canvas, size_>                Self;
+  typedef boost::array<std::size_t, size_>             BSimplex;
 
   typedef typename Canvas::FT                          FT;
   typedef typename Canvas::Metric                      Metric;
@@ -53,16 +53,17 @@ struct Primal_simplex
     return dist;
   }
 
+  std::size_t size() const { return size_; }
 
   std::size_t& operator[](std::size_t i)
   {
-    CGAL_assertion(i>=0 && i<size);
+    CGAL_assertion(i>=0 && i<size_);
     return m_simplex[i];
   }
 
   std::size_t operator[](std::size_t i) const
   {
-    CGAL_assertion(i>=0 && i<size);
+    CGAL_assertion(i>=0 && i<size_);
     return m_simplex[i];
   }
 
@@ -79,11 +80,11 @@ struct Primal_simplex
   { }
 };
 
-template<typename Canvas, std::size_t size>
-std::ostream& operator<<(std::ostream& os, const Primal_simplex<Canvas, size>& ps)
+template<typename Canvas, std::size_t size_>
+std::ostream& operator<<(std::ostream& os, const Primal_simplex<Canvas, size_>& ps)
 {
   os << "Primal simplex [";
-  for(std::size_t i=0; i<size; ++i)
+  for(std::size_t i=0; i<size_; ++i)
     os << ps[i] << " ";
   os << "] dual point : " << ps.dual_point()->index()
      << " (" << ps.dual_point()->point() << ") ";
@@ -92,10 +93,10 @@ std::ostream& operator<<(std::ostream& os, const Primal_simplex<Canvas, size>& p
   return os;
 }
 
-template<typename Canvas, std::size_t size>
+template<typename Canvas, std::size_t size_>
 struct Primal_simplex_hash
 {
-  typedef Primal_simplex<Canvas, size>                      Psimplex;
+  typedef Primal_simplex<Canvas, size_>                      Psimplex;
 
   bool operator()(const Psimplex& psimplex) const
   {
@@ -103,10 +104,10 @@ struct Primal_simplex_hash
   }
 };
 
-template<typename Canvas, std::size_t size>
+template<typename Canvas, std::size_t size_>
 struct Primal_simplex_comparer
 {
-  typedef Primal_simplex<Canvas, size>                      Psimplex;
+  typedef Primal_simplex<Canvas, size_>                      Psimplex;
 
   bool operator()(const Psimplex& left, const Psimplex& right) const
   {
