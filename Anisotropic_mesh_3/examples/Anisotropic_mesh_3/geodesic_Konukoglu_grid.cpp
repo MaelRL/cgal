@@ -28,8 +28,8 @@ int main(int, char**)
   typedef typename K::FT                                           FT;
   typedef typename K::Point_3                                      Point_3;
 
-  typedef typename CGAL::Anisotropic_mesh_3::Euclidean_metric_field<K>* MF;
-  //typedef typename CGAL::Anisotropic_mesh_3::Custom_metric_field<K>* MF;
+  typedef typename CGAL::Anisotropic_mesh_3::Euclidean_metric_field<K>  MF;
+  //typedef typename CGAL::Anisotropic_mesh_3::Custom_metric_field<K>  MF;
 
   typedef Konukoglu_canvas<K, KExact, MF>                          Canvas;
 
@@ -39,8 +39,8 @@ int main(int, char**)
   std::clock_t start = std::clock();
   double duration;
 
-  MF mf = new Euclidean_metric_field<K>(1., 1., 3.);
-//  MF mf = new Custom_metric_field<K>();
+  MF mf(1., 1., 3.); // Euclidean
+//  MF mf(); // Custom
 
   const std::string canvas_str = "grid";
   const std::string seeds_str = "base_mesh.mesh";

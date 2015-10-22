@@ -706,12 +706,12 @@ public:
     out << "End" << std::endl;
   }
 
-  Campen_canvas(const std::string& _canvas_str,
-                const std::string& _seeds_str,
-                const std::size_t _max_seeds_n,
-                const Metric_field _mf)
+  Campen_canvas(const std::string& canvas_str_,
+                const std::string& seeds_str_,
+                const std::size_t max_seeds_n_,
+                const Metric_field& mf_)
     :
-      Base(_canvas_str, _seeds_str, _max_seeds_n, _mf),
+      Base(canvas_str_, seeds_str_, max_seeds_n_, mf_),
       m_tr()
   { }
 };

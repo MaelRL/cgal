@@ -159,14 +159,14 @@ public:
   Canvas_point() { }
 
   template<typename MF>
-  Canvas_point(const Point_3& point_, const std::size_t index_, const MF mf)
+  Canvas_point(const Point_3& point_, const std::size_t index_, const MF& mf)
     :
       m_point(point_),
       m_index(index_),
       m_distance_to_closest_seed(FT_inf),
       m_closest_seed_id(-1),
       m_state(FAR),
-      m_metric(mf->compute_metric(m_point)),
+      m_metric(mf.compute_metric(m_point)),
       m_ancestor(NULL)
   { }
 };

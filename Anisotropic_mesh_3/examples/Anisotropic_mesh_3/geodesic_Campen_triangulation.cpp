@@ -28,8 +28,8 @@ int main(int, char**)
 {
   typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 
-//  typedef Euclidean_metric_field<K>*                           MF;
-  typedef Custom_metric_field<K>*                              MF;
+  typedef Euclidean_metric_field<K>                            MF;
+//  typedef Custom_metric_field<K>                               MF;
 
   typedef Campen_canvas_point<K, MF>                           Campen_canvas_point;
   typedef Canvas<K, Campen_canvas_point, MF>                   Base_canvas;
@@ -44,8 +44,8 @@ int main(int, char**)
   std::clock_t start = std::clock();
   std::srand(0);
 
-//  MF mf = new Euclidean_metric_field<K>(1., 1., 3.);
-  MF mf = new Custom_metric_field<K>();
+  MF mf(5., 5., 5.); // Euclidean
+//  MF mf(); // Custom
 
   // select the canvas
   const std::string canvas_str = "dense_base_mesh";
@@ -53,7 +53,7 @@ int main(int, char**)
   std::size_t max_seeds_n = 150;
   const std::string seeds_str = "dense_base_mesh_tr_primal.mesh";
 
-//  CGAL::generate_canvas<K>();
+//  CGAL::generate_canvas<K, MF>(mf);
 //  exit(0);
 
   Canvas canvas(canvas_str, seeds_str, max_seeds_n, mf);

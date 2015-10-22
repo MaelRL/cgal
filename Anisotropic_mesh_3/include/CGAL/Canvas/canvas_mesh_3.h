@@ -3,6 +3,8 @@
 
 #include <CGAL/Canvas/canvas_triangulation_io.h>
 
+#include <CGAL/Metric.h>
+
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>
 #include <CGAL/Mesh_criteria_3.h>
@@ -164,8 +166,8 @@ struct Spherical_sizing_field
   }
 };
 
-template<typename K>
-void generate_canvas()
+template<typename K, typename MF>
+void generate_canvas(const MF& mf)
 {
   typedef typename K::FT                                         FT;
   typedef typename K::Point_3                                    Point_3;

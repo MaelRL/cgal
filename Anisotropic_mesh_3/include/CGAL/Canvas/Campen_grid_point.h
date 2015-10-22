@@ -160,11 +160,11 @@ public:
   }
 
   template<typename MF>
-  Campen_canvas_point(const Point_3& _point,
-                      const std::size_t _index,
-                      const MF _mf)
+  Campen_canvas_point(const Point_3& point_,
+                      const std::size_t index_,
+                      const MF& mf_)
     :
-      Base(_point, _index, _mf),
+      Base(point_, index_, mf_),
       neighbors()
   {
     for(std::size_t i=0; i<neighbors.size(); ++i)

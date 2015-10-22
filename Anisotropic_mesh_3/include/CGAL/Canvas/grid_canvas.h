@@ -405,17 +405,17 @@ public:
     }
   }
 
-  Grid_canvas(const std::string& _canvas_str,
-              const std::string& _seeds_str,
-              const Point_3& _center,
-              const FT _side,
+  Grid_canvas(const std::string& canvas_str_,
+              const std::string& seeds_str_,
+              const Point_3& center_,
+              const FT side_,
               const std::size_t points_per_side,
-              const std::size_t _max_seeds_n,
-              const Metric_field _mf)
+              const std::size_t max_seeds_n_,
+              const Metric_field& mf_)
     :
-      Base(_canvas_str, _seeds_str, _max_seeds_n, _mf),
-      center(_center),
-      side(_side),
+      Base(canvas_str_, seeds_str_, max_seeds_n_, mf_),
+      center(center_),
+      side(side_),
       n(points_per_side),
       offset_x(center.x() - side/2.),
       offset_y(center.y() - side/2.),

@@ -96,7 +96,7 @@ public:
   Seeds seeds;
 
   // Metric field
-  const Metric_field mf;
+  const Metric_field& mf;
 
   // Primal triangulation
   Primal_edges_container primal_edges;
@@ -862,16 +862,16 @@ public:
     output_straight_primal(str_base);
   }
 
-  Canvas(const std::string& _canvas_str,
-         const std::string& _seeds_str,
-         const std::size_t _max_seeds_n,
-         const Metric_field _mf)
+  Canvas(const std::string& canvas_str_,
+         const std::string& seeds_str_,
+         const std::size_t max_seeds_n_,
+         const Metric_field& mf_)
     :
-      canvas_str(_canvas_str),
+      canvas_str(canvas_str_),
       canvas_points(),
       trial_points(),
-      seeds(*this, _seeds_str, _max_seeds_n),
-      mf(_mf),
+      seeds(*this, seeds_str_, max_seeds_n_),
+      mf(mf_),
       primal_edges(),
       primal_triangles(),
       primal_tetrahedra(),
