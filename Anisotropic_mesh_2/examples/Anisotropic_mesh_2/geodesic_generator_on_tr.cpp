@@ -2172,10 +2172,18 @@ struct Base_mesh
   void refine_seeds(const Point_2 new_seed)
   {
     vertices_nv = insert_new_seed(new_seed.x(), new_seed.y());
+
+#ifdef USE_FULL_REBUILDS
+    reset();
+    locate_and_initialize_seeds();
+#else
     refresh_grid_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
     locate_and_initialize(new_seed, seeds.size()-1);
+#endif
+
     clear_dual();
     spread_distances(false/*use_dual_shenanigans*/);
+    compute_dual();
   }
 
   bool refine_seeds_with_self_computed_ref_point()
@@ -3768,7 +3776,12 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
     FT new_d = dist_at_anc + dist_to_ancestor;
 
     if(new_d < d)
+    {
+#if (verbose > 25)
+      std::cout << "new best at " << new_d << " for i: " << i << std::endl;
+#endif
       d = new_d;
+    }
 
     // check if we can go any farther up in the ancestor tree
     if(curr_ancestor.ancestor == static_cast<std::size_t>(-1))
@@ -3779,8 +3792,10 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 
   if(d < distance_to_closest_seed)
   {
-//    std::cout << "improving " << distance_to_closest_seed << " from " << ancestor << " (" << closest_seed_id << ")";
-//    std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id << ")" << std::endl;
+#if (verbose > 20)
+    std::cout << "improving " << distance_to_closest_seed << " from " << ancestor << " (" << closest_seed_id << ")";
+    std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id << ")" << std::endl;
+#endif
     if(overwrite)
     {
       ancestor = n_anc;
@@ -3968,18 +3983,17 @@ int main(int, char**)
   start = std::clock();
   std::srand(0);
 
-  Base_mesh bm;
-  bm.initialize_base_mesh();
+//  mf = new Euclidean_metric_field<K>(5., 1.);
+  mf = new Custom_metric_field<K>();
 
-//  typedef boost::transform_iterator<Point_extracter,
-//              std::vector<Grid_point>::const_iterator> Extracted_iterator;
-//  mf->draw(Extracted_iterator(bm.points.begin(), Point_extracter()),
-//           Extracted_iterator(bm.points.end(), Point_extracter()));
+//  generate_grid();
 //  exit(0);
 
+  Base_mesh bm;
+  bm.initialize_base_mesh();
+//  draw_metric_field(mf, bm);
   initialize_seeds();
   bm.locate_and_initialize_seeds();
-
   bm.spread_distances(true/*use_dual_shenanigans*/);
 
   if(n_refine > 0)
@@ -4008,7 +4022,7 @@ int main(int, char**)
   }
 
   bm.output_grid_data_and_dual(str_base_mesh + "_tr");
-  bm.check_edelsbrunner();
+//  bm.check_edelsbrunner();
 
   // optimize stuff
   if(max_opti_n > 0)

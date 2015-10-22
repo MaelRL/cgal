@@ -13,7 +13,11 @@
 
   // if we want to make sure the (Campen) canvas is always dense enough around
   // a new seed
-#define CGAL_ANISO_CHECK_CANVAS_DENSITY
+//#define CGAL_ANISO_REFINE_LOW_CANVAS_DENSITY
+
+  // Whether we use exact full rebuilds after point insertion or only spread from
+  // the new point (which can create issues)
+#define USE_FULL_REBUILD
 
 #include <limits>
 

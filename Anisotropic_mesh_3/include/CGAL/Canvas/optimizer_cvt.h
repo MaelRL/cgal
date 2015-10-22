@@ -273,6 +273,9 @@ public:
 
   void optimize_seeds(const std::string str_base)
   {
+    if(max_iter == 0)
+      return;
+
 #if (verbosity > 10)
     std::cout << "Optimizing all seeds" << std::endl;
 #endif
