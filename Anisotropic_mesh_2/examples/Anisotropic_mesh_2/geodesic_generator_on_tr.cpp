@@ -4,6 +4,7 @@
 #include <CGAL/Starset.h>
 #include <Metric_field/Euclidean_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
+#include <Metric_field/External_metric_field.h>
 
 #include <CGAL/Delaunay_mesh_size_criteria_2.h>
 #include <CGAL/Delaunay_mesher_2.h>
@@ -42,8 +43,9 @@ typedef Metric_base<K>                                       Metric;
 
 // 'bit ugly to have the metric field running around here but we need to pass
 // it around and around and around and it's faster this way !
-typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
-//typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+//typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+//typedef typename CGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
 MF mf;
 
 // stuff to generate the grid using Mesh_2 since Aniso_mesh_2 is a turtle.
@@ -3985,6 +3987,7 @@ int main(int, char**)
 
 //  mf = new Euclidean_metric_field<K>(5., 1.);
   mf = new Custom_metric_field<K>();
+//  mf = new External_metric_field<K>("freefem.mesh", "freefem.sol");
 
 //  generate_grid();
 //  exit(0);
