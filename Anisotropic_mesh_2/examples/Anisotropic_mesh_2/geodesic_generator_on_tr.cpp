@@ -20,12 +20,15 @@
 #include <Eigen/Dense>
 #include <omp.h>
 #include <boost/array.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <boost/functional/hash.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/tuple/tuple.hpp>
+#include <boost/unordered_map.hpp>
 
 #include <iostream>
 #include <functional>
 #include <limits>
+#include <list>
 #include <map>
 #include <vector>
 #include <set>
@@ -426,6 +429,7 @@ const FT FT_inf = std::numeric_limits<FT>::infinity();
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
 std::size_t vertices_nv = 1;
+static const int k = 8; // depth of the ancestor edge
 
 // the metric field and the seeds
 std::vector<Point_2> seeds;
@@ -449,10 +453,23 @@ int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
 //debug & info
 int known_count=0, trial_count=0, far_count=0;
 std::clock_t start;
+std::vector<int> optimal_depths(k, 0);
+
+typedef boost::unordered_map<boost::array<std::size_t, k+1>, FT> Path_map;
+Path_map computed_paths;
 
 // -----------------------------------------------------------------------------
 // Utility functions below
 // -----------------------------------------------------------------------------
+
+void print_profiler_info()
+{
+  std::cout << "optimal depth with " << k << " possible size" << std::endl;
+  for(int i=0; i<k; ++i)
+    std::cout << "i: " << i << " optimal depths: " << optimal_depths[i] << std::endl;
+
+  std::cout << computed_paths.size() << " computed paths" << std::endl;
+}
 
 inline std::ostream& operator<<(std::ostream& os, const Simplex& s)
 {
@@ -704,7 +721,8 @@ enum FMM_state
 {
   KNOWN = 0,
   TRIAL,
-  FAR
+  FAR,
+  ORPHAN
 };
 
 enum PQ_state
@@ -955,9 +973,9 @@ struct Base_mesh
   {
     if(gp->closest_seed_id != static_cast<std::size_t>(-1))
     {
-      std::cout << "WARNING: a new seed is overwriting the closest seed id";
-      std::cout << " of a grid point! previous index is: " << gp->closest_seed_id;
-      std::cout << " (seeds: " << seeds.size() << ")" << std::endl;
+      std::cout << "WARNING: a new seed is overwriting the closest seed id at ";
+      std::cout << gp->index << ". Previous index is: " << gp->closest_seed_id;
+      std::cout << " (" << seeds.size() << " seeds)" << std::endl;
     }
 
     if(gp->state == TRIAL)
@@ -968,7 +986,8 @@ struct Base_mesh
 
     gp->initialize_from_point(dist, seed_id);
     trial_points.push_back(gp);
-    std::push_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
+    std::push_heap(trial_points.begin(), trial_points.end(),
+                   Grid_point_comparer<Grid_point>());
   }
 
   void locate_and_initialize(const Point_2& s,
@@ -1500,7 +1519,7 @@ struct Base_mesh
 #if (verbose > 5)
     std::cout << "main loop" << std::endl;
 #endif
-    Grid_point* gp;
+    Grid_point* gp = NULL;
     bool is_t_empty = trial_points.empty();
 
     if(is_t_empty)
@@ -1515,7 +1534,7 @@ struct Base_mesh
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 15)
+#if (verbose > 30)
       std::cout << "trial heap: " << std::endl;
       for (std::vector<Grid_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
@@ -1529,7 +1548,7 @@ struct Base_mesh
 #if (verbose > 10)
       std::cout << "-------------------------------------------------------" << std::endl;
       std::cout << "picked n° " << gp->index << " (" << gp->point.x() << ", " << gp->point.y() << ") ";
-      std::cout << "at distance : " << gp->distance_to_closest_seed << " from "
+      std::cout << "at distance : " << gp->distance_to_closest_seed << " from the seed "
                 << gp->closest_seed_id << " ancestor : " << gp->ancestor << std::endl;
 #endif
 
@@ -1547,9 +1566,6 @@ struct Base_mesh
 
     debug();
 
-    std::cout << "End of spread_distances. time: ";
-    std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
-
     if(are_Voronoi_vertices_needed && use_dual_shenanigans)
     {
       // we have only computed the voronoi vertices corresponding to the dual of 3-simplex
@@ -1563,6 +1579,11 @@ struct Base_mesh
       std::cout << "After Voronoi border: ";
       std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
     }
+
+    std::cout << "End of spread_distances. time: ";
+    std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+
+    print_profiler_info();
   }
 
   void debug()
@@ -3044,14 +3065,14 @@ struct Base_mesh
                    const int counter)
   {
     const Point_2 old_seed = seeds[seed_id];
-    Point_2 mapped_centroid = compute_mapped_centroid_with_mapped_Vor_vertices(seed_id, mapped_points);
-    std::cout << "(mapped) centroid coordinates from mapped Vor vertices " << mapped_centroid  << std::endl;
+//    Point_2 mapped_centroid = compute_mapped_centroid_with_mapped_Vor_vertices(seed_id, mapped_points);
+//    std::cout << "(mapped) centroid coordinates from mapped Vor vertices " << mapped_centroid  << std::endl;
 
     // -------------------------------------------------------------------------
     std::cout << "UNMAPPING POSSIBILITIES :" << std::endl;
 
-    Point_2 closest_grid_point_centroid = compute_centroid_as_closest_grid_point(seed_id, mapped_centroid, mapped_points);
-    std::cout << "unmapped centroid as closest unmapped grid point " << closest_grid_point_centroid << std::endl;
+//    Point_2 closest_grid_point_centroid = compute_centroid_as_closest_grid_point(seed_id, mapped_centroid, mapped_points);
+//    std::cout << "unmapped centroid as closest unmapped grid point " << closest_grid_point_centroid << std::endl;
 
     // disabled till degenerate mapped triangles are fixed fixme
 //    Point_2 bar_centroid = compute_centroid_with_barycentric_info(seed_id, mapped_centroid, mapped_points);
@@ -3068,19 +3089,19 @@ struct Base_mesh
       std::cout << "centroid with grid triangles " << alt_centroid_2 << std::endl;
 
       // below is not a good idea if the metric field is not uniform
-      Point_2 alt_centroid_3 = compute_centroid_with_voronoi_vertices(seed_id);
-      std::cout << "centroid with voronoi vertices " << alt_centroid_3 << std::endl;
+//      Point_2 alt_centroid_3 = compute_centroid_with_voronoi_vertices(seed_id);
+//      std::cout << "centroid with voronoi vertices " << alt_centroid_3 << std::endl;
     // --
 
     std::cout << "ALTERNATIVE MAPPED CENTROID COMPUTATION : " << std::endl;
 
-    Point_2 mapped_grid_centroid = compute_centroid_with_mapped_grid_triangles(seed_id, mapped_points);
-    std::cout << "(mapped) centroid with mapped grid triangles " << mapped_grid_centroid << std::endl;
+//    Point_2 mapped_grid_centroid = compute_centroid_with_mapped_grid_triangles(seed_id, mapped_points);
+//    std::cout << "(mapped) centroid with mapped grid triangles " << mapped_grid_centroid << std::endl;
 
-    Point_2 closest_grid_point_centroid_alternate =
-        compute_centroid_as_closest_grid_point(seed_id, mapped_grid_centroid, mapped_points);
-    std::cout << "unmapped centroid as closest unmapped grid point (alternate)"
-              << closest_grid_point_centroid_alternate << std::endl;
+//    Point_2 closest_grid_point_centroid_alternate =
+//        compute_centroid_as_closest_grid_point(seed_id, mapped_grid_centroid, mapped_points);
+//    std::cout << "unmapped centroid as closest unmapped grid point (alternate)"
+//              << closest_grid_point_centroid_alternate << std::endl;
 
     // disabled till degenerate mapped triangles is fixed fixme
 //    Point_2 bar_centroid_2 = compute_centroid_with_barycentric_info(seed_id, mapped_grid_centroid, mapped_points);
@@ -3885,7 +3906,7 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   std::cout << " seed: " << closest_seed_id << ")" << std::endl;
 #endif
 
-  CGAL_precondition(n_anc < bm->points.size());
+  CGAL_precondition(static_cast<std::size_t>(n_anc) < bm->points.size());
   const Grid_point& anc = bm->points[n_anc];
   if(anc.state != KNOWN)
     std::cout << "WARNING: potential ancestor is not KNOWN" << std::endl;
@@ -3895,7 +3916,6 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   if(anc.find_in_ancestry(index))
     return false;
 
-  const int k = 8; // depth of the ancestor edge
   FT d = FT_inf;
 
   // the path is 'this' to ancestor1, ancestor1 to ancestor2, etc.
@@ -3907,6 +3927,7 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   CGAL_assertion(ancestor_path[0] != static_cast<std::size_t>(-1));
 
   std::size_t n_curr_ancestor = n_anc;
+  std::size_t best_i = -1;
   for(int i=1; i<=k; ++i)
   {
     // add the new segment to the ancestor path
@@ -3955,9 +3976,7 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 
     if(new_d < d)
     {
-#if (verbose > 25)
-      std::cout << "new best at " << new_d << " for i: " << i << std::endl;
-#endif
+      best_i = i;
       d = new_d;
     }
 

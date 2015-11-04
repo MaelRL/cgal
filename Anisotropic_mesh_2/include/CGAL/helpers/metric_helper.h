@@ -257,7 +257,8 @@ Eigen::Matrix2d matrix_intersection(const Eigen::Matrix2d& M_p,
 }
 
 template<typename K>
-Eigen::Matrix2d logexp_interpolate(const std::vector<std::pair<Eigen::Matrix2d, typename K::FT> >& w_metrics)
+Eigen::Matrix2d logexp_interpolate(const std::vector<std::pair<Eigen::Matrix2d,
+                                   typename K::FT> >& w_metrics)
 {
 #ifdef ANISO_DEBUG_MATRIX_OPERATIONS
   std::cout << "interpolating (logexp)" << w_metrics.size() << " matrices" << std::endl;
@@ -270,7 +271,8 @@ Eigen::Matrix2d logexp_interpolate(const std::vector<std::pair<Eigen::Matrix2d, 
 }
 
 template<typename K>
-Eigen::Matrix2d linear_interpolate(const std::vector<std::pair<Eigen::Matrix2d, typename K::FT> >& w_metrics)
+Eigen::Matrix2d linear_interpolate(const std::vector<std::pair<Eigen::Matrix2d,
+                                   typename K::FT> >& w_metrics)
 {
 #ifdef ANISO_DEBUG_MATRIX_OPERATIONS
   std::cout << "interpolating (linear)" << w_metrics.size() << " matrices" << std::endl;

@@ -146,7 +146,7 @@ public:
   }
 
   void check_from_internal_faces(iterator mit,
-                                  const std::map<Facet_ijk, int>& internal_faces_counter)
+                                 const std::map<Facet_ijk, int>& internal_faces_counter)
   {
   }
 
@@ -158,7 +158,7 @@ public:
   {
 //todo -----------------------
     //WHEN REFINEMENT_CONDITIONS ARE ADDED AGAIN THERE NEEDS TO BE A CHECK HERE
-    //NOT TO CONSIDER USELESS faceS/CELLS
+    //NOT TO CONSIDER USELESS FACES/CELLS
 //-----------------------
 
     //What is being done here:
