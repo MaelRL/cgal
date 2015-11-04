@@ -17,16 +17,16 @@ using namespace CGAL::Anisotropic_mesh_3;
 
 int main(int, char**)
 {
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel      K;
 
-  typedef typename K::FT                                       FT;
-  typedef typename K::Point_3                                  Point_3;
+  typedef typename K::FT                                    FT;
+  typedef typename K::Point_3                               Point_3;
 
   typedef typename CGAL::Anisotropic_mesh_3::Euclidean_metric_field<K>  MF;
   //typedef typename CGAL::Anisotropic_mesh_3::Custom_metric_field<K>  MF;
 
-  typedef Campen_canvas_point<K>                               Campen_canvas_point;
-  typedef Grid_canvas<K, Campen_canvas_point, MF>              Canvas;
+  typedef Campen_grid_point<K, MF>                          Campen_canvas_point;
+  typedef Grid_canvas<K, Campen_canvas_point, MF>           Canvas;
 
   std::cout.precision(17);
 //  std::freopen("log.txt", "w", stdout);

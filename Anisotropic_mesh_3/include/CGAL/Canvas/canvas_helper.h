@@ -200,4 +200,21 @@ bool is_triangle_intersected(const typename K::Triangle_3& triangle,
   return is_intersected;
 }
 
+namespace CGAL
+{
+namespace Anisotropic_mesh_3
+{
+
+template<typename Cp>
+struct Canvas_point_comparer
+{
+  bool operator()(Cp const * const cp1, Cp const * const cp2)
+  {
+    return cp1->distance_to_closest_seed() > cp2->distance_to_closest_seed();
+  }
+};
+
+}
+}
+
 #endif // CGAL_ANISOTROPIC_MESH_3_CANVAS_HELPER_H

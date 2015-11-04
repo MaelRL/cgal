@@ -75,17 +75,17 @@ public:
         {
           std::size_t curr_id = i + j*this->n + k*this->sq_n;
           if(k != this->n-1) // there is a neighbor above
-            this->canvas_points[curr_id].neighbors[0] = &(this->canvas_points[i + j*this->n + (k+1)*this->sq_n]);
+            this->canvas_points[curr_id].neighbors[0] = i + j*this->n + (k+1)*this->sq_n;
           if(i != 0) // there is a neighbor left
-            this->canvas_points[curr_id].neighbors[1] = &(this->canvas_points[i-1 + j*this->n + k*this->sq_n]);
+            this->canvas_points[curr_id].neighbors[1] = i-1 + j*this->n + k*this->sq_n;
           if(j != this->n-1) // there is a neighbor back
-            this->canvas_points[curr_id].neighbors[2] = &(this->canvas_points[i + (j+1)*this->n + k*this->sq_n]);
+            this->canvas_points[curr_id].neighbors[2] = i + (j+1)*this->n + k*this->sq_n;
           if(i != this->n-1) // there is a neighbor right
-            this->canvas_points[curr_id].neighbors[3] = &(this->canvas_points[i+1 + j*this->n + k*this->sq_n]);
+            this->canvas_points[curr_id].neighbors[3] = i+1 + j*this->n + k*this->sq_n;
           if(j != 0) // there is a neighbor front
-            this->canvas_points[curr_id].neighbors[4] = &(this->canvas_points[i + (j-1)*this->n + k*this->sq_n]);
+            this->canvas_points[curr_id].neighbors[4] = i + (j-1)*this->n + k*this->sq_n;
           if(k != 0) // there is a neighbor below
-            this->canvas_points[curr_id].neighbors[5] = &(this->canvas_points[i + j*this->n + (k-1)*this->sq_n]);
+            this->canvas_points[curr_id].neighbors[5] = i + j*this->n + (k-1)*this->sq_n;
         }
       }
     }
@@ -128,7 +128,7 @@ public:
 
       Canvas_point* cp = &(this->canvas_points[i]);
       cp->closest_seed_id() = -1;
-      cp->m_ancestor = NULL;
+      cp->m_ancestor = static_cast<std::size_t>(-1);
 
       CGAL_assertion(cp->state() == KNOWN);
 
@@ -253,16 +253,18 @@ public:
 
     for(std::size_t i=0; i<this->canvas_points.size(); ++i)
     {
-      Canvas_point* cp = &(this->canvas_points[i]);
+      Canvas_point& cp = this->canvas_points[i];
       std::cout << "point " << i << " min distance is supposedly: ";
-      std::cout << cp->distance_to_closest_seed() << std::endl;
-      typename Base::Neighbors::const_iterator it = cp->neighbors.begin(),
-                                               iend = cp->neighbors.end();
+      std::cout << cp.distance_to_closest_seed() << std::endl;
+      typename Base::Neighbors::const_iterator it = cp.neighbors.begin(),
+                                               iend = cp.neighbors.end();
       for(; it!=iend; ++it)
       {
-        const Canvas_point* cq = *it;
-        if(cq)
-          CGAL_assertion(!cp->compute_closest_seed(cq));
+        if(*it == static_cast<std::size_t>(-1))
+          continue;
+
+        const Canvas_point& cq = this->canvas_points[*it];
+        CGAL_assertion(!cp.compute_closest_seed(&cq));
       }
     }
 #endif

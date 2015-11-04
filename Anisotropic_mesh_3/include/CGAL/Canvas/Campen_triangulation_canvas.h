@@ -98,8 +98,8 @@ public:
     }
 
     // set distance, seed_id and ancestor for the virtual point
-    virtual_cp.compute_closest_seed(&cp);
-    virtual_cp.compute_closest_seed(&cq);
+    virtual_cp.compute_closest_seed(cp.index());
+    virtual_cp.compute_closest_seed(cq.index());
     virtual_cp.state() = KNOWN;
 
     if(call_count > 0) // fixme don't hardcode stuff
@@ -125,10 +125,10 @@ public:
     Canvas_point virtual_cp(centroid, -1, NULL/*vh*/, NULL/*tr*/, this);
 
     // set distance, seed_id and ancestor for the virtual point
-    virtual_cp.compute_closest_seed(&cp);
-    virtual_cp.compute_closest_seed(&cq);
-    virtual_cp.compute_closest_seed(&cr);
-    virtual_cp.compute_closest_seed(&cs);
+    virtual_cp.compute_closest_seed(cp.index());
+    virtual_cp.compute_closest_seed(cq.index());
+    virtual_cp.compute_closest_seed(cr.index());
+    virtual_cp.compute_closest_seed(cs.index());
     virtual_cp.state() = KNOWN;
 
     // another potential stop is if the (max) distance between the centroid

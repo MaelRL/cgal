@@ -23,21 +23,21 @@ class Konukoglu_canvas;
 
 template<typename K, typename KExact, typename Metric_field>
 class Konukoglu_canvas_point :
-    public Canvas_point<K>
+    public Canvas_point<K, Konukoglu_canvas<K, KExact, Metric_field> >
 {
 private:
   typedef Konukoglu_canvas_point<K, KExact, Metric_field>     Self;
 
 public:
-  typedef boost::array<Konukoglu_canvas_point*, 6>            Neighbors;
-  typedef Canvas_point<K>                                     Base;
+  typedef boost::array<std::size_t, 6>                        Neighbors;
   typedef Konukoglu_canvas<K, KExact, Metric_field>           Canvas;
+  typedef Canvas_point<K, Canvas>                             Base;
 
   typedef typename Base::FT                                   FT;
   typedef typename Base::Point_3                              Point_3;
   typedef typename Base::Vector3d                             Vector3d;
 
-  typedef boost::array<const Konukoglu_canvas_point*, 3>      Optimal_neighbors;
+  typedef boost::array<std::size_t, 3>                        Optimal_neighbors;
 
 // Neighbors
   Neighbors neighbors;
@@ -45,9 +45,6 @@ public:
   // the neighbors of 'this' for which we have reached the lowest distance_to_closest_seed
   // this is a 3-array with at least 1 non-null pointer at opt_neighbors[0]
   Optimal_neighbors opt_neighbors;
-
-  // we need a lot of info from the grid with this algorithm...
-  Canvas* canvas; // forced to take a pointer and not a ref since we copy points
 
   bool compute_closest_seed_1D(const Konukoglu_canvas_point* cp)
   {
@@ -74,18 +71,18 @@ public:
     std::cout << " vs current best: " << this->distance_to_closest_seed() << std::endl;
 #endif
 
-    if(this->distance_to_closest_seed() - d > canvas->recursive_tolerance * d)
+    if(this->distance_to_closest_seed() - d > this->canvas()->recursive_tolerance * d)
     {
       changed = true;
       this->distance_to_closest_seed() = d;
 
-      opt_neighbors[0] = cp;
-      opt_neighbors[1] = NULL; // a _1D might become better than a _2D or _3D
-      opt_neighbors[2] = NULL; // so we have to reset the others
+      opt_neighbors[0] = cp->index();
+      opt_neighbors[1] = -1; // a _1D might become better than a _2D or _3D
+      opt_neighbors[2] = -1; // so we have to reset the others
 
       // below is useless fixme
       this->closest_seed_id() = static_cast<std::size_t>(-1);
-      this->m_ancestor = cp;
+      this->m_ancestor = cp->index();
 
 #if (verbosity > 15)
       std::cout << "1D new best for " << this->index() << " : "
@@ -244,18 +241,18 @@ public:
 #endif
 
     // tolerance to ignore unsignificant changes
-    if(this->distance_to_closest_seed() - d > canvas->recursive_tolerance * d)
+    if(this->distance_to_closest_seed() - d > this->canvas()->recursive_tolerance * d)
     {
       changed = true;
       this->distance_to_closest_seed() = d;
 
-      opt_neighbors[0] = cp;
-      opt_neighbors[1] = cq;
-      opt_neighbors[2] = NULL;
+      opt_neighbors[0] = cp->index();
+      opt_neighbors[1] = cq->index();
+      opt_neighbors[2] = -1;
 
       // below is useless fixme
-      this->closest_seed_id() = static_cast<std::size_t>(-1);
-      this->m_ancestor = cp;
+      this->closest_seed_id() = -1;
+      this->m_ancestor = cp->index();
 
 #if (verbosity > 15)
       std::cout << "2D new best for " << this->index() << " : "
@@ -288,7 +285,7 @@ public:
     FT cq_d = cq->distance_to_closest_seed();
     FT cr_d = cr->distance_to_closest_seed();
 
-    FT l = canvas->step; // all edge lengths are the same
+    FT l = this->canvas()->step; // all edge lengths are the same
     FT lden = 1./l;
 
     // gradient:
@@ -348,7 +345,7 @@ public:
     FT cq_d = cq->distance_to_closest_seed();
     FT cr_d = cr->distance_to_closest_seed();
 
-    FT l = canvas->step; // all edge lengths are the same at the moment
+    FT l = this->canvas()->step; // all edge lengths are the same at the moment
     FT lden = 1./l;
 
     Vector3d vp, vq, vr; // note that these vectors "point" towards 'this'
@@ -454,20 +451,20 @@ public:
     if(cp->closest_seed_id() != static_cast<std::size_t>(-1))
     {
       if(cp->index() == this->index() + 1 || cp->index() == this->index() - 1) // p pight/left of 'this'
-        lambda = (cp_d - this->distance_to_closest_seed() + pe1 * canvas->step) / (me1 + pe1);
-      else if(cp->index() == this->index() + canvas->n || cp->index() == this->index() - canvas->n) // p back/fpont of 'this'
-        lambda = (cp_d - this->distance_to_closest_seed() + pe2 * canvas->step) / (me2 + pe2);
-      else if(cp->index() == this->index() + canvas->sq_n || cp->index() == this->index() - canvas->sq_n) // p above/below 'this'
-        lambda = (cp_d - this->distance_to_closest_seed() + pe3 * canvas->step) / (me3 + pe3);
+        lambda = (cp_d - this->distance_to_closest_seed() + pe1 * this->canvas()->step) / (me1 + pe1);
+      else if(cp->index() == this->index() + this->canvas()->n || cp->index() == this->index() - this->canvas()->n) // p back/fpont of 'this'
+        lambda = (cp_d - this->distance_to_closest_seed() + pe2 * this->canvas()->step) / (me2 + pe2);
+      else if(cp->index() == this->index() + this->canvas()->sq_n || cp->index() == this->index() - this->canvas()->sq_n) // p above/below 'this'
+        lambda = (cp_d - this->distance_to_closest_seed() + pe3 * this->canvas()->step) / (me3 + pe3);
       else
         CGAL_assertion(false);
     }
 
     // debug & verifications
     Vector3d p_to_mp, this_to_mp;
-    FT mpx = this->point().x() + lambda * (cp->point().x() - this->point().x()) / canvas->step;
-    FT mpy = this->point().y() + lambda * (cp->point().y() - this->point().y()) / canvas->step;
-    FT mpz = this->point().z() + lambda * (cp->point().z() - this->point().z()) / canvas->step;
+    FT mpx = this->point().x() + lambda * (cp->point().x() - this->point().x()) / this->canvas()->step;
+    FT mpy = this->point().y() + lambda * (cp->point().y() - this->point().y()) / this->canvas()->step;
+    FT mpz = this->point().z() + lambda * (cp->point().z() - this->point().z()) / this->canvas()->step;
     p_to_mp(0) = cp->point().x() - mpx;
     p_to_mp(1) = cp->point().y() - mpy;
     p_to_mp(2) = cp->point().z() - mpz;
@@ -478,7 +475,7 @@ public:
     FT d_this_to_mp = std::sqrt(this_to_mp.transpose() * m * this_to_mp);
     FT diffp = this->distance_to_closest_seed() + d_this_to_mp - (cp_d + d_p_to_mp);
 
-    if(lambda >= -1e-10 && lambda <= canvas->step + 1e-10)
+    if(lambda >= -1e-10 && lambda <= this->canvas()->step + 1e-10)
       CGAL_assertion(std::abs(diffp) < 1e-10);
 
     return lambda;
@@ -499,12 +496,12 @@ public:
     if(cp->closest_seed_id() == cq->closest_seed_id())
     {
       this->closest_seed_id() = cp->closest_seed_id(); // this probably creates problems in the ancestor tree...
-      this->m_ancestor = cp;
+      this->m_ancestor = cp->index();
     }
 
     // we have to use the lambdas to decide which one to use as ancestor!
-    bool intersect_p = lambda_p >= -1e-2 && lambda_p <= canvas->step + 1e-10;
-    bool intersect_q = lambda_q >= -1e-2 && lambda_q <= canvas->step + 1e-10;
+    bool intersect_p = lambda_p >= -1e-2 && lambda_p <= this->canvas()->step + 1e-10;
+    bool intersect_q = lambda_q >= -1e-2 && lambda_q <= this->canvas()->step + 1e-10;
     //fixme -1e-2 is absurdly big for a tolerance...
 
     const Konukoglu_canvas_point* best_g = NULL;
@@ -527,7 +524,7 @@ public:
     }
 
     this->closest_seed_id() = best_g->closest_seed_id();
-    this->m_ancestor = best_g;
+    this->m_ancestor = best_g->index();
 
 #if (verbosity > 15)
     std::cout << "ancestor shen 2D @ " << this->index()
@@ -547,10 +544,19 @@ public:
     // might be better to use a boolean like 'is_the_canvas_point_closest_to_a_seed' so that
     // we can still spread a color on top of another while refining
 
-    CGAL_assertion(opt_neighbors[0]);
-    const Konukoglu_canvas_point* cp = opt_neighbors[0];
-    const Konukoglu_canvas_point* cq = opt_neighbors[1];
-    const Konukoglu_canvas_point* cr = opt_neighbors[2];
+    CGAL_assertion(opt_neighbors[0] != static_cast<std::size_t>(-1));
+
+    const Konukoglu_canvas_point* cp = NULL, *cq = NULL, *cr = NULL;
+    cp = &(this->canvas()->get_point(opt_neighbors[0]));
+    if(opt_neighbors[1] != static_cast<std::size_t>(-1))
+      cq = &(this->canvas()->get_point(opt_neighbors[1]));
+
+    if(opt_neighbors[2] != static_cast<std::size_t>(-1))
+      cr = &(this->canvas()->get_point(opt_neighbors[2]));
+
+    bool is_init_p = cp->closest_seed_id() != static_cast<std::size_t>(-1);
+    bool is_init_q = cq?(cq->closest_seed_id() != static_cast<std::size_t>(-1)):false;
+    bool is_init_r = cr?(cr->closest_seed_id() != static_cast<std::size_t>(-1)):false;
 
 #if (verbosity > 10)
     std::cout << " " << (cq?(cr?"3":"2"):"1") << "D" << std::endl;
@@ -559,10 +565,6 @@ public:
     // cp         non NULL => best is achieved from 1D
     // cp, cq     non NULL => best is achieved from 2D
     // cp, cq, cr non NULL => best is achieved from 3D
-
-    bool is_init_p = cp->closest_seed_id() != static_cast<std::size_t>(-1);
-    bool is_init_q = cq?(cq->closest_seed_id() != static_cast<std::size_t>(-1)):false;
-    bool is_init_r = cr?(cr->closest_seed_id() != static_cast<std::size_t>(-1)):false;
 
 #if (verbosity > 20)
     std::cout << "ini bools: " << is_init_p << " " << is_init_q << " " << is_init_r;
@@ -586,19 +588,19 @@ public:
     if(is_init_p && !is_init_q && !is_init_r)
     {
       this->closest_seed_id() = cp->closest_seed_id();
-      this->m_ancestor = cp;
+      this->m_ancestor = cp->index();
       return;
     }
     else if(!is_init_p && is_init_q && !is_init_r)
     {
       this->closest_seed_id() = cq->closest_seed_id();
-      this->m_ancestor = cq;
+      this->m_ancestor = cq->index();
       return;
     }
     else if(!is_init_p && !is_init_q && is_init_r)
     {
       this->closest_seed_id() = cr->closest_seed_id();
-      this->m_ancestor = cr;
+      this->m_ancestor = cr->index();
       return;
     }
     else if(is_init_p && is_init_q && is_init_r &&
@@ -606,7 +608,7 @@ public:
             cp->closest_seed_id() == cr->closest_seed_id())
     {
       this->closest_seed_id() = cp->closest_seed_id();
-      this->m_ancestor = cp;
+      this->m_ancestor = cp->index();
       return;
     }
 
@@ -629,9 +631,9 @@ public:
 
     CGAL_assertion(cp && cq && cr);
 
-    bool intersect_p = lambda_p >= -1e-2 && lambda_p <= canvas->step + 1e-10;
-    bool intersect_q = lambda_q >= -1e-2 && lambda_q <= canvas->step + 1e-10;
-    bool intersect_r = lambda_r >= -1e-2 && lambda_r <= canvas->step + 1e-10;
+    bool intersect_p = lambda_p >= -1e-2 && lambda_p <= this->canvas()->step + 1e-10;
+    bool intersect_q = lambda_q >= -1e-2 && lambda_q <= this->canvas()->step + 1e-10;
+    bool intersect_r = lambda_r >= -1e-2 && lambda_r <= this->canvas()->step + 1e-10;
     //fixme tolerance too big...
 
 #if (verbosity > 20)
@@ -716,7 +718,7 @@ public:
 
     CGAL_assertion(best_g);
     this->closest_seed_id() = best_g->closest_seed_id();
-    this->m_ancestor = best_g;
+    this->m_ancestor = best_g->index();
   }
 
   FT compute_closest_seed_3D(const Konukoglu_canvas_point* cp,
@@ -864,17 +866,17 @@ public:
 #endif
 
     // tolerance to ignore unsignificant changes
-    if(this->distance_to_closest_seed() - d > canvas->recursive_tolerance * d)
+    if(this->distance_to_closest_seed() - d > this->canvas()->recursive_tolerance * d)
     {
       changed = true;
       this->distance_to_closest_seed() = d;
-      opt_neighbors[0] = cp;
-      opt_neighbors[1] = cq;
-      opt_neighbors[2] = cr;
+      opt_neighbors[0] = cp->index();
+      opt_neighbors[1] = cq->index();
+      opt_neighbors[2] = cr->index();
 
       // below is useless fixme
-      this->closest_seed_id() = static_cast<std::size_t>(-1);
-      this->m_ancestor = cp;
+      this->closest_seed_id() = -1;
+      this->m_ancestor = cp->index();
 
 #if (verbosity > 15)
       std::cout << "3D new best for " << this->index()
@@ -884,7 +886,7 @@ public:
     return changed;
   }
 
-  boost::array<const Konukoglu_canvas_point*, 4>
+  boost::array<std::size_t, 4>
   get_adjacent_neighbors(const Konukoglu_canvas_point* cp,
                          const Konukoglu_canvas_point* cq)
   {
@@ -892,7 +894,7 @@ public:
     // for example, if q = right, the adjacent neighbors are back, above, front, below
 
     CGAL_assertion(cp && cq && cp != cq);
-    boost::array<const Konukoglu_canvas_point*, 4> adj_n;
+    boost::array<std::size_t, 4> adj_n;
 
     // an annoying case is the border of the grid: not all neighbors are != NULL
     // so if we want to find the adjacent neighbors, we have to know what is the
@@ -905,7 +907,7 @@ public:
     // first of all, we need to find the index of cq in cp->neighbors
     std::size_t pos_cq = 6; // 6 so that it will fail an assert later if cq not found
     for(std::size_t i=0; i<ns.size(); ++i)
-      if(ns[i] == cq)
+      if(ns[i] == cq->index())
         pos_cq = i;
 
     // hardcoding all the cases, because it's simpler to code (and to understand)
@@ -940,14 +942,13 @@ public:
     // then 4 possible 3D faces: this-ancestor-2 from adj_n
     // if a tet fails, we have two possible 2D faces: this-ancestor-1 from tet
     // if no face is available, then compute 1D: this-ancestor
-    boost::array<const Konukoglu_canvas_point*, 4> adj_n =
-                                              get_adjacent_neighbors(this, anc);
+    boost::array<std::size_t, 4> adj_n = get_adjacent_neighbors(this, anc);
 
 #if (verbosity > 10)
     std::cout << " neighbors: ";
     for(std::size_t i=0; i<4; ++i)
       if(adj_n[i])
-        std::cout << adj_n[i]->index() << " ";
+        std::cout << adj_n[i] << " ";
       else
         std::cout << "NULL ";
     std::cout << std::endl;
@@ -955,8 +956,8 @@ public:
 
     for(std::size_t i=0; i<adj_n.size(); ++i)
     {
-      const Konukoglu_canvas_point* cp = adj_n[i];
-      const Konukoglu_canvas_point* cq = adj_n[(i+1)%(adj_n.size())];
+      const Konukoglu_canvas_point* cp = &(this->canvas()->get_point(adj_n[i]));
+      const Konukoglu_canvas_point* cq = &(this->canvas()->get_point(adj_n[(i+1)%(adj_n.size())]));
 
       if(cp && (cp->state() == KNOWN || cp->state() == CHANGED))
       {
@@ -992,7 +993,7 @@ public:
     return changed;
   }
 
-  PQ_state update_neighbors_distances() const
+  PQ_state update_neighbors_distances()
   {
 //    std::cout << "update neighbors of " << index << std::endl;
     PQ_state pqs_ret = NOTHING_TO_DO;
@@ -1002,33 +1003,35 @@ public:
 
     for(std::size_t i=0; i<neighbors.size(); ++i)
     {
-      Konukoglu_canvas_point* cp = neighbors[i]; // a neighbor of 'this'
-      if(!cp)
+      if(neighbors[i] == static_cast<std::size_t>(-1))
         continue;
 
+      Konukoglu_canvas_point& cp = this->canvas()->get_point(neighbors[i]); // a neighbor of 'this'
+
 #ifdef USE_RECURSIVE_UPDATES
-      if(cp->state() == KNOWN || cp->state() == CHANGED) // that's the recursive part
+      if(cp.state() == KNOWN || cp.state() == CHANGED) // that's the recursive part
       {
 #if (verbosity > 10)
-        FT mem = cp->distance_to_closest_seed();
-        std::size_t ancestor_mem = (cp->ancestor())?cp->ancestor()->index():-1;
+        FT mem = cp.distance_to_closest_seed();
+        std::size_t ancestor_mem = cp.ancestor();
 #endif
         // recompute the distance in the direction cp-'this'
-        if(cp->compute_closest_seed(this))
+        if(cp.compute_closest_seed(this))
         {
 #if (verbosity > 10)
-          std::cout << "new value at " << cp->index() << " : " << cp->distance_to_closest_seed();
-          std::cout << " with ancestor: " << cp->ancestor()->index();
+          std::cout << "new value at " << cp.index() << " : " << cp.distance_to_closest_seed();
+          std::cout << " with ancestor: " << cp.ancestor();
           std::cout << " (mem: " << mem << " ancestor: " << ancestor_mem << ") ";
-          std::cout << " diff: " << cp->distance_to_closest_seed() - mem << std::endl;
+          std::cout << " diff: " << cp.distance_to_closest_seed() - mem << std::endl;
 #endif
-          if(cp->state() == KNOWN)
+          if(cp.state() == KNOWN)
           {
             // if it's already 'changed' we only need to reorder the 'changed' queue
             // but we don't need to insert anything
-            cp->state() = CHANGED;
-            canvas->changed_points.push_back(cp);
-            std::push_heap(canvas->changed_points.begin(), canvas->changed_points.end(),
+            cp.state() = CHANGED;
+            this->canvas()->changed_points.push_back(&cp);
+            std::push_heap(this->canvas()->changed_points.begin(),
+                           this->canvas()->changed_points.end(),
                            Canvas_point_comparer<Konukoglu_canvas_point>());
           }
           else
@@ -1042,10 +1045,10 @@ public:
       }
       else
 #endif
-      if(cp->state() == TRIAL)
+      if(cp.state() == TRIAL)
       {
         // no need to insert in the trial queue since it already is in it
-        if(cp->compute_closest_seed(this))
+        if(cp.compute_closest_seed(this))
         {
           if(pqs_ret == NOTHING_TO_DO || pqs_ret == REBUILD_TRIAL)
             pqs_ret = REBUILD_TRIAL;
@@ -1053,19 +1056,20 @@ public:
             pqs_ret = REBUILD_BOTH;
         }
       }
-      else // cp->state == FAR
+      else // cp.state == FAR
       {
-        CGAL_assertion(cp->state() == FAR);
+        CGAL_assertion(cp.state() == FAR);
 
-        // note that cp->distance_to_closest_seed is not necessarily FT_inf here :
+        // note that cp.distance_to_closest_seed is not necessarily FT_inf here :
         // if we're refining, we've assigned FAR to all points after inserting a new
         // seed, therefore we must verify that compute_closest_seed is an update
         // before inserting it in the trial_queue
-        if(cp->compute_closest_seed(this))
+        if(cp.compute_closest_seed(this))
         {
-          cp->state() = TRIAL;
-          canvas->trial_points.push_back(cp);
-          std::push_heap(canvas->trial_points.begin(), canvas->trial_points.end(),
+          cp.state() = TRIAL;
+          this->canvas()->trial_points.push_back(&cp);
+          std::push_heap(this->canvas()->trial_points.begin(),
+                         this->canvas()->trial_points.end(),
                          Canvas_point_comparer<Konukoglu_canvas_point>());
         }
       }
@@ -1077,7 +1081,7 @@ public:
   // A proper fix would be to always have a const ref to the canvas in all the
   // point types but it's not worth the work (you need to change many typedefs
   // in all the classes & such)
-  PQ_state update_neighbors_distances(std::vector<Konukoglu_canvas_point*>& /*trial*/) const
+  PQ_state update_neighbors_distances(std::vector<Konukoglu_canvas_point*>& /*trial*/)
   {
     return update_neighbors_distances(); // this will call the function above with changed & trial
   }
@@ -1096,13 +1100,15 @@ public:
                          const std::size_t _index,
                          Canvas* _canvas)
     :
-      Base(_point, _index, _canvas->mf),
+      Base(_point, _index, _canvas),
       neighbors(),
-      opt_neighbors(),
-      canvas(_canvas)
+      opt_neighbors()
   {
     for(std::size_t i=0; i<neighbors.size(); ++i)
-      neighbors[i] = NULL;
+      neighbors[i] = -1;
+
+    for(std::size_t i=0; i<opt_neighbors.size(); ++i)
+      opt_neighbors[i] = -1;
   }
 };
 

@@ -3,7 +3,6 @@
 
 #include <CGAL/Canvas/canvas_enum.h>
 #include <CGAL/Canvas/canvas_helper.h>
-#include <CGAL/Canvas/canvas_point.h>
 #include <CGAL/Canvas/canvas_seeds.h>
 #include <CGAL/Canvas/primal_simplex.h>
 #include <CGAL/Canvas/canvas_tetrahedron_intersection.h>
@@ -121,6 +120,18 @@ public:
   virtual void compute_primal() = 0;
   virtual void compute_local_primal_elements(const Canvas_point* cp) = 0;
   // ---------------------------------------------------------------------------
+
+  Canvas_point& get_point(std::size_t i)
+  {
+    CGAL_precondition(i < canvas_points.size());
+    return canvas_points[i];
+  }
+
+  const Canvas_point& get_point(std::size_t i) const
+  {
+    CGAL_precondition(i < canvas_points.size());
+    return canvas_points[i];
+  }
 
   bool is_point_outside_canvas(const FT x, const FT y, const FT z) const
   {
@@ -304,11 +315,11 @@ public:
     std::cout << "final states after painting: " << std::endl;
     for(std::size_t i=0; i<canvas_points.size(); ++i)
     {
-      const Canvas_point* cp = &(canvas_points[i]);
-      std::cout << cp->index() << "( " << cp->point() << ")";
-      std::cout << " at distance: " << cp->distance_to_closest_seed();
-      std::cout << " from " << cp->closest_seed_id() << std::endl;
-      cp->print_ancestor_tree();
+      const Canvas_point& cp = canvas_points[i];
+      std::cout << cp.index() << "( " << cp.point() << ")";
+      std::cout << " at distance: " << cp.distance_to_closest_seed();
+      std::cout << " from " << cp.closest_seed_id() << std::endl;
+      cp.print_ancestor_tree();
     }
 #endif
 
@@ -322,20 +333,20 @@ public:
   {
     CGAL_assertion(trial_points.empty() );
 
-    std::cout << "BRUTE FORCE CHECK THAT WE ARE REALLY FINISHED : " << std::endl;
     for(std::size_t i=0; i<canvas_points.size(); ++i)
     {
-      Canvas_point* cp = &(canvas_points[i]);
+      const Canvas_point& cp = canvas_points[i];
 
-      CGAL_assertion(cp->state() != FAR);
+      if(cp.ancestor() != static_cast<std::size_t>(-1) &&
+         canvas_points[cp.ancestor()].children().find(cp.index()) ==
+         canvas_points[cp.ancestor()].children().end())
+      {
+        std::cout << "failure in ancestor/children relationship at " << cp.index() << std::endl;
+        CGAL_assertion(false);
+      }
 
-      std::cout << "point " << i << " min distance is supposedly: ";
-      std::cout << cp->distance_to_closest_seed() << std::endl;
-
-      if(cp->ancestor())
-        CGAL_assertion(!cp->compute_closest_seed(static_cast<const Canvas_point*>(cp->ancestor())));
-      // other option to not have to cast would be to crtp the base canvas point...
-      // also, can't dynamic cast since there's no polymorphism
+      CGAL_postcondition(cp.distance_to_closest_seed() != FT_inf);
+      CGAL_postcondition(cp.closest_seed_id() < seeds.size());
     }
   }
 
@@ -376,7 +387,7 @@ public:
       cp.state() = FAR;
       cp.distance_to_closest_seed() = FT_inf;
       cp.closest_seed_id() = -1;
-      cp.m_ancestor = NULL;
+      cp.ancestor() = -1;
     }
     reset_counters();
     clear_primal();

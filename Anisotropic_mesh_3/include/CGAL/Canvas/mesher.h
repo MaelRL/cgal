@@ -70,7 +70,7 @@ public:
     if(s.size() == 3)
       return compute_volume(canvas.seeds[s[0]], canvas.seeds[s[1]],
                             canvas.seeds[s[2]]);
-    else if(s.size() == 4)
+    else // if(s.size() == 4)
       return compute_volume(canvas.seeds[s[0]], canvas.seeds[s[1]],
                             canvas.seeds[s[2]], canvas.seeds[s[3]]);
   }
@@ -276,7 +276,7 @@ public:
                                                        ++it)
     {
       const Primal_tetrahedron& primal_tet = *it;
-      //test_primal_simplex(primal_tet, tqueues);
+      test_primal_simplex(primal_tet, tqueues);
     }
   }
 

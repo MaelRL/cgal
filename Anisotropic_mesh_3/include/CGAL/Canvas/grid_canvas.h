@@ -87,40 +87,41 @@ public:
 #endif
 
     // create the canvas points
-    for(unsigned int k=0; k<n; ++k)
+    for(std::size_t k=0; k<n; ++k)
     {
-      for(unsigned int j=0; j<n; ++j)
+      for(std::size_t j=0; j<n; ++j)
       {
-        for(unsigned int i=0; i<n; ++i)
+        for(std::size_t i=0; i<n; ++i)
         {
           // fill from bot left to top right
           Point_3 p(offset_x+i*step, offset_y+j*step, offset_z+k*step);
-          Canvas_point cp(p, i + j*n + k*sq_n, this->mf);
+          Canvas_point cp(p, i + j*n + k*sq_n, this);
           this->canvas_points.push_back(cp);
         }
       }
     }
 
     // assign the neighbors
-    for(unsigned int k=0; k<n; ++k)
+    for(std::size_t k=0; k<n; ++k)
     {
-      for(unsigned int j=0; j<n; ++j)
+      for(std::size_t j=0; j<n; ++j)
       {
-        for(unsigned int i=0; i<n; ++i)
+        for(std::size_t i=0; i<n; ++i)
         {
           std::size_t curr_id = i + j*n + k*sq_n;
+
           if(k != n-1) // there is a neighbor above
-            this->canvas_points[curr_id].neighbors[0] = &(this->canvas_points[i + j*n + (k+1)*sq_n]);
+            this->canvas_points[curr_id].neighbors[0] = i + j*n + (k+1)*sq_n;
           if(i != 0) // there is a neighbor left
-            this->canvas_points[curr_id].neighbors[1] = &(this->canvas_points[i-1 + j*n + k*sq_n]);
+            this->canvas_points[curr_id].neighbors[1] = i-1 + j*n + k*sq_n;
           if(j != n-1) // there is a neighbor back
-            this->canvas_points[curr_id].neighbors[2] = &(this->canvas_points[i + (j+1)*n + k*sq_n]);
+            this->canvas_points[curr_id].neighbors[2] = i + (j+1)*n + k*sq_n;
           if(i != n-1) // there is a neighbor right
-            this->canvas_points[curr_id].neighbors[3] = &(this->canvas_points[i+1 + j*n + k*sq_n]);
+            this->canvas_points[curr_id].neighbors[3] = i+1 + j*n + k*sq_n;
           if(j != 0) // there is a neighbor front
-            this->canvas_points[curr_id].neighbors[4] = &(this->canvas_points[i + (j-1)*n + k*sq_n]);
+            this->canvas_points[curr_id].neighbors[4] = i + (j-1)*n + k*sq_n;
           if(k != 0) // there is a neighbor below
-            this->canvas_points[curr_id].neighbors[5] = &(this->canvas_points[i + j*n + (k-1)*sq_n]);
+            this->canvas_points[curr_id].neighbors[5] = i + j*n + (k-1)*sq_n;
         }
       }
     }
@@ -177,10 +178,13 @@ public:
                                        iend = cp->neighbors.end();
     for(; it!=iend; ++it)
     {
-      const Canvas_point* cq = *it;
-      if(!cq || cq->state() != KNOWN)
+      if(*it == static_cast<std::size_t>(-1))
         continue;
-      candidates.insert(cq);
+
+      const Canvas_point& cq = this->canvas_points[*it];
+      if(cq.state() != KNOWN)
+        continue;
+      candidates.insert(&cq);
     }
     Base::construct_primal_elements_from_candidates(candidates);
   }
@@ -192,9 +196,12 @@ public:
                                        iend = cp->neighbors.end();
     for(; it!=iend; ++it)
     {
-      const Canvas_point* cq = *it;
-      if(cq && cq->state() == KNOWN)
-        primal_shenanigans(cq);
+      if(*it == static_cast<std::size_t>(-1))
+        continue;
+
+      const Canvas_point& cq = this->canvas_points[*it];
+      if(cq.state() == KNOWN)
+        primal_shenanigans(&cq);
     }
   }
 
@@ -291,7 +298,7 @@ public:
       out_bb << cp.distance_to_closest_seed() << std::endl;
 
       // compute the tets...
-      const boost::array<Canvas_point*, 6>& ns = cp.neighbors; // just to get a shorter name...
+      const Neighbors& ns = cp.neighbors; // just to get a shorter name...
       for(std::size_t i=0; i<ns.size(); ++i)
       {
 #if 0
@@ -314,11 +321,14 @@ public:
         add_tet_to_simplices(tetrahedra, cp, 1, 2, 5);
 
         // the last one is a bit annoying since we have to grab neighbors of neighbors
-        const Canvas_point* n4 = cp.neighbors[4];
-        const Canvas_point* n3 = cp.neighbors[3];
-        if(n4 && n3)
-          add_tet_to_simplices(tetrahedra, cp, n4->neighbors[3],
-                               n4->neighbors[0], n3->neighbors[0]);
+        if(cp.neighbors[3] != static_cast<std::size_t>(-1) &&
+           cp.neighbors[4] != static_cast<std::size_t>(-1))
+        {
+          const Canvas_point& n3 = this->canvas_points[cp.neighbors[3]];
+          const Canvas_point& n4 = this->canvas_points[cp.neighbors[4]];
+          add_tet_to_simplices(tetrahedra, cp, n4.neighbors[3],
+                               n4.neighbors[0], n3.neighbors[0]);
+        }
 #endif
       }
     }
@@ -395,11 +405,11 @@ public:
                                                        iend = cp.neighbors.end();
       for(; it!=iend; ++it)
       {
-        const Canvas_point* cq = *it;
-        if(!cq)
+        if(*it == static_cast<std::size_t>(-1))
           continue;
 
-        candidates.insert(cq);
+        const Canvas_point& cq = this->canvas_points[*it];
+        candidates.insert(&cq);
       }
       Base::construct_primal_elements_from_candidates(candidates);
     }
