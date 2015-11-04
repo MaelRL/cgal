@@ -717,15 +717,15 @@ struct Base_mesh;
 
 struct Grid_point
 {
-  typedef boost::unordered_set<std::size_t> Neighbors;
+  typedef boost::unordered_set<std::size_t>                           Point_set;
 
   // immuable stuff
   Base_mesh* bm;
   Point_2 point;
   std::size_t index;
   Metric metric;
-  Neighbors neighbors;
-  Neighbors border_neighbors;
+  Point_set neighbors;
+  Point_set border_neighbors;
   std::list<std::size_t> incident_triangles;
   bool is_on_domain_border;
 
@@ -734,13 +734,20 @@ struct Grid_point
   FT distance_to_closest_seed;
   std::size_t closest_seed_id;
   std::size_t ancestor;
+  Point_set children;
   bool is_Voronoi_vertex;
 
   void change_state(FMM_state new_state);
   std::size_t ancestor_path_length() const;
+  void print_ancestry() const;
+  bool find_in_ancestry(const std::size_t i) const;
+  void remove_from_children(const std::size_t c);
   void remove_from_neighbors(const std::size_t n_p);
   void remove_from_border_neighbors(const std::size_t n_p);
   void remove_from_incident_triangles(const std::size_t i);
+  void mark_descendants(std::size_t& count, std::set<std::size_t>& potential_parents);
+  void reset_descendants();
+  void deal_with_descendants();
   bool compute_closest_seed(const std::size_t n_anc, const bool overwrite = true);
   PQ_state update_neighbors_distances(std::vector<Grid_point*>& trial_pq) const;
   FT distortion_to_seed() const;
@@ -1182,8 +1189,8 @@ struct Base_mesh
     if(gp->index < 4) // corner hack fixme
       gp->is_Voronoi_vertex = true;
 
-    typename Grid_point::Neighbors::iterator it = gp->border_neighbors.begin();
-    typename Grid_point::Neighbors::iterator end = gp->border_neighbors.end();
+    typename Grid_point::Point_set::iterator it = gp->border_neighbors.begin();
+    typename Grid_point::Point_set::iterator end = gp->border_neighbors.end();
     for(; it!=end; ++it)
     {
       Grid_point* gq = &(points[*it]);
@@ -1349,8 +1356,8 @@ struct Base_mesh
     if(n_p < 4) // corner hack fixme
       Voronoi_vertices[seed_p].push_back(gp);
 
-    typename Grid_point::Neighbors::iterator it = gp.border_neighbors.begin();
-    typename Grid_point::Neighbors::iterator end = gp.border_neighbors.end();
+    typename Grid_point::Point_set::iterator it = gp.border_neighbors.begin();
+    typename Grid_point::Point_set::iterator end = gp.border_neighbors.end();
     for(; it!=end; ++it)
     {
       const Grid_point& gq = points[*it];
@@ -1461,6 +1468,28 @@ struct Base_mesh
 
   }
 
+  bool get_next_trial_point(Grid_point*& gp)
+  {
+    while(!trial_points.empty())
+    {
+      gp = trial_points.front();
+      std::pop_heap(trial_points.begin(), trial_points.end(),
+                    Grid_point_comparer<Grid_point>());
+      trial_points.pop_back();
+
+      CGAL_assertion(gp);
+
+      if(gp->state != TRIAL)
+      {
+        std::cout << "WARNING : point with a state non-TRIAL in the PQ : ";
+        std::cout << gp->index << "... Ignoring it!" << std::endl;
+      }
+      else
+        return true;
+    }
+    return false;
+  }
+
   void spread_distances(const bool use_dual_shenanigans,
                         const bool are_Voronoi_vertices_needed = true /*fixme*/)
   {
@@ -1494,10 +1523,8 @@ struct Base_mesh
       std::cout << std::endl;
 #endif
 
-      gp = trial_points.front();
-      CGAL_assertion(gp && gp->state == TRIAL);
-      std::pop_heap(trial_points.begin(), trial_points.end(), Grid_point_comparer<Grid_point>());
-      trial_points.pop_back();
+      if(!get_next_trial_point(gp))
+        break;
 
 #if (verbose > 10)
       std::cout << "-------------------------------------------------------" << std::endl;
@@ -1550,9 +1577,16 @@ struct Base_mesh
     {
       const Grid_point& gp = points[i];
 
+      if(gp.ancestor != static_cast<std::size_t>(-1) &&
+         points[gp.ancestor].children.find(gp.index) == points[gp.ancestor].children.end())
+      {
+        failed = true;
+        std::cout << "failure in ancestor/children relationship at " << gp.index << std::endl;
+      }
+
       if(gp.distance_to_closest_seed == FT_inf || gp.closest_seed_id >= seeds.size() ||
          (gp.ancestor != static_cast<std::size_t>(-1) &&
-                  points[gp.ancestor].closest_seed_id != gp.closest_seed_id))
+          points[gp.ancestor].closest_seed_id != gp.closest_seed_id))
       {
         failed = true;
         std::cout << "debug: " << i << " [" << gp.point << "] " << " at distance : ";
@@ -2146,11 +2180,7 @@ struct Base_mesh
     for(std::size_t i=0; i<points.size(); ++i)
     {
       Grid_point& gp = points[i];
-      gp.state = FAR;
-      gp.distance_to_closest_seed = FT_inf;
-      gp.closest_seed_id = -1;
-      gp.ancestor = -1;
-      gp.is_Voronoi_vertex = false;
+      gp.reset();
     }
 
     known_count = 0;
@@ -3680,21 +3710,71 @@ std::size_t Grid_point::ancestor_path_length() const
     ++i;
     const Grid_point& anc = bm->points[n_anc];
     n_anc = anc.ancestor;
+
+    CGAL_assertion(i < bm->points.size());
   }
   return i;
 }
 
-void Grid_point::remove_from_neighbors(const std::size_t n_p)
+void Grid_point::print_ancestry() const
 {
-  typename Neighbors::iterator it = neighbors.find(n_p);
-  if(it != neighbors.end()) // might already have been removed from the other side
-    neighbors.quick_erase(it);
+  ancestor_path_length(); // assert non circular ancestry
+
+  std::cout << "point : " << index << " ancestors: ";
+
+  std::size_t anc = ancestor;
+  while(anc != static_cast<std::size_t>(-1))
+  {
+    std::cout << anc << " ";
+    anc = bm->points[anc].ancestor;
+  }
+  std::cout << std::endl;
 }
 
-void Grid_point::remove_from_border_neighbors(const std::size_t n_p)
+bool Grid_point::find_in_ancestry(const std::size_t i) const
 {
-  typename Neighbors::iterator it = border_neighbors.find(n_p);
-  CGAL_assertion(it != border_neighbors.end()); // no other side here though !
+  ancestor_path_length(); // assert non circular ancestry
+  std::size_t anc = ancestor;
+  while(anc != static_cast<std::size_t>(-1))
+  {
+    if(anc == i)
+      return true;
+    anc = bm->points[anc].ancestor;
+  }
+  return false;
+}
+
+void Grid_point::remove_from_children(const std::size_t c)
+{
+  // 99% of the time, the child is found, but if during the initialization of
+  // a new seed, you reset (at least) two points that have an ancestry relationship
+  // then the child could have been reset already...
+  typename Point_set::iterator it = children.find(c);
+  if(it != children.end())
+    children.quick_erase(it);
+  else
+  {
+    std::cout << "WARNING: call to remove_from_children didn't find the child (";
+    std::cout << c << " from " << index << ")" << std::endl;
+  }
+}
+
+void Grid_point::remove_from_neighbors(const std::size_t n)
+{
+  typename Point_set::iterator it = neighbors.find(n);
+  if(it != neighbors.end()) // might already have been removed from the other side
+    neighbors.quick_erase(it);
+  else
+  {
+    std::cout << "WARNING: call to remove_from_neighbors didn't find the neighbor  (";
+    std::cout << n << " from " << index << ")" << std::endl;
+  }
+}
+
+void Grid_point::remove_from_border_neighbors(const std::size_t n)
+{
+  typename Point_set::iterator it = border_neighbors.find(n);
+  CGAL_precondition(it != border_neighbors.end()); // no other side here though !
   border_neighbors.quick_erase(it);
 }
 
@@ -3702,8 +3782,98 @@ void Grid_point::remove_from_incident_triangles(const std::size_t i)
 {
   std::list<std::size_t>::iterator it = std::find(incident_triangles.begin(),
                                                   incident_triangles.end(), i);
-  CGAL_assertion(it != incident_triangles.end());
+  CGAL_precondition(it != incident_triangles.end());
   incident_triangles.erase(it);
+}
+
+void Grid_point::mark_descendants(std::size_t& count,
+                                  std::set<std::size_t>& potential_parents)
+{
+//  std::cout << "marking " << index << " (a: " << ancestor << ") and its "
+//            << children.size() << " children: ";
+//  typename Point_set::iterator cit = children.begin();
+//  typename Point_set::iterator end = children.end();
+//  for(; cit!=end; ++cit)
+//    std::cout << *cit << " ";
+//  std::cout << std::endl;
+
+  ++count;
+  state = ORPHAN;
+
+  typename Point_set::iterator cit = children.begin();
+  typename Point_set::iterator end = children.end();  for(; cit!=end; ++cit)
+  {
+    Grid_point& cp = bm->points[*cit];
+    if(cp.state == ORPHAN)
+      continue;
+    cp.mark_descendants(count, potential_parents);
+  }
+
+  typename Point_set::iterator nit = neighbors.begin();
+  typename Point_set::iterator nend = neighbors.end();
+  for(; nit!=nend; ++nit)
+  {
+    const Grid_point& cp = bm->points[*nit];
+    if(cp.state != ORPHAN)
+      potential_parents.insert(*nit);
+  }
+}
+
+void Grid_point::reset_descendants()
+{
+//  std::cout << "reset descendant at: " << index << std::endl;
+  CGAL_precondition(state == ORPHAN);
+
+  while(!children.empty())
+  {
+    Grid_point& cp = bm->points[*(children.begin())];
+    cp.reset_descendants();
+  }
+
+  // we might reset points that are in the priority queue here !
+  // but it's okay since get_next_trial_point() will ignore these
+  reset();
+  state = ORPHAN;
+}
+
+void Grid_point::deal_with_descendants()
+{
+  std::cout << "lineage starting at " << index << std::endl;
+
+  // We recompute all the values at these orphans only using neighbors that are
+  // NOT orphans. We start from the youngest child and climb up in the tree.
+  // We leave these new values as FAR.
+
+  // We mark all the lineage as orphans, we don't want them to be relevant to
+  // any computation anymore since they're not linked to a seed by an ancestor
+  // tree
+  std::size_t count = 0;
+  std::set<std::size_t> potential_parents;
+  mark_descendants(count, potential_parents);
+  reset_descendants();
+
+//  std::cout <<  count << " children in the lineage" << std::endl;
+
+#ifdef ADD_PARENTS_AFTER_DESCENDANT_RESET
+  // add the parents to the points we have to spread from...
+//  std::cout << "add to trial points (before): " << bm->trial_points.size() << std::endl;
+  typename std::set<std::size_t>::iterator sit = potential_parents.begin();
+  typename std::set<std::size_t>::iterator lend = potential_parents.end();
+  for(; sit!=lend; ++sit)
+  {
+    Grid_point& gp = bm->points[*sit];
+    if(gp.state != TRIAL)
+    {
+//      std::cout << "push pot parent: " << *sit << std::endl;
+      bm->trial_points.push_back(&gp);
+      gp.state = TRIAL;
+    }
+  }
+
+//  std::cout << "add to trial points (after): " << bm->trial_points.size() << std::endl;
+  std::push_heap(bm->trial_points.begin(), bm->trial_points.end(),
+                 Grid_point_comparer<Grid_point>());
+#endif
 }
 
 bool Grid_point::compute_closest_seed(const std::size_t n_anc,
@@ -3717,7 +3887,13 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 
   CGAL_precondition(n_anc < bm->points.size());
   const Grid_point& anc = bm->points[n_anc];
-  CGAL_assertion(anc.state == KNOWN);
+  if(anc.state != KNOWN)
+    std::cout << "WARNING: potential ancestor is not KNOWN" << std::endl;
+
+//  anc.print_ancestry();
+
+  if(anc.find_in_ancestry(index))
+    return false;
 
   const int k = 8; // depth of the ancestor edge
   FT d = FT_inf;
@@ -3792,17 +3968,59 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
     n_curr_ancestor = curr_ancestor.ancestor;
   }
 
+  ++(optimal_depths[best_i]);
+
   if(d < distance_to_closest_seed)
   {
 #if (verbose > 20)
-    std::cout << "improving " << distance_to_closest_seed << " from " << ancestor << " (" << closest_seed_id << ")";
-    std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id << ")" << std::endl;
+    std::cout << "improving " << distance_to_closest_seed << " from " << ancestor
+              << " (" << closest_seed_id << ")";
+    std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id
+              << ")" << std::endl;
 #endif
     if(overwrite)
     {
+      // remove 'index' from the previous ancestor's children (if needed)
+      if(ancestor != static_cast<std::size_t>(-1))
+        bm->points[ancestor].remove_from_children(index);
+
       ancestor = n_anc;
       distance_to_closest_seed = d;
       closest_seed_id = anc.closest_seed_id;
+
+      // add 'index' to the new ancestor's children
+      bm->points[ancestor].children.insert(index);
+
+      CGAL_postcondition(ancestor_path_length()); // checks for circular ancestry
+
+#ifndef USE_FULL_REBUILDS // if we're using full rebuilds, below doesn't matter
+
+      // If we're refining, the point 'this' might have children.
+      // If 'this' changes, then any value at the children becomes meaningless.
+      // If we just ignore them the values are usually overwritten when we call
+      // this->update_neighbors()... BUT in very rare cases, they do NOT and
+      // we get orphans (and we don't like orphans), so when the parent changes,
+      // all the children must be reset to be sure that they'll always get a
+      // valid parent.
+
+      // Last but not least, this new parent is not necessarily 'this', so we must
+      // consider all potential new parents (who might even potentially have a
+      // different color than 'this')
+
+      if(!children.empty())
+      {
+        std::cout << "dealing with the " << children.size()
+                  << " descendant(s) of " << index << std::endl;
+        std::cout << "position : " << point << std::endl;
+      }
+
+      while(!children.empty())
+      {
+        Grid_point& gp = bm->points[*(children.begin())];
+        gp.deal_with_descendants();
+        CGAL_postcondition(gp.ancestor_path_length()); // checks for circular ancestry
+      }
+#endif
     }
     return true;
   }
@@ -3818,7 +4036,7 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<Grid_point*>& trial_
   CGAL_assertion(state == KNOWN);
 
   PQ_state pqs_ret = NOTHING_TO_DO;
-  typename Neighbors::const_iterator it = neighbors.begin(),
+  typename Point_set::const_iterator it = neighbors.begin(),
                                      end = neighbors.end();
   for(; it!=end; ++it)
   {
@@ -3832,9 +4050,9 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<Grid_point*>& trial_
       if(gp.compute_closest_seed(this->index))
         pqs_ret = REBUILD_TRIAL;
     }
-    else // gp.state == FAR
+    else
     {
-      CGAL_assertion(gp.state == FAR);
+      CGAL_assertion(gp.state == FAR || gp.state == ORPHAN);
       if(gp.compute_closest_seed(this->index))
       {
         gp.state = TRIAL;
@@ -3879,16 +4097,32 @@ FT Grid_point::distortion_to_seed() const
 
 void Grid_point::reset()
 {
+  // this only resets 'color'-related fields
+#if (verbose > 30)
+  std::cout << "reseting " << index << std::endl;
+#endif
+
+  if(ancestor != static_cast<std::size_t>(-1))
+    bm->points[ancestor].remove_from_children(index);
+
+  typename Point_set::iterator cit = children.begin();
+  typename Point_set::iterator end = children.end();
+  for(; cit!=end; ++cit)
+    bm->points[*cit].ancestor = -1;
+
   state = FAR;
   distance_to_closest_seed = FT_inf;
   closest_seed_id = -1;
   ancestor = -1;
+  children.clear();
   is_Voronoi_vertex = false;
 }
 
 void Grid_point::initialize_from_point(const FT d,
                                        const std::size_t seed_id)
 {
+  reset();
+
   closest_seed_id = seed_id;
   distance_to_closest_seed = d;
   state = TRIAL;
