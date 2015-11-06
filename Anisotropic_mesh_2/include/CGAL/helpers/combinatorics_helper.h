@@ -167,8 +167,8 @@ public:
   template<typename Tr_simplex>
   Edge_ij(const Tr_simplex &tr_s)
   {
-    int i = tr_s.first->vertex(tr_s.second)->info();
-    int j = tr_s.first->vertex(tr_s.third)->info();
+    int i = tr_s.first->vertex((tr_s.second+1)%3)->info();
+    int j = tr_s.first->vertex((tr_s.second+2)%3)->info();
     vertices()[0] = (std::min)(i,j);
     vertices()[1] = (std::max)(i,j);
   }

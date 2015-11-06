@@ -136,6 +136,22 @@ public:
 
   bool is_algorithm_done_()
   {
+    if(m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end))
+    {
+      std::cout << "it says it's empty" << std::endl;
+      fill_refinement_queue();
+      if(m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end))
+      {
+        std::cout << "it ain't lying" << std::endl;
+        return true;
+      }
+      else
+      {
+        std::cout << "it LIED" << std::endl;
+        return false;
+      }
+    }
+
     return m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end);
   }
 
@@ -211,16 +227,18 @@ public:
       return get_refinement_point_for_next_element_(steiner_point);
     }
 
-    //We already know the conflict zones if it's a suitable point from pick_valid, but we need
-    //to compute them for the other cases (won't cost anything if it's already known).
+    // We already know the conflict zones if it's a suitable point from pick_valid,
+    // but we need to compute them for the other cases (won't cost anything
+    // if it's already known).
     Trunk::compute_conflict_zones(steiner_point);
-    //same for elements needing checks
+
+    // same for elements needing checks
     this->m_stars_czones.compute_elements_needing_check();
 
     return SUITABLE_POINT;
   }
 
-  bool test_point_conflict_from_superior_(const Point_2& p, const bool, const bool)
+  bool test_point_conflict_from_superior_(const Point_2&, const bool, const bool)
   {
     return false;
   }
@@ -244,13 +262,13 @@ public:
     //if(!m_refinement_condition(steiner_point))
     //  return true; //false would stop refinement
 
-    Index pid = Trunk::insert(steiner_point, false/*tmp conditional*/);
+    Index pid = Trunk::insert(steiner_point, true/*conditional*/);
 
     if(pid != static_cast<Index>(this->m_starset.size()-1))
       std::cout << "warning in insert_" << std::endl;
 
 //Debug: check if f has been destroyed -------------------------------------
-    //The face is not necessarily destroyed, its dual can simply be reduced
+    //The face is not necessarily destroyed, its dual can simply be shortened
 
     Face_handle fh2;
     if(bad_face.star->is_face(v1, v2, v3, fh2))
@@ -271,7 +289,7 @@ public:
 
     return true;
   }
-//End of CRTP functions
+// End of CRTP functions
 
   void report()
   {
@@ -298,37 +316,20 @@ public:
     while(true)
     {
       if(!m_refine_queue.top(rface_it, m_queue_ids_start, m_queue_ids_end))
-      {
-#if 1
-        std::cout << "it says it's empty" << std::endl;
-        fill_refinement_queue();
-        if(!m_refine_queue.top(rface_it, m_queue_ids_start, m_queue_ids_end))
-        {
-          std::cout << "it ain't lying" << std::endl;
-          //remove_points();
-          return false;
-        }
-        else
-        {
-          std::cout << "it LIED" << std::endl;
-          continue;
-        }
-#else
         return false;
-#endif
-      }
 
       if(rface_it->star->has_face(rface_it->face, fh))
       {
         need_picking_valid = m_refine_queue.need_picking_valid(rface_it->queue_type);
         return true;
       }
-      else //top of the queue does not exist anymore
+      else // top of the queue does not exist anymore
         m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
     }
   }
 
-  //Most of that function body/parameters is debug; it could simply be f(i){queues[i]->pop();}
+  // Most of that function body/parameters is debug... It could simply be :
+  // f(i){queues[i]->pop();}
   bool next_refine_face_pop(Refine_face& refine_face,
                              Face_handle& fh,
                              bool& need_picking_valid)
@@ -340,7 +341,7 @@ public:
       return false;
     }
 
-    refine_face = *rfsit; //have to copy since the pop invalidates the iterator
+    refine_face = *rfsit; // must copy since pop() invalidates the iterator
 
     if(!rfsit->star->has_face(rfsit->face, fh))
     {
@@ -379,9 +380,9 @@ private:
 
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
-/*
+
     if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
-       this->m_criteria->distortion > 0.)
+       this->m_criteria->distortion > 1.)
     {
       FT over_distortion = this->m_starset.compute_distortion(fit) - this->m_criteria->distortion;
       if(over_distortion > 0.)
@@ -398,7 +399,6 @@ private:
         return;
       }
     }
-*/
 
     // size : 2
     if(is_criterion_tested(m_refine_queue.over_circumradius_queue) &&
@@ -500,8 +500,10 @@ public:
   //faces here are necessarily inconsistent, but need to test other criteria too
   void fill_from_unmodified_stars()
   {
-    typename std::map<Index, Face_handle_vector>::iterator mit = this->m_stars_czones.faces_to_check().begin();
-    typename std::map<Index, Face_handle_vector>::iterator mend = this->m_stars_czones.faces_to_check().end();
+    typename std::map<Index, Face_handle_vector>::iterator mit =
+                                  this->m_stars_czones.faces_to_check().begin();
+    typename std::map<Index, Face_handle_vector>::iterator mend =
+                                  this->m_stars_czones.faces_to_check().end();
     for(; mit!=mend; ++mit)
     {
       Index i = mit->first;
@@ -516,15 +518,20 @@ public:
 
   void fill_refinement_queue(Index pid)
   {
-    //fill from the stars that were directly in conflict with the inserted point
-    fill_refinement_queue(this->m_stars_czones, pid);
+    std::cout << "fill_refinement_queue pid : " << pid << std::endl;
+    std::cout << this->m_stars_czones.size() << " czones" << std::endl;
 
-    //fill from unmodified stars, where some faces could become inconsistent (or the
-    //star ownership of the face in the queue should change if the face was already in another
-    //queue).
+    if(this->m_stars_czones.size() == 0) // we inserted regardless of conflicts
+      return fill_refinement_queue();
+    else // fill from the stars that were directly in conflict with the inserted point
+      fill_refinement_queue(this->m_stars_czones, pid);
+
+    // fill from unmodified stars, where some faces could become inconsistent (or the
+    // star ownership of the face in the queue should change if the face was already in another
+    // queue).
     fill_from_unmodified_stars();
 
-#if 1
+#if 0
     std::cout << "Enter fill f_ref_queue debug. Filling with all stars" << std::endl;
     fill_refinement_queue();
     m_refine_queue.print();
@@ -607,7 +614,7 @@ private:
         if(!star->is_inside(fh)) //checks infinity
           continue;
 
-        if(relative_point >= 0) // we do not consider not-relative faces
+        if(relative_point >= 0)
         {
           bool relative = false;
           for(int i=0; i<3; i++)
@@ -618,6 +625,8 @@ private:
               break;
             }
           }
+
+          // we do not consider non-relative faces
           if(!relative)
             continue;
         }
@@ -683,7 +692,7 @@ private:
                          Star_handle new_star,     //the newly created star
                          const double& sq_radius_bound) const
   {
-    //list all faces that would be created by p's insertion
+    // list all faces that would be created by p's insertion
     Point_2 p = new_star->center_point();
     Index p_index = new_star->index_in_star_set();
 
@@ -730,33 +739,14 @@ private:
     return true;
   }
 
-  bool is_valid_point_2D(const Point_2 &p,
+  bool is_valid_point_1D(const Point_2 &p,
                          const FT& sq_radius_bound, // in M_{star to_be_refined}
                          Star_handle to_be_refined,
                          Star_handle& new_star) const
   {
-    Index id = Trunk::compute_conflict_zones(p);
-    this->m_stars_czones.compute_elements_needing_check();
-
-    if(!this->m_stars_czones.are_check_maps_empty())
-    {
-      //std::cout << "proposed FPV point creates inconsistencies in unmodified stars" << std::endl;
-      return false;
-    }
-
-    if(id < 0) // no conflict
-      return false;
-    else if(id < (int) this->m_starset.size()) //already in star set
-      return false;
-
-    Trunk::create_star(p, id, new_star, true/*surf*/);
-
-    bool is = check_consistency(to_be_refined, new_star, sq_radius_bound);
-
-    if(!is)
-      new_star->invalidate();
-
-    return is;
+    // todo
+    CGAL_assertion(false);
+    return false;
   }
 
   bool is_valid_point(const Point_2 &p,
@@ -764,10 +754,10 @@ private:
                       Star_handle to_be_refined,
                       Star_handle& new_star) const
   {
-    if(1) // todo switch?
+    if(1) // todo switch? corresponds to 'is_3D_level' for aniso_3d
       return Trunk::is_valid_point_2D(p, sq_radius_bound, to_be_refined, new_star);
     else
-      return is_valid_point_2D(p, sq_radius_bound, to_be_refined, new_star);
+      return is_valid_point_1D(p, sq_radius_bound, to_be_refined, new_star);
   }
 
   void pick_valid_output(const Refinement_point_status rp_status)

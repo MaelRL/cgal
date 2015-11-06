@@ -852,9 +852,27 @@ public:
     std::cout << "tp: " << tp << std::endl;
 #endif
 
-    Vertex_handle v = insert_to_star_(m_metric.transform(p), conditional);
+    Vertex_handle v = insert_to_star_(tp, conditional);
     if(v != center() && v != Vertex_handle())
       v->info() = id;
+    return v;
+  }
+
+  Vertex_handle insert_to_star_hole(const Point_2& point,
+                                    const Index id,
+                                    std::vector<Edge>& boundary_edges,
+                                    std::vector<Face_handle>& faces)
+  {
+    Vertex_handle v = Base::star_hole(m_metric.transform(point),
+                                      boundary_edges.begin(),
+                                      boundary_edges.end(),
+                                      faces.begin(),
+                                      faces.end());
+    invalidate_cache();
+    if(v != center() && v != Vertex_handle())
+      v->info() = id;
+    else
+      std::cout << "problem in insert_to_star_hole..." << std::endl;
     return v;
   }
 

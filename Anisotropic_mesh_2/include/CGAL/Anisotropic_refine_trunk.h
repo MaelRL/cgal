@@ -38,21 +38,24 @@ public:
 private:
   //Conflict zones defining vectors. Valid only until the insertion of the point!
   Edge_vector m_boundary_edges;
-  Face_handle_vector m_internal_faces;
+  Edge_vector m_internal_edges;
+  Face_handle_vector m_faces;
 
 public:
   Edge_vector& boundary_edges() { return m_boundary_edges; }
   const Edge_vector& boundary_edges() const { return m_boundary_edges; }
-  Face_handle_vector& internal_faces() { return m_internal_faces; }
-  const Face_handle_vector& internal_faces() const { return m_internal_faces; }
+  Edge_vector& internal_edges() { return m_internal_edges; }
+  const Edge_vector& internal_edges() const { return m_internal_edges; }
+  Face_handle_vector& faces() { return m_faces; }
+  const Face_handle_vector& faces() const { return m_faces; }
 
   bool empty()
   {
-    return m_internal_faces.empty();
+    return m_boundary_edges.empty() && m_internal_edges.empty() && m_faces.empty();
   }
 
   //Constructors
-  Conflict_zone() : m_boundary_edges(), m_internal_faces() { }
+  Conflict_zone() : m_boundary_edges(), m_internal_edges(), m_faces() { }
 };
 
 template<typename K, typename KExact = K>
@@ -90,6 +93,7 @@ private:
   Point m_conflict_p; // point causing the conflict (only needed to debug / assert)
   Index m_conflict_p_id; //id of the point
 
+  bool m_faces_need_check;
   bool m_are_checks_computed; //already computed or not
 
   //we need to keep track of the "soon to be" destroyed faces/cells SEEN FROM UNMODIFIED STARS
@@ -141,21 +145,22 @@ public:
 
   void check_from_face(Face_handle fit,
                         const std::vector<Index>& indices)
-  {
+  { }
 
-  }
-
-  void check_from_internal_faces(iterator mit,
-                                 const std::map<Facet_ijk, int>& internal_faces_counter)
-  {
-  }
+  void check_from_internal_edges(iterator mit,
+                   const std::map<Edge_ij, std::size_t>& internal_edges_counter)
+  { }
 
   void check_from_boundary_edges(iterator mit)
-  {
-  }
+  { }
 
   void compute_elements_needing_check()
   {
+    // code for this function is not finished so if you're calling insert_in_stars
+    // with conditional = true, you're going to miss out on something inconsistencies
+    std::cerr << "compute_elements_needing_check() call, see comment" << std::endl;
+    return;
+
 //todo -----------------------
     //WHEN REFINEMENT_CONDITIONS ARE ADDED AGAIN THERE NEEDS TO BE A CHECK HERE
     //NOT TO CONSIDER USELESS FACES/CELLS
@@ -169,35 +174,54 @@ public:
     if(m_are_checks_computed)
       return;
 
-    //Count the elements. In the general case, an internal face(cell) is three(four)
+    //Count the elements. In the general case, an internal edge(face) is two(three)
     //times in conflict, and there is thus nothing to check.
-    std::map<Facet_ijk, int> internal_faces_counter;
+    std::map<Edge_ij, std::size_t> internal_edges_counter;
+    std::map<Facet_ijk, int> faces_counter;
 
     iterator mit = m_conflict_zones.begin();
     iterator mend = m_conflict_zones.end();
     for(; mit!=mend; ++mit)
     {
+      Star_handle si = m_starset[mit->first];
       Czone& czi = mit->second;
       if(czi.empty())
         continue;
 
-      //internal faces
-      typename Star::Face_handle_handle fit = czi.internal_faces().begin();
-      typename Star::Face_handle_handle fend = czi.internal_faces().end();
+      // internal edges
+      typename std::vector<typename Star::Edge>::iterator eit =
+                                           czi.internal_edges().begin();
+      typename std::vector<typename Star::Edge>::iterator eend =
+                                           czi.internal_edges().end();
+      for(; eit!=eend; ++eit)
+      {
+        const typename Star::Edge& e = *eit;
+        if(e.first->vertex((e.second + 1)%3)->info() == mit->first || // incident edges only
+           e.first->vertex((e.second + 2)%3)->info() == mit->first)
+          add_to_map(Edge_ij(e), internal_edges_counter);
+      }
+
+      if(!m_faces_need_check)
+        continue;
+
+      // faces
+      typename Star::Face_handle_handle fit = czi.faces().begin();
+      typename Star::Face_handle_handle fend = czi.faces().end();
       for(; fit!=fend; ++fit)
       {
         Face_handle fh = *fit;
-        if(fh->vertex(0)->info() == mit->first || //incident faces only
-           fh->vertex(1)->info() == mit->first ||
-           fh->vertex(2)->info() == mit->first)
-          add_to_map(Facet_ijk(fh), internal_faces_counter);
+        if(si->is_inside(fh) &&
+           (fh->vertex(0)->info() == mit->first || // incident cells only!
+            fh->vertex(1)->info() == mit->first ||
+            fh->vertex(2)->info() == mit->first))
+          add_to_map(Facet_ijk(*fit), faces_counter);
       }
     }
 
     mit = m_conflict_zones.begin();
     for(; mit!=mend; ++mit)
     {
-      check_from_internal_faces(mit, internal_faces_counter);
+      check_from_internal_edges(mit, internal_edges_counter);
     }
 
     //TODO : std unique on both if not empty since we can have duplicates
@@ -240,6 +264,7 @@ public:
       m_conflict_zones(),
       m_conflict_p(Point(1e17, 1e17, 1e17)),
       m_conflict_p_id(-1),
+      m_faces_need_check(false),
       m_are_checks_computed(false),
       m_faces_to_check()
   { }
@@ -265,7 +290,7 @@ inline std::ostream& operator<<(std::ostream& os, Stars_conflict_zones<K>& src)
     typename Stars_conflict_zones<K>::Czone& czi = it->second;
     os << "S " << it->first << " ";
 //    os << czi.boundary_edges().size() << " ";
-    os << czi.internal_faces().size() << " ";
+    os << czi.faces().size() << " ";
     os << std::endl;
 
     //    src.m_starset[it->first]->print_faces();
@@ -286,8 +311,8 @@ inline std::ostream& operator<<(std::ostream& os, Stars_conflict_zones<K>& src)
     os << "-----" << std::endl;
 */
 
-    Face_handle_handle fit = czi.internal_faces().begin();
-    Face_handle_handle fend = czi.internal_faces().end();
+    Face_handle_handle fit = czi.faces().begin();
+    Face_handle_handle fend = czi.faces().end();
     for(; fit!=fend; ++fit)
     {
       Face_handle fh = *fit;
@@ -539,7 +564,7 @@ public:
                                        const Star_handle& new_star,
                                        FT sq_radius_bound) const
   {
-
+    // fixme
     return true;
   }
 
@@ -592,7 +617,7 @@ public:
 
       if(id == -1) // no conflict
         continue;
-      else if(id < (int)this_id) // already in star set
+      else if(id < static_cast<int>(this_id)) // already in star set
       {
         std::cout << "Warning in simulate_insert_to_stars" << std::endl;
         return id;
@@ -641,8 +666,23 @@ public:
       Star_handle si = get_star(i);
       Conflict_zone& ci = czit->second;
 
-      si->find_conflicts(p, std::back_inserter(ci.internal_faces()),
+      si->find_conflicts(p, std::back_inserter(ci.faces()),
                             std::back_inserter(ci.boundary_edges()));
+      CGAL_assertion(!ci.faces().empty());
+    }
+
+    for(std::size_t i=0; i<number_of_stars(); ++i)
+    {
+      Star_handle si = get_star(i);
+      TPoint_2 tp = si->metric().transform(p);
+      Face_handle fh;
+      if(si->is_conflicted(tp, fh))
+        CGAL_assertion(m_stars_czones.conflict_zones().find(i) !=
+                       m_stars_czones.conflict_zones().end());
+      else
+        CGAL_assertion(m_stars_czones.conflict_zones().find(i) ==
+            m_stars_czones.conflict_zones().end());
+
     }
 
     return m_stars_czones.conflicting_point_id();
@@ -672,83 +712,29 @@ public:
 #endif
     }
 
-#ifdef ANISO_SCHWARZENEGGER_CREATE_STAR
-    Star_iterator csit = m_starset.begin();
-    Star_iterator csend = m_starset.end();
-    for(; csit!=csend; ++csit)
+    // Alright, BIG deal here : you can't get a proper new star if you simply
+    // insert the vertices that corresponds to stars that are in conflict
+    // with the new point. THIS IS NOT A SYMETRICAL RELATIONSHIP !!
+
+    // ---------------------------------------------------------------------
+    // AGAIN : new point in conflict with a star <=/=> the star center is
+    // necessarily in conflict with the new star
+    // ---------------------------------------------------------------------
+
+    // And it's not a good approximation to use m_stars_czones, you get something
+    // __completely__ wrong
+    typename Starset::iterator sit = m_starset.begin();
+    typename Starset::iterator send = m_starset.end();
+    for(; sit!=send; ++sit)
     {
-      Star_handle si = get_star(csit);
-      star->insert_to_star(si->center_point(), si->index_in_star_set(), false);
-      si->insert_to_star(star->center_point(), star->index_in_star_set(), false);
-    }
-    return;
-#endif
-
-#ifdef ANISO_DEBUG_CREATE_STAR
-    std::cout << "CONAN INSERT POINT YARR" << std::endl;
-
-    Star_handle star_check = new Star(m_criteria, m_pdomain,
-                                      surface_star, m_is_2D_level);
-
-    Metric m_p = metric_field()->compute_metric(p);
-    star_check->reset(p, pid, m_p, surface_star);
-
-    //full rambo
-    Star_iterator csit = m_starset.begin();
-    Star_iterator csend = m_starset.end();
-    for(; csit!=csend; ++csit)
-    {
-      Star_handle si = get_star(csit);
-      star_check->insert_to_star(si->center_point(), si->index_in_star_set(), false);
-    }
-
-    int conan_rface_size = star_check->count_restricted_faces();
-    star_check->clean(true);
-    star_check->print_vertices();
-    star_check->print_restricted_faces();
-    star_check->clear();
-    delete star_check;
-#endif
-
-    if(m_stars_czones.is_empty())
-      std::cout << "Warning: empty conflict map at the creation of the new star" << std::endl;
-
-#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
-    //adding the 4 bounding box vertices (they are the first 8 stars)
-    if(this->m_starset.size() > 4)
-    {
-      for(int i=0; i<4; ++i)
-      {
-        Star_handle star_i = get_star(i);
-        star->insert_to_star(star_i->center_point(),
-                             star_i->index_in_star_set(),
-                             false /*no condition*/);
-      }
-    }
-#endif
-
-    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
-    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
-    for(; czit!=czend; ++czit)
-    {
-      Index i = czit->first;
-      Star_handle star_i = get_star(i);
-      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false);
-        //"false": no condition because they should be there for consistency
+      Star_handle star_i = get_star(sit);
+      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(),
+                           false/*conditional*/);
+      // "false": no condition because they all need to be considered to get the
+      // proper star. Not being in conflict with the star when your number comes up
+      // does _NOT_ mean you're not part of the first ring of the new star in the end...
     }
     star->clean();
-
-#ifdef ANISO_DEBUG_CREATE_STAR
-    star->print_vertices();
-    star->print_restricted_faces();
-    std::cout << "valid check @ create_star @ " << star->index_in_star_set() << " val: " << star->is_valid() << std::endl;
-
-    if(conan_rface_size != normal_rface_size)
-    {
-      std::cout << "conan wins: " << conan_rface_size << " " << normal_rface_size << std::endl;
-      assert(1==2);
-    }
-#endif
   }
 
   Star_handle create_star(const Point_2 &p,
@@ -763,11 +749,42 @@ public:
   Index perform_insertions(const Point_2& p,
                            const Index& this_id)
   {
-    std::cout << "no conflict zone perform insertion" << std::endl;
-    return -1;
+    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+      Star_handle si = get_star(i);
+      Vertex_handle vi;
+
+      Conflict_zone& si_czone = m_stars_czones.conflict_zone(i);
+
+//      vi = si->insert_to_star(p, this_id, true/*conditional*/);
+      vi = si->insert_to_star_hole(p, this_id,
+                                   si_czone.boundary_edges(),
+                                   si_czone.faces());
+
+      if(vi == Vertex_handle()) // no conflict (should not happen)
+      {
+        std::cout << "No conflict in the insertion of a point in a conflict star" << std::endl;
+        continue;
+      }
+      else if(vi->info() < this_id) // already in star set (should not happen)
+      {
+        std::cout << "Warning! Insertion of p"<< this_id
+                  << " (" << p << ") in S" << si->index_in_star_set()
+                  << " failed. vi->info() :"<< vi->info() << std::endl;
+
+        si->print_vertices(true);
+        si->print_faces();
+        return vi->info();
+      }
+    }
+    return this_id;
   }
 
-  //this version is called when conditional is false (insert in target_stars regardless of conflicts)
+  // this version is called when conditional is false : the point is inserted
+  // in target_stars regardless of conflicts
   template<typename Stars>
   Index perform_insertions(const Point_2& p,
                            const Index& this_id,
@@ -779,10 +796,10 @@ public:
     {
       Star_handle si = *it;
       Index i = si->index_in_star_set();
-      Vertex_handle vi = si->insert_to_star(p, this_id, false);
-        // equivalent to directly calling si->base::insert(tp)
+      Vertex_handle vi = si->insert_to_star(p, this_id, false/*conditional*/);
+      // equivalent to directly calling si->base::insert(tp)
 
-      if(vi == Vertex_handle())  //no conflict
+      if(vi == Vertex_handle())  // no conflict
         continue;
       else if(vi->info() < this_id) // already in star set (should not happen)
       {
@@ -793,14 +810,7 @@ public:
 
         si->print_vertices(true);
         si->print_faces();
-        std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
         return vi->info();
-      }
-      else // inserted, standard configuration
-      {
-        //Conflict zones are not computed for the target_stars, so we need to create
-        //entries in the conflict zones map (for fill_ref_queue)
-        m_stars_czones.conflict_zone(i);
       }
     }
     return this_id;
@@ -813,7 +823,7 @@ public:
 
     Index id;
     if(conditional)
-      id = perform_insertions(p, this_id); //stars in conflict
+      id = perform_insertions(p, this_id); // stars in conflict
     else
       id = perform_insertions(p, this_id, m_starset); // insert in all stars
 
@@ -823,7 +833,8 @@ public:
   Index insert(const Point_2& p,
                const bool conditional)
   {
-    if(conditional && m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
+    if(conditional &&
+       m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
       std::cout << "Conflict zones unknown at insertion time...insert()" << std::endl;
 
     std::cout << "insert with p : "<< p << std::endl;
@@ -840,13 +851,14 @@ public:
 
     if(conditional)
     {
-      //need to have the id of the new star in the list of ids to check in fill_ref_queue
+      // need to have the id of the new star in the list of ids to check in fill_ref_queue
       m_stars_czones.conflict_zone(number_of_stars());
     }
     else
     {
-      //if(!conditional), the queue is filled from all stars anyway so the czones
-      //have no more utility and should be cleared ASAP.
+      std::cout << "clearing czones" << std::endl;
+      // if(!conditional), the queue is filled from all stars anyway so the czones
+      // have no more utility and should be cleared ASAP.
       m_stars_czones.clear();
     }
 

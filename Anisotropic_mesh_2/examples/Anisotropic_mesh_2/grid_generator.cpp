@@ -72,7 +72,7 @@ const FT grid_side = 100;
 FT offset_x = -grid_side/2.; // offset is the bottom left point
 FT offset_y = -grid_side/2.; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
 #else
-const FT grid_side = 4.0; // lenght of a side
+const FT grid_side = 4.0; // length of a side
 FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
 FT offset_y = center.y() - grid_side/2.;
 #endif
@@ -926,5 +926,6 @@ int main(int, char**)
   //    std::cerr << "refine: " << i << std::endl;
   //    build_grid();
   //  }
+
   std::cerr << "end of program" << std::endl;
 }

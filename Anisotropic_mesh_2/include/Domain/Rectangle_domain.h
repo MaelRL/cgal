@@ -26,7 +26,7 @@ public:
   FT hside_x; //half side length along Ox
   FT hside_y; //half side length along Oy
   FT hside;
-  Point_2 offset;
+  Point_2 center;
 
 public:
   FT get_bounding_radius() const { return hside * 2.0; } // r = hside*sqrt(2)
@@ -36,15 +36,15 @@ public:
   {
     FT rx = 1.1*hside_x;
     FT ry = 1.1*hside_y;
-    FT x = offset.x();
-    FT y = offset.y();
+    FT x = center.x();
+    FT y = center.y();
     return CGAL::Bbox_2(x-rx, y-ry, x+rx, y+ry);
   }
 
   Oriented_side side_of_constraint(const Point_2 &p) const
   {
-    FT x = offset.x();
-    FT y = offset.y();
+    FT x = center.x();
+    FT y = center.y();
     if ((p.x() > x + hside_x) || (p.x() < x - hside_x) ||
         (p.y() > y + hside_y) || (p.y() < y - hside_y))
       return CGAL::ON_NEGATIVE_SIDE;
@@ -57,8 +57,8 @@ public:
 
   Point_container initial_points() const
   {
-    FT x = offset.x();
-    FT y = offset.y();
+    FT x = center.x();
+    FT y = center.y();
 
     Point_container points;
     points.push_back(Point_2(x-hside_x, y-hside_y));
@@ -81,8 +81,8 @@ public:
 
   Rectangle_domain(const FT hside_x_,
                    const FT hside_y_,
-                   const Point_2 offset_ = CGAL::ORIGIN)
-    : hside_x(hside_x_), hside_y(hside_y_), offset(offset_)
+                   const Point_2 center_ = CGAL::ORIGIN)
+    : hside_x(hside_x_), hside_y(hside_y_), center(center_)
   {
     hside = (std::max)(hside_x, hside_y);
   }

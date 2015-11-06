@@ -99,7 +99,7 @@ private:
   RefinementCondition m_refinement_condition;
 
 public:
-  double refine_mesh()
+  double refine_mesh(const bool refine_consistency)
   {
     CGAL::Timer timer;
     timer.start();
@@ -132,24 +132,26 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     // ------------------------------------------------
-
-    std::cout << "Start consistency surface scan...";
-    m_face_consistency_mesher.initialize();
-    std::cout << std::endl << "end scan" << std::endl;
-
-    elapsed_time += timer.time();
-    timer.stop(); timer.reset(); timer.start();
-
-    while (!m_face_consistency_mesher.is_algorithm_done())
+    if(refine_consistency)
     {
-      m_face_consistency_mesher.one_step(m_face_consistency_visitor);
-      if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
-    }
+      std::cout << "Start consistency surface scan...";
+      m_face_consistency_mesher.initialize();
+      std::cout << std::endl << "end scan" << std::endl;
 
-    std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
-    elapsed_time += timer.time();
-    timer.stop(); timer.reset(); timer.start();
+      elapsed_time += timer.time();
+      timer.stop(); timer.reset(); timer.start();
+
+      while (!m_face_consistency_mesher.is_algorithm_done())
+      {
+        m_face_consistency_mesher.one_step(m_face_consistency_visitor);
+        if(m_starset.size()%10 == 0)
+          time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+      }
+
+      std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
+      elapsed_time += timer.time();
+      timer.stop(); timer.reset(); timer.start();
+    }
 
     // ------------------------------------------------
 
