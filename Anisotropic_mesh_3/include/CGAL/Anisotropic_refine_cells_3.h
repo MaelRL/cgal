@@ -223,7 +223,7 @@ public:
       std::cout << bad_cell->star->is_conflicted(Trunk::transform_to_star_point(steiner_point,
                                                                                    bad_cell->star),
                                                  useless) << std::endl;
-      std::cout << "are bboxes being retarded? ";
+      std::cout << "are bboxes doing silly stuff? ";
       std::cout << bad_cell->star->is_in_a_volume_delaunay_ball(Trunk::transform_to_star_point(steiner_point,
                                                                                                bad_cell->star),
                                                                 useless) << std::endl;

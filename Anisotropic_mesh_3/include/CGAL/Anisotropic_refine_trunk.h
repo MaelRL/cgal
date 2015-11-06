@@ -109,10 +109,10 @@ private:
   const Starset& m_starset;
   std::map<Index, Czone> m_conflict_zones;
   Point m_conflict_p; // point causing the conflict (only needed to debug / assert)
-  Index m_conflict_p_id; //id of the point
+  Index m_conflict_p_id; // id of the point
 
   bool m_cells_need_check; // no need to compute cells_to_check if we haven't reached cell level
-  bool m_are_checks_computed; //already computed or not
+  bool m_are_checks_computed; // already computed or not
 
   //we need to keep track of the "soon to be" destroyed facets/cells SEEN FROM UNMODIFIED STARS
   //not lose consistency in the unmodified stars and add them to the queue if needed
@@ -334,7 +334,7 @@ public:
       if(fcit != internal_facets_counter.end() && fcit->second == 3)
         continue;
 
-      std::vector<Index> indices; //the other stars making up the facet
+      std::vector<Index> indices; // the other stars making up the facet
       for(int i=0; i<3; ++i)
       {
         Index id = fit->first->vertex((fit->second+i+1)%4)->info();
@@ -342,8 +342,8 @@ public:
           indices.push_back(id);
       }
 
-      //Ignore facets that are not incident to the star's center point (they do
-      //not exist in the queues). They will be cleaned eventually
+      // Ignore facets that are not incident to the star's center point (they do
+      // not exist in the queues). They will be cleaned eventually
       if(indices.size() == 3)
         continue;
 
@@ -940,7 +940,7 @@ public:
   {
     update_bboxes();
 #ifndef NO_USE_AABB_TREE_OF_BBOXES
-    //bigger set of stars
+    // bigger set of stars
     m_aabb_tree.all_intersected_primitives(p, oit);
 #else
     //exact set
@@ -1337,88 +1337,17 @@ public:
       }
     }
 
-#ifdef ANISO_BRUTE_FORCE_CREATE_STAR
-    Star_iterator csit = m_starset.begin();
-    Star_iterator csend = m_starset.end();
-    for(; csit!=csend; ++csit)
-    {
-      Star_handle si = get_star(csit);
-      star->insert_to_star(si->center_point(), si->index_in_star_set(), false);
-      si->insert_to_star(star->center_point(), star->index_in_star_set(), false);
-    }
-    return;
-#endif
-
-#ifdef ANISO_DEBUG_CREATE_STAR
-    std::cout << "INSERT POINT : BRÜTEST FORCE" << std::endl;
-
-    Star_handle star_check = new Star(m_criteria, m_pConstrain,
-                                      surface_star, m_is_3D_level);
-
-    if(m_is_3D_level || surface_star)
-    {
-      Metric m_p = metric_field()->compute_metric(p);
-      star_check->reset(p, pid, m_p, surface_star);
-    }
-    else
-      star_check->reset(p, pid, metric_field()->uniform_metric(p), surface_star);
-
-    Star_iterator csit = m_starset.begin();
-    Star_iterator csend = m_starset.end();
-    for(; csit!=csend; ++csit)
-    {
-      Star_handle si = get_star(csit);
-      star_check->insert_to_star(si->center_point(), si->index_in_star_set(), false);
-    }
-
-    int crfacet_size = star_check->count_restricted_facets();
-    star_check->clean(true);
-    star_check->print_vertices();
-    star_check->print_restricted_facets();
-    star_check->clear();
-    delete star_check;
-#endif
-
-    if(m_stars_czones.is_empty())
-      std::cout << "Warning: empty conflict map at the creation of the new star" << std::endl;
-
-#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
-    //adding the 8 bounding box vertices (they are the first 8 stars)
-    if(this->m_starset.size() > 8)
-    {
-      for(int i=0; i<8; ++i)
-      {
-        Star_handle star_i = get_star(i);
-        star->insert_to_star(star_i->center_point(),
-                             star_i->index_in_star_set(),
-                             false /*no condition*/);
-      }
-    }
-#endif
-
-    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
-    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
+    // see comments in Aniso_2 (same trunk file) about why we use m_starset and
+    // not m_stars_czones (and also why we use 'false' as conditional)
+    typename Starset::iterator czit = m_starset.begin();
+    typename Starset::iterator czend = m_starset.end();
     for(; czit!=czend; ++czit)
     {
       Index i = czit->first;
       Star_handle star_i = get_star(i);
-      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false);
-        //"false": no condition because they should be there for consistency
+      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false/*conditional*/);
     }
-
-    insert_from_kd_tree(star);
     star->clean();
-#ifdef ANISO_DEBUG_CREATE_STAR
-    star->print_vertices();
-    star->print_restricted_facets();
-    std::cout << "valid check @ create_star @ " << star->index_in_star_set() << " val: " << star->is_valid() << std::endl;
-    int normal_rfacet_size = star->count_restricted_facets();
-    if(conan_rfacet_size != normal_rfacet_size)
-    {
-      std::cout << "conan wins: " << conan_rfacet_size << " " << normal_rfacet_size << std::endl;
-      assert(1==2);
-    }
-#endif
   }
 
   Star_handle create_star(const Point_3 &p,
@@ -1523,7 +1452,7 @@ public:
 
     Index id;
     if(conditional)
-      id = perform_insertions(p, this_id); //stars in conflict
+      id = perform_insertions(p, this_id); // stars in conflict
     else
       id = perform_insertions(p, this_id, m_starset); // insert in all stars
 
@@ -1543,7 +1472,7 @@ public:
 
     Star_handle star;
     if(surface_point)
-      star = create_star(p, id); //implies surface star
+      star = create_star(p, id); // implies surface star
     else
       star = create_inside_star(p, id);
 

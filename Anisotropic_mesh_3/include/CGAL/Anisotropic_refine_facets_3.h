@@ -412,19 +412,20 @@ public:
       {
         need_picking_valid = m_refine_queue.need_picking_valid(rfacet_it->queue_type);
 
-        //for encroachments, value == need_picking_valid
+        // for encroachments, value == need_picking_valid
         if(rfacet_it->queue_type == m_refine_queue.encroachment_queue &&
            rfacet_it->value)
           need_picking_valid = true;
 
         return true;
       }
-      else //top of the queue does not exist anymore
+      else // top of the queue does not exist anymore
         m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
     }
   }
 
-  //Most of that function body/parameters is debug; it could simply be f(i){queues[i]->pop();}
+  // Most of that function body/parameters is debug. it could simply be :
+  // f(i){queues[i]->pop();}
   bool next_refine_facet_pop(Refine_facet& refine_facet,
                              Facet& facet,
                              bool& need_picking_valid)
