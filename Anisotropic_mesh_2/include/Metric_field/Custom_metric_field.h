@@ -44,10 +44,36 @@ public:
     return this->build_metric(v1, v2, std::sqrt(e1), std::sqrt(e2));
   }
 
+  Metric starred_shock(const Point_2& p) const
+  {
+    if(p == CGAL::ORIGIN)
+      return Metric();
+
+    FT h = 0.05;
+    FT phi = 1.;
+
+    FT x = p.x();
+    FT y = p.y();
+
+    FT g1 = 3*x*x - x*y/5. -y*y + 3*x*x/10.;
+    FT g2 = -x*x/10. - 2*x*y;
+
+    FT n = std::sqrt(g1*g1 + g2*g2);
+
+    FT l1 = (std::max)(0.1, 1./(1. + phi*n));
+    FT l2 = 1.;
+
+    Vector_2 v1 = Vector_2(g1/n, g2/n);
+    Vector_2 v2 = Vector_2(-g2/n, g1/n);
+
+    // probably need a sqrt on l1 and l2 (but not h)
+    return Metric(v1, v2, l1/h, l2/h, this->epsilon);
+  }
+
   Metric hyberbolic_shock(const Point_2 &p,
                           const FT delta = 0.6) const
   {
-    FT h = 0.1;
+    FT h = 0.1; // 0.05
 
     FT x = p.x();
     FT y = p.y();
@@ -72,9 +98,11 @@ public:
   Metric yang_liu_cube_shock_1D(const Point_2& p) const
   {
     double x = p.x();
+    double y = p.y();
 
-    double h1 = 1./(0.025+0.2*(1-std::exp(-std::abs(x-0.6))));
+    double h1 = 1./(0.0025+0.2*(1-std::exp(-std::abs(x-0.6))));
     double h2 = 5.;
+    h2 = 1./(0.0025+0.2*(1-std::exp(-std::abs(y-0.3))));
 
     Vector_2 v1(1.,0.);
     Vector_2 v2(0.,1.);
@@ -86,21 +114,24 @@ public:
   {
     double h = 0.3;
 
-    //Yang Liu 3D Metric on a [1,11]^2 cube
     double x = p.x();
     double y = p.y();
-
     double r = std::sqrt(x*x + y*y);
+
+    if(r<0.1)
+      return this->build_metric(Vector_2(1.,0.), Vector_2(0.,1.),
+                                1./h, 1./h);
 
     x /= r;
     y /= r;
 
-    double lambda = std::exp(-0.01*std::abs(r*r-49));
-    //double h1 = 0.1 + (1-lambda); // artificial smoothing
-    double h1 = 0.025 + (1-std::exp(-0.01 * std::abs(r*r-49))); // original
+    double lambda = std::exp(-0.5*std::abs(r*r-0.5));
+//    double h1 = 0.025 + (1-std::exp(-0.01 * (r*r-4)*(r*r-4) )); // to get something smooth
+    double h1 = 0.1 + (1-lambda); // artificial smoothing
+//    double h1 = 0.025 + (1-lambda); // original
     double h2 = 1.;
 
-    lambda = std::exp(-0.01*std::abs(r*r-49));
+    //lambda = std::exp(-0.01*std::abs(r*r-49));
     //h1 /= 10*lambda; h2 /= 10*lambda;
 
     Vector_2 v1(x, y);
@@ -118,7 +149,7 @@ public:
     Vector_2 v2(p.y(), -p.x());
 
 
-    double h1 = (std::max)(1e-4, std::abs(std::cos(5*p.x())));
+    double h1 = (std::max)(1e-5, std::abs(std::cos(3*p.x())));
     double h2 = 1.;
 
     return this->build_metric(v1, v2, 1./(h*h1), 1./(h*h2));
@@ -126,14 +157,30 @@ public:
 
   virtual Metric compute_metric(const Point_2 &p) const
   {
-//    return hyberbolic_shock(p);
-//    return yang_liu_cube_shock(p);
-//    return yang_liu_cube_shock_1D(p);
+    return starred_shock(p);
+    return hyberbolic_shock(p);
+    return yang_liu_cube_shock(p);
+    return this->build_metric(Vector_2(1, 0),
+                              Vector_2(0, 1),
+                              std::sqrt(6.*p.x()*p.x() + 1.),
+                              std::sqrt(6.*p.y()*p.y() + 1.));
+
+    return this->build_metric(Vector_2(1, 0),
+                              Vector_2(0, 1),
+                              std::sqrt(6.*p.y()*p.y() + 1.),
+                              std::sqrt(6.*p.x()*p.x() + 1.));
+
+    return cos_1D(p);
+    return yang_liu_cube_shock_1D(p);
 
     FT denom = std::sqrt(9.); // = ratio at x=+/-1
     double h = 1.0;
     double x = p.x();
     double y = p.y();
+
+    return this->build_metric(Vector_2(1, 0),
+                              Vector_2(0, 1),
+                              1.1+std::exp(std::exp(x)), 1.);
 
     return this->build_metric(Vector_2(1, 0), // for DU WANG, Transf2
                               Vector_2(0, 1),
