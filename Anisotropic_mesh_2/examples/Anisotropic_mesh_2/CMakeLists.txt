@@ -42,11 +42,6 @@ if ( CGAL_FOUND )
     include( ${EIGEN3_USE_FILE} )
   endif()
 
-  # Find LAPACK (optional), for curvatures estimation
-  find_package(LAPACK) 
-  if(LAPACK_FOUND)
-    include( ${LAPACK_USE_FILE} )
-
   create_single_source_cgal_program("mesher_example.cpp")
   create_single_source_cgal_program("histogram_from_external_mesh.cpp")
   create_single_source_cgal_program("grid_generator.cpp")
@@ -55,12 +50,6 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("geodesic_generator_on_tr.cpp")
   create_single_source_cgal_program("Nash.cpp")
 
-  else(LAPACK_FOUND)
-
-    message(STATUS "NOTICE: Some of the executables in this directory need the LAPACK library and will not be compiled.")
-
-  endif(LAPACK_FOUND)
-  
 else()  
     message(STATUS "This program requires the CGAL library, and will not be compiled.")
 endif()

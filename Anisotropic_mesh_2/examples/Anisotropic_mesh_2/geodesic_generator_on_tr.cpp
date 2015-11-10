@@ -37,18 +37,18 @@
 // #define COMPUTE_PRECISE_VOR_VERTICES
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-typedef typename K::FT                                       FT;
+typedef K::FT                                       FT;
 
 using namespace CGAL::Anisotropic_mesh_2;
 
-typedef typename K::Vector_2                                 Vector;
+typedef K::Vector_2                                 Vector;
 typedef Metric_base<K>                                       Metric;
 
 // 'bit ugly to have the metric field running around here but we need to pass
 // it around and around and around and it's faster this way !
-//typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
-typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
-//typedef typename CGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
+typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+//typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+//typedef CGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
 MF mf;
 
 // stuff to generate the grid using Mesh_2 since Aniso_mesh_2 is a turtle.
@@ -78,7 +78,7 @@ public:
     FT discretization = 6.;
     FT metric_based_size = width / discretization;
 
-    std::cout << "sizing field: " << base << " " << m.get_max_eigenvalue() << " " << metric_based_size << std::endl;
+    //std::cout << "sizing field: " << base << " " << m.get_max_eigenvalue() << " " << metric_based_size << std::endl;
 
     return (std::min)(base, metric_based_size);
   }
@@ -400,22 +400,22 @@ void generate_grid()
 // Geodesic stuff now !
 // -----------------------------------------------------------------------------
 
-typedef typename K::Point_2                                  Point_2;
-typedef typename K::Point_3                                  Point_3;
+typedef K::Point_2                                  Point_2;
+typedef K::Point_3                                  Point_3;
 typedef std::set<std::size_t>                                Simplex;
 typedef boost::array<std::size_t, 2>                         Edge;
 typedef boost::array<std::size_t, 3>                         Tri;
-typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
+typedef Eigen::Matrix<double, 2, 1>                 Vector2d;
 
-typedef typename K::Segment_2                                Segment;
-typedef typename K::Triangle_2                               Triangle_2;
-typedef typename K::Segment_3                                Segment_3;
-typedef typename K::Triangle_3                               Triangle_3;
+typedef K::Segment_2                                Segment;
+typedef K::Triangle_2                               Triangle_2;
+typedef K::Segment_3                                Segment_3;
+typedef K::Triangle_3                               Triangle_3;
 
 typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
-typedef typename KExact::Point_2                             EPoint;
-typedef typename KExact::Segment_2                           ESegment;
-typedef typename KExact::Triangle_2                          ETriangle;
+typedef KExact::Point_2                             EPoint;
+typedef KExact::Segment_2                           ESegment;
+typedef KExact::Triangle_2                          ETriangle;
 typedef CGAL::Cartesian_converter<K, KExact>                 To_exact;
 typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
 
@@ -474,7 +474,7 @@ void print_profiler_info()
 
 inline std::ostream& operator<<(std::ostream& os, const Simplex& s)
 {
-  typename Simplex::iterator it = s.begin();
+  Simplex::iterator it = s.begin();
   for(; it!=s.end(); ++it)
     os << *it << " ";
   os << std::endl;
@@ -555,8 +555,8 @@ bool is_triangle_intersected(const Tri& tri,
 
 #pragma omp parallel shared(is_intersected, edges, p0, p1, p2)
   {
-    for(typename boost::unordered_set<Edge>::const_iterator it = edges.begin();
-                                                            it!=edges.end(); ++it)
+    for(boost::unordered_set<Edge>::const_iterator it = edges.begin();
+                                                   it!=edges.end(); ++it)
     {
 #pragma omp single nowait // hack to parallelize the std::set loop
       {
@@ -613,7 +613,7 @@ FT sq_bbox_diagonal_length(const CGAL::Bbox_2& bbox)
 
 FT triangle_area(const Point_2& p, const Point_2& q, const Point_2& r)
 {
-  typename K::Compute_area_2 o;
+   K::Compute_area_2 o;
   return std::abs(o(p, q, r));
 
   FT pq_x = q.x() - p.x();
@@ -668,7 +668,7 @@ FT triangle_area_in_metric(const Point_2& p, const Point_2& q, const Point_2& r)
   v = f*v;
   const Point_2 tr(v(0), v(1));
 
-  typename K::Compute_area_2 o;
+  K::Compute_area_2 o;
   return std::abs(o(tp, tq, tr));
 }
 
@@ -912,8 +912,8 @@ struct Base_mesh
   {
     typedef int                            Id;
 
-    typedef typename K::Point_3            Point;
-    typedef typename K::Triangle_3         Datum;
+    typedef K::Point_3            Point;
+    typedef K::Triangle_3         Datum;
 
     Id m_it;
     Datum m_datum; // cache the datum
@@ -933,7 +933,7 @@ struct Base_mesh
   };
 
   typedef Base_mesh_primitive                             Primitive;
-  typedef typename Primitive::Id                          Primitive_Id;
+  typedef Primitive::Id                          Primitive_Id;
   typedef CGAL::AABB_traits<K, Primitive>                 AABB_triangle_traits;
   typedef CGAL::AABB_tree<AABB_triangle_traits>           Tree;
 
@@ -1005,8 +1005,8 @@ struct Base_mesh
     std::list<Primitive_Id> intersections;
     tree.all_intersected_primitives(query, std::back_inserter(intersections));
 
-    typename std::list<Primitive_Id>::const_iterator it = intersections.begin(),
-                                                     end = intersections.end();
+    std::list<Primitive_Id>::const_iterator it = intersections.begin(),
+                                            end = intersections.end();
     for(; it!=end; ++it)
     {
       const Tri& tr = triangles[*it];
@@ -1180,7 +1180,7 @@ struct Base_mesh
   void shave_off_virtual_points(const std::size_t real_points_n)
   {
 //    std::cout << "shaving: " << points.size() << " to " << real_points_n << std::endl;
-    typename std::vector<Grid_point>::iterator it = points.begin();
+    std::vector<Grid_point>::iterator it = points.begin();
     std::advance(it, real_points_n);
     points.erase(it, points.end());
   }
@@ -1212,8 +1212,8 @@ struct Base_mesh
     if(gp->index < 4) // corner hack fixme
       gp->is_Voronoi_vertex = true;
 
-    typename Grid_point::Point_set::iterator it = gp->border_neighbors.begin();
-    typename Grid_point::Point_set::iterator end = gp->border_neighbors.end();
+    Grid_point::Point_set::iterator it = gp->border_neighbors.begin();
+    Grid_point::Point_set::iterator end = gp->border_neighbors.end();
     for(; it!=end; ++it)
     {
       Grid_point* gq = &(points[*it]);
@@ -1379,8 +1379,8 @@ struct Base_mesh
     if(n_p < 4) // corner hack fixme
       Voronoi_vertices[seed_p].push_back(gp);
 
-    typename Grid_point::Point_set::iterator it = gp.border_neighbors.begin();
-    typename Grid_point::Point_set::iterator end = gp.border_neighbors.end();
+    Grid_point::Point_set::iterator it = gp.border_neighbors.begin();
+    Grid_point::Point_set::iterator end = gp.border_neighbors.end();
     for(; it!=end; ++it)
     {
       const Grid_point& gq = points[*it];
@@ -1587,7 +1587,7 @@ struct Base_mesh
     std::cout << "End of spread_distances. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
 
-    print_profiler_info();
+    //print_profiler_info();
   }
 
   void debug()
@@ -2352,8 +2352,8 @@ struct Base_mesh
       if(s1.size() != s2.size())
         return false;
 
-      typename Simplex::const_iterator it1 = s1.begin();
-      typename Simplex::const_iterator it2 = s2.begin();
+      Simplex::const_iterator it1 = s1.begin();
+      Simplex::const_iterator it2 = s2.begin();
 
       for(; it1!=s1.end(); ++it1, ++it2)
         if(*it1 != *it2)
@@ -2367,8 +2367,8 @@ struct Base_mesh
   void insert_in_PQ(const PQ_entry& entry, PQ& queue, int i)
   {
     // find if the element is already in the queue
-    typename PQ::iterator it = std::find_if(queue.begin(), queue.end(),
-                                            PQ_finder_comparer(entry));
+    PQ::iterator it = std::find_if(queue.begin(), queue.end(),
+                                   PQ_finder_comparer(entry));
 
     if(it != queue.end())
     {
@@ -2479,8 +2479,8 @@ struct Base_mesh
   void test_simplex(const Tri& grid_tri,
                     const Simplex& dual_simplex)
   {
-    typename Tri::const_iterator it = grid_tri.begin();
-    typename Tri::const_iterator end = grid_tri.end();
+    Tri::const_iterator it = grid_tri.begin();
+    Tri::const_iterator end = grid_tri.end();
     for(; it!=end; ++it)
      test_simplex(&(points[*it]), dual_simplex);
   }
@@ -2489,7 +2489,7 @@ struct Base_mesh
   {
     CGAL_assertion(dual_simplex.size() <= 3);
 
-    typename Simplex::const_iterator it = dual_simplex.begin();
+    Simplex::const_iterator it = dual_simplex.begin();
     if(dual_simplex.size() == 2) // an edge!
     {
       Edge e; e[0] = *it; e[1] = (*++it);
@@ -2633,7 +2633,7 @@ struct Base_mesh
 
     std::size_t closest_mapped_grid_point_id;
     FT min_sq_dist = FT_inf;
-    typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
+    K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
 
     for(std::size_t i=0; i<points.size(); ++i)
     {
@@ -2979,9 +2979,9 @@ struct Base_mesh
     FT total_area = 0;
     FT centroid_x = 0., centroid_y = 0.;
 
-    typename Voronoi_vertices_container::const_iterator it = Vor_vertices.begin();
-    typename Voronoi_vertices_container::const_iterator next_it = ++(Vor_vertices.begin());
-    typename Voronoi_vertices_container::const_iterator end = Vor_vertices.end();
+    Voronoi_vertices_container::const_iterator it = Vor_vertices.begin();
+    Voronoi_vertices_container::const_iterator next_it = ++(Vor_vertices.begin());
+    Voronoi_vertices_container::const_iterator end = Vor_vertices.end();
     for(; it!=end; ++it, ++next_it)
     {
       if(next_it == end)
@@ -3036,9 +3036,9 @@ struct Base_mesh
     FT area = 0;
     FT centroid_x = 0., centroid_y = 0.;
 
-    typename Voronoi_vertices_container::const_iterator it = Vor_vertices.begin();
-    typename Voronoi_vertices_container::const_iterator next_it = ++(Vor_vertices.begin());
-    typename Voronoi_vertices_container::const_iterator end = Vor_vertices.end();
+    Voronoi_vertices_container::const_iterator it = Vor_vertices.begin();
+    Voronoi_vertices_container::const_iterator next_it = ++(Vor_vertices.begin());
+    Voronoi_vertices_container::const_iterator end = Vor_vertices.end();
     for(; it!=end; ++it, ++next_it)
     {
       if(next_it == end)
@@ -3124,7 +3124,7 @@ struct Base_mesh
     seeds_m[seed_id] = mf->compute_metric(new_seed);
 
     // squared displacement between the old and the new seed
-    typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
+    K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
     FT displacement = sqd(old_seed, new_seed);
     std::cout << "seed: " << seed_id << " displacement: " << displacement << std::endl;
 
@@ -3536,10 +3536,10 @@ struct Base_mesh
 
   FT quality(const Point_2& p, const Point_2& q, const Point_2& r)
   {
-    typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
+    K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
 
     FT alpha = 4.*std::sqrt(3.);
-    FT A = std::abs(typename K::Compute_area_2()(p, q, r));
+    FT A = std::abs(K::Compute_area_2()(p, q, r));
     FT a = sqd(p, q);
     FT b = sqd(p, r);
     FT c = sqd(q, r);
@@ -3600,8 +3600,10 @@ struct Base_mesh
 
     out << "Triangles" << std::endl;
     out << dual_triangles.size() << std::endl;
-    for(typename boost::unordered_set<Tri>::iterator it = dual_triangles.begin();
-                                               it != dual_triangles.end(); ++it)
+
+    for(boost::unordered_set<Tri>::iterator it = dual_triangles.begin();
+                                            it != dual_triangles.end(); ++it)
+
     {
       const Tri& tr = *it;
       for(std::size_t i=0; i<tr.size(); ++i)
@@ -3622,7 +3624,7 @@ struct Base_mesh
                       const std::vector<Point_2>& mapped_points,
                       const int counter) const
   {
-    typename K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
+    K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
 
     // outputs the mapped points for a given seed_id
     std::ostringstream filename, filename_bb;
@@ -3796,7 +3798,7 @@ void Grid_point::remove_from_children(const std::size_t c)
   // 99% of the time, the child is found, but if during the initialization of
   // a new seed, you reset (at least) two points that have an ancestry relationship
   // then the child could have been reset already...
-  typename Point_set::iterator it = children.find(c);
+  Point_set::iterator it = children.find(c);
   if(it != children.end())
     children.quick_erase(it);
   else
@@ -3808,7 +3810,7 @@ void Grid_point::remove_from_children(const std::size_t c)
 
 void Grid_point::remove_from_neighbors(const std::size_t n)
 {
-  typename Point_set::iterator it = neighbors.find(n);
+  Point_set::iterator it = neighbors.find(n);
   if(it != neighbors.end()) // might already have been removed from the other side
     neighbors.quick_erase(it);
   else
@@ -3820,7 +3822,7 @@ void Grid_point::remove_from_neighbors(const std::size_t n)
 
 void Grid_point::remove_from_border_neighbors(const std::size_t n)
 {
-  typename Point_set::iterator it = border_neighbors.find(n);
+  Point_set::iterator it = border_neighbors.find(n);
   CGAL_precondition(it != border_neighbors.end()); // no other side here though !
   border_neighbors.quick_erase(it);
 }
@@ -3847,8 +3849,8 @@ void Grid_point::mark_descendants(std::size_t& count,
   ++count;
   state = ORPHAN;
 
-  typename Point_set::iterator cit = children.begin();
-  typename Point_set::iterator end = children.end();  for(; cit!=end; ++cit)
+  Point_set::iterator cit = children.begin();
+  Point_set::iterator end = children.end();  for(; cit!=end; ++cit)
   {
     Grid_point& cp = bm->points[*cit];
     if(cp.state == ORPHAN)
@@ -3856,9 +3858,11 @@ void Grid_point::mark_descendants(std::size_t& count,
     cp.mark_descendants(count, potential_parents);
   }
 
+
 #ifdef ADD_PARENTS_AFTER_DESCENDANT_RESET
-  typename Point_set::iterator nit = neighbors.begin();
-  typename Point_set::iterator nend = neighbors.end();
+  Point_set::iterator nit = neighbors.begin();
+  Point_set::iterator nend = neighbors.end();
+
   for(; nit!=nend; ++nit)
   {
     const Grid_point& cp = bm->points[*nit];
@@ -4082,8 +4086,8 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<Grid_point*>& trial_
   CGAL_assertion(state == KNOWN);
 
   PQ_state pqs_ret = NOTHING_TO_DO;
-  typename Point_set::const_iterator it = neighbors.begin(),
-                                     end = neighbors.end();
+  Point_set::const_iterator it = neighbors.begin(),
+                            end = neighbors.end();
   for(; it!=end; ++it)
   {
     Grid_point& gp = bm->points[*it];
@@ -4151,8 +4155,8 @@ void Grid_point::reset()
   if(ancestor != static_cast<std::size_t>(-1))
     bm->points[ancestor].remove_from_children(index);
 
-  typename Point_set::iterator cit = children.begin();
-  typename Point_set::iterator end = children.end();
+  Point_set::iterator cit = children.begin();
+  Point_set::iterator end = children.end();
   for(; cit!=end; ++cit)
     bm->points[*cit].ancestor = -1;
 
