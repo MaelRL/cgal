@@ -539,7 +539,8 @@ combinations(const std::set<std::size_t>& set,
   return combis;
 }
 
-bool is_triangle_intersected(const Tri& tri, const std::set<Edge>& edges)
+bool is_triangle_intersected(const Tri& tri,
+                             const boost::unordered_set<Edge>& edges)
 {
   bool is_intersected = false;
 
@@ -554,7 +555,8 @@ bool is_triangle_intersected(const Tri& tri, const std::set<Edge>& edges)
 
 #pragma omp parallel shared(is_intersected, edges, p0, p1, p2)
   {
-    for(std::set<Edge>::const_iterator it = edges.begin(); it!=edges.end(); ++it)
+    for(typename boost::unordered_set<Edge>::const_iterator it = edges.begin();
+                                                            it!=edges.end(); ++it)
     {
 #pragma omp single nowait // hack to parallelize the std::set loop
       {
@@ -755,16 +757,17 @@ struct Grid_point
   std::size_t ancestor;
   Point_set children;
   bool is_Voronoi_vertex;
+  std::size_t ancestor_path_length;
 
   void change_state(FMM_state new_state);
-  std::size_t ancestor_path_length() const;
-  void print_ancestry() const;
+  std::size_t anc_path_length() const;
+  void print_ancestors() const;
   bool find_in_ancestry(const std::size_t i) const;
   void remove_from_children(const std::size_t c);
   void remove_from_neighbors(const std::size_t n_p);
   void remove_from_border_neighbors(const std::size_t n_p);
   void remove_from_incident_triangles(const std::size_t i);
-  void mark_descendants(std::size_t& count, std::set<std::size_t>& potential_parents);
+  void mark_descendants(std::size_t& count, boost::unordered_set<std::size_t>& potential_parents);
   void reset_descendants();
   void deal_with_descendants();
   bool compute_closest_seed(const std::size_t n_anc, const bool overwrite = true);
@@ -944,8 +947,8 @@ struct Base_mesh
 
   // Duality
   mutable Edge_bisec_map edge_bisectors;
-  mutable std::set<Edge> dual_edges;
-  mutable std::set<Tri> dual_triangles;
+  mutable boost::unordered_set<Edge> dual_edges;
+  mutable boost::unordered_set<Tri> dual_triangles;
 
   // Refinement
   PQ size_queue;
@@ -1887,7 +1890,7 @@ struct Base_mesh
         for(int j=0; j<3; ++j)
         {
           const Grid_point& gp = points[triangle[j]];
-          std::size_t ap_length = gp.ancestor_path_length();
+          std::size_t ap_length = gp.ancestor_path_length;
           if(ap_length < min_ancestor_path_length)
           {
             seeds_to_refine.insert(gp.closest_seed_id);
@@ -3276,7 +3279,7 @@ struct Base_mesh
     if(dual_simplex.size() <= 1)
       return;
 
-    std::size_t length = gp->ancestor_path_length();
+    std::size_t length = gp->ancestor_path_length;
     if(length < min_ancestor_path_length)
       std::cout << "the canvas is thin (" << length << ") at : " << gp->index << " ("
                 << gp->point << ") dual simplex of size: " << dual_simplex.size()
@@ -3482,6 +3485,27 @@ struct Base_mesh
       const Tri& triangle = triangles[i];
       Simplex dual_simplex;
 
+#ifndef COMPUTE_DUAL_FOR_ALL_DIMENSIONS
+      // filter triangles with only one color
+      if(points[triangle[0]].closest_seed_id == points[triangle[1]].closest_seed_id &&
+         points[triangle[1]].closest_seed_id == points[triangle[2]].closest_seed_id)
+        continue;
+
+      if(points[triangle[0]].closest_seed_id != points[triangle[1]].closest_seed_id &&
+          points[triangle[1]].closest_seed_id != points[triangle[2]].closest_seed_id &&
+          points[triangle[0]].closest_seed_id != points[triangle[2]].closest_seed_id)
+      { /* filter the case: 3 different colors */ }
+      else
+      {
+      // filter triangles with _exactly_ two colors and none of the vertices
+      // are on the border of the domain
+        if(!points[triangle[0]].is_on_domain_border &&
+           !points[triangle[1]].is_on_domain_border &&
+           !points[triangle[2]].is_on_domain_border)
+          continue;
+      }
+#endif
+
       for(int j=0; j<3; ++j)
         dual_simplex.insert(points[triangle[j]].closest_seed_id);
 
@@ -3576,8 +3600,8 @@ struct Base_mesh
 
     out << "Triangles" << std::endl;
     out << dual_triangles.size() << std::endl;
-    for(typename std::set<Tri>::iterator it = dual_triangles.begin();
-                                         it != dual_triangles.end(); ++it)
+    for(typename boost::unordered_set<Tri>::iterator it = dual_triangles.begin();
+                                               it != dual_triangles.end(); ++it)
     {
       const Tri& tr = *it;
       for(std::size_t i=0; i<tr.size(); ++i)
@@ -3725,7 +3749,7 @@ void Grid_point::change_state(FMM_state new_state)
   state = new_state;
 }
 
-std::size_t Grid_point::ancestor_path_length() const
+std::size_t Grid_point::anc_path_length() const
 {
   std::size_t i = 1;
   std::size_t n_anc = ancestor;
@@ -3740,10 +3764,9 @@ std::size_t Grid_point::ancestor_path_length() const
   return i;
 }
 
-void Grid_point::print_ancestry() const
+void Grid_point::print_ancestors() const
 {
-  ancestor_path_length(); // assert non circular ancestry
-
+  anc_path_length(); // assert non circular ancestry
   std::cout << "point : " << index << " ancestors: ";
 
   std::size_t anc = ancestor;
@@ -3757,7 +3780,7 @@ void Grid_point::print_ancestry() const
 
 bool Grid_point::find_in_ancestry(const std::size_t i) const
 {
-  ancestor_path_length(); // assert non circular ancestry
+  CGAL_assertion(anc_path_length()); // assert non circular ancestry
   std::size_t anc = ancestor;
   while(anc != static_cast<std::size_t>(-1))
   {
@@ -3811,7 +3834,7 @@ void Grid_point::remove_from_incident_triangles(const std::size_t i)
 }
 
 void Grid_point::mark_descendants(std::size_t& count,
-                                  std::set<std::size_t>& potential_parents)
+                                  boost::unordered_set<std::size_t>& potential_parents)
 {
 //  std::cout << "marking " << index << " (a: " << ancestor << ") and its "
 //            << children.size() << " children: ";
@@ -3833,6 +3856,7 @@ void Grid_point::mark_descendants(std::size_t& count,
     cp.mark_descendants(count, potential_parents);
   }
 
+#ifdef ADD_PARENTS_AFTER_DESCENDANT_RESET
   typename Point_set::iterator nit = neighbors.begin();
   typename Point_set::iterator nend = neighbors.end();
   for(; nit!=nend; ++nit)
@@ -3841,6 +3865,7 @@ void Grid_point::mark_descendants(std::size_t& count,
     if(cp.state != ORPHAN)
       potential_parents.insert(*nit);
   }
+#endif
 }
 
 void Grid_point::reset_descendants()
@@ -3862,7 +3887,7 @@ void Grid_point::reset_descendants()
 
 void Grid_point::deal_with_descendants()
 {
-  std::cout << "lineage starting at " << index << std::endl;
+//  std::cout << "lineage starting at " << index << std::endl;
 
   // We recompute all the values at these orphans only using neighbors that are
   // NOT orphans. We start from the youngest child and climb up in the tree.
@@ -3872,7 +3897,7 @@ void Grid_point::deal_with_descendants()
   // any computation anymore since they're not linked to a seed by an ancestor
   // tree
   std::size_t count = 0;
-  std::set<std::size_t> potential_parents;
+  boost::unordered_set<std::size_t> potential_parents;
   mark_descendants(count, potential_parents);
   reset_descendants();
 
@@ -3881,8 +3906,8 @@ void Grid_point::deal_with_descendants()
 #ifdef ADD_PARENTS_AFTER_DESCENDANT_RESET
   // add the parents to the points we have to spread from...
 //  std::cout << "add to trial points (before): " << bm->trial_points.size() << std::endl;
-  typename std::set<std::size_t>::iterator sit = potential_parents.begin();
-  typename std::set<std::size_t>::iterator lend = potential_parents.end();
+  typename boost::unordered_set<std::size_t>::iterator sit = potential_parents.begin();
+  typename boost::unordered_set<std::size_t>::iterator lend = potential_parents.end();
   for(; sit!=lend; ++sit)
   {
     Grid_point& gp = bm->points[*sit];
@@ -3913,8 +3938,6 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   const Grid_point& anc = bm->points[n_anc];
   if(anc.state != KNOWN)
     std::cout << "WARNING: potential ancestor is not KNOWN" << std::endl;
-
-//  anc.print_ancestry();
 
   if(anc.find_in_ancestry(index))
     return false;
@@ -4009,11 +4032,12 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
       ancestor = n_anc;
       distance_to_closest_seed = d;
       closest_seed_id = anc.closest_seed_id;
+      ancestor_path_length = anc.ancestor_path_length + 1;
 
       // add 'index' to the new ancestor's children
       bm->points[ancestor].children.insert(index);
 
-      CGAL_postcondition(ancestor_path_length()); // checks for circular ancestry
+      CGAL_postcondition(anc_path_length() == ancestor_path_length); // checks for circular ancestry
 
 #ifndef USE_FULL_REBUILDS // if we're using full rebuilds, below doesn't matter
 
@@ -4029,18 +4053,18 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
       // consider all potential new parents (who might even potentially have a
       // different color than 'this')
 
-      if(!children.empty())
-      {
-        std::cout << "dealing with the " << children.size()
-                  << " descendant(s) of " << index << std::endl;
-        std::cout << "position : " << point << std::endl;
-      }
+//      if(!children.empty())
+//      {
+//        std::cout << "dealing with the " << children.size()
+//                  << " descendant(s) of " << index << std::endl;
+//        std::cout << "position : " << point << std::endl;
+//      }
 
       while(!children.empty())
       {
         Grid_point& gp = bm->points[*(children.begin())];
         gp.deal_with_descendants();
-        CGAL_postcondition(gp.ancestor_path_length()); // checks for circular ancestry
+        CGAL_postcondition(gp.anc_path_length() == gp.ancestor_path_length); // checks for circular ancestry
       }
 #endif
     }
@@ -4138,6 +4162,7 @@ void Grid_point::reset()
   ancestor = -1;
   children.clear();
   is_Voronoi_vertex = false;
+  ancestor_path_length = 0;
 }
 
 void Grid_point::initialize_from_point(const FT d,
@@ -4170,7 +4195,8 @@ Grid_point::Grid_point()
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
-    is_Voronoi_vertex(false)
+    is_Voronoi_vertex(false),
+    ancestor_path_length(0)
 { }
 
 Grid_point::Grid_point(Base_mesh* bm_,
@@ -4190,7 +4216,8 @@ Grid_point::Grid_point(Base_mesh* bm_,
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
-    is_Voronoi_vertex(false)
+    is_Voronoi_vertex(false),
+    ancestor_path_length(0)
 { }
 
 Grid_point::Grid_point(const Grid_point& gp)
@@ -4207,7 +4234,8 @@ Grid_point::Grid_point(const Grid_point& gp)
     distance_to_closest_seed(gp.distance_to_closest_seed),
     closest_seed_id(gp.closest_seed_id),
     ancestor(gp.ancestor),
-    is_Voronoi_vertex(gp.is_Voronoi_vertex)
+    is_Voronoi_vertex(gp.is_Voronoi_vertex),
+    ancestor_path_length(gp.ancestor_path_length)
 { }
 
 void initialize_seeds()
@@ -4265,9 +4293,9 @@ int main(int, char**)
       // of paint laying on the canvas...
       bool successful_insert = bm.refine_seeds_with_self_computed_ref_point();
 
-      std::ostringstream out;
-      out << "ref_" << seeds.size();
-      bm.output_grid_data_and_dual(out.str());
+//      std::ostringstream out;
+//      out << "ref_" << seeds.size();
+//      bm.output_grid_data_and_dual(out.str());
 
       if(!successful_insert)
         break;
