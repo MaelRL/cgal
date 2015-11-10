@@ -337,10 +337,10 @@ void output_cdt_to_mesh(const CDT& cdt,
 
   std::ofstream out((str_base + ".mesh").c_str());
   out << std::setprecision(17);
-  out << "MeshVersionFormatted 1" << std::endl;
-  out << "Dimension 2" << std::endl;
-  out << "Vertices" << std::endl;
-  out << n << std::endl;
+  out << "MeshVersionFormatted 1" << '\n';
+  out << "Dimension 2" << '\n';
+  out << "Vertices" << '\n';
+  out << n << '\n';
 
   std::size_t v_counter = 1;
   for(typename CDT::Finite_vertices_iterator vit = cdt.finite_vertices_begin();
@@ -348,20 +348,20 @@ void output_cdt_to_mesh(const CDT& cdt,
   {
     vertex_map[*vit] = v_counter++;
     typename CDT::Vertex_handle vh = vit;
-    out << *vit << " " << is_vertex_on_border<CDT>(cdt, vh) << std::endl;
+    out << *vit << " " << is_vertex_on_border<CDT>(cdt, vh) << '\n';
   }
 
-  out << "Triangles" << std::endl;
-  out << m << std::endl;
+  out << "Triangles" << '\n';
+  out << m << '\n';
 
   for(typename CDT::Face_iterator fit = cdt.finite_faces_begin();
                                   fit != cdt.finite_faces_end(); ++fit)
   {
     for(int i=0; i<=cdt.dimension(); ++i)
       out << vertex_map[*(fit->vertex(i))] << " ";
-    out << "0" << std::endl;
+    out << "0" << '\n';
   }
-  out << "End" << std::endl;
+  out << "End" << '\n';
 }
 
 void generate_grid()
@@ -1054,7 +1054,7 @@ struct Base_mesh
     tree.clear();
 
     // create an aabb tree of triangles to fasten it
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& t = triangles[i];
       const Point_2& p0 = points[t[0]].point;
@@ -1877,7 +1877,7 @@ struct Base_mesh
     std::map<std::pair<std::size_t, std::size_t>, std::size_t> edge_mid_points;
 
     // determine which seeds need to be refined
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts = triangles.size(); i<ts; ++i)
     {
       const Tri& triangle = triangles[i];
       std::set<std::size_t> colors;
@@ -1910,7 +1910,7 @@ struct Base_mesh
     std::cout << triangles.size() << " triangles before grid refinement" << std::endl;
 
     // base mesh refining, not seeds refining !
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts = triangles.size(); i < ts; ++i)
     {
       Tri& triangle = triangles[i];
 
@@ -2294,26 +2294,26 @@ struct Base_mesh
     std::ofstream out_bb((str_base + ".bb").c_str());
 //    std::ofstream out_distortion_bb((str_base + "_distortion.bb").c_str());
 
-    out << "MeshVersionFormatted 1" << std::endl;
-    out << "Dimension 2" << std::endl;
-    out << "Vertices" << std::endl;
-    out << points.size() << std::endl;
-    out_bb << "2 1 " << points.size() << " 2" << std::endl;
-//    out_distortion_bb << "2 1 " << points.size() << " 2" << std::endl;
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+    out << "Vertices" << '\n';
+    out << points.size() << '\n';
+    out_bb << "2 1 " << points.size() << " 2" << '\n';
+//    out_distortion_bb << "2 1 " << points.size() << " 2" << '\n';
 
     for(std::size_t i=0; i<points.size(); ++i)
     {
       const Grid_point& gp = points[i];
-      out << gp.point.x() << " " << gp.point.y() << " " << i+1 << std::endl;
+      out << gp.point.x() << " " << gp.point.y() << " " << i+1 << '\n';
 
-      out_bb << gp.distance_to_closest_seed << std::endl;
-//      out_bb << gp.closest_seed_id << std::endl;
-//      out_distortion_bb << gp.distortion_to_seed() << std::endl;
-//      out_bb << (gp.is_Voronoi_vertex?"1":"0") << std::endl;
+      out_bb << gp.distance_to_closest_seed << '\n';
+//      out_bb << gp.closest_seed_id << '\n';
+//      out_distortion_bb << gp.distortion_to_seed() << '\n';
+//      out_bb << (gp.is_Voronoi_vertex?"1":"0") << '\n';
     }
 
-    out << "Triangles" << std::endl;
-    out << triangles.size() << std::endl;
+    out << "Triangles" << '\n';
+    out << triangles.size() << '\n';
     for(std::size_t i=0; i<triangles.size(); ++i)
     {
       std::set<std::size_t> materials;
@@ -2323,12 +2323,12 @@ struct Base_mesh
         out << triangles[i][j]+1 << " ";
       }
       std::size_t mat = (materials.size()==1)?(*(materials.begin())):(seeds.size());
-      out << mat << std::endl;
+      out << mat << '\n';
     }
 
-//    out_distortion_bb << "End" << std::endl;
-    out_bb << "End" << std::endl;
-    out << "End" << std::endl;
+//    out_distortion_bb << "End" << '\n';
+    out_bb << "End" << '\n';
+    out << "End" << '\n';
   }
 
   void add_triangles_edges_to_dual_edges(const Tri& tr) const
@@ -3480,10 +3480,9 @@ struct Base_mesh
     refine_grid();
 #endif
 
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts = triangles.size(); i < ts; ++i)
     {
       const Tri& triangle = triangles[i];
-      Simplex dual_simplex;
 
 #ifndef COMPUTE_DUAL_FOR_ALL_DIMENSIONS
       // filter triangles with only one color
@@ -3505,7 +3504,7 @@ struct Base_mesh
           continue;
       }
 #endif
-
+      Simplex dual_simplex;
       for(int j=0; j<3; ++j)
         dual_simplex.insert(points[triangle[j]].closest_seed_id);
 
