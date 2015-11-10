@@ -529,7 +529,7 @@ combinations(const std::set<std::size_t>& set,
       std::vector<boost::array<std::size_t, k_max> > lower_level_combis =
                                                combinations<k_max>(set, ++sit, k-1);
       --sit;
-      for(std::size_t i=0; i<lower_level_combis.size(); ++i)
+      for(std::size_t i=0, llcs=lower_level_combis.size(); i<llcs; ++i)
         lower_level_combis[i][k_max-k] = *(sit);
 
       combis.insert(combis.end(), lower_level_combis.begin(),
@@ -1140,7 +1140,7 @@ struct Base_mesh
 
   void locate_and_initialize_seeds()
   {
-    for(std::size_t i=0; i<seeds.size(); ++i)
+    for(std::size_t i=0, ss=seeds.size(); i<ss; ++i)
     {
       const Point_2& p = seeds[i];
       locate_and_initialize(p, i);
@@ -1244,7 +1244,7 @@ struct Base_mesh
 
     // find a first point on the border. (points[0] is usually one)
     std::vector<bool> visited_points(points.size(), false);
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       if(points[i].is_on_domain_border) // todo keep the border neighbor in memory
       {
@@ -1435,7 +1435,7 @@ struct Base_mesh
 
     // find a first point on the border. (points[0] is usually one)
     std::vector<bool> visited_points(points.size(), false);
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       if(points[i].is_on_domain_border)
       {
@@ -1595,10 +1595,13 @@ struct Base_mesh
     CGAL_assertion(trial_points.empty() );
     bool failed = false;
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
+    {
+//      points[i].print_ancestors();
       points[i].state = KNOWN;
+    }
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       const Grid_point& gp = points[i];
 
@@ -1623,7 +1626,7 @@ struct Base_mesh
         else
           std::cout << points[gp.ancestor].closest_seed_id << std::endl;
         std::cout << "this failing point is found in the neighbors of : ";
-        for(std::size_t j=0; j<points.size(); ++j)
+        for(std::size_t j=0, ps=points.size(); j<ps; ++j)
         {
           const Grid_point& gq = points[j];
           if(gq.neighbors.find(gp.index) != gq.neighbors.end())
@@ -1877,7 +1880,7 @@ struct Base_mesh
     std::map<std::pair<std::size_t, std::size_t>, std::size_t> edge_mid_points;
 
     // determine which seeds need to be refined
-    for(std::size_t i=0, ts = triangles.size(); i<ts; ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& triangle = triangles[i];
       std::set<std::size_t> colors;
@@ -1910,7 +1913,7 @@ struct Base_mesh
     std::cout << triangles.size() << " triangles before grid refinement" << std::endl;
 
     // base mesh refining, not seeds refining !
-    for(std::size_t i=0, ts = triangles.size(); i < ts; ++i)
+    for(std::size_t i=0, ts=triangles.size(); i < ts; ++i)
     {
       Tri& triangle = triangles[i];
 
@@ -2050,7 +2053,7 @@ struct Base_mesh
               << triangles.size() + triangles_buffer.size() << std::endl;
 
     CGAL_assertion(triangles.size() == refined_triangles.size());
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       if(refined_triangles[i]) // already refined (or new), nothing to do
         continue;
@@ -2118,7 +2121,7 @@ struct Base_mesh
     std::cout << triangles.size() << " triangles after grid refinement" << std::endl;
 
     // some quick debug on incidency and adjacency
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& triangle = triangles[i];
       const Grid_point& gp = points[triangle[0]];
@@ -2149,11 +2152,11 @@ struct Base_mesh
     // if you allow other cells to be modified without reseting them fully,
     // you can create orphans, which must NOT happen...
     refresh_grid_point_states();
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
       points[i].state = KNOWN;
 
     // go an extra step (is it necessary) for points whose colors we are spreading:
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       Grid_point& gp = points[i];
       if(seeds_to_rebuild.find(gp.closest_seed_id) != seeds_to_rebuild.end())
@@ -2202,7 +2205,7 @@ struct Base_mesh
   {
     std::cout << "grid reset" << std::endl;
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       Grid_point& gp = points[i];
       gp.reset();
@@ -2218,7 +2221,7 @@ struct Base_mesh
   void refresh_grid_point_states()
   {
     CGAL_assertion(trial_points.empty());
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
       points[i].state = FAR;
 
     known_count = 0;
@@ -2301,7 +2304,7 @@ struct Base_mesh
     out_bb << "2 1 " << points.size() << " 2" << '\n';
 //    out_distortion_bb << "2 1 " << points.size() << " 2" << '\n';
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       const Grid_point& gp = points[i];
       out << gp.point.x() << " " << gp.point.y() << " " << i+1 << '\n';
@@ -2314,7 +2317,7 @@ struct Base_mesh
 
     out << "Triangles" << '\n';
     out << triangles.size() << '\n';
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       std::set<std::size_t> materials;
       for(int j=0; j<3; ++j)
@@ -2579,7 +2582,7 @@ struct Base_mesh
     // - The radius is simply the geodesic distance
     // - The angle is given by the angle of the tangent of the geodesic at the seed
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       const Grid_point& gp = points[i];
       mapped_points[i] = map_point_to_tangent_space(gp);
@@ -2599,7 +2602,7 @@ struct Base_mesh
 
     // count the number of precise Voronoi vertices
     std::size_t precise_Vor_vertices_count = 0;
-    for(std::size_t seed_id=0; seed_id<Voronoi_vertices.size(); ++seed_id)
+    for(std::size_t seed_id=0, vvs=Voronoi_vertices.size(); seed_id<vvs; ++seed_id)
       precise_Vor_vertices_count += Voronoi_vertices[seed_id].size();
 
     // resize the mapped points to add the precise Vor vertices
@@ -2608,10 +2611,10 @@ struct Base_mesh
     // to number the precise Vor vertices (they are not base mesh points)
     std::size_t precise_Vor_vertex_index = points.size();
 
-    for(std::size_t seed_id=0; seed_id<Voronoi_vertices.size(); ++seed_id)
+    for(std::size_t seed_id=0, vvs=Voronoi_vertices.size(); seed_id<vvs; ++seed_id)
     {
       Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
-      for(std::size_t i=0; i<Vor_vertices.size(); ++i)
+      for(std::size_t i=0, vvs=Vor_vertices.size(); i<vvs; ++i)
       {
         // gp is NOT a point of the base mesh
         Grid_point& gp = Vor_vertices[i];
@@ -2635,7 +2638,7 @@ struct Base_mesh
     FT min_sq_dist = FT_inf;
     K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       // only look for the closest points with the same seed id. (Is this correct ?)
       if(points[i].closest_seed_id != seed_id)
@@ -2672,7 +2675,7 @@ struct Base_mesh
     FT unmapped_centroid_x = 0., unmapped_centroid_y = 0.;
     bool found = false;
     FT lambda_p = 0., lambda_q = 0., lambda_r = 0.;
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& tr = triangles[i];
       const Grid_point& gp = points[tr[0]];
@@ -2726,7 +2729,7 @@ struct Base_mesh
   void compute_all_centroids(std::vector<std::vector<std::pair<Point_2, FT> > >& centroids)
   {
     std::size_t real_points_n = points.size();
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& triangle = triangles[i];
 
@@ -2845,7 +2848,7 @@ struct Base_mesh
 
     FT total_area = 0.;
     FT centroid_x = 0., centroid_y = 0.;
-    for(std::size_t i=0; i<seed_centroids.size(); ++i)
+    for(std::size_t i=0, scs=seed_centroids.size(); i<scs; ++i)
     {
       const std::pair<Point_2, FT>& centroid = seed_centroids[i];
       const Point_2& c = centroid.first;
@@ -2874,7 +2877,7 @@ struct Base_mesh
     FT total_area = 0.;
     FT centroid_x = 0., centroid_y = 0.;
 
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& tr = triangles[i];
       const Grid_point& gp = points[tr[0]];
@@ -2921,7 +2924,7 @@ struct Base_mesh
     FT total_area = 0.;
     FT centroid_x = 0., centroid_y = 0.;
 
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& tr = triangles[i];
       const Grid_point& gp = points[tr[0]];
@@ -3221,7 +3224,7 @@ struct Base_mesh
   {
     std::cout << "optimize seeds" << std::endl;
 
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
       CGAL_assertion(points[i].state == KNOWN);
 
     FT sq_bbox_diag_l = sq_bbox_diagonal_length(base_mesh_bbox);
@@ -3247,7 +3250,7 @@ struct Base_mesh
 
       // Optimize each seed
       FT cumulated_displacement = 0;
-      for(std::size_t i=0; i<seeds.size(); ++i)
+      for(std::size_t i=0, ss=seeds.size(); i<ss; ++i)
         cumulated_displacement += optimize_seed(i, mapped_points, centroids, counter);
 
       FT e = compute_CVT_energy();
@@ -3341,7 +3344,7 @@ struct Base_mesh
     Dual_map dual_map;
     int failed_blob_counter = 0;
 
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       Simplex dual_simplex;
       const Tri& triangle = triangles[i];
@@ -3379,7 +3382,7 @@ struct Base_mesh
       // collect all the edges that appear once
       std::set<Simplex> edges;
 
-      for(std::size_t i=0; i<grid_triangles.size(); ++i)
+      for(std::size_t i=0, gts=grid_triangles.size(); i<gts; ++i)
       {
         const Tri& tr = triangles[grid_triangles[i]];
         for(int j=0; j<3; ++j)
@@ -3455,7 +3458,7 @@ struct Base_mesh
         }
       }
 
-      for(std::size_t i=0; i<visited_status.size(); ++i)
+      for(std::size_t i=0, vss=visited_status.size(); i<vss; ++i)
       {
         if(!visited_status[i])
         {
@@ -3480,7 +3483,7 @@ struct Base_mesh
     refine_grid();
 #endif
 
-    for(std::size_t i=0, ts = triangles.size(); i < ts; ++i)
+    for(std::size_t i=0, ts=triangles.size(); i < ts; ++i)
     {
       const Tri& triangle = triangles[i];
 
@@ -3639,7 +3642,7 @@ struct Base_mesh
     std::map<std::size_t, std::size_t> local;
 
     // first output the 'real' grid points (mapped)
-    for(std::size_t i=0; i<points.size(); ++i)
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
       const Grid_point& gp = points[i];
       if(gp.closest_seed_id != seed_id)
@@ -3654,7 +3657,7 @@ struct Base_mesh
     // then output the 'virtual' grid points if there are any
     const Voronoi_vertices_container& Vor_vertices = Voronoi_vertices[seed_id];
 
-    for(std::size_t i=0; i<Vor_vertices.size(); ++i)
+    for(std::size_t i=0, vvs=Vor_vertices.size(); i<vvs; ++i)
     {
       const Grid_point& gp = Vor_vertices[i];
       CGAL_assertion(gp.closest_seed_id == seed_id);
@@ -3669,7 +3672,7 @@ struct Base_mesh
     std::ostringstream triangles_out;
 
     //output the triangles for 'real' vertices
-    for(std::size_t i=0; i<triangles.size(); ++i)
+    for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& tr = triangles[i];
       if(points[tr[0]].closest_seed_id != seed_id ||
@@ -4304,7 +4307,7 @@ int main(int, char**)
         break;
     }
 
-    for(std::size_t i=0; i<bm.points.size(); ++i)
+    for(std::size_t i=0, ps=bm.points.size(); i<ps; ++i)
       bm.points[i].state = KNOWN;
 
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
