@@ -34,7 +34,7 @@
 #include <set>
 #include <utility>
 
-#define COMPUTE_PRECISE_VOR_VERTICES
+// #define COMPUTE_PRECISE_VOR_VERTICES
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef typename K::FT                                       FT;
@@ -68,7 +68,7 @@ public:
 
   FT operator()(const Point_2& p) const
   {
-    FT base = 10.;
+    FT base = 1.0;
 
     const Metric& m = mf->compute_metric(p);
     const FT width = 1./(m.get_max_eigenvalue());
@@ -377,10 +377,10 @@ void generate_grid()
 
   CDT cdt;
 
-  Vertex_handle va = cdt.insert(Point(-0.6,-0.6));
-  Vertex_handle vb = cdt.insert(Point(0.3,-0.6));
-  Vertex_handle vc = cdt.insert(Point(0.3,0.3));
-  Vertex_handle vd = cdt.insert(Point(-0.6,0.3));
+  Vertex_handle va = cdt.insert(Point(-5., -5.));
+  Vertex_handle vb = cdt.insert(Point(5., -5.));
+  Vertex_handle vc = cdt.insert(Point(5., 5.));
+  Vertex_handle vd = cdt.insert(Point(-5., 5.));
 
   cdt.insert_constraint(va, vb);
   cdt.insert_constraint(vb, vc);
@@ -422,7 +422,8 @@ typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
 To_exact to_exact;
 Back_from_exact back_from_exact;
 
-#define REFINE_GRID
+//#define USE_FULL_REBUILDS
+//#define REFINE_GRID
 #define FILTER_SEEDS_OUTSIDE_GRID
 #define verbose 6
 const FT FT_inf = std::numeric_limits<FT>::infinity();
@@ -1555,7 +1556,7 @@ struct Base_mesh
       gp->state = KNOWN;
       known_count++; // tmp --> use change_state()
 
-      if(use_dual_shenanigans)
+      if(false && use_dual_shenanigans) // tmp
         dual_shenanigans(gp, are_Voronoi_vertices_needed);
 
       PQ_state pqs = gp->update_neighbors_distances(trial_points);
@@ -2406,10 +2407,10 @@ struct Base_mesh
     std::cout << std::endl;
 */
 
-    FT max_size = 0.; // <= 0 means unused
+    FT max_size = 1.; // <= 0 means unused
     FT max_distortion = 1.; // <= 1 means unused
-    bool intersection_ref = true;
-    FT min_qual = 0.5; // <= 0 means unsused
+    bool intersection_ref = false;
+    FT min_qual = 0.; // <= 0 means unsused
 
     // size
     if(max_size > 0.)
@@ -2525,7 +2526,9 @@ struct Base_mesh
     // Since we have cleared out the case gp = seed, we know that :
     // - geodesic_path.size() > 0
     // - even if we take gq_index = 0, we have a non degenerate vector
-    std::size_t gq_index = geodesic_path.size()-1; // geodesic_path.size() / 5; // TMP
+//    std::size_t gq_index = geodesic_path.size()-1; // TMP
+    std::size_t gq_index = (std::min)(static_cast<std::size_t>(1e10),
+                                      geodesic_path.size()-1);
 
     CGAL_assertion(gq_index < geodesic_path.size());
     const Grid_point* gq = geodesic_path[gq_index];

@@ -51,6 +51,9 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("histogram_from_external_mesh.cpp")
   create_single_source_cgal_program("grid_generator.cpp")
   create_single_source_cgal_program("geodesic_grid_generator.cpp")
+  create_single_source_cgal_program("geodesic_grid_generator_2.cpp")
+  create_single_source_cgal_program("geodesic_generator_on_tr.cpp")
+  create_single_source_cgal_program("Nash.cpp")
 
   else(LAPACK_FOUND)
 
