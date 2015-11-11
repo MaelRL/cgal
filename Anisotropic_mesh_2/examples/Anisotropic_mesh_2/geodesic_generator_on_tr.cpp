@@ -14,6 +14,8 @@
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_triangle_primitive.h>
 
+#include <CGAL/Unique_hash_map.h>
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
@@ -295,17 +297,6 @@ public:
 };
 }
 
-template<typename V>
-struct Vertex_map_comparator
-{
-  bool operator()(const V& v1, const V& v2) const
-  {
-    if(v1.point().x() == v2.point().x())
-      return v1.point().y() < v2.point().y();
-    return v1.point().x() < v2.point().x();
-  }
-};
-
 template<typename CDT>
 bool is_vertex_on_border(const CDT& cdt,
                          typename CDT::Vertex_handle& v)
@@ -332,8 +323,7 @@ void output_cdt_to_mesh(const CDT& cdt,
   std::size_t n = cdt.number_of_vertices();
   std::size_t m = cdt.number_of_faces();
 
-  std::map<typename CDT::Vertex, std::size_t,
-           Vertex_map_comparator<typename CDT::Vertex> > vertex_map;
+  CGAL::Unique_hash_map<typename CDT::Vertex_handle, std::size_t> vertex_map;
 
   std::ofstream out((str_base + ".mesh").c_str());
   out << std::setprecision(17);
@@ -346,8 +336,8 @@ void output_cdt_to_mesh(const CDT& cdt,
   for(typename CDT::Finite_vertices_iterator vit = cdt.finite_vertices_begin();
                                              vit != cdt.finite_vertices_end(); ++vit)
   {
-    vertex_map[*vit] = v_counter++;
     typename CDT::Vertex_handle vh = vit;
+    vertex_map[vh] = v_counter++;
     out << *vit << " " << is_vertex_on_border<CDT>(cdt, vh) << '\n';
   }
 
@@ -358,7 +348,7 @@ void output_cdt_to_mesh(const CDT& cdt,
                                   fit != cdt.finite_faces_end(); ++fit)
   {
     for(int i=0; i<=cdt.dimension(); ++i)
-      out << vertex_map[*(fit->vertex(i))] << " ";
+      out << vertex_map[fit->vertex(i)] << " ";
     out << "0" << '\n';
   }
   out << "End" << '\n';
