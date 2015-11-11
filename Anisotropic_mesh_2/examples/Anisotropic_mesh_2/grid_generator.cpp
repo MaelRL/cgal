@@ -91,18 +91,21 @@ std::vector<Metric> seeds_m;
 std::vector<FT> ws;
 
 std::set<Tri> simplices; // THESE ARE THE SIMPLICES OF THE DUAL OF THE GRID
-std::vector<std::size_t> random_colors;
 
 // witness
 std::vector<std::vector<std::size_t> > witness_grid;
 std::vector<std::vector<std::size_t> > first_position; // could be a vector of booleans...
 std::vector<std::vector<std::size_t> > second_position;
 
+// refine
+int n_refine = 25;
 #ifdef TMP_REFINEMENT_UGLY_HACK
 // farthest point memory
 FT farthest_x = 1e30, farthest_y = 1e30;
 FT farthest_d = 0.;
 #endif
+
+// ----------------- FUNCTIONS START -----------------------
 
 std::set<Edge> build_edges()
 {
@@ -414,10 +417,10 @@ std::size_t value_at_point(const Point_2& p, std::size_t p_id)
 
       if(l==0 && sq_d<min) // first pass (compute the distance)
       {
-        min_id = random_colors[k];
+        min_id = k;
         min = sq_d;
       }
-      else if(l==1 && ((random_colors[k]!=min_id && std::abs(sq_d-min)<0.1*min) ||
+      else if(l==1 && ((k!=min_id && std::abs(sq_d-min)<0.1*min) ||
                        sq_d < 0.01*min)) // second pass
       {
         min_id = 1.01*vertices_nv; // drawing borders and center points
@@ -658,9 +661,10 @@ void ugly_farthest_computation(const Tri& tri,
   {
     const Point_2& p = points[tri[i]];
     std::size_t k = values[tri[i]];
+    CGAL_assertion(k < seeds.size());
 
     // DU WANG : dx(p,x) < dx(q,x)
-    Metric m_p = mf->compute_metric(p);
+    const Metric& m_p = mf->compute_metric(p);
     TPoint_2 tp(m_p.transform(p));
     double sq_d = csd(tp, m_p.transform(seeds[k]));
 
@@ -742,7 +746,7 @@ void output_smart_grid(const std::list<Quad>& final_quads,
 
 // todo parallelize this like it was done for grid_gen_3, be careful with the
 // pragma omp critical in other functions!
-void smart_grid()
+void adapted_grid()
 {
   std::cout << "smart grid !" << std::endl;
 
@@ -785,13 +789,17 @@ void smart_grid()
     ///experiment : refine for the distortion
 //if(points.size() < 1e6 && (q.is_too_distorted(1.1, points) || points.size() < 100)
 
-    if(q.is_too_small(min_vol, points) || q.has_same_colors(values) ||
-       points.size() > max_grid_size)
+    if(q.is_too_big(max_vol, points))
+    {
+       split_quad(q, quads_to_test, values, points);
+    }
+    else if(q.is_too_small(min_vol, points) || points.size() > max_grid_size)
+    {
       final_quads.push_back(q);
-    else if(/*q.is_too_big(max_vol, points) ||*/ !q.has_same_colors(values))
+    }
+    else if(!q.has_same_colors(values))
     {
       split_quad(q, quads_to_test, values, points);
-      std::cout << "Split. Now: " << points.size() << " points" << std::endl;
     }
     else
       final_quads.push_back(q);
@@ -889,12 +897,6 @@ void initialize()
 #else
   vertices_nv = build_seeds();
 #endif
-
-  // for random colors
-  random_colors.resize(vertices_nv);
-  for(std::size_t i=0; i<vertices_nv; ++i)
-    random_colors[i] = i;
-//  std::random_shuffle(random_colors.begin(), random_colors.end());
 }
 
 void build_grid()
@@ -907,25 +909,24 @@ void build_grid()
 #endif
 
 //  full_grid();
-  smart_grid();
+  adapted_grid();
 
   output_simplices();
 }
 
 int main(int, char**)
 {
-  std::freopen("grid_log.txt", "w", stdout);
+//  std::freopen("grid_log.txt", "w", stdout);
   std::srand(0);
 
   initialize();
   build_grid();
 
-  //  int n_refine = 80;
-  //  for(int i=0; i<n_refine; ++i)
-  //  {
-  //    std::cerr << "refine: " << i << std::endl;
-  //    build_grid();
-  //  }
+  for(int i=0; i<n_refine; ++i)
+  {
+    std::cerr << "refine: " << i << std::endl;
+    build_grid();
+  }
 
   std::cerr << "end of program" << std::endl;
 }
