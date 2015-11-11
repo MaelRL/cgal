@@ -4191,6 +4191,7 @@ Grid_point::Grid_point()
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
+    children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
 { }
@@ -4212,6 +4213,7 @@ Grid_point::Grid_point(Base_mesh* bm_,
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
+    children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
 { }
@@ -4230,6 +4232,7 @@ Grid_point::Grid_point(const Grid_point& gp)
     distance_to_closest_seed(gp.distance_to_closest_seed),
     closest_seed_id(gp.closest_seed_id),
     ancestor(gp.ancestor),
+    children(gp.children),
     is_Voronoi_vertex(gp.is_Voronoi_vertex),
     ancestor_path_length(gp.ancestor_path_length)
 { }
