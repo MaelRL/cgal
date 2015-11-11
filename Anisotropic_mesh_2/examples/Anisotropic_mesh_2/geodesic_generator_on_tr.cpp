@@ -736,7 +736,6 @@ struct Grid_point
   std::size_t index;
   Metric metric;
   Point_set neighbors;
-  Point_set border_neighbors;
   std::list<std::size_t> incident_triangles;
   bool is_on_domain_border;
 
@@ -751,11 +750,11 @@ struct Grid_point
 
   void change_state(FMM_state new_state);
   std::size_t anc_path_length() const;
+  void print_children() const;
   void print_ancestors() const;
   bool find_in_ancestry(const std::size_t i) const;
   void remove_from_children(const std::size_t c);
   void remove_from_neighbors(const std::size_t n_p);
-  void remove_from_border_neighbors(const std::size_t n_p);
   void remove_from_incident_triangles(const std::size_t i);
   void mark_descendants(std::size_t& count, boost::unordered_set<std::size_t>& potential_parents);
   void reset_descendants();
@@ -1112,8 +1111,6 @@ struct Base_mesh
         {
           std::size_t id2 = tr[(i+j)%3];
           points[id1].neighbors.insert(id2);
-          if(points[id1].is_on_domain_border && points[id2].is_on_domain_border)
-            points[id1].border_neighbors.insert(id2);
         }
         points[id1].incident_triangles.push_back(new_tri_id);
       }
@@ -1202,12 +1199,17 @@ struct Base_mesh
     if(gp->index < 4) // corner hack fixme
       gp->is_Voronoi_vertex = true;
 
-    Grid_point::Point_set::iterator it = gp->border_neighbors.begin();
-    Grid_point::Point_set::iterator end = gp->border_neighbors.end();
+    Grid_point::Point_set::iterator it = gp->neighbors.begin();
+    Grid_point::Point_set::iterator end = gp->neighbors.end();
     for(; it!=end; ++it)
     {
       Grid_point* gq = &(points[*it]);
-      CGAL_assertion(gq->is_on_domain_border);
+
+      // below is kinda bad: imagine the hypothenuse of a corner triangle, not all
+      // of these are border edges... fixme
+      if(!gq->is_on_domain_border)
+        continue;
+
       if(!visited_points[gq->index])
       {
         // check if they have different colors
@@ -1358,8 +1360,8 @@ struct Base_mesh
     }
   }
 
-  void visit_neighbors_and_compute(const std::size_t n_p,
-                                   std::vector<bool>& visited_points)
+  void visit_border_neighbors(const std::size_t n_p,
+                             std::vector<bool>& visited_points)
   {
     const Grid_point& gp = points[n_p];
 
@@ -1369,12 +1371,17 @@ struct Base_mesh
     if(n_p < 4) // corner hack fixme
       Voronoi_vertices[seed_p].push_back(gp);
 
-    Grid_point::Point_set::iterator it = gp.border_neighbors.begin();
-    Grid_point::Point_set::iterator end = gp.border_neighbors.end();
+    Grid_point::Point_set::iterator it = gp.neighbors.begin();
+    Grid_point::Point_set::iterator end = gp.neighbors.end();
     for(; it!=end; ++it)
     {
       const Grid_point& gq = points[*it];
-      CGAL_assertion(gq.is_on_domain_border);
+
+      //fixme, this is not very robust, easy to find two border points whose
+      // edge is not a border edge...
+      if(!gq.is_on_domain_border)
+        continue;
+
       if(!visited_points[gq.index])
       {
         // check if they have different colors
@@ -1393,7 +1400,7 @@ struct Base_mesh
         }
 
         // continue visiting from gq
-        visit_neighbors_and_compute(gq.index, visited_points);
+        visit_border_neighbors(gq.index, visited_points);
       }
     }
   }
@@ -1429,7 +1436,7 @@ struct Base_mesh
     {
       if(points[i].is_on_domain_border)
       {
-        visit_neighbors_and_compute(i, visited_points);
+        visit_border_neighbors(i, visited_points);
         break;
       }
     }
@@ -1438,8 +1445,7 @@ struct Base_mesh
     shave_off_virtual_points(real_points_n);
   }
 
-  void dual_shenanigans(Grid_point* gp,
-                        const bool are_Voronoi_vertices_needed)
+  void dual_shenanigans(Grid_point* gp)
   {
     CGAL_assertion(gp->state == KNOWN);
 
@@ -1462,15 +1468,6 @@ struct Base_mesh
 //        fill_edge_bisectors_map(gp, gq);
       }
       add_simplex_to_triangulation(gp, dual_simplex);
-
-      if(are_Voronoi_vertices_needed)
-      {
-#ifdef COMPUTE_PRECISE_VOR_VERTICES
-        compute_precise_Voronoi_vertex(tri, dual_simplex);
-#else
-        mark_voronoi_vertices(tri, dual_simplex);
-#endif
-      }
     }
   }
 
@@ -1503,8 +1500,7 @@ struct Base_mesh
     return false;
   }
 
-  void spread_distances(const bool use_dual_shenanigans,
-                        const bool are_Voronoi_vertices_needed = true /*fixme*/)
+  void spread_distances(const bool use_dual_shenanigans)
   {
     // fixme above : it's pointless to recompute the Voronoi vertices every time
     // but need a good criterion to decide when we need it (typically the last
@@ -1528,7 +1524,7 @@ struct Base_mesh
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 30)
+#if (verbose > 40)
       std::cout << "trial heap: " << std::endl;
       for (std::vector<Grid_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
@@ -1550,7 +1546,7 @@ struct Base_mesh
       known_count++; // tmp --> use change_state()
 
       if(false && use_dual_shenanigans) // tmp
-        dual_shenanigans(gp, are_Voronoi_vertices_needed);
+        dual_shenanigans(gp);
 
       PQ_state pqs = gp->update_neighbors_distances(trial_points);
       if(pqs == REBUILD_TRIAL)
@@ -1559,20 +1555,6 @@ struct Base_mesh
     }
 
     debug();
-
-    if(are_Voronoi_vertices_needed && use_dual_shenanigans)
-    {
-      // we have only computed the voronoi vertices corresponding to the dual of 3-simplex
-      // to get the full cell we need to know the intersection of the voronoi cell
-      // with the border of the domain
-#ifdef COMPUTE_PRECISE_VOR_VERTICES
-      compute_precise_Voronoi_vertices_on_border();
-#else
-      mark_voronoi_vertices_on_border();
-#endif
-      std::cout << "After Voronoi border: ";
-      std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
-    }
 
     std::cout << "End of spread_distances. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
@@ -1587,7 +1569,10 @@ struct Base_mesh
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
-//      points[i].print_ancestors();
+#if (verbose > 25)
+      points[i].print_ancestors();
+      points[i].print_children();
+#endif
       points[i].state = KNOWN;
     }
 
@@ -1596,10 +1581,19 @@ struct Base_mesh
       const Grid_point& gp = points[i];
 
       if(gp.ancestor != static_cast<std::size_t>(-1) &&
+         points[gp.ancestor].closest_seed_id != gp.closest_seed_id)
+      {
+         failed = true;
+         std::cout << "ancestor/children don't agree on the seed @ " << gp.index << std::endl;
+      }
+
+      if(gp.ancestor != static_cast<std::size_t>(-1) &&
          points[gp.ancestor].children.find(gp.index) == points[gp.ancestor].children.end())
       {
         failed = true;
         std::cout << "failure in ancestor/children relationship at " << gp.index << std::endl;
+        std::cout << "ancestor is : " << gp.ancestor << " color: " << gp.closest_seed_id << std::endl;
+        std::cout << "asd: " << points[gp.ancestor].children.size() << " " << points[gp.ancestor].closest_seed_id << std::endl;
       }
 
       if(gp.distance_to_closest_seed == FT_inf || gp.closest_seed_id >= seeds.size() ||
@@ -1634,11 +1628,12 @@ struct Base_mesh
 
   std::size_t probe_edge_midpoints_map(const std::size_t n_p,
                                        const std::size_t n_q,
-                                       std::map<std::pair<std::size_t, std::size_t>,
+                                       boost::unordered_map<std::pair<std::size_t, std::size_t>,
                                        std::size_t>& edge_mid_points,
                                        bool create_if_not_found = true)
   {
-    typedef std::map<std::pair<std::size_t, std::size_t>, std::size_t> Edge_mpts_map;
+    typedef boost::unordered_map<std::pair<std::size_t, std::size_t>,
+                                 std::size_t>                     Edge_mpts_map;
 
     std::size_t n_pq = -1;
 
@@ -1655,20 +1650,12 @@ struct Base_mesh
     {
       Point_2 mid_point = CGAL::barycenter(points[n_p].point, 0.5,
                                            points[n_q].point, 0.5);
-      bool border_info = (points[n_p].is_on_domain_border && points[n_q].is_on_domain_border);
       n_pq = points.size();
+      bool border_info = (points[n_p].is_on_domain_border && points[n_q].is_on_domain_border);
 
       Grid_point gm(this, mid_point, n_pq, border_info);
       points.push_back(gm);
       is_insert_succesful.first->second = n_pq;
-
-      if(border_info)
-      {
-        points[n_p].border_neighbors.insert(n_pq);
-        points[n_q].border_neighbors.insert(n_pq);
-        points.back().border_neighbors.insert(n_p);
-        points.back().border_neighbors.insert(n_q);
-      }
     }
 
     return n_pq;
@@ -1687,7 +1674,7 @@ struct Base_mesh
 
   void split_1(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
                const std::size_t n_pq, const std::size_t i,
-               std::map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
+               boost::unordered_map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
   {
     CGAL_assertion(probe_edge_midpoints_map(n_p, n_q, m, false) == n_pq);
 
@@ -1725,7 +1712,7 @@ struct Base_mesh
 
   void split_2(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
                const std::size_t n_pq, const std::size_t n_qr, const std::size_t i,
-               std::map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
+               boost::unordered_map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
   {
     CGAL_assertion(probe_edge_midpoints_map(n_p, n_q, m, false) == n_pq);
     CGAL_assertion(probe_edge_midpoints_map(n_q, n_r, m, false) == n_qr);
@@ -1777,7 +1764,7 @@ struct Base_mesh
   void split_3(const std::size_t n_p, const std::size_t n_q, const std::size_t n_r,
                const std::size_t n_pq, const std::size_t n_qr, const std::size_t n_pr,
                const std::size_t i,
-               std::map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
+               boost::unordered_map<std::pair<std::size_t, std::size_t>, std::size_t>& m)
   {
     CGAL_assertion(probe_edge_midpoints_map(n_p, n_q, m, false) == n_pq);
     CGAL_assertion(probe_edge_midpoints_map(n_q, n_r, m, false) == n_qr);
@@ -1855,7 +1842,7 @@ struct Base_mesh
   {
     std::cout << "refine grid one step" << std::endl;
 
-    // tedious function so it's written in a very clear way... it's, as usual,
+    // tedious function so it's written in a very clear way... it's (as usual)
     // not the most efficient but the most straight forward
 
     // can't use ref or pointers to 'points' since they are regularly invalidated
@@ -1864,34 +1851,31 @@ struct Base_mesh
     // todo
     // make it nice with subfunctions and efficient stuff when cleaning up the code
 
-    std::set<std::size_t> seeds_to_refine;
-    std::set<std::size_t> seeds_to_rebuild;
+    boost::unordered_set<std::size_t> seeds_to_refine;
+    boost::unordered_set<std::size_t> seeds_to_rebuild;
     std::vector<bool> refined_triangles(triangles.size(), false);
-    std::map<std::pair<std::size_t, std::size_t>, std::size_t> edge_mid_points;
+    boost::unordered_map<std::pair<std::size_t, std::size_t>, std::size_t> edge_mid_points;
 
     // determine which seeds need to be refined
     for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
       const Tri& triangle = triangles[i];
-      std::set<std::size_t> colors;
+
+      if(points[triangle[0]].closest_seed_id == points[triangle[1]].closest_seed_id &&
+         points[triangle[1]].closest_seed_id == points[triangle[2]].closest_seed_id)
+        continue;
+      // here and below, 'triangle' is on a bisector (of dimension >= 1)
 
       for(int j=0; j<3; ++j)
-        colors.insert(points[triangle[j]].closest_seed_id);
-
-      if(colors.size() > 1) // bisector of at least an edge or higher dimensional simplex
       {
-        for(int j=0; j<3; ++j)
+        const Grid_point& gp = points[triangle[j]];
+        std::size_t ap_length = gp.ancestor_path_length;
+        if(ap_length < min_ancestor_path_length)
         {
-          const Grid_point& gp = points[triangle[j]];
-          std::size_t ap_length = gp.ancestor_path_length;
-          if(ap_length < min_ancestor_path_length)
-          {
-            seeds_to_refine.insert(gp.closest_seed_id);
-            std::cout << "the canvas is thin (" << ap_length << ") at : "
-                      << gp.index << " (" << gp.point
-                      << ") dual simplex of size: " << colors.size()
-                      << " and cellid: " << gp.closest_seed_id << std::endl;
-          }
+          seeds_to_refine.insert(gp.closest_seed_id);
+          std::cout << "the canvas is thin (" << ap_length << ") at : "
+                    << gp.index << " (" << gp.point << ")"
+                    << " and cellid: " << gp.closest_seed_id << std::endl;
         }
       }
     }
@@ -1925,8 +1909,8 @@ struct Base_mesh
       refined_triangles[i] = true;
 
       // we use the triforce split to get similar triangles
-      // the index 'i' will correspond to the new triangle in the middle
-      // and we must build three new triangles
+      // the old index 'i' will correspond to the new triangle in the middle
+      // and we build three new triangles
 
       // triforce split :
       //        a
@@ -1941,43 +1925,26 @@ struct Base_mesh
       const std::size_t n_p = triangle[0];
       const std::size_t n_q = triangle[1];
       const std::size_t n_r = triangle[2];
+      CGAL_precondition(n_p < points.size() && n_q < points.size() && n_r < points.size());
 
       // clean off the neighbors, border neighbors and incident triangles info
       points[n_p].remove_from_incident_triangles(i);
       points[n_q].remove_from_incident_triangles(i);
       points[n_r].remove_from_incident_triangles(i);
 
-      points[n_p].remove_from_neighbors(points[n_q].index);
-      points[n_p].remove_from_neighbors(points[n_r].index);
-      points[n_q].remove_from_neighbors(points[n_p].index);
-      points[n_q].remove_from_neighbors(points[n_r].index);
-      points[n_r].remove_from_neighbors(points[n_p].index);
-      points[n_r].remove_from_neighbors(points[n_q].index);
+      points[n_p].remove_from_neighbors(n_q);
+      points[n_p].remove_from_neighbors(n_r);
+      points[n_q].remove_from_neighbors(n_p);
+      points[n_q].remove_from_neighbors(n_r);
+      points[n_r].remove_from_neighbors(n_p);
+      points[n_r].remove_from_neighbors(n_q);
 
-      if(points[n_p].is_on_domain_border && points[n_q].is_on_domain_border)
-      {
-        points[n_p].remove_from_border_neighbors(points[n_q].index);
-        points[n_q].remove_from_border_neighbors(points[n_p].index);
-      }
-
-      if(points[n_q].is_on_domain_border && points[n_r].is_on_domain_border)
-      {
-        points[n_q].remove_from_border_neighbors(points[n_r].index);
-        points[n_r].remove_from_border_neighbors(points[n_q].index);
-      }
-
-      if(points[n_p].is_on_domain_border && points[n_r].is_on_domain_border)
-      {
-        points[n_p].remove_from_border_neighbors(points[n_r].index);
-        points[n_r].remove_from_border_neighbors(points[n_p].index);
-      }
-
-      // points[n_r]ab the colors that we will need to paint again
+      // keep the colors that we will need to paint again
       seeds_to_rebuild.insert(points[n_p].closest_seed_id);
       seeds_to_rebuild.insert(points[n_q].closest_seed_id);
       seeds_to_rebuild.insert(points[n_r].closest_seed_id);
 
-      // points[n_r]ab (or create) the edge points
+      // find (or create) the edge points
       const std::size_t n_pq = probe_edge_midpoints_map(n_p, n_q, edge_mid_points);
       const std::size_t n_qr = probe_edge_midpoints_map(n_q, n_r, edge_mid_points);
       const std::size_t n_pr = probe_edge_midpoints_map(n_p, n_r, edge_mid_points);
@@ -2106,10 +2073,10 @@ struct Base_mesh
     triangles.insert(triangles.end(), triangles_buffer.begin(), triangles_buffer.end());
     triangles_buffer.clear();
 
-
     std::cout << points.size() << " points after grid refinement" << std::endl;
     std::cout << triangles.size() << " triangles after grid refinement" << std::endl;
 
+CGAL_expensive_assertion_code(
     // some quick debug on incidency and adjacency
     for(std::size_t i=0, ts=triangles.size(); i<ts; ++i)
     {
@@ -2132,6 +2099,7 @@ struct Base_mesh
       CGAL_assertion(std::find(gr.incident_triangles.begin(),
                                gr.incident_triangles.end(), i) != gr.incident_triangles.end());
     }
+)
 
     build_aabb_tree();
 
@@ -2139,11 +2107,10 @@ struct Base_mesh
     reset();
     locate_and_initialize_seeds();
 #else
-    // if you allow other cells to be modified without reseting them fully,
-    // you can create orphans, which must NOT happen...
     refresh_grid_point_states();
-    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
-      points[i].state = KNOWN;
+
+//    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
+//      points[i].state = KNOWN;
 
     // go an extra step (is it necessary) for points whose colors we are spreading:
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
@@ -2151,21 +2118,28 @@ struct Base_mesh
       Grid_point& gp = points[i];
       if(seeds_to_rebuild.find(gp.closest_seed_id) != seeds_to_rebuild.end())
       {
-//        std::cout << "reseting: " << i << "(id: " << gp.closest_seed_id << ")" << std::endl;
+        std::cout << "reseting: " << i << " (id: " << gp.closest_seed_id << ")" << std::endl;
         gp.reset();
+      }
+      else
+      {
+        std::cout << "not reseting: " << i << " (id: " << gp.closest_seed_id << ")" << std::endl;
+        std::cout << gp.children.size() << std::endl;
       }
     }
 
-    std::cout << "must rebuild: ";
-    std::set<std::size_t>::iterator it = seeds_to_rebuild.begin(),
-                                    end = seeds_to_rebuild.end();
-    for(; it!=end; ++it)
-    {
-      const Point_2& p = seeds[*it];
-      std::cout << *it << " ";
-      locate_and_initialize(p, *it);
-    }
-    std::cout << std::endl;
+//    CGAL_precondition(trial_points.empty());
+//    std::cout << "Rebuild: " << std::endl;
+//    boost::unordered_set<std::size_t>::iterator it = seeds_to_rebuild.begin(),
+//                                                end = seeds_to_rebuild.end();
+//    for(; it!=end; ++it)
+//    {
+//      const Point_2& p = seeds[*it];
+//      locate_and_initialize(p, *it);
+//    }
+//    CGAL_postcondition(!trial_points.empty() && "empty prio queue ?");
+
+    locate_and_initialize_seeds();
 #endif
     clear_dual();
     spread_distances(false);
@@ -3745,7 +3719,7 @@ void Grid_point::change_state(FMM_state new_state)
 
 std::size_t Grid_point::anc_path_length() const
 {
-  std::size_t i = 1;
+  std::size_t i = 0;
   std::size_t n_anc = ancestor;
   while(n_anc != static_cast<std::size_t>(-1))
   {
@@ -3758,14 +3732,29 @@ std::size_t Grid_point::anc_path_length() const
   return i;
 }
 
+void Grid_point::print_children() const
+{
+  std::cout << "point : " << index << " children: ";
+
+  Point_set::iterator cit = children.begin();
+  Point_set::iterator cend = children.end();
+  for(; cit!=cend; ++cit)
+  {
+    CGAL_assertion(*cit < bm->points.size());
+    std::cout << *cit;
+  }
+  std::cout << std::endl;
+}
+
 void Grid_point::print_ancestors() const
 {
-  anc_path_length(); // assert non circular ancestry
+  CGAL_expensive_assertion_code(anc_path_length()); // assert non circular ancestry
   std::cout << "point : " << index << " ancestors: ";
 
   std::size_t anc = ancestor;
   while(anc != static_cast<std::size_t>(-1))
   {
+    CGAL_assertion(anc < bm->points.size());
     std::cout << anc << " ";
     anc = bm->points[anc].ancestor;
   }
@@ -3793,11 +3782,11 @@ void Grid_point::remove_from_children(const std::size_t c)
   Point_set::iterator it = children.find(c);
   if(it != children.end())
     children.quick_erase(it);
-  else
-  {
-    std::cout << "WARNING: call to remove_from_children didn't find the child (";
-    std::cout << c << " from " << index << ")" << std::endl;
-  }
+//  else
+//  {
+//    std::cout << "WARNING: call to remove_from_children didn't find the child (";
+//    std::cout << c << " from " << index << ")" << std::endl;
+//  }
 }
 
 void Grid_point::remove_from_neighbors(const std::size_t n)
@@ -3805,18 +3794,11 @@ void Grid_point::remove_from_neighbors(const std::size_t n)
   Point_set::iterator it = neighbors.find(n);
   if(it != neighbors.end()) // might already have been removed from the other side
     neighbors.quick_erase(it);
-  else
-  {
-    std::cout << "WARNING: call to remove_from_neighbors didn't find the neighbor  (";
-    std::cout << n << " from " << index << ")" << std::endl;
-  }
-}
-
-void Grid_point::remove_from_border_neighbors(const std::size_t n)
-{
-  Point_set::iterator it = border_neighbors.find(n);
-  CGAL_precondition(it != border_neighbors.end()); // no other side here though !
-  border_neighbors.quick_erase(it);
+//  else
+//  {
+//    std::cout << "WARNING: call to remove_from_neighbors didn't find the neighbor  (";
+//    std::cout << n << " from " << index << ")" << std::endl;
+//  }
 }
 
 void Grid_point::remove_from_incident_triangles(const std::size_t i)
@@ -3832,8 +3814,8 @@ void Grid_point::mark_descendants(std::size_t& count,
 {
 //  std::cout << "marking " << index << " (a: " << ancestor << ") and its "
 //            << children.size() << " children: ";
-//  typename Point_set::iterator cit = children.begin();
-//  typename Point_set::iterator end = children.end();
+//  Point_set::iterator cit = children.begin();
+//  Point_set::iterator end = children.end();
 //  for(; cit!=end; ++cit)
 //    std::cout << *cit << " ";
 //  std::cout << std::endl;
@@ -3842,14 +3824,14 @@ void Grid_point::mark_descendants(std::size_t& count,
   state = ORPHAN;
 
   Point_set::iterator cit = children.begin();
-  Point_set::iterator end = children.end();  for(; cit!=end; ++cit)
+  Point_set::iterator end = children.end();
+  for(; cit!=end; ++cit)
   {
     Grid_point& cp = bm->points[*cit];
     if(cp.state == ORPHAN)
       continue;
     cp.mark_descendants(count, potential_parents);
   }
-
 
 #ifdef ADD_PARENTS_AFTER_DESCENDANT_RESET
   Point_set::iterator nit = neighbors.begin();
@@ -4141,7 +4123,7 @@ void Grid_point::reset()
 {
   // this only resets 'color'-related fields
 #if (verbose > 30)
-  std::cout << "reseting " << index << std::endl;
+  std::cout << "reset() at " << index << std::endl;
 #endif
 
   if(ancestor != static_cast<std::size_t>(-1))
@@ -4184,7 +4166,6 @@ Grid_point::Grid_point()
     index(static_cast<std::size_t>(-1)),
     metric(),
     neighbors(),
-    border_neighbors(),
     incident_triangles(),
     is_on_domain_border(false),
     state(FAR),
@@ -4206,7 +4187,6 @@ Grid_point::Grid_point(Base_mesh* bm_,
     index(index_),
     metric(mf->compute_metric(point)),
     neighbors(),
-    border_neighbors(),
     incident_triangles(),
     is_on_domain_border(is_on_domain_border_),
     state(FAR),
@@ -4225,7 +4205,6 @@ Grid_point::Grid_point(const Grid_point& gp)
     index(gp.index),
     metric(gp.metric),
     neighbors(gp.neighbors),
-    border_neighbors(gp.border_neighbors),
     incident_triangles(gp.incident_triangles),
     is_on_domain_border(gp.is_on_domain_border),
     state(gp.state),
