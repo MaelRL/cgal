@@ -2117,15 +2117,7 @@ CGAL_expensive_assertion_code(
     {
       Grid_point& gp = points[i];
       if(seeds_to_rebuild.find(gp.closest_seed_id) != seeds_to_rebuild.end())
-      {
-        std::cout << "reseting: " << i << " (id: " << gp.closest_seed_id << ")" << std::endl;
         gp.reset();
-      }
-      else
-      {
-        std::cout << "not reseting: " << i << " (id: " << gp.closest_seed_id << ")" << std::endl;
-        std::cout << gp.children.size() << std::endl;
-      }
     }
 
 //    CGAL_precondition(trial_points.empty());

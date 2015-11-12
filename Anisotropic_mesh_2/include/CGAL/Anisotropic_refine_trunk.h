@@ -714,7 +714,7 @@ public:
 
     // Alright, BIG deal here : you can't get a proper new star if you simply
     // insert the vertices that corresponds to stars that are in conflict
-    // with the new point. THIS IS NOT A SYMETRICAL RELATIONSHIP !!
+    // with the new point. THIS IS NOT A SYMMETRICAL RELATIONSHIP !!
 
     // ---------------------------------------------------------------------
     // AGAIN : new point in conflict with a star <=/=> the star center is

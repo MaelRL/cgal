@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <string>
 #include <vector>
 
 using namespace CGAL::Anisotropic_mesh_3;
@@ -63,14 +64,14 @@ Back_from_exact back_from_exact;
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
 std::size_t vertices_nv = 10;
+std::string str_seeds = "bambimboum_wip.mesh";
 
 Point_3 center(0.6, 0.6, 0.6);
-
 const FT grid_side = 1.0;
 FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
 FT offset_y = center.y() - grid_side/2.;
 FT offset_z = center.z() - grid_side/2.;
-std::size_t max_grid_nv = 1e5;
+std::size_t max_local_grid_nv = 1e5;
 
 // metric & traits
 MF mf;
@@ -82,6 +83,8 @@ std::vector<Metric> seeds_m;
 
 std::set<Tet> simplices; // THESE ARE THE SIMPLICES OF THE DUAL OF THE GRID
 
+// refine stuff
+std::size_t n_refine = 0;
 #ifdef TMP_REFINEMENT_UGLY_HACK
 // farthest point memory
 FT farthest_x = 1e30, farthest_y = 1e30, farthest_z = 1e30;
@@ -216,13 +219,14 @@ int insert_new_seed(const FT x, const FT y, const FT z)
 #endif
   seeds.push_back(Point_3(x, y, z));
   seeds_m.push_back(mf->compute_metric(seeds.back()));
+  std::cout << "inserted " << x << " " << y << " " << z << std::endl;
 
   return seeds.size();
 }
 
 int build_seeds()
 {
-  std::ifstream in("bambimboum_wip.mesh");
+  std::ifstream in(str_seeds.c_str());
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y, r_z;
@@ -242,7 +246,7 @@ int build_seeds()
     in >> r_x >> r_y >> r_z >> useless;
     insert_new_seed(r_x, r_y, r_z);
 
-    if(seeds.size() == vertices_nv)
+    if(seeds.size() >= vertices_nv)
       break;
   }
   std::cout << seeds.size() << " seeds" << std::endl;
@@ -302,7 +306,10 @@ FT value_at_point(const Point_3& p)
     }
   }
 
-#if 1//def APPROXIMATE_DUAL don't forget to decomment below if you change that
+#ifdef APPROXIMATE_DUAL
+  if(ids.size() < 4)
+    return min_id;
+
   Comp c(sqds);
   std::sort(ids.begin(), ids.end(), c);
 
@@ -312,27 +319,30 @@ FT value_at_point(const Point_3& p)
     CGAL_assertion(sqds[ids[i+1]] >= sqds[ids[i]]);
   }
 
-  // check if we are in the dual of a triangle (somewhat, not exactly a witness)
+  // check if we are in the dual of a tet (somewhat, not exactly a witness)
   FT alpha = 0.1;
   if(std::abs(sqds[ids[0]] - sqds[ids[1]]) < alpha*sqds[ids[0]] &&
      std::abs(sqds[ids[0]] - sqds[ids[2]]) < alpha*sqds[ids[0]] &&
      std::abs(sqds[ids[0]] - sqds[ids[3]]) < alpha*sqds[ids[0]]) // in the dual of the tet 0123
   {
-    if(std::abs(sqds[ids[0]] - sqds[ids[4]]) < alpha*sqds[ids[0]]) // 4 is close too!
+    if(ids.size() > 4)
     {
+      if(std::abs(sqds[ids[0]] - sqds[ids[4]]) < alpha*sqds[ids[0]]) // 4 is close too!
+      {
 #pragma omp critical
 {
-      std::cerr << "close tet" << std::endl;
-      std::cerr << sqds[ids[0]] << " " << sqds[ids[1]] << " " << sqds[ids[2]] << " " << sqds[ids[3]] << " ";
-      std::cerr << sqds[ids[4]] << std::endl;
-      std::cerr << "YOU VE GOT A CASE OF COSPHERITY at : " << p.x() << " " << p.y() << " " << p.z() << " ";
-      std::cerr << "(r: " << std::sqrt(p.x()*p.x() + p.y()*p.y() + p.z()*p.z()) << ")" << std::endl;
+        std::cout << "close tet" << std::endl;
+        std::cout << sqds[ids[0]] << " " << sqds[ids[1]] << " " << sqds[ids[2]] << " " << sqds[ids[3]] << " ";
+        std::cout << sqds[ids[4]] << std::endl;
+        std::cout << "YOU VE GOT A CASE OF COSPHERITY at : " << p.x() << " " << p.y() << " " << p.z() << " ";
+        std::cout << "(r: " << std::sqrt(p.x()*p.x() + p.y()*p.y() + p.z()*p.z()) << ")" << std::endl;
+      }
 }
     }
 
-//    Tet t; t[0] = ids[0]; t[1] = ids[1]; t[2] = ids[2]; t[3] = ids[3];
-//    std::sort(t.begin(), t.end());
-//    simplices.insert(simplex);
+    Tet t; t[0] = ids[0]; t[1] = ids[1]; t[2] = ids[2]; t[3] = ids[3];
+    std::sort(t.begin(), t.end());
+    simplices.insert(simplex);
   }
 #endif
 
@@ -410,7 +420,7 @@ struct Cube
     FT dy = points[0].y() - points[3].y();
     FT dz = points[0].z() - points[4].z();
 //    if(dx*dy*dz < min_vol)
-//      std::cout << "toosmall " << std::endl;
+//      std::cout << "too small " << std::endl;
     return dx*dy*dz < min_vol;
   }
 
@@ -636,8 +646,8 @@ void insert_simplex_if_colored(const std::size_t i0, const std::size_t i1,
     t[0] = values[i0]; t[1] = values[i1]; t[2] = values[i2]; t[3] = values[i3];
     std::sort(t.begin(), t.end());
 
-    std::cerr << "In the dual at : " << i0 << " " << i1 << " " << i2 << " " << i3 << std::endl;
-    std::cerr << "vals: " << t[0] << " " << t[1] << " " << t[2] << " " << t[3] << std::endl;
+    std::cout << "In the dual at : " << i0 << " " << i1 << " " << i2 << " " << i3 << std::endl;
+    std::cout << "vals: " << t[0] << " " << t[1] << " " << t[2] << " " << t[3] << std::endl;
 #pragma omp critical
     simplices.insert(t);
 #ifdef TMP_REFINEMENT_UGLY_HACK
@@ -691,12 +701,43 @@ void output_adapted_grid_tets(std::ofstream& out_tets,
   }
 }
 
-void adapted_grid(const bool output_grid = false)
+void output_adapted_grid_hex(std::ofstream& out_hex,
+                             std::size_t offset,
+                             const std::list<Cube>& final_cubes)
 {
+  // output the cube set
+
+  ++offset; // '++' because medit likes fortran
+  std::list<Cube>::const_iterator it = final_cubes.begin(), iend = final_cubes.end();
+  for(; it!=iend; ++it)
+  {
+    const Cube& q = *it;
+    out_hex << q.ids[0]+offset << " " << q.ids[1]+offset << " "
+            << q.ids[2]+offset << " " << q.ids[3]+offset << " "
+            << q.ids[4]+offset << " " << q.ids[5]+offset << " "
+            << q.ids[6]+offset << " " << q.ids[7]+offset << " ";
+    out_hex << "1" << std::endl;
+  }
+}
+
+void adapted_grid(const bool refine,
+                  const bool output_grid = false)
+{
+#ifdef TMP_REFINEMENT_UGLY_HACK
+  if(refine)
+  {
+    CGAL_precondition(farthest_x != 1e30 && farthest_y != 1e30 && farthest_z != 1e30);
+    std::cout << "inserting: " << farthest_x << " " << farthest_y << " " << farthest_z << std::endl;
+    vertices_nv = insert_new_seed(farthest_x, farthest_y, farthest_z);
+    std::cout << "now: " << vertices_nv << " seeds" << std::endl;
+    farthest_d = 0.; farthest_x = 1e30; farthest_y = 1e30; farthest_z = 1e30;
+  }
+#endif
+
   std::ofstream out("adapted_grid.mesh");
   std::ofstream out_bb("adapted_grid.bb");
 
-  std::size_t grid_nv = 0., grid_ntet = 0., glob_offset = 0.;
+  std::size_t grid_nv = 0, grid_ntet = 0, glob_offset = 0;
 
   // idea is to create some kind of octree and refine a cube
   // if its eight corners don't have all the same colors (and it's not too small)
@@ -731,10 +772,10 @@ void adapted_grid(const bool output_grid = false)
 
   // remark: there is an obvious (small) redundancy in the points of the grid
   // coming from the borders of each region but it does not create any issue
-  // (and it's simpler to do it that way... :^) )
+  // (and it's simpler to do it that way...)
 
   omp_set_num_threads(8);
-#pragma omp parallel shared(grid_nv)
+#pragma omp parallel shared(grid_nv, grid_ntet)
 {
     int thread_ID = omp_get_thread_num();
     typename std::list<Cube>::iterator lcit = initial_cubes.begin();
@@ -760,9 +801,14 @@ void adapted_grid(const bool output_grid = false)
     {
       const Cube& q = local_cubes_to_test.front();
 
-      if(q.is_too_small(min_vol, local_points) || q.has_same_colors(local_values) ||
-         local_points.size() > max_grid_nv)
+      if(local_points.size() > max_local_grid_nv || q.is_too_small(min_vol, local_points))
+      {
         local_final_cubes.push_back(q);
+      }
+      else if(q.is_too_big(max_vol, points))
+      {
+        split_cube(q, local_cubes_to_test, local_values, local_points);
+      }
 #ifdef REFINE_NEAR_CENTERS_ONLY
       else if(q.number_of_colors(local_values) >= 4)
 #else
@@ -773,7 +819,7 @@ void adapted_grid(const bool output_grid = false)
         if(local_points.size()%1000 == 0)
         {
           std::cout << local_points.size() << " points for thread: " << thread_ID
-                    << " (" << ((FT) local_points.size()/(FT) max_grid_nv)*100. << "%)" << std::endl;
+                    << " (" << ((FT) local_points.size()/(FT) max_local_grid_nv)*100. << "%)" << std::endl;
         }
       }
       else
@@ -790,7 +836,7 @@ void adapted_grid(const bool output_grid = false)
   {
     const Cube& q = *it;
     // split the cube in five tetrahedra and insert a tet in simplices if colored
-    // THIS (CAN) COMPUTE THE POINT IN A DUAL THAT IS FARTHEST FROM ITS SEEDS
+    // THESE (CAN) COMPUTE THE POINT IN A DUAL THAT IS FARTHEST FROM ITS SEED
     insert_simplex_if_colored(q.ids[0], q.ids[1], q.ids[2], q.ids[5], local_values, local_points);
     insert_simplex_if_colored(q.ids[0], q.ids[2], q.ids[5], q.ids[7], local_values, local_points);
     insert_simplex_if_colored(q.ids[0], q.ids[2], q.ids[3], q.ids[7], local_values, local_points);
@@ -805,12 +851,14 @@ void adapted_grid(const bool output_grid = false)
   // sequential but we don't want to lose local data yet !
   if(output_grid)
   {
-#pragma omp critical // get the total amount of vertices and tetrahedra
+#pragma omp critical
 {
+    std::cout << "adding " << local_values.size() << " from thread " << thread_ID << std::endl;
     grid_nv += local_values.size();
-    grid_ntet += 5 * local_final_cubes.size();
+    grid_ntet += 5*local_final_cubes.size();
 }
 
+#pragma omp barrier
 #pragma omp single
 {
     out << "MeshVersionFormatted 1" << std::endl;
@@ -823,7 +871,6 @@ void adapted_grid(const bool output_grid = false)
 
 #pragma omp critical // print the points
 {
-#pragma omp flush(grid_nv)
     local_offset = glob_offset;
     std::cout << "loc off " << glob_offset << " @ " << thread_ID << std::endl;
     output_adapted_grid_points(out, out_bb, local_offset, local_points, local_values);
@@ -847,10 +894,30 @@ void adapted_grid(const bool output_grid = false)
 {
     output_adapted_grid_tets(out, local_offset, local_final_cubes);
 
-    //locals shouldn't be needed anymore...
+    // locals shouldn't be needed anymore...
     local_points.clear(); local_final_cubes.clear(); local_values.clear();
     std::cout << "Output done for thread " << thread_ID << std::endl;
 }
+
+/*
+// medit is bugged so it segfaults when you use hexs... comment tets (right above)
+// if you use it anyway
+#pragma omp barrier // waiting for all the threads to have written their points
+#pragma omp single
+{
+    out << "Hexahedra" << std::endl;
+    out << grid_ntet/5 << std::endl;
+}
+
+#pragma omp critical // print the tetrahedra
+{
+    output_adapted_grid_hex(out, local_offset, local_final_cubes);
+
+    // locals shouldn't be needed anymore...
+    local_points.clear(); local_final_cubes.clear(); local_values.clear();
+    std::cout << "Output done for thread " << thread_ID << std::endl;
+}
+*/
 
 #pragma omp barrier // waiting for all the threads to have written their tets
 #pragma omp single
@@ -862,14 +929,6 @@ void adapted_grid(const bool output_grid = false)
 } // end of parallel region
 
   std::cout << "after parallel : " << grid_nv << " pts" << std::endl;
-
-#ifdef TMP_REFINEMENT_UGLY_HACK
-  CGAL_assertion(farthest_x != 1e30 && farthest_y != 1e30 && farthest_z != 1e30);
-  std::cout << "inserting: " << farthest_x << " " << farthest_y << " " << farthest_z << std::endl;
-  vertices_nv = insert_new_seed(farthest_x, farthest_y, farthest_z);
-  std::cout << "now: " << vertices_nv << " seeds" << std::endl;
-  farthest_d = 0.; farthest_x = 1e30; farthest_y = 1e30; farthest_z = 1e30;
-#endif
 }
 
 void output_dual(bool compute_intersections = false)
@@ -923,37 +982,33 @@ void output_dual(bool compute_intersections = false)
 // -----------------------------------------------------------------------------
 void initialize()
 {
-  //  mf = new Euclidean_metric_field<K>();
-  mf= new Custom_metric_field<K>();
+  mf = new Euclidean_metric_field<K>();
+//  mf = new Custom_metric_field<K>();
 
   traits = new Traits();
   vertices_nv = build_seeds();
 }
 
-void build_grid()
+void build_grid(const bool refine = false)
 {
   simplices.clear();
-
-//  full_grid();
-  adapted_grid(true);
-
-  output_dual(true);
+  adapted_grid(refine, true/*output grid*/);
+  output_dual(true/*output dual*/);
 }
 
 int main(int, char**)
 {
-  std::freopen("grid_log.txt", "w", stdout);
+//  std::freopen("log.txt", "w", stdout);
   std::srand(0);
 
   initialize();
   build_grid();
 
-  int n_refine = 50;
-  for(int i=0; i<n_refine; ++i)
+  for(std::size_t i=0; i<n_refine; ++i)
   {
     std::cout << "refine: " << i << std::endl;
     simplices.clear();
-    adapted_grid(i == (n_refine-1) /* output the grid*/);
+    adapted_grid(true/*refine*/, i == (n_refine-1)/*output grid*/);
     output_dual(i == (n_refine-1)  /*compute the self intersections*/);
   }
 

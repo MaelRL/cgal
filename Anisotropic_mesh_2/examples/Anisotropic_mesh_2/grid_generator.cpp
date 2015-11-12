@@ -320,7 +320,7 @@ int build_seeds()
     in >> r_x >> r_y >> useless;
     insert_new_seed(r_x, r_y);
 
-    if(seeds.size() == vertices_nv)
+    if(seeds.size() >= vertices_nv)
       break;
   }
   std::cout << "seeds: " << seeds.size() << std::endl;
@@ -746,9 +746,17 @@ void output_smart_grid(const std::list<Quad>& final_quads,
 
 // todo parallelize this like it was done for grid_gen_3, be careful with the
 // pragma omp critical in other functions!
-void adapted_grid()
+void adapted_grid(const bool refine)
 {
   std::cout << "smart grid !" << std::endl;
+#ifdef TMP_REFINEMENT_UGLY_HACK
+  if(refine)
+  {
+    CGAL_precondition(farthest_x != 1e30 && farthest_y != 1e30);
+    vertices_nv = insert_new_seed(farthest_x, farthest_y);
+    farthest_d = 0.; farthest_x = 1e30; farthest_y = 1e30;
+  }
+#endif
 
   // idea is to create some kind of quadtree and refine a quad following
   // a criterion based on the value at its vertices
@@ -789,13 +797,13 @@ void adapted_grid()
     ///experiment : refine for the distortion
 //if(points.size() < 1e6 && (q.is_too_distorted(1.1, points) || points.size() < 100)
 
-    if(q.is_too_big(max_vol, points))
-    {
-       split_quad(q, quads_to_test, values, points);
-    }
-    else if(q.is_too_small(min_vol, points) || points.size() > max_grid_size)
+    if(q.is_too_small(min_vol, points) || points.size() > max_grid_size)
     {
       final_quads.push_back(q);
+    }
+    else if(q.is_too_big(max_vol, points))
+    {
+       split_quad(q, quads_to_test, values, points);
     }
     else if(!q.has_same_colors(values))
     {
@@ -816,13 +824,8 @@ void adapted_grid()
   {
     const Quad& q = *it;
     insert_simplex_if_colored(q.i0, q.i1, q.i2, values, points);
-    insert_simplex_if_colored(q.i0, q.i1, q.i3, values, points);
+    insert_simplex_if_colored(q.i0, q.i2, q.i3, values, points);
   }
-
-#ifdef TMP_REFINEMENT_UGLY_HACK
-  vertices_nv = insert_new_seed(farthest_x, farthest_y);
-  farthest_d = 0.; farthest_x = 1e30; farthest_y = 1e30;
-#endif
 
 #elif defined(WITNESS_DUAL)
   //witness
@@ -899,7 +902,7 @@ void initialize()
 #endif
 }
 
-void build_grid()
+void build_grid(const bool refine = false)
 {
   simplices.clear();
 #ifdef WITNESS_DUAL
@@ -908,8 +911,7 @@ void build_grid()
   second_position.resize(vertices_nv, 0.);
 #endif
 
-//  full_grid();
-  adapted_grid();
+  adapted_grid(refine);
 
   output_simplices();
 }
@@ -925,7 +927,7 @@ int main(int, char**)
   for(int i=0; i<n_refine; ++i)
   {
     std::cerr << "refine: " << i << std::endl;
-    build_grid();
+    build_grid(true /*refine*/);
   }
 
   std::cerr << "end of program" << std::endl;
