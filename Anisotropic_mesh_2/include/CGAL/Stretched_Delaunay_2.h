@@ -193,24 +193,30 @@ public:
 public:
   bool has_vertex(const int i) const
   {
-    typename Base::Finite_vertices_iterator vit = this->finite_vertices_begin();
-    typename Base::Finite_vertices_iterator vend = this->finite_vertices_end();
+    Vertex_handle_handle vit = finite_adjacent_vertices_begin();
+    Vertex_handle_handle vend = finite_adjacent_vertices_end();
     for(; vit != vend; vit++)
-      if(vit->info() == i)
+    {
+      Vertex_handle vh = *vit;
+      if(vh->info() == i)
         return true;
+    }
     return false;
   }
 
   bool has_vertex(const int i, Vertex_handle& v) const
   {
-    typename Base::Finite_vertices_iterator vit = this->finite_vertices_begin();
-    typename Base::Finite_vertices_iterator vend = this->finite_vertices_end();
+    Vertex_handle_handle vit = finite_adjacent_vertices_begin();
+    Vertex_handle_handle vend = finite_adjacent_vertices_end();
     for(; vit != vend; vit++)
-      if(vit->info() == i)
+    {
+      Vertex_handle vh = *vit;
+      if(vh->info() == i)
       {
-        v = vit;
+        v = vh;
         return true;
       }
+    }
     return false;
   }
 
