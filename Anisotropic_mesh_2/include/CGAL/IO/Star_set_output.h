@@ -31,24 +31,23 @@ compute_distortion_t(const Starset& stars,
 }
 
 template<typename Starset>
-void dump(const Starset& stars)
+void dump(const Starset& stars,
+          std::ofstream& fx)
 {
-  std::ofstream fx("dump.txt");
-
   std::size_t ns = stars.size();
-  fx << ns << std::endl;
+  fx << ns << '\n';
   for(std::size_t i=0; i<ns; ++i)
-    fx << stars[i]->center_point() << std::endl;
+    fx << stars[i]->center_point() << '\n';
 
   for(std::size_t i=0; i<ns; ++i)
   {
     typename Starset::Star_handle star_i = stars[i];
-    typename Starset::Vertex_handle_handle nsi = star_i->begin_neighboring_vertices();
-    typename Starset::Vertex_handle_handle nsiend = star_i->end_neighboring_vertices();
-    fx << nsiend - nsi;
-    for(; nsi != nsiend; nsi++)
-      fx << " " << (*nsi)->info();
-    fx << std::endl;
+    typename Starset::Vertex_handle_handle vit = star_i->finite_adjacent_vertices_begin();
+    typename Starset::Vertex_handle_handle vend = star_i->finite_adjacent_vertices_end();
+    fx << vend - vit;
+    for(; vit != vend; vit++)
+      fx << " " << (*vit)->info();
+    fx << '\n';
   }
 }
 
@@ -92,10 +91,10 @@ void output_off(const Starset& stars,
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning OFF : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 
-  fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_faces.size() << " 0" << std::endl;
+  fx << "OFF" << '\n';
+  fx << points.size() << " " << output_faces.size() << " 0" << '\n';
   for(unsigned int i = 0; i < points.size(); i++)
-    fx << points[i] << " 0" << std::endl;
+    fx << points[i] << " 0" << '\n';
 
   typename Facet_ijk_unordered_set::iterator fit = output_faces.begin();
   typename Facet_ijk_unordered_set::iterator fitend = output_faces.end();
@@ -103,7 +102,7 @@ void output_off(const Starset& stars,
   {
     fx << "3  " << fit->vertices()[0]
        << " "   << fit->vertices()[1]
-       << " "   << fit->vertices()[2] << std::endl;
+       << " "   << fit->vertices()[2] << '\n';
   }
 }
 
@@ -113,7 +112,7 @@ void output_medit(const Starset& stars,
                   const bool consistent_only = false,
                   const std::set<Facet_ijk>& ghost_faces = std::set<Facet_ijk>())
 {
-  std::cout << "Saving medit... @ " << stars.size() << std::endl;
+  std::cout << "Saving medit... @ " << stars.size() << '\n';
   unsigned int nb_inconsistent_stars = 0;
   std::map<Facet_ijk, bool> color;
 
@@ -121,9 +120,9 @@ void output_medit(const Starset& stars,
   fx << "Dimension 2\n";
 
   fx << "Vertices\n";
-  fx << stars.size() << std::endl;
+  fx << stars.size() << '\n';
   for(std::size_t i = 0; i < stars.size(); i++)
-    fx << stars[i]->center_point() << " " << (i+1) << std::endl; //indices start at 1 in Medit
+    fx << stars[i]->center_point() << " " << (i+1) << '\n'; //indices start at 1 in Medit
 
   Facet_ijk_unordered_set output_faces;
   typename Starset::const_iterator sit = stars.begin();
@@ -158,7 +157,7 @@ void output_medit(const Starset& stars,
   }
 
   fx << "Triangles\n";
-  fx << output_faces.size() << std::endl;
+  fx << output_faces.size() << '\n';
   typename Facet_ijk_unordered_set::iterator fit = output_faces.begin();
   typename Facet_ijk_unordered_set::iterator fend = output_faces.end();
   for (; fit!=fend; fit++)
@@ -172,14 +171,14 @@ void output_medit(const Starset& stars,
     if(true) // tmp
     {
       if(color[f])
-        fx << " 2" << std::endl;
+        fx << " 2" << '\n';
       else
-        fx << " 1" << std::endl;
+        fx << " 1" << '\n';
     }
     else
-      fx << " 1" << std::endl;
+      fx << " 1" << '\n';
   }
-  fx << "End" << std::endl;
+  fx << "End" << '\n';
 
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning Medit: there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";

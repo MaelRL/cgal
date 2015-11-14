@@ -296,9 +296,7 @@ int insert_new_seed(const FT x, const FT y)
 
 int build_seeds()
 {
-//  std::ifstream in("grid_dual.mesh");
-  std::ifstream in("bambimboum.mesh");
-//  std::ifstream in("/home/mrouxell/cgal/Anisotropic_mesh_TC/examples/Anisotropic_mesh_TC/build/aniso_TC.mesh");
+  std::ifstream in(str_seed.c_str());
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y;
@@ -453,7 +451,7 @@ std::size_t value_at_point(const Point_2& p, std::size_t p_id)
   {
     Tri t; t[0] = ids[0]; t[1] = ids[1]; t[2] = ids[2];
     simplices.insert(t);
-    std::cerr << "added one ! " << std::abs(sqds[ids[0]] - sqds[ids[2]]) << std::endl;
+    std::cout << "added one ! " << std::abs(sqds[ids[0]] - sqds[ids[2]]) << std::endl;
   }
 #endif
 
@@ -715,38 +713,39 @@ void output_smart_grid(const std::list<Quad>& final_quads,
   std::cout << "check: " << points.size() << " " << values.size() << " vertices" << std::endl;
 
   std::ofstream out("smart_grid.mesh");
-  out << "MeshVersionFormatted 1" << std::endl;
-  out << "Dimension 2" << std::endl;
-  out << "Vertices" << std::endl;
-  out << values_n << std::endl;
+  out << "MeshVersionFormatted 1" << '\n';
+  out << "Dimension 2" << '\n';
+  out << "Vertices" << '\n';
+  out << values_n << '\n';
 
   std::ofstream out_bb("smart_grid.bb");
-  out_bb << "2 1 " << values_n << " 2" << std::endl;
+  out_bb << "2 1 " << values_n << " 2" << '\n';
 
   int counter = 0;
   for(std::size_t i=0; i!=values_n; ++i)
   {
     const Point_2& p = points[i];
-    out << p.x() << " " << p.y() << " " << ++counter << std::endl;
-    out_bb << values[i] << std::endl;
+    out << p.x() << " " << p.y() << " " << ++counter << '\n';
+    out_bb << values[i] << '\n';
   }
-  out_bb << "End" << std::endl;
+  out_bb << "End" << '\n';
 
-  out << "Triangles" << std::endl;
-  out << 2*final_quads.size() << std::endl;
+  out << "Triangles" << '\n';
+  out << 2*final_quads.size() << '\n';
   std::list<Quad>::const_iterator it = final_quads.begin(), iend = final_quads.end();
   for(; it!=iend; ++it)
   {
     const Quad& q = *it;
-    out << q.i0+1 << " " << q.i2+1 << " " << q.i3+1 << " 1" << std::endl;
-    out << q.i0+1 << " " << q.i1+1 << " " << q.i2+1 << " 2" << std::endl;
+    out << q.i0+1 << " " << q.i2+1 << " " << q.i3+1 << " 1" << '\n';
+    out << q.i0+1 << " " << q.i1+1 << " " << q.i2+1 << " 2" << '\n';
   }
-  out << "End" << std::endl;
+  out << "End" << '\n';
 }
 
 // todo parallelize this like it was done for grid_gen_3, be careful with the
 // pragma omp critical in other functions!
-void adapted_grid(const bool refine)
+void adapted_grid(const bool refine,
+                  const bool output = true)
 {
   std::cout << "smart grid !" << std::endl;
 #ifdef TMP_REFINEMENT_UGLY_HACK
@@ -815,7 +814,8 @@ void adapted_grid(const bool refine)
     quads_to_test.pop_front();
   }
 
-  output_smart_grid(final_quads, points, values);
+  if(output)
+    output_smart_grid(final_quads, points, values);
 
   //smart dual : if a quad has 3 different values, the dual exists
 #ifdef SMART_DUAL
@@ -860,30 +860,30 @@ void output_simplices()
   std::cout << "captured: " << simplices.size() << " simplices" << std::endl;
 
   std::ofstream outd("grid_dual.mesh");
-  outd << "MeshVersionFormatted 1" << std::endl;
-  outd << "Dimension 2" << std::endl;
-  outd << "Vertices" << std::endl;
-  outd << seeds.size() << std::endl;
+  outd << "MeshVersionFormatted 1" << '\n';
+  outd << "Dimension 2" << '\n';
+  outd << "Vertices" << '\n';
+  outd << seeds.size() << '\n';
   for(std::size_t i=0; i<seeds.size(); ++i)
 #ifdef R2
-    outd << R2seeds[i].x() << " " << R2seeds[i].y() << " " << i+1 << std::endl;
+    outd << R2seeds[i].x() << " " << R2seeds[i].y() << " " << i+1 << '\n';
 #else
-    outd << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << std::endl;
+    outd << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << '\n';
 #endif
 
   const std::set<Edge>& edges = build_edges();
 
-  outd << "Triangles" << std::endl;
-  outd << simplices.size() << std::endl;
+  outd << "Triangles" << '\n';
+  outd << simplices.size() << '\n';
   for(typename std::set<Tri>::iterator it = simplices.begin();
       it != simplices.end(); ++it)
   {
     const Tri& tri = *it;
     for(std::size_t i=0; i<tri.size(); ++i)
       outd << tri[i]+1 << " ";
-    outd << is_triangle_intersected(tri, edges) << std::endl;
+    outd << is_triangle_intersected(tri, edges) << '\n';
   }
-  outd << "End" << std::endl;
+  outd << "End" << '\n';
 }
 
 // -----------------------------------------------------------------------------
@@ -902,7 +902,8 @@ void initialize()
 #endif
 }
 
-void build_grid(const bool refine = false)
+void build_grid(const bool refine = false,
+                const bool output = true)
 {
   simplices.clear();
 #ifdef WITNESS_DUAL
@@ -912,8 +913,8 @@ void build_grid(const bool refine = false)
 #endif
 
   adapted_grid(refine);
-
-  output_simplices();
+  if(output)
+    output_simplices();
 }
 
 int main(int, char**)
@@ -926,9 +927,9 @@ int main(int, char**)
 
   for(int i=0; i<n_refine; ++i)
   {
-    std::cerr << "refine: " << i << std::endl;
-    build_grid(true /*refine*/);
+    std::cout << "refine: " << i << std::endl;
+    build_grid(true /*refine*/, (i%100==0) /*output*/);
   }
 
-  std::cerr << "end of program" << std::endl;
+  std::cout << "end of program" << std::endl;
 }

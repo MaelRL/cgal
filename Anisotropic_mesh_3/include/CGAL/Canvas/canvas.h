@@ -1,6 +1,7 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CANVAS_H
 #define CGAL_ANISOTROPIC_MESH_3_CANVAS_H
 
+#include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/canvas_enum.h>
 #include <CGAL/Canvas/canvas_helper.h>
 #include <CGAL/Canvas/canvas_seeds.h>
@@ -280,7 +281,8 @@ public:
 #endif
 
       cp = trial_points.front();
-      CGAL_assertion(cp && cp->state() == TRIAL);
+      CGAL_assertion(cp);
+      CGAL_assertion(cp->state() == TRIAL);
       std::pop_heap(trial_points.begin(), trial_points.end(),
                     Canvas_point_comparer<Canvas_point>());
       trial_points.pop_back();
@@ -388,7 +390,9 @@ public:
       cp.distance_to_closest_seed() = FT_inf;
       cp.closest_seed_id() = -1;
       cp.ancestor() = -1;
+      cp.children().clear();
     }
+
     reset_counters();
     clear_primal();
   }
@@ -864,13 +868,20 @@ public:
     out << "End" << std::endl;
   }
 
+  void output_primal(const std::string str_base)
+  {
+    compute_primal();
+    detect_tetrahedra_self_intersections();
+    output_straight_primal(str_base);
+  }
+
   void output_canvas_data_and_primal(const std::string str_base)
   {
     compute_primal();
     detect_tetrahedra_self_intersections();
 
     output_canvas(str_base);
-    output_straight_primal(str_base);
+    output_primal(str_base);
   }
 
   Canvas(const std::string& canvas_str_,

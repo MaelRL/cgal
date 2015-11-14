@@ -37,7 +37,11 @@ protected:
   FMM_state m_state;
   Metric m_metric;
   std::size_t m_ancestor;
-  Point_set m_children;
+
+  // 'children' needs to be 'mutable' because compute_closest_seed takes a const ref
+  // to an ancestor (because some ancestors are temporaries whose lifestime I extend
+  // through const refs) and we need to modify children in compute_closest_seed
+  mutable Point_set m_children;
 
   Canvas* m_canvas;
 
@@ -64,7 +68,7 @@ public:
   void change_state(FMM_state new_state, std::size_t& known_count,
                     std::size_t& trial_count, std::size_t& far_count)
   {
-    if(new_state == state())
+    if(new_state == m_state)
       std::cerr << "WARNING: useless state change..." << std::endl;
 
     if(state() == FAR)
@@ -107,9 +111,9 @@ public:
     std::cout << " at distance " << d << " from " << seed_id << std::endl;
 #endif
 
-    closest_seed_id() = seed_id;
-    distance_to_closest_seed() = d;
-    state() = TRIAL;
+    m_closest_seed_id = seed_id;
+    m_distance_to_closest_seed = d;
+    m_state = TRIAL;
     m_ancestor = -1;
   }
 

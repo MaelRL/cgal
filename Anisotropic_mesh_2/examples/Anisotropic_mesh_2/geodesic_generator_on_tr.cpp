@@ -39,11 +39,11 @@
 // #define COMPUTE_PRECISE_VOR_VERTICES
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-typedef K::FT                                       FT;
+typedef K::FT                                                FT;
 
 using namespace CGAL::Anisotropic_mesh_2;
 
-typedef K::Vector_2                                 Vector;
+typedef K::Vector_2                                          Vector;
 typedef Metric_base<K>                                       Metric;
 
 // 'bit ugly to have the metric field running around here but we need to pass
@@ -4263,9 +4263,12 @@ int main(int, char**)
       // of paint laying on the canvas...
       bool successful_insert = bm.refine_seeds_with_self_computed_ref_point();
 
-//      std::ostringstream out;
-//      out << "ref_" << seeds.size();
-//      bm.output_grid_data_and_dual(out.str());
+      if(i%100 == 0)
+      {
+        std::ostringstream out;
+        out << "ref_" << seeds.size();
+        bm.output_straight_dual(out.str());
+      }
 
       if(!successful_insert)
         break;

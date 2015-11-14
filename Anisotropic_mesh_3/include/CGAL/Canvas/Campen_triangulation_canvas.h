@@ -456,6 +456,14 @@ public:
         if(cit->info() < 1)
           continue;
 
+        if(this->canvas_points[cit->vertex(0)->info()].closest_seed_id() ==
+           this->canvas_points[cit->vertex(1)->info()].closest_seed_id() &&
+           this->canvas_points[cit->vertex(1)->info()].closest_seed_id() ==
+           this->canvas_points[cit->vertex(2)->info()].closest_seed_id() &&
+           this->canvas_points[cit->vertex(2)->info()].closest_seed_id() ==
+           this->canvas_points[cit->vertex(3)->info()].closest_seed_id())
+          continue;
+
         Candidates_set candidates;
         for(std::size_t j=0; j<4; ++j)
           candidates.insert(&(this->canvas_points[cit->vertex(j)->info()]));

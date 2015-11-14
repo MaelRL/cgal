@@ -671,8 +671,8 @@ void output_adapted_grid_points(std::ofstream& out_pts,
   for(std::size_t i=0; i!=grid_nv; ++i)
   {
     const Point_3& p = points[i];
-    out_pts << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << std::endl;
-    out_bb << values[i] << std::endl;
+    out_pts << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << '\n';
+    out_bb << values[i] << '\n';
   }
 }
 
@@ -689,15 +689,15 @@ void output_adapted_grid_tets(std::ofstream& out_tets,
   {
     const Cube& q = *it;
     out_tets << q.ids[0]+offset << " " << q.ids[1]+offset << " " << q.ids[2]+offset << " " << q.ids[5]+offset << " ";
-    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[1], q.ids[2], q.ids[5], 4, values) << std::endl;
+    out_tets << "1" << '\n'; //has_simplex_n_colors(q.ids[0], q.ids[1], q.ids[2], q.ids[5], 4, values) << '\n';
     out_tets << q.ids[0]+offset << " " << q.ids[2]+offset << " " << q.ids[5]+offset << " " << q.ids[7]+offset << " ";
-    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[2], q.ids[5], q.ids[7], 4, values) << std::endl;
+    out_tets << "1" << '\n'; //has_simplex_n_colors(q.ids[0], q.ids[2], q.ids[5], q.ids[7], 4, values) << '\n';
     out_tets << q.ids[0]+offset << " " << q.ids[2]+offset << " " << q.ids[3]+offset << " " << q.ids[7]+offset << " ";
-    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[2], q.ids[3], q.ids[7], 4, values) << std::endl;
+    out_tets << "1" << '\n'; //has_simplex_n_colors(q.ids[0], q.ids[2], q.ids[3], q.ids[7], 4, values) << '\n';
     out_tets << q.ids[0]+offset << " " << q.ids[4]+offset << " " << q.ids[5]+offset << " " << q.ids[7]+offset << " ";
-    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[0], q.ids[4], q.ids[5], q.ids[7], 4, values) << std::endl;
+    out_tets << "1" << '\n'; //has_simplex_n_colors(q.ids[0], q.ids[4], q.ids[5], q.ids[7], 4, values) << '\n';
     out_tets << q.ids[2]+offset << " " << q.ids[5]+offset << " " << q.ids[6]+offset << " " << q.ids[7]+offset << " ";
-    out_tets << "1" << std::endl; //has_simplex_n_colors(q.ids[2], q.ids[5], q.ids[6], q.ids[7], 4, values) << std::endl;
+    out_tets << "1" << '\n'; //has_simplex_n_colors(q.ids[2], q.ids[5], q.ids[6], q.ids[7], 4, values) << '\n';
   }
 }
 
@@ -716,7 +716,7 @@ void output_adapted_grid_hex(std::ofstream& out_hex,
             << q.ids[2]+offset << " " << q.ids[3]+offset << " "
             << q.ids[4]+offset << " " << q.ids[5]+offset << " "
             << q.ids[6]+offset << " " << q.ids[7]+offset << " ";
-    out_hex << "1" << std::endl;
+    out_hex << "1" << '\n';
   }
 }
 
@@ -886,8 +886,8 @@ void adapted_grid(const bool refine,
 #pragma omp barrier // waiting for all the threads to have written their points
 #pragma omp single
 {
-    out << "Tetrahedra" << std::endl;
-    out << grid_ntet << std::endl;
+    out << "Tetrahedra" << '\n';
+    out << grid_ntet << '\n';
 }
 
 #pragma omp critical // print the tetrahedra
@@ -896,17 +896,17 @@ void adapted_grid(const bool refine,
 
     // locals shouldn't be needed anymore...
     local_points.clear(); local_final_cubes.clear(); local_values.clear();
-    std::cout << "Output done for thread " << thread_ID << std::endl;
+//    std::cout << "Output done for thread " << thread_ID << std::endl;
 }
 
 /*
-// medit is bugged so it segfaults when you use hexs... comment tets (right above)
-// if you use it anyway
+// medit is bugged so it segfaults when you use hexs...
+// if you want to use it anyway, comment the tets (right above)
 #pragma omp barrier // waiting for all the threads to have written their points
 #pragma omp single
 {
-    out << "Hexahedra" << std::endl;
-    out << grid_ntet/5 << std::endl;
+    out << "Hexahedra" << '\n';
+    out << grid_ntet/5 << '\n';
 }
 
 #pragma omp critical // print the tetrahedra
@@ -922,8 +922,8 @@ void adapted_grid(const bool refine,
 #pragma omp barrier // waiting for all the threads to have written their tets
 #pragma omp single
 {
-    out << "End" << std::endl;
-    out_bb << "End" << std::endl;
+    out << "End" << '\n';
+    out_bb << "End" << '\n';
 }
   }
 } // end of parallel region
@@ -933,48 +933,49 @@ void adapted_grid(const bool refine,
 
 void output_dual(bool compute_intersections = false)
 {
-  std::cout << "captured: " << simplices.size() << " simplices" << std::endl;
+  std::cout << "captured: " << simplices.size() << " simplices (seeds: "
+            << seeds.size() << ")" << std::endl;
 
   std::ofstream outd("grid_dual.mesh");
-  outd << "MeshVersionFormatted 1" << std::endl;
-  outd << "Dimension 3" << std::endl;
-  outd << "Vertices" << std::endl;
-  outd << vertices_nv << std::endl;
+  outd << "MeshVersionFormatted 1" << '\n';
+  outd << "Dimension 3" << '\n';
+  outd << "Vertices" << '\n';
+  outd << vertices_nv << '\n';
   for(std::size_t i=0; i<vertices_nv; ++i)
-    outd << seeds[i].x() << " " << seeds[i].y() << " " << seeds[i].z() << " " << i+1 << std::endl;
+    outd << seeds[i].x() << " " << seeds[i].y() << " " << seeds[i].z() << " " << i+1 << '\n';
 
-//  outd << "Tetrahedra" << std::endl;
-//  outd << simplices.size() << std::endl;
-//  for(typename std::set<Tet>::iterator it = simplices.begin();
-//                                       it != simplices.end(); ++it)
-//  {
-//    const Tet& t = *it;
-//    for(std::size_t i=0; i<t.size(); ++i)
-//      outd << t[i] + 1 << " ";
-//    outd << "1" << std::endl;
-//  }
-
-  // kinda bad but easier to compute self intersections
-  std::set<Edge> edges;
-  if(compute_intersections)
-    edges = compute_edges();
-
-  const std::set<Tri>& triangles = compute_triangles();
-  outd << "Triangles" << std::endl;
-  outd << triangles.size() << std::endl;
-  for(typename std::set<Tri>::iterator it = triangles.begin();
-                                       it != triangles.end(); ++it)
+  outd << "Tetrahedra" << '\n';
+  outd << simplices.size() << '\n';
+  for(typename std::set<Tet>::iterator it = simplices.begin();
+                                       it != simplices.end(); ++it)
   {
-    const Tri& tri = *it;
-    for(std::size_t i=0; i<tri.size(); ++i)
-      outd << tri[i]+1 << " ";
-    if(compute_intersections)
-      outd << is_triangle_intersected(tri, edges) << std::endl;
-    else
-      outd << "1" << std::endl;
+    const Tet& t = *it;
+    for(std::size_t i=0; i<t.size(); ++i)
+      outd << t[i] + 1 << " ";
+    outd << "1" << '\n';
   }
 
-  outd << "End" << std::endl;
+  // kinda bad but easier to compute self intersections
+//  std::set<Edge> edges;
+//  if(compute_intersections)
+//    edges = compute_edges();
+
+//  const std::set<Tri>& triangles = compute_triangles();
+//  outd << "Triangles" << '\n';
+//  outd << triangles.size() << '\n';
+//  for(typename std::set<Tri>::iterator it = triangles.begin();
+//                                       it != triangles.end(); ++it)
+//  {
+//    const Tri& tri = *it;
+//    for(std::size_t i=0; i<tri.size(); ++i)
+//      outd << tri[i]+1 << " ";
+//    if(compute_intersections)
+//      outd << is_triangle_intersected(tri, edges) << '\n';
+//    else
+//      outd << "1" << '\n';
+//  }
+
+  outd << "End" << '\n';
 }
 
 // -----------------------------------------------------------------------------
@@ -1008,8 +1009,11 @@ int main(int, char**)
   {
     std::cout << "refine: " << i << std::endl;
     simplices.clear();
-    adapted_grid(true/*refine*/, i == (n_refine-1)/*output grid*/);
-    output_dual(i == (n_refine-1)  /*compute the self intersections*/);
+    bool output = (i%100)==0 || i==(n_refine-1);
+
+    adapted_grid(true/*refine*/, output);
+    if(output)
+      output_dual(true);
   }
 
   std::cout << "EoP" << std::endl;

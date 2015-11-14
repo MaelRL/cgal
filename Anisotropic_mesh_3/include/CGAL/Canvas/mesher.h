@@ -258,7 +258,7 @@ public:
     fqueues.clear();
     tqueues.clear();
 
-    // loop border triangles & test them ? need a triangle ref queue too then
+    // loop border triangles
     for(typename Primal_triangles_container::iterator it = canvas.primal_triangles.begin();
                                                       it != canvas.primal_triangles.end();
                                                       ++it)
@@ -355,9 +355,12 @@ public:
 
       refine(new_seed->point());
 
-      std::ostringstream out;
-      out << "ref_" << canvas.seeds.size();
-      canvas.output_canvas_data_and_primal(out.str());
+      if(i%100 == 0)
+      {
+        std::ostringstream out;
+        out << "ref_" << canvas.seeds.size();
+        canvas.output_canvas_data_and_primal(out.str());
+      }
     }
 
     canvas.set_points_states_to_known();
