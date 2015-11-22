@@ -67,9 +67,6 @@ public:
   typedef CGAL::AABB_bbox_primitive<Star>                          AABB_primitive;
 
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
-  typedef typename Kd_tree::Traits                                 Kd_traits;
-  typedef typename Kd_tree::Box_query                              Kd_Box_query;
-  typedef typename Kd_tree::key_type                               Kd_point_info;
 
   typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>               Conflict_zone;
   typedef CGAL::Anisotropic_mesh_3::Stars_conflict_zones<K>        Stars_conflict_zones;

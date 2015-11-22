@@ -61,6 +61,7 @@ public:
   typedef CGAL::Anisotropic_mesh_2::Face_refine_queue<K>    Face_refine_queue;
 
   //Filters
+  typedef CGAL::Kd_tree_for_star_set<K, Star_handle>        Kd_tree;
   typedef CGAL::Anisotropic_mesh_2::Stars_conflict_zones<K> Stars_conflict_zones;
 
   //Mesher levels
@@ -82,6 +83,9 @@ private:
 
   // Queues
   Face_refine_queue m_face_refine_queue;
+
+  // Filters
+  Kd_tree m_kd_tree; // stars* centers for box queries
 
   mutable Stars_conflict_zones m_star_czones; //conflict zones for the stars in conflict
 
@@ -203,12 +207,14 @@ public:
       Base(),
       m_starset(starset_),
       m_face_refine_queue(),
+      m_kd_tree(m_starset.star_vector()),
       m_star_czones(m_starset),
       m_null_mesher(),
       m_face_mesher(m_null_mesher, m_starset, pdomain_, criteria_, metric_field_,
-                    m_star_czones, m_face_refine_queue, 0, 3),
+                    m_kd_tree, m_star_czones, m_face_refine_queue, 0, 3),
       m_face_consistency_mesher(m_face_mesher, m_starset, pdomain_, criteria_,
-                                metric_field_, m_star_czones, m_face_refine_queue, 4, 5),
+                                metric_field_, m_kd_tree, m_star_czones,
+                                m_face_refine_queue, 4, 5),
       m_null_visitor(),
       m_face_visitor(boost::assign::list_of((Trunk*) &m_face_consistency_mesher), m_null_visitor),
       m_face_consistency_visitor(m_face_visitor)

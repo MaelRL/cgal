@@ -4,8 +4,9 @@
 //#define ANISO_DEBUG_CZONES
 #define ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
 
-#include <CGAL/Domain_2.h>
 #include <CGAL/Criteria.h>
+#include <CGAL/Domain_2.h>
+#include <CGAL/Kd_tree_for_star_set.h>
 #include <CGAL/Metric_field.h>
 #include <CGAL/Stretched_Delaunay_2.h>
 #include <CGAL/Starset.h>
@@ -117,7 +118,7 @@ public:
   iterator end() { return m_conflict_zones.end(); }
   std::size_t size() const { return m_conflict_zones.size(); }
 
-  bool is_empty() const { return m_conflict_zones.empty(); }
+  bool empty() const { return m_conflict_zones.empty(); }
   void clear()
   {
     m_conflict_zones.clear();
@@ -360,6 +361,11 @@ public:
   typedef typename CGAL::Anisotropic_mesh_2::Metric_field<K>       Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
+  typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
+  typedef typename Kd_tree::Traits                                 Kd_traits;
+  typedef typename Kd_tree::Box_query                              Kd_Box_query;
+  typedef typename Kd_tree::key_type                               Kd_point_info;
+
   typedef CGAL::Anisotropic_mesh_2::Conflict_zone<K>               Conflict_zone;
   typedef CGAL::Anisotropic_mesh_2::Stars_conflict_zones<K>        Stars_conflict_zones;
 
@@ -378,6 +384,8 @@ protected:
   const Domain* m_pdomain;
   const Criteria* m_criteria;
   const Metric_field* m_metric_field;
+
+  Kd_tree& m_kd_tree;
 
   Stars_conflict_zones& m_stars_czones;
 
@@ -551,6 +559,7 @@ public:
     m_starset.pop_back();
     Index id = static_cast<Index>(number_of_stars());
     remove_from_stars(id, m_starset.begin(), m_starset.end());
+    m_kd_tree.remove_last();
   }
 
   void clean_stars()
@@ -693,6 +702,74 @@ public:
     m_stars_czones.clear();
   }
 
+  void insert_from_kd_tree(Star_handle star) const
+  {
+    int counter = 0;
+    bool grew = true;
+    while(grew)
+    {
+      counter++;
+
+      const typename Star::Bbox& bbox = star->bbox();
+      Point_2 pmin(bbox.xmin(), bbox.ymin());
+      Point_2 pmax(bbox.xmax(), bbox.ymax());
+
+      Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/,
+                         typename Kd_tree::Star_pmap(m_starset.star_vector()));
+      std::set<Kd_point_info> indices;
+      m_kd_tree.search(std::inserter(indices, indices.end()), query);
+
+#ifdef ANISO_DEBUG_KDTREE
+      std::cout << "bbox given to kd tree: " << std::endl;
+      std::cout << pmin << std::endl << pmax << std::endl;
+      std::cout << "kd tree finds : " << indices.size() << " pts out of "
+                << this->number_of_stars() << std::endl;
+      std::cout << "Brute force kd check...";
+      Star_iterator sit = m_starset.begin();
+      Star_iterator siend = m_starset.end();
+      for(;sit!=siend;++sit)
+        if(query.contains((*sit)->index_in_star_set()) &&
+           indices.find((*sit)->index_in_star_set()) == indices.end())
+        {
+          std::cout << "the kd tree missed the star: "
+                    << (*sit)->index_in_star_set() << std::endl;
+        }
+      std::cout << "end of brute force check" << std::endl;
+#endif
+
+      int old_nv = star->number_of_vertices();
+
+      typename Index_set::iterator it = indices.begin();
+      typename Index_set::iterator iend = indices.end();
+      for(; it!=iend; ++it)
+      {
+        Star_handle si = get_star(it);
+        star->insert_to_star(si->center_point(), si->index_in_star_set(),
+                             true/*conditional*/);
+      }
+
+      int new_nv = star->number_of_vertices();
+      grew = (old_nv != new_nv);
+    }
+  }
+
+  void create_star_from_full_starset(Star_handle& star) const
+  {
+    // Increasingly slow but will produce the correct star
+
+    typename Starset::iterator sit = m_starset.begin();
+    typename Starset::iterator send = m_starset.end();
+    for(; sit!=send; ++sit)
+    {
+      Star_handle star_i = get_star(sit);
+      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(),
+                           false/*conditional*/);
+      // "false": no condition because they all need to be considered to get the
+      // proper star. Not being in conflict with the star when your number comes up
+      // does _NOT_ mean you're not part of the first ring of the new star in the end...
+    }
+  }
+
   void create_star(const Point_2 &p,
                    int pid,
                    Star_handle& star,
@@ -712,28 +789,34 @@ public:
 #endif
     }
 
-    // Alright, BIG deal here : you can't get a proper new star if you simply
-    // insert the vertices that corresponds to stars that are in conflict
-    // with the new point. THIS IS NOT A SYMMETRICAL RELATIONSHIP !!
-
-    // ---------------------------------------------------------------------
-    // AGAIN : new point in conflict with a star <=/=> the star center is
-    // necessarily in conflict with the new star
-    // ---------------------------------------------------------------------
-
-    // And it's not a good approximation to use m_stars_czones, you get something
-    // __completely__ wrong
-    typename Starset::iterator sit = m_starset.begin();
-    typename Starset::iterator send = m_starset.end();
-    for(; sit!=send; ++sit)
+#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+    //adding the 4 bounding box vertices (they are the first 4 stars)
+    if(this->m_starset.size() > 4)
     {
-      Star_handle star_i = get_star(sit);
-      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(),
-                           false/*conditional*/);
-      // "false": no condition because they all need to be considered to get the
-      // proper star. Not being in conflict with the star when your number comes up
-      // does _NOT_ mean you're not part of the first ring of the new star in the end...
+      for(int i=0; i<4; ++i)
+      {
+        Star_handle star_i = get_star(i);
+        star->insert_to_star(star_i->center_point(),
+                             star_i->index_in_star_set(),
+                             false /*no condition*/);
+      }
     }
+#endif
+
+    CGAL_precondition((pid == 0 || !m_stars_czones.empty()) &&
+                      "empty conflict map at the creation of the new star");
+
+    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+      Star_handle star_i = get_star(i);
+      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false);
+        //"false": no condition because they should be there for consistency
+    }
+
+    insert_from_kd_tree(star);
     star->clean();
   }
 
@@ -812,6 +895,12 @@ public:
         si->print_faces();
         return vi->info();
       }
+      else // inserted, standard configuration
+      {
+        // Conflict zones are not computed for the target_stars, so we need
+        // to create entries in the conflict zones map (for fill_ref_queue)
+        m_stars_czones.conflict_zone(i);
+      }
     }
     return this_id;
   }
@@ -863,6 +952,7 @@ public:
     }
 
     m_starset.push_back(star);
+    m_kd_tree.insert(star->index_in_star_set());
     return id;
   }
 
@@ -996,12 +1086,14 @@ public:
                            const Domain* pConstrain_,
                            const Criteria* criteria_,
                            const Metric_field* metric_field_,
+                           Kd_tree& kd_tree_,
                            Stars_conflict_zones& stars_czones_)
   :
     m_starset(starset_),
     m_pdomain(pConstrain_),
     m_criteria(criteria_),
     m_metric_field(metric_field_),
+    m_kd_tree(kd_tree_),
     m_stars_czones(stars_czones_)
   { }
 

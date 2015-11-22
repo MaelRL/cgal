@@ -62,6 +62,8 @@ public:
   typedef typename CGAL::Anisotropic_mesh_2::Metric_field<K>       Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
+  typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
+
   typedef CGAL::Anisotropic_mesh_2::Conflict_zone<K>               Conflict_zone;
   typedef CGAL::Anisotropic_mesh_2::Stars_conflict_zones<K>        Stars_conflict_zones;
 
@@ -909,13 +911,14 @@ public:
                               const Domain* pdomain_,
                               const Criteria* criteria_,
                               const Metric_field* metric_field_,
+                              Kd_tree& kd_tree_,
                               Stars_conflict_zones& m_stars_czones_,
                               Refine_queue& refine_queue_,
                               int queue_ids_start_,
                               int queue_ids_end_)
     :
       Mesher_lvl(previous),
-      Trunk(starset_, pdomain_, criteria_, metric_field_, m_stars_czones_),
+      Trunk(starset_, pdomain_, criteria_, metric_field_, kd_tree_, m_stars_czones_),
       m_refine_queue(refine_queue_),
       m_queue_ids_start(queue_ids_start_),
       m_queue_ids_end(queue_ids_end_),

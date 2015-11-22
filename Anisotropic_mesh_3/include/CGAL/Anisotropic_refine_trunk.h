@@ -138,7 +138,7 @@ public:
   iterator end() { return m_conflict_zones.end(); }
   std::size_t size() const { return m_conflict_zones.size(); }
 
-  bool is_empty() const { return m_conflict_zones.empty(); }
+  bool empty() const { return m_conflict_zones.empty(); }
   void clear()
   {
     m_conflict_zones.clear();
@@ -1254,21 +1254,7 @@ public:
     m_stars_czones.clear();
   }
 
-//Point insertion functions
-  template<typename Key, typename Val>
-  struct set_map_comp
-  {
-    bool operator()(Key k, const std::pair<Key, Val>& p) const
-    {
-      return k < p.first;
-    }
-
-    bool operator()(const std::pair<Key, Val>& p, Key k) const
-    {
-      return p.first < k;
-    }
-  };
-
+// Point insertion functions
   void insert_from_kd_tree(Star_handle star) const
   {
     int counter = 0;
@@ -1277,26 +1263,31 @@ public:
     {
       counter++;
 
-      typename Star::Bbox bbox = star->bbox();
+      const typename Star::Bbox& bbox = star->bbox();
       Point_3 pmin(bbox.xmin(), bbox.ymin(), bbox.zmin());
       Point_3 pmax(bbox.xmax(), bbox.ymax(), bbox.zmax());
 
-      Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/, typename Kd_tree::Star_pmap(m_starset.star_vector()));
+      Kd_Box_query query(pmin, pmax, /*3=dim,*/ 0./*epsilon*/,
+                         typename Kd_tree::Star_pmap(m_starset.star_vector()));
       std::set<Kd_point_info> indices;
       m_kd_tree.search(std::inserter(indices, indices.end()), query);
 
 #ifdef ANISO_DEBUG_KDTREE
       std::cout << "bbox given to kd tree: " << std::endl;
       std::cout << pmin << std::endl << pmax << std::endl;
-      std::cout << "kd tree finds : " << indices.size() << " pts out of " << this->number_of_stars() << std::endl;
+      std::cout << "kd tree finds : " << indices.size() << " pts out of "
+                << this->number_of_stars() << std::endl;
       std::cout << "Brute force kd check...";
       Star_iterator sit = m_starset.begin();
       Star_iterator siend = m_starset.end();
       for(;sit!=siend;++sit)
         if(query.contains((*sit)->index_in_star_set()) &&
            indices.find((*sit)->index_in_star_set()) == indices.end())
-          std::cout << "kd tree missed a star buddy" << std::endl;
-      std::cout << "passed" << std::endl;
+        {
+          std::cout << "the kd tree missed the star: "
+                    << (*sit)->index_in_star_set() << std::endl;
+        }
+      std::cout << "end of brute force check" << std::endl;
 #endif
 
       int old_nv = star->number_of_vertices();
@@ -1306,9 +1297,9 @@ public:
       for(; it!=iend; ++it)
       {
         Star_handle si = get_star(it);
-        star->insert_to_star(si->center_point(), si->index_in_star_set(), true/*conditional*/);
+        star->insert_to_star(si->center_point(), si->index_in_star_set(),
+                             true/*conditional*/);
       }
-      std::cout << std::endl;
 
       int new_nv = star->number_of_vertices();
       grew = (old_nv != new_nv);
@@ -1337,16 +1328,35 @@ public:
       }
     }
 
-    // see comments in Aniso_2 (same trunk file) about why we use m_starset and
-    // not m_stars_czones (and also why we use 'false' as conditional)
-    typename Starset::iterator czit = m_starset.begin();
-    typename Starset::iterator czend = m_starset.end();
+#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+    //adding the 8 bounding box vertices (they are the first 8 stars)
+    if(this->m_starset.size() > 8)
+    {
+      for(int i=0; i<8; ++i)
+      {
+        Star_handle star_i = get_star(i);
+        star->insert_to_star(star_i->center_point(),
+                             star_i->index_in_star_set(),
+                             false /*no condition*/);
+      }
+    }
+#endif
+
+    CGAL_precondition((pid == 0 || !m_stars_czones.empty()) &&
+                      "empty conflict map at the creation of the new star");
+
+    typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
     for(; czit!=czend; ++czit)
     {
       Index i = czit->first;
       Star_handle star_i = get_star(i);
-      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(), false/*conditional*/);
+      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(),
+                           false/*conditional*/);
+        //"false": no condition because they should be there for consistency
     }
+
+    insert_from_kd_tree(star);
     star->clean();
   }
 
