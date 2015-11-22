@@ -229,7 +229,7 @@ public:
                         const std::vector<Index>& indices)
   {
     //fit is an internal facet or a boundary facet that won't be restricted after insertion
-    for(std::size_t j=0; j<indices.size(); ++j)
+    for(std::size_t j=0, is=indices.size(); j<is; ++j)
     {
       Star_handle sj = m_starset[indices[j]];
 
@@ -417,7 +417,7 @@ public:
       if(indices.size() == 4)
         continue;
 
-      for(std::size_t j=0; j<indices.size(); ++j)
+      for(std::size_t j=0, is=indices.size(); j<is; ++j)
       {
         Star_handle sj = m_starset[indices[j]];
 
@@ -523,7 +523,8 @@ public:
 #ifdef ANISO_DEBUG_UNMODIFIED_STARS
     if(!m_facets_to_check.empty())
     {
-      std::cout << "facets_to_check is not empty. Size (n° of stars): ': " << m_facets_to_check.size() << std::endl;
+      std::cout << "facets_to_check is not empty. Size (n° of stars): ': "
+                << m_facets_to_check.size() << std::endl;
       std::cout << "Detail: " << std::endl;
 
       typename std::map<Index, std::vector<Facet> >::iterator mvfit = m_facets_to_check.begin();
@@ -548,11 +549,14 @@ public:
 
     if(!m_cells_to_check.empty())
     {
-      std::cout << "Cells_to_check is not empty. Size (n° of stars): ': " << m_cells_to_check.size() << std::endl;
+      std::cout << "Cells_to_check is not empty. Size (n° of stars): ': "
+                << m_cells_to_check.size() << std::endl;
       std::cout << "Detail: " << std::endl;
 
-      typename std::map<Index, std::vector<Cell_handle> >::iterator mvchit = m_cells_to_check.begin();
-      typename std::map<Index, std::vector<Cell_handle> >::iterator mvchend = m_cells_to_check.end();
+      typename std::map<Index, std::vector<Cell_handle> >::iterator mvchit =
+                                                       m_cells_to_check.begin();
+      typename std::map<Index, std::vector<Cell_handle> >::iterator mvchend =
+                                                       m_cells_to_check.end();
       for(; mvchit!= mvchend; ++mvchit)
       {
         Index sid = mvchit->first;
@@ -1028,7 +1032,8 @@ public:
     const std::vector<Facet>& bfacets = star_cz.boundary_facets();
 
     typename std::vector<Facet>::const_iterator fit = bfacets.begin();
-    for( ; fit != bfacets.end(); fit++)
+    typename std::vector<Facet>::const_iterator end = bfacets.end();
+    for( ; fit!=end; fit++)
     {
       int id1 = fit->first->vertex((fit->second+1)%4)->info();
       int id2 = fit->first->vertex((fit->second+2)%4)->info();
@@ -1403,8 +1408,8 @@ public:
                   << " (" << p << ") in S" << si->index_in_star_set()
                   << " failed. vi->info() :"<< vi->info() << std::endl;
         remove_from_stars(this_id, m_stars_czones.begin(), ++czit);
-        //should probably be (++czit)-- but it doesn't really matter
-        //since something went wrong if we're in there
+        // should probably be (++czit)-- but it doesn't really matter
+        // since something went wrong if we're in there
 
         si->print_vertices(true);
         si->print_facets();
@@ -1423,15 +1428,14 @@ public:
   {
     typename Stars::const_iterator it = target_stars.begin();
     typename Stars::const_iterator itend = target_stars.end();
-    for(; it != itend; it++)
+    for(; it!=itend; it++)
     {
       Star_handle si = *it;
-
       Index i = si->index_in_star_set();
-      Vertex_handle vi = si->insert_to_star(p, this_id, false);
+      Vertex_handle vi = si->insert_to_star(p, this_id, false/*conditional*/);
         // equivalent to directly calling si->base::insert(tp)
 
-      if(vi == Vertex_handle())  //no conflict
+      if(vi == Vertex_handle()) // no conflict
         continue;
       else if(vi->info() < this_id) // already in star set (should not happen)
       {
@@ -1442,13 +1446,12 @@ public:
 
         si->print_vertices(true);
         si->print_facets();
-        std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
         return vi->info();
       }
       else // inserted, standard configuration
       {
-        //Conflict zones are not computed for the target_stars, so we need to create
-        //entries in the conflict zones map (for fill_ref_queue)
+        // Conflict zones are not computed for the target_stars, so we need
+        // to create entries in the conflict zones map (for fill_ref_queue)
         m_stars_czones.conflict_zone(i);
       }
     }
@@ -1530,8 +1533,9 @@ private:
     bbox_vertices.push_back(Point_3(xmax, ymax, zmax));
     bbox_vertices.push_back(Point_3(xmin, ymax, zmax));
 
-    typename std::vector<Point_3>::iterator it;
-    for(it = bbox_vertices.begin(); it != bbox_vertices.end(); ++it)
+    typename std::vector<Point_3>::iterator it = bbox_vertices.begin();
+    typename std::vector<Point_3>::iterator end = bbox_vertices.end();
+    for(; it!=end; ++it)
       insert(*it, false /*no condition*/, false/*not surface*/);
   }
 
@@ -1561,8 +1565,9 @@ protected:
 
     unsigned int i = 1;
     unsigned int done = 0;
-    typename std::vector<Point_3>::iterator it;
-    for(it = poles_v.begin(); it != poles_v.end(); ++it, ++i)
+    typename std::vector<Point_3>::iterator it = poles_v.begin();
+    typename std::vector<Point_3>::iterator end = poles_v.end();
+    for(; it!=end; ++it, ++i)
     {
       bool conditional = (i % 10 != 0); //1/10 with no condition
       if(true) //m_refinement_condition(*it)) TODO
@@ -1582,7 +1587,7 @@ protected:
                         const int nb = 50)
   {
 #ifdef ANISO_VERBOSE
-    std::cout << "Initialize "<< nb << " stars..." << std::endl;
+    std::cout << "Initialize " << nb << " stars..." << std::endl;
 #endif
     double approx = this->m_criteria->approximation/this->m_pConstrain->get_bounding_radius();
     approx = 1e-4;
@@ -1593,7 +1598,8 @@ protected:
 
     //The initial points need to be picked more cleverly as they completely ignore
     //the input metric field right now TODO
-    typename Constrain_surface::Pointset initial_points = this->m_pConstrain->get_surface_points(2*nb);
+    typename Constrain_surface::Pointset initial_points =
+                                   this->m_pConstrain->get_surface_points(2*nb);
 
     //only used in the case of a pure surface meshing process
     if(are_poles_used)

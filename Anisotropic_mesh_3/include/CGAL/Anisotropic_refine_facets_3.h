@@ -677,14 +677,14 @@ private:
                              Index relative_point,
                              bool check_if_in = false)
   {
-    /*
+/*
     std::cout << "fill facet call with relative " << relative_point << std::endl;
     typename Stars::const_iterator cit = stars.begin();
     typename Stars::const_iterator citend = stars.end();
     for (; cit != citend; cit++)
       std::cout << " " << this->get_star(cit)->index_in_star_set();
     std::cout << std::endl;
-    */
+*/
 
 #ifdef USE_ANISO_TIMERS
     std::clock_t start_time = clock();
@@ -920,7 +920,8 @@ private:
       std::cout << e[0] << " " << e[1] << std::endl;
     }
     std::cout << "thus vertices around the center are: " << std::endl;
-    for(std::set<int>::iterator it=vertices_around_c.begin(); it!=vertices_around_c.end(); ++it)
+    for(std::set<int>::iterator it=vertices_around_c.begin();
+                                it!=vertices_around_c.end(); ++it)
     {
       std::cout << *it << " ";
     }

@@ -7,7 +7,7 @@
   // if one wants to still initialize vertices even if the seed is found to be in
   // an exterior cell (might want to use that when there are seeds on the border
   // of the domain since numerical issues might not find it in the domain)
-#define ANISO_GEO_FORCE_SEED_INITIALIZATION
+//#define ANISO_GEO_FORCE_SEED_INITIALIZATION
 
 #define CGAL_MESH_3_VERBOSE
 
@@ -17,7 +17,7 @@
 
   // Whether we use exact full rebuilds after point insertion or only spread from
   // the new point (which can create issues)
-#define USE_FULL_REBUILD
+//#define USE_FULL_REBUILD
 
 #include <limits>
 

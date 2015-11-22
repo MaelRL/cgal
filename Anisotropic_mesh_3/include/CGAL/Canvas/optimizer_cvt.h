@@ -176,7 +176,7 @@ public:
     int one_c = 0, m_c = 0;
     double duration_one = 0., duration_m = 0.;
 
-    std::cout << canvas.m_tr.number_of_finite_cells() << std::endl;
+    std::cout << "cells : " << canvas.m_tr.number_of_finite_cells() << std::endl;
 
     Finite_cells_iterator cit = canvas.m_tr.finite_cells_begin();
     Finite_cells_iterator cend = canvas.m_tr.finite_cells_end();

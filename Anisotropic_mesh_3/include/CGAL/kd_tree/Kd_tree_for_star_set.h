@@ -76,7 +76,8 @@ public:
          typename Base::Splitter(),
          Traits(Star_pmap(stars))),
     m_insertion_buffer_max_size(bs),
-    m_insertion_buffer() {}
+    m_insertion_buffer()
+  { }
 
 
 public:
@@ -84,6 +85,7 @@ public:
   {
     return Base::empty() && m_insertion_buffer.empty();
   }
+
   void clear()
   {
     Base::clear();

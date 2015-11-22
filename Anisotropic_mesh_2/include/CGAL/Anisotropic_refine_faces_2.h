@@ -282,7 +282,7 @@ public:
 // --------------------------------------------------------------------------------------------------
 
 #if 1
-    if(this->m_starset.size()%100 == 0)
+    if(this->m_starset.size()%1000 == 0)
     {
       std::ofstream out("bambimboum_wip.mesh");
       output_medit(this->m_starset, out);

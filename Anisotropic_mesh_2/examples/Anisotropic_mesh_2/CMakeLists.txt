@@ -48,6 +48,7 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("geodesic_grid_generator.cpp")
   create_single_source_cgal_program("geodesic_grid_generator_2.cpp")
   create_single_source_cgal_program("geodesic_generator_on_tr.cpp")
+  create_single_source_cgal_program("geodesic_generator_on_starset.cpp")
   create_single_source_cgal_program("Nash.cpp")
 
 else()  

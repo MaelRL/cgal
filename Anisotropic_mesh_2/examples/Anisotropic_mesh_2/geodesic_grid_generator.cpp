@@ -1473,7 +1473,7 @@ void initialize()
 int main(int, char**)
 {
   std::cout.precision(17);
-  std::freopen("geo_grid_log.txt", "w", stdout);
+  std::freopen("log.txt", "w", stdout);
 
   double duration;
   start = std::clock();

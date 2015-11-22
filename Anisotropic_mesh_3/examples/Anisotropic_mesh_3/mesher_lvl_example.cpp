@@ -30,9 +30,9 @@ typedef std::vector<Star*>                                   Star_vector;
 
 int main(int argc, char** argv)
 {
-  std::freopen("log.txt", "w", stdout); //all output is written in "wut.txt"
+//  std::freopen("log.txt", "w", stdout); // all output is written in "log.txt"
 
-  std::streambuf * old = std::cout.rdbuf();
+  //std::streambuf * old = std::cout.rdbuf();
   //std::cout.rdbuf(0);
 
   Timer timer;
@@ -75,25 +75,34 @@ int main(int argc, char** argv)
 
   //----------- pick a domain! ----------
 //  Constrain_surface_3_ellipse<K>* pdomain = new Constrain_surface_3_ellipse<K>(a, b, c);
-  Constrain_surface_3_free_cube<K>* pdomain = new Constrain_surface_3_free_cube<K>(0.,0.,0.,1.,1.,1.);
-//  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>("../../data/Anisotropy_CMP/3DSurface/Fertility.off");
+  Constrain_surface_3_free_cube<K>* pdomain = new Constrain_surface_3_free_cube<K>(0., 0., 0., 1., 1., 1.);
+//  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>("../../data/Anisotropy_CMP/3DSurface/Fandisk.off");
 
   //----------- pick a metric field! ----
-//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>();
+//  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
+//  External_metric_field<K>* metric_field = new External_metric_field<K>(*pdomain, "../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/global_smooth/modified_fandisk_metric.txt");
+//  Implicit_curvature_metric_field<K>* metric_field = new Implicit_curvature_metric_field<K>(*pdomain);
 //  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6);
-  External_metric_field<K>* metric_field = new External_metric_field<K>(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fertility_Metric.txt");
-//  Polyhedral_curvature_metric_field<K>* metric_field = new Polyhedral_curvature_metric_field<K>(pdomain);
+//  Polyhedral_curvature_metric_field<K>* metric_field = new Polyhedral_curvature_metric_field<K>(*pdomain);
 
   Starset<K> starset;
 
   //----------- pick a mesher! -----------
-  Anisotropic_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+//  Anisotropic_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
 //  Anisotropic_surface_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
-//  Anisotropic_tet_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+  Anisotropic_tet_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+
+  //----------- Resuming? ---------------
+//  mesher.resume_from_mesh_file("../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh");
+//  mesher.resume_from_mesh_file("/home/mrouxell/Downloads/review/AnisoMeshData/VOLUME/fig14_sine.mesh");
+//  mesher.resume_from_mesh_file("resumed_in.mesh");
 
   double elapsed_time = mesher.refine_mesh();
+
+//  std::cout.rdbuf(old);
   std::cout << "elapsed time: " << elapsed_time << std::endl;
-  mesher.report();
+//  mesher.report();
 
   std::ofstream out("bambimboum.mesh");
   output_medit(starset, out, false);

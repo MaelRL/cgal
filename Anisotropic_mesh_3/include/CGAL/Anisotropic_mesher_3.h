@@ -130,7 +130,7 @@ public:
     timer.start();
     double elapsed_time = 0.;
 
-#if 1//ndef ANISO_VERBOSE
+#ifndef ANISO_VERBOSE
     // Scan surface and refine it
     m_facet_mesher.initialize();
     m_facet_mesher.refine(m_facet_visitor);
@@ -158,7 +158,7 @@ public:
     timer.stop(); timer.reset(); timer.start();
 
     std::ofstream time_out("time.txt");
-    while (!m_facet_mesher.is_algorithm_done())
+    while(!m_facet_mesher.is_algorithm_done())
     {
       m_facet_mesher.one_step(m_facet_visitor);
       if(m_starset.size()%10 == 0)
@@ -169,7 +169,7 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
-    //TODO something more elegant
+    // TODO something more elegant
     m_facet_mesher.is_3D_level() = true;
     m_facet_consistency_mesher.is_3D_level() = true;
 
@@ -182,7 +182,7 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
-    while (!m_cell_mesher.is_algorithm_done())
+    while(!m_cell_mesher.is_algorithm_done())
     {
       m_cell_mesher.one_step(m_cell_visitor);
       if(m_starset.size()%10 == 0)
@@ -202,7 +202,7 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
-    while (!m_facet_consistency_mesher.is_algorithm_done())
+    while(!m_facet_consistency_mesher.is_algorithm_done())
     {
       m_facet_consistency_mesher.one_step(m_facet_consistency_visitor);
       if(m_starset.size()%10 == 0)

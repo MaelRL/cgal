@@ -489,7 +489,7 @@ void cell_edge_length_histogram_simplex_metric(const std::vector<Point_3>& point
 
 int main(int, char**)
 {
-  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
+  std::freopen("log.txt", "w", stdout); //all output is written in "log.txt"
 
   std::vector<Point_3> points;
   std::vector<int> facets, cells;
@@ -504,13 +504,19 @@ int main(int, char**)
   Custom_metric_field* metric_field = new Custom_metric_field();
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fandisk_Metric.txt");
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "metric_at_input.txt");
-//  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(pdomain);
-//  Implicit_curvature_metric_field* metric_field = new Implicit_curvature_metric_field(pdomain);
+//  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(*pdomain);
+//  Implicit_curvature_metric_field* metric_field = new Implicit_curvature_metric_field(*pdomain);
 
-//  const char* mesh_filename = (argc>1)?argv[1]:"/home/mrouxel/cgal/Anisotropic_mesh_3/data/Anisotropy_CMP/3DSurface/Fandisk.off";
-  const char* mesh_filename = (argc>1)?argv[1]:"../../data/Anisotropy_CMP/Ours_Results/Tet/Spherical.mesh";
-//  const char* mesh_filename = (argc>1)?argv[1]:"../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh";
-//  const char* mesh_filename = (argc>1)?argv[1]:"bambimboum.mesh";
+//  const char* mesh_filename = "/home/mrouxell/cgal/Anisotropic_mesh_3/data/Anisotropy_CMP/3DSurface/Fandisk.off";
+//  const char* mesh_filename = "../../data/Anisotropy_CMP/Ours_Results/Tet/Spherical.mesh";
+//  const char* mesh_filename = "./experiments/Yang Liu/cube/smoothed/5690/smoothed_cube_5690.mesh";
+//  const char* mesh_filename = "../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh";
+  const char* mesh_filename = "bambimboum_surf.mesh";
+//  const char* mesh_filename = "/home/mrouxell/vrac/vrac.off";
+//  const char* mesh_filename = "./experiments/Yang Liu/fandisk/iso/3D/Aniso_3/fandisk_100968.mesh";
+//  const char* mesh_filename = "./experiments/Yang Liu/Sphere/sphere_interrupted.mesh";
+//  const char* mesh_filename = "/home/mrouxell/Reviews/SIGASIA_Local_Convex_Aniso/AnisoMeshData/VOLUME/fig14_sine.mesh";
+//  const char* mesh_filename = "/home/mrouxell/Reviews/SIGASIA_Local_Convex_Aniso/AnisoMeshData/SURFACE/block.off";
 
   fetch_mesh(mesh_filename, points, facets, cells);
   compute_metrics(points, metric_field, metrics);

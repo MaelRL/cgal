@@ -708,6 +708,7 @@ public:
   template<typename MF>
   void draw_metric_vector_field_2(MF const * const  mf) const
   {
+    //Fixme, it's pretty bad to use a fixed value of offset here...
     const FT offset_x = -0.55; // offset is the bottom left point
     const FT offset_y = -0.55; // todo normalize this with aniso_mesh_2's rectangle
     const unsigned int n = 70;

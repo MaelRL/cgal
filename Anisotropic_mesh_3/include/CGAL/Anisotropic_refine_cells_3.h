@@ -264,7 +264,7 @@ public:
 
     // The cell refpoint could be on the surface and should technically give a surface star...
     // commented code doesn't really work (not precise enough) todo
-    if(0/*this->m_pConstrain->side_of_constraint(p) == CGAL::ON_ORIENTED_BOUNDARY*/)
+    if(0/*this->m_pConstrain->side_of_constraint(p) == CGAL::ON_ORIENTED_BOUNDARY*/) // tmp
       pid = Trunk::insert(p, true/*conditional*/, true/*surface point*/);
     else
       pid = Trunk::insert(p, true/*conditional*/);
@@ -576,14 +576,14 @@ public:
                              Index relative_point,
                              bool check_if_in = false)
   {
-    /*
+/*
     std::cout << "fill cell call with relative " << relative_point << std::endl;
     typename Stars::const_iterator cit = stars.begin();
     typename Stars::const_iterator citend = stars.end();
     for (; cit != citend; cit++)
       std::cout << " " << Trunk::get_star(cit)->index_in_star_set();
     std::cout << std::endl;
-    */
+*/
 
     typename Stars::const_iterator si = stars.begin();
     typename Stars::const_iterator siend = stars.end();

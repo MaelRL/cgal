@@ -175,7 +175,7 @@ struct Geo_sizing_field
     const FT discretization = 6.;
     const FT metric_based_size = width / discretization;
 
-    std::cout << metric_based_size << std::endl;
+//    std::cout << metric_based_size << std::endl;
 
     return (std::min)(base, metric_based_size);
   }

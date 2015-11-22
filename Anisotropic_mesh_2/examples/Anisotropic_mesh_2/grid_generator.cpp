@@ -919,7 +919,7 @@ void build_grid(const bool refine = false,
 
 int main(int, char**)
 {
-//  std::freopen("grid_log.txt", "w", stdout);
+//  std::freopen("log.txt", "w", stdout);
   std::srand(0);
 
   initialize();

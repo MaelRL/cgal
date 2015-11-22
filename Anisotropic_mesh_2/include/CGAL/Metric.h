@@ -271,7 +271,7 @@ public:
     if(std::abs(xx-1.) > 0.01 || std::abs(yy-1.) > 0.01)
       std::cout << "Warning : This sqnorm should be 1" << std::endl;
 #endif
-    if(std::abs(vpx) > std::abs(vpy))
+    if(std::abs(vpx) > std::abs(vpy)) // is this really useful ?
       construct(axis_x, axis_y, vpx, vpy, epsilon);
     else
       construct(axis_y, axis_x, vpy, vpx, epsilon);

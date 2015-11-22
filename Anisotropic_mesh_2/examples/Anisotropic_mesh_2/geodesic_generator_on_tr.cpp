@@ -48,8 +48,8 @@ typedef Metric_base<K>                                       Metric;
 
 // 'bit ugly to have the metric field running around here but we need to pass
 // it around and around and around and it's faster this way !
-typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
-//typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+//typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 //typedef CGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
 MF mf;
 
@@ -80,7 +80,8 @@ public:
     FT discretization = 6.;
     FT metric_based_size = width / discretization;
 
-    //std::cout << "sizing field: " << base << " " << m.get_max_eigenvalue() << " " << metric_based_size << std::endl;
+//    std::cout << "sizing field: " << m.get_max_eigenvalue() << " base: " << base
+//              << " mbase: " << metric_based_size << std::endl;
 
     return (std::min)(base, metric_based_size);
   }
@@ -378,12 +379,12 @@ void generate_grid()
   cdt.insert_constraint(vd, va);
 
   FT shape = 0.125;
-  FT distortion = 1.05; // > 1 to use
+  FT distortion = 1.; // > 1 to use
   CGAL::refine_Delaunay_mesh_2(cdt, Criteria(shape, distortion));
 
   std::cout << "Number of vertices: " << cdt.number_of_vertices() << std::endl;
 
-  output_cdt_to_mesh(cdt, "input_base_mesh");
+  output_cdt_to_mesh(cdt, "iso_base_mesh");
 }
 
 // -----------------------------------------------------------------------------

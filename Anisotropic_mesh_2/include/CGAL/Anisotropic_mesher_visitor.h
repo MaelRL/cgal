@@ -21,7 +21,6 @@ struct Null_anisotropic_mesher_visitor
   Null_anisotropic_mesher_visitor() { }
 };
 
-
 template<typename Previous>
 class Null_anisotropic_mesher_visitor_level
 {

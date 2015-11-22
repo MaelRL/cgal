@@ -96,6 +96,7 @@ public:
                    const Refine_face<K, KExact>& right) const
   {
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
+    // ought to make sure the ranges are identical fixme
     return std::equal(left.face.vertices().begin(),
                       left.face.vertices().end(),
                       right.face.vertices().begin());

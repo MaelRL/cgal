@@ -28,8 +28,8 @@ int main(int, char**)
 {
   typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 
-  typedef Euclidean_metric_field<K>                            MF;
-//  typedef Custom_metric_field<K>                               MF;
+//  typedef Euclidean_metric_field<K>                            MF;
+  typedef Custom_metric_field<K>                               MF;
 
   typedef Campen_canvas_point<K, MF>                           Campen_canvas_point;
   typedef Canvas<K, Campen_canvas_point, MF>                   Base_canvas;
@@ -38,14 +38,14 @@ int main(int, char**)
   typedef CVT_optimizer<Canvas>                                CVT_optimizer;
 
   std::cout.precision(17);
-  std::freopen("log.txt", "w", stdout);
+//  std::freopen("log.txt", "w", stdout);
 
   double duration;
   std::clock_t start = std::clock();
   std::srand(0);
 
-  MF mf(5., 5., 5.); // Euclidean
-//  MF mf(); // Custom
+//  MF mf(2, 4., 8.); // Euclidean
+  MF mf; // Custom
 
   // select the canvas
   const std::string canvas_str = "dense_base_mesh";
@@ -59,9 +59,9 @@ int main(int, char**)
   Canvas canvas(canvas_str, seeds_str, max_seeds_n, mf);
   canvas.initialize();
   canvas.paint();
-  canvas.debug();
 
-  std::size_t n_refine = 0;
+  // Refinement
+  std::size_t n_refine = 100000;
   Canvas_mesher mesher(canvas, n_refine);
   mesher.refine();
 

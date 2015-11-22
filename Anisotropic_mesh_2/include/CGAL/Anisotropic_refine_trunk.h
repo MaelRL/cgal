@@ -605,7 +605,7 @@ public:
     return is;
   }
 
-//Conflict zones
+// Conflict zones
   Index simulate_insert_to_stars(const Point_2& p) const
   {
     CGAL::Timer t;
@@ -875,14 +875,14 @@ public:
   {
     typename Stars::const_iterator it = target_stars.begin();
     typename Stars::const_iterator itend = target_stars.end();
-    for(; it != itend; it++)
+    for(; it!=itend; it++)
     {
       Star_handle si = *it;
       Index i = si->index_in_star_set();
       Vertex_handle vi = si->insert_to_star(p, this_id, false/*conditional*/);
-      // equivalent to directly calling si->base::insert(tp)
+        // equivalent to directly calling si->base::insert(tp)
 
-      if(vi == Vertex_handle())  // no conflict
+      if(vi == Vertex_handle()) // no conflict
         continue;
       else if(vi->info() < this_id) // already in star set (should not happen)
       {

@@ -596,18 +596,19 @@ void split_cube(const Cube q,
 }
 
 #ifdef TMP_REFINEMENT_UGLY_HACK
-void ugly_farthest_computation(const Tet& tet,
+template<typename Simplex>
+void ugly_farthest_computation(const Simplex& s,
                                const std::vector<Point_3>& points,
                                const std::vector<std::size_t>& values)
 {
-  //tet is a _GRID_ tet with different colors (values) at each vertex
+  //s is a _GRID_ simplex with different colors (values) at each vertex
   typename Star::Traits::Compute_squared_distance_2 csd =
       traits->compute_squared_distance_2_object();
 
-  for(std::size_t i=0; i<tet.size(); ++i)
+  for(std::size_t i=0, ss=s.size(); i<ss; ++i)
   {
-    const Point_3& p = points[tet[i]];
-    std::size_t k = values[tet[i]];
+    const Point_3& p = points[s[i]];
+    std::size_t k = values[s[i]];
 
     // DU WANG : dx(p,x) < dx(q,x)
     Metric m_p = mf->compute_metric(p);
@@ -631,13 +632,32 @@ void ugly_farthest_computation(const Tet& tet,
     }
   }
 }
+
+void get_ref_pt_from_triangle(const std::size_t i0, const std::size_t i1,
+                              const std::size_t i2,
+                              const std::vector<std::size_t>& values,
+                              const std::vector<Point_3>& points)
+{
+  if(values[i0] == values[i1] || values[i1] == values[i2] || values[i0] == values[i2])
+    return; // only keep faces
+
+  Tri tr;
+  tr[0] = values[i0]; tr[1] = values[i0]; tr[2] = values[i2];
+  ugly_farthest_computation(tr, points, values);
+}
 #endif
+
 
 void insert_simplex_if_colored(const std::size_t i0, const std::size_t i1,
                                const std::size_t i2, const std::size_t i3,
                                const std::vector<std::size_t>& values,
                                const std::vector<Point_3>& points)
 {
+  // quick filter
+  if(values[i0] == values[i1] && values[i1] == values[i2] &&
+     values[i2] == values[i3])
+    return;
+
   if(values[i0] != values[i1] && values[i0] != values[i2] && values[i0] != values[i3] &&
      values[i1] != values[i2] && values[i1] != values[i3] &&
      values[i2] != values[i3])
@@ -653,6 +673,13 @@ void insert_simplex_if_colored(const std::size_t i0, const std::size_t i1,
 #ifdef TMP_REFINEMENT_UGLY_HACK
     t[0] = i0; t[1] = i1; t[2] = i2; t[3] = i3;
     ugly_farthest_computation(t, points, values);
+  }
+  else
+  {
+    get_ref_pt_from_triangle(i0, i1, i2, values, points);
+    get_ref_pt_from_triangle(i0, i1, i3, values, points);
+    get_ref_pt_from_triangle(i0, i2, i3, values, points);
+    get_ref_pt_from_triangle(i1, i2, i3, values, points);
 #endif
   }
 }
@@ -861,18 +888,18 @@ void adapted_grid(const bool refine,
 #pragma omp barrier
 #pragma omp single
 {
-    out << "MeshVersionFormatted 1" << std::endl;
-    out << "Dimension 3" << std::endl;
-    out << "Vertices" << std::endl;
-    out << grid_nv << std::endl;
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 3" << '\n';
+    out << "Vertices" << '\n';
+    out << grid_nv << '\n';
 
-    out_bb << "3 1 " << grid_nv << " 2" << std::endl;
+    out_bb << "3 1 " << grid_nv << " 2" << '\n';
 }
 
 #pragma omp critical // print the points
 {
     local_offset = glob_offset;
-    std::cout << "loc off " << glob_offset << " @ " << thread_ID << std::endl;
+//    std::cout << "loc off " << glob_offset << " @ " << thread_ID << std::endl;
     output_adapted_grid_points(out, out_bb, local_offset, local_points, local_values);
 
     //increment the offset for the next thread
