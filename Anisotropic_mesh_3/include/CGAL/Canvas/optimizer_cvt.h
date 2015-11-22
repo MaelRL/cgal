@@ -82,22 +82,29 @@ public:
     seed_centroids.push_back(std::make_pair(centroid, vol));
   }
 
-  void add_sub_tets_to_canvas_centroids(const Canvas_point& cp,
-                                        const Canvas_point& ce1,
-                                        const Canvas_point& ce2,
-                                        const Canvas_point& ce3,
-                                        const Canvas_point& c,
+  void add_sub_tets_to_canvas_centroids(const std::size_t p,
+                                        const std::size_t e1,
+                                        const std::size_t e2,
+                                        const std::size_t e3,
+                                        const std::size_t e,
                                         Centroid_matrix& centroids) const
   {
+    const Canvas_point& cp = canvas.get_point(p);
+    const Canvas_point& ce1 = canvas.get_point(e1);
+    const Canvas_point& ce2 = canvas.get_point(e2);
+    const Canvas_point& ce3 = canvas.get_point(e3);
+    const Canvas_point& c = canvas.get_point(e);
+
     std::size_t seed_id = cp.closest_seed_id();
     Centroid_vector& seed_centroids = centroids[seed_id];
+
     add_to_canvas_centroids(cp, ce1, ce2, c, seed_centroids);
     add_to_canvas_centroids(cp, ce2, ce3, c, seed_centroids);
     add_to_canvas_centroids(cp, ce3, ce1, c, seed_centroids);
   }
 
-  void split_cell_multiple_colors(const Canvas_point& cp, const Canvas_point& cq,
-                                  const Canvas_point& cr, const Canvas_point& cs,
+  void split_cell_multiple_colors(const std::size_t p, const std::size_t q,
+                                  const std::size_t r, const std::size_t s,
                                   Centroid_matrix& centroids) const
   {
     // What we want to do here is to split the cell in fragments and assign
@@ -128,24 +135,28 @@ public:
     // would it better to split with points on the faces ? todo
 
     std::clock_t start = std::clock();
+    std::size_t real_points_n = canvas.canvas_points.size();
 
-    boost::array<Canvas_point, 7> mid_pts; // 6 for the edges + 1 for the tet
-    mid_pts[0] = canvas.compute_precise_Voronoi_vertex_on_edge(cp, cq);
-    mid_pts[1] = canvas.compute_precise_Voronoi_vertex_on_edge(cp, cr);
-    mid_pts[2] = canvas.compute_precise_Voronoi_vertex_on_edge(cp, cs);
-    mid_pts[3] = canvas.compute_precise_Voronoi_vertex_on_edge(cq, cr);
-    mid_pts[4] = canvas.compute_precise_Voronoi_vertex_on_edge(cq, cs);
-    mid_pts[5] = canvas.compute_precise_Voronoi_vertex_on_edge(cr, cs);
-    mid_pts[6] = canvas.compute_precise_Voronoi_vertex_in_tetrahedron(cp, cq, cr, cs);
+    boost::array<std::size_t, 7> mid_pts; // 6 for the edges + 1 for the tet
+    mid_pts[0] = canvas.compute_precise_Voronoi_vertex_on_edge(p, q);
+    mid_pts[1] = canvas.compute_precise_Voronoi_vertex_on_edge(p, r);
+    mid_pts[2] = canvas.compute_precise_Voronoi_vertex_on_edge(p, s);
+    mid_pts[3] = canvas.compute_precise_Voronoi_vertex_on_edge(q, r);
+    mid_pts[4] = canvas.compute_precise_Voronoi_vertex_on_edge(q, s);
+    mid_pts[5] = canvas.compute_precise_Voronoi_vertex_on_edge(r, s);
+    mid_pts[6] = canvas.compute_precise_Voronoi_vertex_in_tetrahedron(p, q, r, s);
 
-    add_sub_tets_to_canvas_centroids(cp, mid_pts[0], mid_pts[1], mid_pts[2],
+    add_sub_tets_to_canvas_centroids(p, mid_pts[0], mid_pts[1], mid_pts[2],
                                      mid_pts[6], centroids);
-    add_sub_tets_to_canvas_centroids(cq, mid_pts[0], mid_pts[3], mid_pts[4],
+    add_sub_tets_to_canvas_centroids(q, mid_pts[0], mid_pts[3], mid_pts[4],
                                      mid_pts[6], centroids);
-    add_sub_tets_to_canvas_centroids(cr, mid_pts[1], mid_pts[3], mid_pts[5],
+    add_sub_tets_to_canvas_centroids(r, mid_pts[1], mid_pts[3], mid_pts[5],
                                      mid_pts[6], centroids);
-    add_sub_tets_to_canvas_centroids(cs, mid_pts[2], mid_pts[4], mid_pts[5],
+    add_sub_tets_to_canvas_centroids(s, mid_pts[2], mid_pts[4], mid_pts[5],
                                      mid_pts[6], centroids);
+
+    CGAL_assertion(real_points_n <= canvas.canvas_points.size());
+    canvas.canvas_points.resize(real_points_n);
 
     duration += ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   }
@@ -204,10 +215,8 @@ public:
       else // colors.size() >= 2
       {
         std::clock_t start = std::clock();
-        split_cell_multiple_colors(canvas.canvas_points[cit->vertex(0)->info()],
-                                   canvas.canvas_points[cit->vertex(1)->info()],
-                                   canvas.canvas_points[cit->vertex(2)->info()],
-                                   canvas.canvas_points[cit->vertex(3)->info()],
+        split_cell_multiple_colors(cit->vertex(0)->info(), cit->vertex(1)->info(),
+                                   cit->vertex(2)->info(), cit->vertex(3)->info(),
                                    centroids);
 
         duration_m += ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
@@ -215,7 +224,7 @@ public:
       }
     }
 
-    std::cout << one_c << " " << m_c << std::endl;
+    std::cout << "coloration (one/multiple): " << one_c << " " << m_c << std::endl;
     std::cout << duration_one << " " << duration_m << std::endl;
   }
 

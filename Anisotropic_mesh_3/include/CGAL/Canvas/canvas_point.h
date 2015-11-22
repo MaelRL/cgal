@@ -103,13 +103,25 @@ public:
 //    }
   }
 
+  void reset_descendants()
+  {
+    //  std::cout << "reset descendant at: " << index << std::endl;
+    while(!m_children.empty())
+    {
+      Canvas_point& cp = m_canvas->get_point(*(m_children.begin()));
+      cp.reset_descendants();
+    }
+    reset_paint();
+  }
+
   void initialize_from_point(const FT d,
                              const std::size_t seed_id)
   {
 #if (verbosity > 15)
-    std::cout << "initialize " << index() << " (" << point() << ")";
+    std::cout << "initialize " << m_index << " (" << m_point << ")";
     std::cout << " at distance " << d << " from " << seed_id << std::endl;
 #endif
+    reset_paint();
 
     m_closest_seed_id = seed_id;
     m_distance_to_closest_seed = d;
@@ -119,12 +131,12 @@ public:
 
   void print_ancestor_tree() const
   {
-    std::cout << index() << " has ancestors: ";
-    std::size_t anc = ancestor();
+    std::cout << m_index << " has ancestors: ";
+    std::size_t anc = m_ancestor;
     while(anc != static_cast<std::size_t>(-1))
     {
       std::cout << anc << " ";
-      anc = m_canvas->canvas_points[anc].ancestor();
+      anc = m_canvas->get_point(anc).ancestor();
     }
     std::cout << std::endl;
   }
@@ -133,13 +145,13 @@ public:
   {
     FT gamma = 1.;
 //    std::cout << "init gamma: " << gamma << " " << index << std::endl;
-    std::size_t curr = index();
-    std::size_t anc = ancestor();
+    std::size_t curr = m_index;
+    std::size_t anc = m_ancestor;
 
     while(anc != static_cast<std::size_t>(-1))
     {
-      const Metric& m1 = m_canvas->canvas_points[anc].metric();
-      const Metric& m2 = m_canvas->canvas_points[curr].metric();
+      const Metric& m1 = m_canvas->get_point(anc).metric();
+      const Metric& m2 = m_canvas->get_point(curr).metric();
       FT loc_gamma = m1.compute_distortion(m2);
 //      std::cout << "loc: " << loc_gamma << " " << anc->index << std::endl;
 #if 1
@@ -161,7 +173,7 @@ public:
   std::size_t count_ancestors() const
   {
     std::size_t i = 1;
-    std::size_t anc = ancestor();
+    std::size_t anc = m_ancestor;
     while(anc != static_cast<std::size_t>(-1))
     {
       ++i;
@@ -170,20 +182,36 @@ public:
     return i;
   }
 
+  std::size_t ancestor_path_length() const
+  {
+    std::size_t i = 1;
+    std::size_t n_anc = m_ancestor;
+    while(n_anc != static_cast<std::size_t>(-1))
+    {
+      ++i;
+      const Canvas_point& anc = m_canvas->get_point(n_anc);
+      n_anc = anc.ancestor();
+
+      CGAL_assertion(i < m_canvas->canvas_points.size());
+    }
+    return i;
+  }
+
   void reset_paint()
   {
-    if(ancestor != static_cast<std::size_t>(-1))
-      canvas()->get_point(m_ancestor).remove_from_children(index);
-    typename Point_set::iterator cit = children.begin();
-    typename Point_set::iterator end = children.end();
+    if(m_ancestor != static_cast<std::size_t>(-1))
+      m_canvas->get_point(m_ancestor).remove_from_children(m_index);
+
+    typename Point_set::iterator cit = m_children.begin();
+    typename Point_set::iterator end = m_children.end();
     for(; cit!=end; ++cit)
-      canvas()->get_point(*cit).ancestor() = -1;
+      m_canvas->get_point(*cit).ancestor() = -1;
 
     m_state = FAR;
     m_distance_to_closest_seed = FT_inf;
     m_closest_seed_id = -1;
     m_ancestor = -1;
-    children.clear();
+    m_children.clear();
   }
 
   Canvas_point() { }

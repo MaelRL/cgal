@@ -81,76 +81,89 @@ public:
     }
   };
 
-  Canvas_point compute_precise_Voronoi_vertex_on_edge(const Canvas_point& cp,
-                                                      const Canvas_point& cq,
-                                                      int call_count = 0)
+  std::size_t compute_precise_Voronoi_vertex_on_edge(const std::size_t p,
+                                                     const std::size_t q,
+                                                     int call_count = 0)
   {
+    const Canvas_point& cp = this->get_point(p);
+    const Canvas_point& cq = this->get_point(q);
+
     // dichotomy with the centroid is most likely not the optimal thing...
 
     // create a virtual canvas point
     Point_3 centroid = CGAL::barycenter(cp.point(), 0.5, cq.point(), 0.5);
-    Canvas_point virtual_cp(centroid, -1, NULL/*vh*/, NULL/*tr*/, this);
+    this->canvas_points.push_back(Canvas_point(centroid, this->canvas_points.size(),
+                                               NULL/*vh*/, NULL/*tr*/, this));
+    Canvas_point& virtual_cp = this->canvas_points.back();
 
     if(cp.closest_seed_id() == cq.closest_seed_id())
     {
       CGAL_assertion(call_count == 0);
-      return virtual_cp;
+      return virtual_cp.index();
     }
 
     // set distance, seed_id and ancestor for the virtual point
-    virtual_cp.compute_closest_seed(cp.index());
-    virtual_cp.compute_closest_seed(cq.index());
+    virtual_cp.compute_closest_seed(cp);
+    virtual_cp.compute_closest_seed(cq);
     virtual_cp.state() = KNOWN;
 
     if(call_count > 0) // fixme don't hardcode stuff
-      return virtual_cp;
+      return virtual_cp.index();
 
     if(virtual_cp.closest_seed_id() == cp.closest_seed_id())
-      return compute_precise_Voronoi_vertex_on_edge(virtual_cp, cq, ++call_count);
+      return compute_precise_Voronoi_vertex_on_edge(virtual_cp.index(), q, ++call_count);
     else
     {
       CGAL_assertion(virtual_cp.closest_seed_id() == cq.closest_seed_id());
-      return compute_precise_Voronoi_vertex_on_edge(virtual_cp, cp, ++call_count);
+      return compute_precise_Voronoi_vertex_on_edge(virtual_cp.index(), p, ++call_count);
     }
   }
 
-  Canvas_point compute_precise_Voronoi_vertex_in_tetrahedron(const Canvas_point& cp,
-                                                             const Canvas_point& cq,
-                                                             const Canvas_point& cr,
-                                                             const Canvas_point& cs,
-                                                             int call_count = 0)
+  std::size_t compute_precise_Voronoi_vertex_in_tetrahedron(const std::size_t p,
+                                                            const std::size_t q,
+                                                            const std::size_t r,
+                                                            const std::size_t s,
+                                                            int call_count = 0)
   {
+    const Canvas_point& cp = this->get_point(p);
+    const Canvas_point& cq = this->get_point(q);
+    const Canvas_point& cr = this->get_point(r);
+    const Canvas_point& cs = this->get_point(s);
+
     // centroid is probably not the most optimal...
     Point_3 centroid = CGAL::centroid(cp.point(), cq.point(), cr.point(), cs.point());
-    Canvas_point virtual_cp(centroid, -1, NULL/*vh*/, NULL/*tr*/, this);
+    this->canvas_points.push_back(Canvas_point(centroid, this->canvas_points.size(),
+                                               NULL/*vh*/, NULL/*tr*/, this));
+    Canvas_point& virtual_cp = this->canvas_points.back();
 
     // set distance, seed_id and ancestor for the virtual point
-    virtual_cp.compute_closest_seed(cp.index());
-    virtual_cp.compute_closest_seed(cq.index());
-    virtual_cp.compute_closest_seed(cr.index());
-    virtual_cp.compute_closest_seed(cs.index());
+    virtual_cp.compute_closest_seed(cp);
+    virtual_cp.compute_closest_seed(cq);
+    virtual_cp.compute_closest_seed(cr);
+    virtual_cp.compute_closest_seed(cs);
     virtual_cp.state() = KNOWN;
 
     // another potential stop is if the (max) distance between the centroid
     // and a point of the triangle is below a given distance
     if(call_count > 0)
-      return virtual_cp;
+      return virtual_cp.index();
 
     // since we might have ci.closest_seed_id = cj.closest_seed_id, it kinda
     // favors the earliest point, but that shouldn't matter
     if(virtual_cp.closest_seed_id() == cp.closest_seed_id())
-      return compute_precise_Voronoi_vertex_in_tetrahedron(virtual_cp, cq, cr, cs,
+      return compute_precise_Voronoi_vertex_in_tetrahedron(virtual_cp.index(),
+                                                           q, r, s,
                                                            ++call_count);
     else if(virtual_cp.closest_seed_id() == cq.closest_seed_id())
-      return compute_precise_Voronoi_vertex_in_tetrahedron(cp, virtual_cp, cq, cs,
-                                                           ++call_count);
+      return compute_precise_Voronoi_vertex_in_tetrahedron(p, virtual_cp.index(),
+                                                           q, s, ++call_count);
     else if(virtual_cp.closest_seed_id() == cr.closest_seed_id())
-      return compute_precise_Voronoi_vertex_in_tetrahedron(cp, cq, virtual_cp, cs,
-                                                           ++call_count);
+      return compute_precise_Voronoi_vertex_in_tetrahedron(p, q, virtual_cp.index(),
+                                                           s, ++call_count);
     else
     {
       CGAL_assertion(virtual_cp.closest_seed_id() == cs.closest_seed_id());
-      return compute_precise_Voronoi_vertex_in_tetrahedron(cp, cq, cr, virtual_cp,
+      return compute_precise_Voronoi_vertex_in_tetrahedron(p, q, r, virtual_cp.index(),
                                                            ++call_count);
     }
   }

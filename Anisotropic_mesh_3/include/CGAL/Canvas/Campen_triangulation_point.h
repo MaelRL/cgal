@@ -198,7 +198,7 @@ public:
   }
 
   // this function is the heart of the painter
-  bool compute_closest_seed(std::size_t anc,
+  bool compute_closest_seed(const Self& anc,
                             const bool verb = false)
   {
     // returns true if we improved the distance
@@ -206,17 +206,14 @@ public:
 #if (verbosity > 20)
     std::cout << "------------------------------------------------" << std::endl;
     std::cout << "compute closest seed for : " << this->index();
-    std::cout << " (" << this->point() << ") ";
+    std::cout << " (" << this->point  () << ") ";
     std::cout << "curr. dist: " << this->distance_to_closest_seed();
-    std::cout << " anc: " << anc << " & ancdist: ";
-    std::cout << this->canvas()->get_point(anc).distance_to_closest_seed() << std::endl;
+    std::cout << " anc: " << anc.index() << " & ancdist: ";
+    std::cout << anc.distance_to_closest_seed() << std::endl;
 #endif
+    CGAL_assertion(anc.state() == KNOWN);
 
-    CGAL_assertion(anc != static_cast<std::size_t>(-1) &&
-                   anc < this->canvas()->canvas_points.size());
-    CGAL_assertion(this->canvas()->get_point(anc).state() == KNOWN);
-
-    const int k = 1; // depth of the ancestor edge
+    const int k = 8; // depth of the ancestor edge
     FT d = FT_inf;
 
     // the path is 'this' to ancestor1, ancestor1 to ancestor2, etc.
@@ -225,7 +222,7 @@ public:
     for(int i=1; i<k+1; ++i)
       ancestor_path[i] = -1;
     ancestor_path[0] = this->index();
-    ancestor_path[1] = anc;
+    ancestor_path[1] = anc.index();
 
     boost::array<Eigen::Matrix3d, k> path_metrics;
     for(int i=0; i<k; ++i)
@@ -248,7 +245,7 @@ public:
       path_metrics[i] = get_interpolated_transformation(m0, m1);
     }
 
-    std::size_t curr_anc = anc;
+    std::size_t curr_anc = anc.index();
     for(int i=1; i<=k; ++i)
     {
       const Base& curr_ancestor = this->canvas()->get_point(curr_anc);
@@ -335,19 +332,33 @@ public:
           std::cout << "prev anc: " << this->ancestor() << std::endl;
         else
           std::cout << "no prev anc" << std::endl;
-        std::cout << "new anc: " << anc << std::endl;
+        std::cout << "new anc: " << anc.index() << std::endl;
       }
 
       // remove 'index' from the previous ancestor's children (if needed)
       if(this->ancestor() != static_cast<std::size_t>(-1))
         this->canvas()->get_point(this->ancestor()).remove_from_children(this->index());
 
-      this->ancestor() = anc;
+      this->ancestor() = anc.index();
       this->distance_to_closest_seed() = d;
-      this->closest_seed_id() = this->canvas()->get_point(anc).closest_seed_id();
+      this->closest_seed_id() = anc.closest_seed_id();
 
       // add 'index' to the new ancestor's children
-      this->canvas()->get_point(this->ancestor()).children().insert(this->index());
+      anc.m_children.insert(this->index());
+
+//      if(!this->children().empty())
+//      {
+//        std::cout << "dealing with the " << this->children().size()
+//                  << " descendant(s) of " << this->index() << std::endl;
+//        std::cout << "position : " << this->point() << std::endl;
+//      }
+
+      while(!this->children().empty())
+      {
+        Self& cp = this->canvas()->get_point(*(this->children().begin()));
+        cp.reset_descendants();
+        CGAL_postcondition(cp.ancestor_path_length()); // checks for circular ancestry
+      }
 
       return true;
     }
@@ -375,7 +386,7 @@ public:
       else if(cp.state() == TRIAL)
       {
         // note that we don't insert in trial_pq since it's already in
-        if(cp.compute_closest_seed(this->index()))
+        if(cp.compute_closest_seed(*this))
           pqs_ret = REBUILD_TRIAL;
       }
       else // cp.state == FAR
@@ -386,7 +397,7 @@ public:
         // if we're refining, we've assigned FAR to all points after inserting a new
         // seed, therefore we must verify that compute_closest_seed is an update
         // before inserting it in the trial_queue
-        if(cp.compute_closest_seed(this->index()))
+        if(cp.compute_closest_seed(*this))
         {
           CGAL_assertion(cp.distance_to_closest_seed() != FT_inf);
           cp.state() = TRIAL;
