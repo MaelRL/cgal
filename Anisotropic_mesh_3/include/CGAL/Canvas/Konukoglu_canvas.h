@@ -128,7 +128,7 @@ public:
 
       Canvas_point* cp = &(this->canvas_points[i]);
       cp->closest_seed_id() = -1;
-      cp->m_ancestor = static_cast<std::size_t>(-1);
+      cp->ancestor() = static_cast<std::size_t>(-1);
 
       CGAL_assertion(cp->state() == KNOWN);
 
@@ -276,7 +276,7 @@ public:
                    const FT side_,
                    const std::size_t points_per_side,
                    const std::size_t max_seeds_n_,
-                   const Metric_field& mf_,
+                   const Metric_field* mf_,
                    const FT tolerance_)
     :
       Base(canvas_str_, seeds_str_,

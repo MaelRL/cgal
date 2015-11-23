@@ -266,7 +266,7 @@ public:
     Point_3 new_seed = compute_centroid(seed_id, seed_centroids);
 
     canvas.seeds[seed_id] = new_seed;
-    canvas.seeds.seeds_metrics[seed_id] = canvas.mf.compute_metric(new_seed);
+    canvas.seeds.seeds_metrics[seed_id] = canvas.mf->compute_metric(new_seed);
 
     typename Kernel::Compute_squared_distance_3 sqd =
                                    Kernel().compute_squared_distance_3_object();

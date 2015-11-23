@@ -60,7 +60,7 @@ public:
 #endif
 
     seeds.push_back(Point_3(x, y, z));
-    seeds_metrics.push_back(canvas.mf.compute_metric(seeds.back()));
+    seeds_metrics.push_back(canvas.mf->compute_metric(seeds.back()));
     return seeds.size();
   }
 

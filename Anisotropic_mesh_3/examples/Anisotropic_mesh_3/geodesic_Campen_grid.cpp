@@ -22,8 +22,7 @@ int main(int, char**)
   typedef typename K::FT                                    FT;
   typedef typename K::Point_3                               Point_3;
 
-  typedef typename CGAL::Anisotropic_mesh_3::Euclidean_metric_field<K>  MF;
-  //typedef typename CGAL::Anisotropic_mesh_3::Custom_metric_field<K>  MF;
+  typedef Metric_field<K>                                   MF;
 
   typedef Campen_grid_point<K, MF>                          Campen_canvas_point;
   typedef Grid_canvas<K, Campen_canvas_point, MF>           Canvas;
@@ -34,8 +33,9 @@ int main(int, char**)
   double duration;
   std::clock_t start = std::clock();
 
-  MF mf(1., 1., 3.); // Euclidean
-//  MF mf(); // Custom
+  //----------- pick a metric field! ----
+  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
 
   const std::string canvas_str = "grid";
   const std::string seeds_str = "base_mesh.mesh";
@@ -49,7 +49,7 @@ int main(int, char**)
   Canvas canvas(canvas_str, seeds_str,
                 center, canvas_side, points_per_side,
                 max_seeds_n,
-                mf);
+                metric_field);
 
   canvas.initialize();
   canvas.paint();

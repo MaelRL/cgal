@@ -31,9 +31,9 @@ int main(int argc, char** argv)
   int n = 1;
 
 //geometry
-  FT a = (argc > n) ? atof(argv[n++]) : 0.5; // half the side
-  FT b = (argc > n) ? atof(argv[n++]) : 0.5;
-  Point_2 offset(1.,1.);
+  FT a = (argc > n) ? atof(argv[n++]) : 5; // half the side
+  FT b = (argc > n) ? atof(argv[n++]) : 5;
+  Point_2 center(0., 0.);
 
 //metric field
   FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
@@ -56,11 +56,11 @@ int main(int argc, char** argv)
   timer.start();
 
   //----------- pick a domain! ----------
-  Rectangle_domain<K>* pdomain = new Rectangle_domain<K>(a, b, offset);
+  Rectangle_domain<K>* pdomain = new Rectangle_domain<K>(a, b, center);
 
   //----------- pick a metric field! ----
-  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(5., 1.);
-  //Custom_metric_field<K>* metric_field = new Custom_metric_field<K>(epsilon);
+//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(1., 1.);
+  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>(epsilon);
 
   Starset<K> starset;
 

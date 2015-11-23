@@ -421,7 +421,7 @@ public:
               const FT side_,
               const std::size_t points_per_side,
               const std::size_t max_seeds_n_,
-              const Metric_field& mf_)
+              const Metric_field* mf_)
     :
       Base(canvas_str_, seeds_str_, max_seeds_n_, mf_),
       center(center_),

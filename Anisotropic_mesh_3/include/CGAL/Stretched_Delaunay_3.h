@@ -135,7 +135,7 @@ private:
   mutable bool m_metric_needs_update;
 
   mutable bool is_cache_dirty;
-  mutable Facet_set restricted_facets_cache; //restricted and incident to m_center
+  mutable Facet_set restricted_facets_cache; // restricted and incident to m_center
   mutable Cell_handle_vector incident_cells_cache;
   mutable Cell_handle_vector finite_incident_cells_cache;
   mutable Vertex_handle_vector finite_adjacent_vertices_cache;

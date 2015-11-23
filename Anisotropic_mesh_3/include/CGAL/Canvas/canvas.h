@@ -96,7 +96,7 @@ public:
   Seeds seeds;
 
   // Metric field
-  const Metric_field& mf;
+  const Metric_field* mf;
 
   // Primal triangulation
   Primal_edges_container primal_edges;
@@ -312,6 +312,8 @@ public:
 
       is_t_empty = trial_points.empty();
     }
+
+    CGAL_expensive_assertion_code(debug());
 
 #if (verbosity > 15)
     std::cout << "final states after painting: " << std::endl;
@@ -887,7 +889,7 @@ public:
   Canvas(const std::string& canvas_str_,
          const std::string& seeds_str_,
          const std::size_t max_seeds_n_,
-         const Metric_field& mf_)
+         const Metric_field* mf_)
     :
       canvas_str(canvas_str_),
       canvas_points(),

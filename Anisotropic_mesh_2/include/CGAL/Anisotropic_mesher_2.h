@@ -103,7 +103,7 @@ private:
   RefinementCondition m_refinement_condition;
 
 public:
-  double refine_mesh(const bool refine_consistency)
+  double refine_mesh()
   {
     CGAL::Timer timer;
     timer.start();
@@ -115,8 +115,10 @@ public:
     m_face_mesher.refine(m_face_visitor);
 
     // Then scan and solve face inconsistencies
+#ifndef ANISO_NO_CONSISTENCY
     m_face_consistency_mesher.initialize();
     m_face_consistency_mesher.refine(m_face_consistency_visitor);
+#endif
 #else
     m_face_mesher.initialize();
 
@@ -135,30 +137,28 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
+#ifndef ANISO_NO_CONSISTENCY
     // ------------------------------------------------
-    if(refine_consistency)
+    std::cout << "Start consistency surface scan...";
+    m_face_consistency_mesher.initialize();
+    std::cout << std::endl << "end scan" << std::endl;
+
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
+
+    while (!m_face_consistency_mesher.is_algorithm_done())
     {
-      std::cout << "Start consistency surface scan...";
-      m_face_consistency_mesher.initialize();
-      std::cout << std::endl << "end scan" << std::endl;
-
-      elapsed_time += timer.time();
-      timer.stop(); timer.reset(); timer.start();
-
-      while (!m_face_consistency_mesher.is_algorithm_done())
-      {
-        m_face_consistency_mesher.one_step(m_face_consistency_visitor);
-        if(m_starset.size()%10 == 0)
-          time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
-      }
+      m_face_consistency_mesher.one_step(m_face_consistency_visitor);
+      if(m_starset.size()%10 == 0)
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
 
       std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
       elapsed_time += timer.time();
       timer.stop(); timer.reset(); timer.start();
     }
+#endif
 
     // ------------------------------------------------
-
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
     std::cout << "Total refining time: " << timer.time()+elapsed_time << "s" << std::endl;
 #endif
@@ -170,7 +170,11 @@ public:
 
   void resume_from_mesh_file(const char* filename)
   {
+#ifndef ANISO_NO_CONSISTENCY
     m_face_consistency_mesher.resume_from_mesh_file(filename);
+#else
+    m_face_mesher.resume_from_mesh_file(filename);
+#endif
   }
 
   // Step-by-step methods
@@ -181,19 +185,29 @@ public:
 
   void one_step()
   {
+#ifndef ANISO_NO_CONSISTENCY
     m_face_consistency_mesher.one_step(m_face_consistency_visitor);
+#else
+    m_face_mesher.one_step(m_face_visitor);
+#endif
   }
 
   bool is_algorithm_done()
   {
+#ifndef ANISO_NO_CONSISTENCY
     return m_face_consistency_mesher.is_algorithm_done();
+#else
+    return m_face_mesher.is_algorithm_done();
+#endif
   }
 
   void report()
   {
     std::cout << m_starset.size() << " vertices" << std::endl;
     m_face_mesher.report();
+#ifndef ANISO_NO_CONSISTENCY
     m_face_consistency_mesher.report();
+#endif
     std::cout << "consistency of EVERYTHING: ";
     std::cout << m_starset.is_consistent(true /*verbose*/) << std::endl;
   }

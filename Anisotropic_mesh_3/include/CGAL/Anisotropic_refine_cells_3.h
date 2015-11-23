@@ -342,7 +342,7 @@ public:
     }
     */
 
-    if(this->m_starset.size()%100 == 0) //should be somewhere else todo
+    if(this->m_starset.size()%1000 == 0) //should be somewhere else todo
     {
       std::ofstream out_med("bambimboum_wip.mesh");
       output_medit(this->m_starset, out_med, false);

@@ -28,8 +28,7 @@ int main(int, char**)
 {
   typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 
-//  typedef Euclidean_metric_field<K>                            MF;
-  typedef Custom_metric_field<K>                               MF;
+  typedef Metric_field<K>                                      MF;
 
   typedef Campen_canvas_point<K, MF>                           Campen_canvas_point;
   typedef Canvas<K, Campen_canvas_point, MF>                   Base_canvas;
@@ -44,8 +43,9 @@ int main(int, char**)
   std::clock_t start = std::clock();
   std::srand(0);
 
-//  MF mf(2, 4., 8.); // Euclidean
-  MF mf; // Custom
+  //----------- pick a metric field! ----
+//  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
 
   // select the canvas
   const std::string canvas_str = "dense_base_mesh";
@@ -53,10 +53,10 @@ int main(int, char**)
   std::size_t max_seeds_n = 150;
   const std::string seeds_str = "dense_base_mesh_tr_primal.mesh";
 
-//  CGAL::generate_canvas<K, MF>(mf);
+  CGAL::generate_canvas<K, MF>(metric_field);
 //  exit(0);
 
-  Canvas canvas(canvas_str, seeds_str, max_seeds_n, mf);
+  Canvas canvas(canvas_str, seeds_str, max_seeds_n, metric_field);
   canvas.initialize();
   canvas.paint();
 
@@ -66,7 +66,6 @@ int main(int, char**)
   mesher.refine();
 
   canvas.output_canvas_data_and_primal(canvas_str + "_tr");
-  canvas.output_canvas(canvas_str + "_tr");
 
   // Optimization
   std::size_t max_opti_iter = 1000;

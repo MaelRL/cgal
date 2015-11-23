@@ -20,7 +20,7 @@ class Anisotropic_mesher_2_base
   typedef Anisotropic_mesher_2_base Self;
 
 public:
-  virtual double refine_mesh(const bool refine_consistency = true) = 0;
+  virtual double refine_mesh() = 0;
   virtual void resume_from_mesh_file(const char* filename) = 0;
 
   // Step-by-step methods

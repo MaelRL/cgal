@@ -730,7 +730,7 @@ public:
   Campen_canvas(const std::string& canvas_str_,
                 const std::string& seeds_str_,
                 const std::size_t max_seeds_n_,
-                const Metric_field& mf_)
+                const Metric_field* mf_)
     :
       Base(canvas_str_, seeds_str_, max_seeds_n_, mf_),
       m_tr()

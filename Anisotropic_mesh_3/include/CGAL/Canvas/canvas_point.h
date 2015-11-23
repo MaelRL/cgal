@@ -21,8 +21,8 @@ namespace Anisotropic_mesh_3
 template<typename K, typename Canvas>
 class Canvas_point
 {
+public:
   typedef Canvas_point<K, Canvas>                           Self;
-protected:
   typedef typename K::FT                                    FT;
   typedef typename K::Point_3                               Point_3;
   typedef Metric_base<K>                                    Metric;
@@ -30,6 +30,7 @@ protected:
 
   typedef boost::unordered_set<std::size_t>                 Point_set;
 
+protected:
   Point_3 m_point;
   std::size_t m_index;
   FT m_distance_to_closest_seed;
@@ -223,7 +224,7 @@ public:
       m_distance_to_closest_seed(FT_inf),
       m_closest_seed_id(-1),
       m_state(FAR),
-      m_metric(canvas->mf.compute_metric(m_point)),
+      m_metric(canvas->mf->compute_metric(m_point)),
       m_ancestor(-1),
       m_children(),
       m_canvas(canvas)

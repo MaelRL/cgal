@@ -355,7 +355,7 @@ public:
     }
 // --------------------------------------------------------------------------------------------------
 
-    if(this->m_starset.size()%100 == 0) // TMP
+    if(this->m_starset.size()%1000 == 0) // TMP
     {
       std::ofstream out_med("bambimboum_wip.mesh");
       output_surface_medit(this->m_starset, out_med);

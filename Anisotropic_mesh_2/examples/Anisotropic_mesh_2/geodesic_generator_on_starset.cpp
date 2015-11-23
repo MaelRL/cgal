@@ -1,6 +1,9 @@
 // this is based on the paper :
 // Campen et al, Practical Anisotropic Geodesy EG 2013
 
+// canvas is a starset
+#define ANISO_NO_CONSISTENCY
+
 #include <CGAL/Anisotropic_mesher_2.h>
 #include <CGAL/Starset.h>
 #include <CGAL/IO/Star_set_output.h>
@@ -107,7 +110,7 @@ Criteria_base<K> criteria(f_r0, f_rho0, gamma, beta, delta, nb, max_times_to_try
 void generate_starset(Star_set& ss)
 {
   Anisotropic_mesher_2<K> mesher(ss, &pdomain, &criteria, mf);
-  mesher.refine_mesh(false /*refine consistency*/);
+  mesher.refine_mesh();
 
   std::ofstream out("geo_starset.mesh");
   output_medit(ss, out, false/*consistent_only*/);
@@ -1033,7 +1036,7 @@ public:
     // corners are points outside the domain lazily added by the starset so
     // it doesn't have to deal with the refinement of infinite cells
     // these points are the first four stars
-    for(std::size_t i=0; i< 4; ++i)
+    for(std::size_t i=0; i<4; ++i)
     {
       points[i].closest_seed_id = -1;
       points[i].distance_to_closest_seed = 0;

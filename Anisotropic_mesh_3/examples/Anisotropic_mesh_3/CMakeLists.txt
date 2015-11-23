@@ -83,7 +83,8 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program("geodesic_Konukoglu_grid.cpp")
   create_single_source_cgal_program("geodesic_Campen_grid.cpp")
   create_single_source_cgal_program("geodesic_Campen_triangulation.cpp")
-
+  create_single_source_cgal_program("geodesic_Campen_starset.cpp")
+  
   else(LAPACK_FOUND)
     message(STATUS "NOTICE: Some of the executables in this directory need the LAPACK library and will not be compiled.")
   endif(LAPACK_FOUND)

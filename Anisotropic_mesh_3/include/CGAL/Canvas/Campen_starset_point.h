@@ -1,16 +1,17 @@
-#ifndef CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_POINT_H
-#define CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_POINT_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_CAMPEN_STARSET_POINT_H
+#define CGAL_ANISOTROPIC_MESH_3_CAMPEN_STARSET_POINT_H
 
 #include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/canvas_enum.h>
 #include <CGAL/Canvas/canvas_point.h>
 #include <CGAL/Canvas/canvas_helper.h>
 
+#include <CGAL/Anisotropic_mesher_3.h>
+#include <CGAL/Starset.h>
+#include <CGAL/IO/Star_set_output.h>
+
 #include <CGAL/Metric.h>
 
-#include <CGAL/Triangulation_vertex_base_with_info_3.h>
-#include <CGAL/Triangulation_cell_base_with_info_3.h>
-#include <CGAL/Triangulation_3.h>
 #include <CGAL/assertions.h>
 
 #include <boost/array.hpp>
@@ -26,24 +27,50 @@ namespace CGAL
 namespace Anisotropic_mesh_3
 {
 
-template<typename K, typename Metric_field>
-class Campen_canvas;
+bool is_a_corner_vertex(std::size_t id)
+{
+  return id < 8;
+}
 
-template<typename K, typename Metric_field>
-class Campen_canvas_point :
-    public Canvas_point<K, Campen_canvas<K, Metric_field> >
+template<typename Vh>
+bool is_a_corner_vertex(Vh vh)
+{
+  return vh->info() < 8;
+}
+
+template<typename Sh>
+bool has_a_corner_vertex(Sh star)
+{
+  typename Sh::Vertex_handle_handle vit = star->finite_adjacent_vertices_begin();
+  typename Sh::Vertex_handle_handle vend = star->finite_adjacent_vertices_end();
+  for(; vit != vend; vit++)
+  {
+    typename Sh::Vertex_handle vh = *vit;
+    if(is_a_corner_vertex(vh))
+      return true;
+  }
+
+  return false;
+}
+
+template<typename K, typename Domain, typename MF, typename Criteria>
+class Campen_starset_canvas;
+
+template<typename K, typename Domain, typename MF, typename Criteria>
+class Campen_starset_point :
+    public Canvas_point<K, Campen_starset_canvas<K, Domain, MF, Criteria> >
 {
 private:
-  typedef Campen_canvas_point<K, Metric_field>                        Self;
+  typedef Campen_starset_point<K, Domain, MF, Criteria>               Self;
 
 public:
-  typedef typename std::vector<Campen_canvas_point>   Campen_canvas_point_vector;
-  typedef Self*                                       Campen_canvas_point_handle;
+  typedef typename std::vector<Self>                   Campen_starset_point_vector;
+  typedef Self*                                        Campen_starset_point_handle;
 
   typedef int                          Vertex_Info; // index of the canvas point
   typedef int                          Cell_Info; // index of the subdomain
 
-  typedef Campen_canvas<K, Metric_field>                              Canvas;
+  typedef Campen_starset_canvas<K, Domain, MF, Criteria>              Canvas;
   typedef Canvas_point<K, Canvas>                                     Base;
 
   typedef typename K::FT                                              FT;
@@ -51,151 +78,14 @@ public:
   typedef typename Base::Metric                                       Metric;
   typedef typename Base::Vector3d                                     Vector3d;
 
-  typedef typename CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K>  Vb;
-  typedef typename CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>      Cb;
-  typedef typename CGAL::Triangulation_data_structure_3<Vb, Cb>                 TDS;
-  typedef CGAL::Triangulation_3<K, TDS>                                         Tr;
+  typedef Starset_with_info<K, Domain, MF, Criteria>                  Star_set;
+  typedef typename Star_set::Star_handle                              Star_handle;
+  typedef typename Star_set::Vertex_handle                            Vertex_handle;
+  typedef typename Star_set::Vertex_handle_handle                     Vertex_handle_handle;
+  typedef typename Star_set::Cell_handle                              Cell_handle;
+  typedef typename Star_set::Cell_handle_handle                       Cell_handle_handle;
 
-  typedef typename Tr::Vertex_handle                                  Vertex_handle;
-  typedef typename Tr::Cell_handle                                    Cell_handle;
-  typedef std::vector<Vertex_handle>                                  Vertex_handle_vector;
-  typedef std::vector<Cell_handle>                                    Cell_handle_vector;
-  typedef typename Vertex_handle_vector::iterator                     Vertex_handle_handle;
-  typedef typename Cell_handle_vector::iterator                       Cell_handle_handle;
-  typedef typename Vertex_handle_vector::const_iterator               Vertex_handle_const_handle;
-
-  Vertex_handle m_v; // corresponding vertex in the triangulation
-  Tr* m_tr;
-
-  mutable bool m_is_vertices_cache_dirty, m_is_cells_cache_dirty;
-  mutable Vertex_handle_vector m_finite_interior_adjacent_vertices_cache;
-  mutable Cell_handle_vector m_finite_interior_incident_cells_cache;
-
-  // cache related functions
-
-  // returns cells that are finite, incident and interior to the canvas
-  struct Finite_interior_cell_filter
-  {
-    Finite_interior_cell_filter() {}
-    bool operator() (const Cell_handle& c) const
-    {
-      // filters infinite cells (info = -1)
-      // filters finite exterior cells (info = 0)
-      return c->info() < 1;
-    }
-  };
-
-  template<class OutputIterator>
-  OutputIterator
-  finite_interior_incident_cells(OutputIterator cells) const
-  {
-    return m_tr->tds().incident_cells(m_v, cells, Finite_interior_cell_filter());
-  }
-
-  // we need a special function to get the neighbors on the canvas (since the canvas
-  // is a restricted part of the triangulation)
-
-  // note that the filter is not on the vertices, but on the cells...
-  // the nice way would be to create some kind of Cell_filter that would be used
-  // in the function visit_incident_cell, but it's a lot of work
-  template<class OutputIterator>
-  OutputIterator
-  finite_interior_adjacent_vertices(OutputIterator vertices) const
-  {
-    CGAL_assertion(m_v != Vertex_handle());
-    CGAL_assertion(m_tr->dimension() > 1); // doesn't make sense for dim=-1,0,1
-
-    // keep in memory the vertices whose extractor boolean will need to be reset
-    std::vector<Vertex_handle> tmp_vertices;
-    m_v->visited_for_vertex_extractor = true;
-    tmp_vertices.push_back(m_v);
-
-    Cell_handle_handle cit = finite_interior_incident_cells_begin();
-    Cell_handle_handle cend = finite_interior_incident_cells_end();
-    for(; cit!=cend; ++cit)
-    {
-      Cell_handle c = *cit;
-      CGAL_assertion(c->info() >= 1);
-
-      for(std::size_t i=0; i<4; ++i)
-      {
-        Vertex_handle vh = c->vertex(i);
-        if(!vh->visited_for_vertex_extractor)
-        {
-          tmp_vertices.push_back(vh);
-          *vertices++ = vh;
-          vh->visited_for_vertex_extractor = true;
-        }
-      }
-    }
-
-    for(std::size_t i=0; i<tmp_vertices.size(); ++i)
-      tmp_vertices[i]->visited_for_vertex_extractor = false;
-
-    return vertices;
-  }
-
-  void update_canvas_point_vertices_cache() const
-  {
-    if(!m_is_vertices_cache_dirty)
-      return;
-
-    m_finite_interior_adjacent_vertices_cache.clear();
-    finite_interior_adjacent_vertices(
-                 std::back_inserter(m_finite_interior_adjacent_vertices_cache));
-
-    m_is_vertices_cache_dirty = false;
-  }
-
-  void update_canvas_point_cells_cache() const
-  {
-    if(!m_is_cells_cache_dirty)
-      return;
-
-    m_finite_interior_incident_cells_cache.clear();
-    finite_interior_incident_cells(
-                    std::back_inserter(m_finite_interior_incident_cells_cache));
-
-    m_is_cells_cache_dirty = false;
-  }
-
-  void update_canvas_point_caches() const
-  {
-    // updating the vertices cache will update the cells cache anyway, but
-    // putting both for clarity
-    update_canvas_point_cells_cache();
-    update_canvas_point_vertices_cache();
-  }
-
-  void invalidate_caches() const
-  {
-    m_is_vertices_cache_dirty = true;
-    m_is_cells_cache_dirty = true;
-  }
-
-  inline Vertex_handle_handle finite_interior_adjacent_vertices_begin() const
-  {
-    update_canvas_point_vertices_cache();
-    return m_finite_interior_adjacent_vertices_cache.begin();
-  }
-
-  inline Vertex_handle_handle finite_interior_adjacent_vertices_end() const
-  {
-    CGAL_assertion(!m_is_vertices_cache_dirty);
-    return m_finite_interior_adjacent_vertices_cache.end();
-  }
-
-  inline Cell_handle_handle finite_interior_incident_cells_begin() const
-  {
-    update_canvas_point_cells_cache();
-    return m_finite_interior_incident_cells_cache.begin();
-  }
-
-  inline Cell_handle_handle finite_interior_incident_cells_end() const
-  {
-    CGAL_assertion(!m_is_cells_cache_dirty);
-    return m_finite_interior_incident_cells_cache.end();
-  }
+  Star_set* m_ss;
 
   // this function is the heart of the painter
   bool compute_closest_seed(const Self& anc,
@@ -206,7 +96,7 @@ public:
 #if (verbosity > 20)
     std::cout << "------------------------------------------------" << std::endl;
     std::cout << "compute closest seed for : " << this->index();
-    std::cout << " (" << this->point  () << ") ";
+    std::cout << " (" << this->point() << ") ";
     std::cout << "curr. dist: " << this->distance_to_closest_seed();
     std::cout << " anc: " << anc.index() << " & ancdist: ";
     std::cout << anc.distance_to_closest_seed() << std::endl;
@@ -365,7 +255,7 @@ public:
     return false;
   }
 
-  PQ_state update_neighbors_distances(std::vector<Campen_canvas_point*>& trial_pq)
+  PQ_state update_neighbors_distances(std::vector<Self*>& trial_pq)
   {
     // consider all the neighbors of a KNOWN point and compute their distance to 'this'
 #if (verbosity > 15)
@@ -375,12 +265,16 @@ public:
 
     PQ_state pqs_ret = NOTHING_TO_DO;
 
-    Vertex_handle_handle it = finite_interior_adjacent_vertices_begin();
-    Vertex_handle_handle end = finite_interior_adjacent_vertices_end();
+    Star_handle star = m_ss->get_star(this->index());
+    Vertex_handle_handle it = star->finite_adjacent_vertices_begin();
+    Vertex_handle_handle end = star->finite_adjacent_vertices_end();
     for(; it!=end; ++it)
     {
-      Vertex_handle v = *it;
-      Self& cp = this->canvas()->get_point(v->info());
+      Vertex_handle vh = *it;
+      if(is_a_corner_vertex(vh))
+        continue;
+
+      Self& cp = this->canvas()->get_point(vh->info());
       if(cp.state() == KNOWN)
         continue;
       else if(cp.state() == TRIAL)
@@ -411,22 +305,17 @@ public:
     return pqs_ret;
   }
 
-  Campen_canvas_point() : Base(), m_v(NULL), m_tr(NULL) { }
+  Campen_starset_point() : Base(), m_ss(NULL) { }
 
-  Campen_canvas_point(const Point_3& p, const std::size_t index,
-                      Vertex_handle v, Tr* tr, Canvas* canvas)
+  Campen_starset_point(const Point_3& p, const std::size_t index,
+                      Star_set* ss_, Canvas* canvas)
     :
       Base(p, index, canvas),
-      m_v(v),
-      m_tr(tr),
-      m_is_vertices_cache_dirty(true),
-      m_is_cells_cache_dirty(true),
-      m_finite_interior_adjacent_vertices_cache(),
-      m_finite_interior_incident_cells_cache()
+      m_ss(ss_)
   { }
 };
 
 } // namespace Anisotropic_mesh_3
 } // namespace CGAL
 
-#endif // CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_POINT_H
+#endif // CGAL_ANISOTROPIC_MESH_3_CAMPEN_STARSET_POINT_H

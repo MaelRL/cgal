@@ -79,7 +79,7 @@ public:
   //Visitors
   typedef Null_anisotropic_mesher_visitor                   Null_mesher_visitor;
   typedef Null_anisotropic_mesher_visitor_level<Null_mesher_visitor>
-  Facets_visitor;
+                                                            Facets_visitor;
 
 private:
   // Star set

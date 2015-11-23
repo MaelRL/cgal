@@ -143,6 +143,7 @@ public:
     m_cell_mesher.initialize();
     m_cell_mesher.refine(m_cell_visitor);
 
+#ifndef ANISO_NO_CONSISTENCY
     // Then scan and solve facet inconsistencies
     m_facet_consistency_mesher.initialize();
     m_facet_consistency_mesher.refine(m_facet_consistency_visitor);
@@ -150,7 +151,7 @@ public:
     // Then scan and solve cell inconsistencies
     m_cell_consistency_mesher.initialize();
     m_cell_consistency_mesher.refine(m_cell_consistency_visitor);
-
+#endif
 #else
     m_facet_mesher.initialize();
 
@@ -174,7 +175,6 @@ public:
     m_facet_consistency_mesher.is_3D_level() = true;
 
     // ------------------------------------------------
-
     std::cout << "Start volume scan...";
     m_cell_mesher.initialize();
     std::cout << std::endl << "end scan" << std::endl;
@@ -193,8 +193,8 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
+#ifndef ANISO_NO_CONSISTENCY
     // ------------------------------------------------
-
     std::cout << "Start consistency surface scan...";
     m_facet_consistency_mesher.initialize();
     std::cout << std::endl << "end scan" << std::endl;
@@ -222,7 +222,7 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
-    while (!m_cell_consistency_mesher.is_algorithm_done())
+    while(!m_cell_consistency_mesher.is_algorithm_done())
     {
       m_cell_consistency_mesher.one_step(m_cell_consistency_visitor);
       if(m_starset.size()%10 == 0)
@@ -232,6 +232,7 @@ public:
     std::cout << "Total refining consistency volume time: " << timer.time() << "s" << std::endl;
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
+#endif
 
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
     std::cout << "Total refining time: " << timer.time()+elapsed_time << "s" << std::endl;
@@ -244,7 +245,7 @@ public:
 
   void resume_from_mesh_file(const char* filename)
   {
-    m_cell_mesher.resume_from_mesh_file(filename);
+    m_cell_consistency_mesher.resume_from_mesh_file(filename);
   }
 
   // Step-by-step methods
@@ -255,12 +256,20 @@ public:
 
   void one_step()
   {
+#ifndef ANISO_NO_CONSISTENCY
     m_cell_consistency_mesher.one_step(m_cell_consistency_visitor);
+#else
+    m_cell_mesher.one_step(m_cell_visitor);
+#endif
   }
 
   bool is_algorithm_done()
   {
+#ifndef ANISO_NO_CONSISTENCY
     return m_cell_consistency_mesher.is_algorithm_done();
+#else
+    return m_cell_mesher.is_algorithm_done();
+#endif
   }
 
   void report()
@@ -268,8 +277,10 @@ public:
     std::cout << m_starset.size() << " vertices" << std::endl;
     m_facet_mesher.report();
     m_cell_mesher.report();
+#ifndef ANISO_NO_CONSISTENCY
     m_facet_consistency_mesher.report();
     m_cell_consistency_mesher.report();
+#endif
     std::cout << "consistency of EVERYTHING: ";
     std::cout << m_starset.is_consistent(true /*verbose*/) << std::endl;
   }

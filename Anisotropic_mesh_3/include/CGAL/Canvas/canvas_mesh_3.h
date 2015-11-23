@@ -158,13 +158,13 @@ struct Geo_sizing_field
 
   typedef typename MF::Metric                                    Metric;
 
-  const MF& mf;
+  const MF* mf;
 
   FT operator()(const Point_3& p, const int, const Index&) const
   {
     const FT base = 10.;
 
-    const Metric& m = mf.compute_metric(p);
+    const Metric& m = mf->compute_metric(p);
     const FT e_max = m.get_max_eigenvalue();
     const FT e_min = m.get_min_eigenvalue();
     const FT e_third = m.get_third_eigenvalue();
@@ -180,11 +180,11 @@ struct Geo_sizing_field
     return (std::min)(base, metric_based_size);
   }
 
-  Geo_sizing_field(const MF& mf_) : mf(mf_) { }
+  Geo_sizing_field(const MF* mf_) : mf(mf_) { }
 };
 
 template<typename K, typename MF>
-void generate_canvas(const MF& mf)
+void generate_canvas(const MF* mf)
 {
   typedef typename K::FT                                         FT;
   typedef typename K::Point_3                                    Point_3;

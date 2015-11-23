@@ -36,19 +36,19 @@ void dump(const Starset& stars)
   std::ofstream fx("dump.txt");
 
   std::size_t ns = stars.size();
-  fx << ns << std::endl;
+  fx << ns << '\n';
   for(std::size_t i=0; i<ns; ++i)
-    fx << stars[i]->center_point() << std::endl;
+    fx << stars[i]->center_point() << '\n';
 
   for(std::size_t i=0; i<ns; ++i)
   {
     typename Starset::Star_handle star_i = stars[i];
-    typename Starset::Vertex_handle_handle nsi = star_i->begin_neighboring_vertices();
-    typename Starset::Vertex_handle_handle nsiend = star_i->end_neighboring_vertices();
-    fx << nsiend - nsi;
-    for(; nsi != nsiend; nsi++)
-      fx << " " << (*nsi)->info();
-    fx << std::endl;
+    typename Starset::Vertex_handle_handle vit = star_i->finite_adjacent_vertices_begin();
+    typename Starset::Vertex_handle_handle vend = star_i->finite_adjacent_vertices_end();
+    fx << vend - vit;
+    for(; vit!=vend; vit++)
+      fx << " " << (*vit)->info();
+    fx << '\n';
   }
 }
 
@@ -83,10 +83,10 @@ void output_surface_star_off(const Starset& stars,
     output_facets.insert(Facet_ijk(ids[0], ids[1], ids[2]));
   }
 
-  fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_facets.size() << " 0" << std::endl;
+  fx << "OFF" << '\n';
+  fx << points.size() << " " << output_facets.size() << " 0" << '\n';
   for(unsigned int i = 0; i < points.size(); i++)
-    fx << points[i] << std::endl;
+    fx << points[i] << '\n';
 
   typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
   typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
@@ -94,7 +94,7 @@ void output_surface_star_off(const Starset& stars,
   {
     fx << "3  " << match_indices[fit->vertices()[0] ]
         << " "   << match_indices[fit->vertices()[1] ]
-        << " "   << match_indices[fit->vertices()[2] ] << std::endl;
+        << " "   << match_indices[fit->vertices()[2] ] << '\n';
   }
 }
 
@@ -136,10 +136,10 @@ void output_star_off(const Starset& stars,
     output_facets.insert(Facet_ijk(ids[3], ids[1], ids[2]));
   }
 
-  fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_facets.size() << " 0" << std::endl;
+  fx << "OFF" << '\n';
+  fx << points.size() << " " << output_facets.size() << " 0" << '\n';
   for(unsigned int i = 0; i < points.size(); i++)
-    fx << points[i] << std::endl;
+    fx << points[i] << '\n';
 
   typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
   typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
@@ -147,7 +147,7 @@ void output_star_off(const Starset& stars,
   {
     fx << "3  " << match_indices[fit->vertices()[0] ]
         << " "   << match_indices[fit->vertices()[1] ]
-        << " "   << match_indices[fit->vertices()[2] ] << std::endl;
+        << " "   << match_indices[fit->vertices()[2] ] << '\n';
   }
 }
 
@@ -199,10 +199,10 @@ void output_off(const Starset& stars,
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning OFF : there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 
-  fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_facets.size() << " " << output_cells.size() << std::endl;
+  fx << "OFF" << '\n';
+  fx << points.size() << " " << output_facets.size() << " " << output_cells.size() << '\n';
   for(unsigned int i = 0; i < points.size(); i++)
-    fx << points[i] << std::endl;
+    fx << points[i] << '\n';
 
   typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
   typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
@@ -210,7 +210,7 @@ void output_off(const Starset& stars,
   {
     fx << "3  " << fit->vertices()[0]
        << " "   << fit->vertices()[1]
-       << " "   << fit->vertices()[2] << std::endl;
+       << " "   << fit->vertices()[2] << '\n';
   }
 
   typename Cell_ijkl_unordered_set::iterator  cit = output_cells.begin();
@@ -220,7 +220,7 @@ void output_off(const Starset& stars,
     fx << "4  " << cit->vertices()[0]
        << " "   << cit->vertices()[1]
        << " "   << cit->vertices()[2]
-       << " "   << cit->vertices()[3] << std::endl;
+       << " "   << cit->vertices()[3] << '\n';
   }
 }
 
@@ -261,10 +261,10 @@ void output_surface_off(const Starset& stars,
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning Surf Off: there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
 
-  fx << "OFF" << std::endl;
-  fx << points.size() << " " << output_facets.size() << " " << 0 << std::endl;
+  fx << "OFF" << '\n';
+  fx << points.size() << " " << output_facets.size() << " " << 0 << '\n';
   for(unsigned int i = 0; i < points.size(); i++)
-    fx << points[i] << std::endl;
+    fx << points[i] << '\n';
 
   typename Facet_ijk_unordered_set::iterator fit = output_facets.begin();
   typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
@@ -272,7 +272,7 @@ void output_surface_off(const Starset& stars,
   {
     fx << "3  " << fit->vertices()[0]
        << " "   << fit->vertices()[1]
-       << " "   << fit->vertices()[2] << std::endl;
+       << " "   << fit->vertices()[2] << '\n';
   }
 }
 
@@ -281,10 +281,10 @@ void output_surface_off(const Starset& stars,
   void output(const Starset& stars)
   {
     typename std::ofstream fx("mesh.volume.cgal");
-    fx << 3 << std::endl;
-    fx << m_points.size() << std::endl;
+    fx << 3 << '\n';
+    fx << m_points.size() << '\n';
     for(int i = 0; i < (int)m_points.size(); i++)
-      fx << m_points[i] << std::endl;
+      fx << m_points[i] << '\n';
 
     Cell_ijkl_unordered_set output_cells;
     typename Starset::iterator it = stars.begin();
@@ -312,13 +312,13 @@ void output_surface_off(const Starset& stars,
       }
     }
 
-    fx << output_cells.size() << std::endl;
+    fx << output_cells.size() << '\n';
     typename std::set<Cell_ijk>  cit = output_cells.begin();
     typename std::set<Cell_ijk>  citend = output_cells.end();
     for (; cit != citend; cit++)
     {
       fx << cit->vertices[0]+1 << " " << cit->vertices[1]+1 << " "
-         << cit->vertices[2]+1 << " " << cit->vertices[3]+1 << std::endl;
+         << cit->vertices[2]+1 << " " << cit->vertices[3]+1 << '\n';
     }
   }
 */
@@ -332,15 +332,15 @@ void output_surface_medit(const Starset& stars,
   typename Starset::Point_3 anchor_point(0., 0., 0.);
 
   std::cout << "Saving surface medit..." << std::endl;
-  fx << "MeshVersionFormatted 1\n\n";
-  fx << "Dimension\n3" << std::endl;
+  fx << "MeshVersionFormatted 1\n";
+  fx << "Dimension 3" << '\n';
 
-  fx << "Vertices" << std::endl;
-  fx << (stars.size()+fake_3D) << std::endl;
+  fx << "Vertices" << '\n';
+  fx << (stars.size()+fake_3D) << '\n';
   for (int i = 0; i < (int)stars.size(); i++)
-    fx << stars[i]->center_point() << " " << (i+1) << std::endl;
+    fx << stars[i]->center_point() << " " << (i+1) << '\n';
   if(fake_3D)
-    fx << anchor_point << (stars.size()+1) << std::endl;
+    fx << anchor_point << (stars.size()+1) << '\n';
 
   Facet_ijk_unordered_set facets;
   for(int i = 0; i < (int)stars.size(); i++)
@@ -352,8 +352,8 @@ void output_surface_medit(const Starset& stars,
       facets.insert(Facet_ijk(*fit));
   }
 
-  fx << "Triangles" << std::endl;
-  fx << (facets.size()) << std::endl;
+  fx << "Triangles" << '\n';
+  fx << (facets.size()) << '\n';
   typename Facet_ijk_unordered_set::iterator fit = facets.begin();
   typename Facet_ijk_unordered_set::iterator fitend = facets.end();
   for(; fit!=fitend; fit++)
@@ -367,15 +367,15 @@ void output_surface_medit(const Starset& stars,
     typename Starset::Point_3 p2 = stars[n2]->center_point();
     typename Starset::Traits::Compute_area_3 o;
     if(!positive_vol || o(p0, p1, p2) > 0)
-      fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " 1" << std::endl;
+      fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " 1" << '\n';
     else
-      fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " 1" << std::endl;
+      fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " 1" << '\n';
   }
 
   if(fake_3D)
   {
-    fx << "Tetrahedra" << std::endl;
-    fx << (facets.size()) << std::endl;
+    fx << "Tetrahedra" << '\n';
+    fx << (facets.size()) << '\n';
     fit = facets.begin();
     for(; fit!=fitend; fit++)
     {
@@ -389,12 +389,12 @@ void output_surface_medit(const Starset& stars,
       typename Starset::Point_3 p2 = stars[n2]->center_point();
       typename Starset::Traits::Compute_volume_3 o;
       if(!positive_vol || o(p0, p1, p2, anchor_point) > 0)
-        fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1" << std::endl;
+        fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1" << '\n';
       else
-        fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " 1" << std::endl;
+        fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " 1" << '\n';
     }
   }
-  fx << "End" << std::endl;
+  fx << "End" << '\n';
 }
 
 template<typename Starset>
@@ -413,9 +413,9 @@ void output_medit(const Starset& stars,
   fx << "Dimension 3\n";
 
   fx << "Vertices\n";
-  fx << stars.size() << std::endl;
+  fx << stars.size() << '\n';
   for(std::size_t i = 0; i < stars.size(); i++)
-    fx << stars[i]->center_point() << " " << (i+1) << std::endl; //indices start at 1 in Medit
+    fx << stars[i]->center_point() << " " << (i+1) << '\n'; //indices start at 1 in Medit
 
   Cell_ijkl_unordered_set output_cells;
   typename Starset::const_iterator sit = stars.begin();
@@ -446,7 +446,7 @@ void output_medit(const Starset& stars,
   }
 
   fx << "Tetrahedra\n";
-  fx << output_cells.size() << std::endl;
+  fx << output_cells.size() << '\n';
   typename Cell_ijkl_unordered_set::iterator  cit = output_cells.begin();
   typename Cell_ijkl_unordered_set::iterator  citend = output_cells.end();
   for (; cit != citend; cit++)
@@ -462,12 +462,12 @@ void output_medit(const Starset& stars,
     typename Starset::Point_3 p3 = stars[n3]->center_point();
     typename Starset::Traits::Compute_volume_3 o;
     if(!positive_vol || o(p0, p1, p2, p3) > 0 || 1) //color[c] creates the artifacts. fix it. todo
-      fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1"/* << colors[c]*/ << std::endl;
+      fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1"/* << colors[c]*/ << '\n';
     else
-      fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " 1" /*<< colors[c]*/ << std::endl;
+      fx << (n1+1) << " " << (n0+1) << " " << (n2+1) << " " << (n3+1) << " 1" /*<< colors[c]*/ << '\n';
   }
 
-  fx << "End" << std::endl;
+  fx << "End" << '\n';
 
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning Medit: there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";
@@ -520,25 +520,25 @@ void output_surface_voronoi(const Starset& stars,
     }
   }
 
-  fx << "MeshVersionFormatted 1" << std::endl;
-  fx << "Dimension 3" << std::endl;
-  fx << "Vertices" << std::endl;
-  fx << points.size() << std::endl;
+  fx << "MeshVersionFormatted 1" << '\n';
+  fx << "Dimension 3" << '\n';
+  fx << "Vertices" << '\n';
+  fx << points.size() << '\n';
   for(std::size_t i=0; i<points.size(); ++i)
-    fx << points[i].x() << " " << points[i].y() << " " << points[i].z() << " 0" << std::endl;
+    fx << points[i].x() << " " << points[i].y() << " " << points[i].z() << " 0" << '\n';
 
-  fx << "Edges" << std::endl;
-  fx << edges.size() << std::endl;
+  fx << "Edges" << '\n';
+  fx << edges.size() << '\n';
   typename std::map<std::pair<int,int>, std::vector<int> >::iterator eit = edges.begin();
   typename std::map<std::pair<int,int>, std::vector<int> >::iterator eend = edges.end();
   for(;eit!=eend;++eit)
   {
     std::vector<int> edge = eit->second;
     assert(edge.size() == 2);
-    fx << edge.front() << " " << edge.back() << " 0" << std::endl;
+    fx << edge.front() << " " << edge.back() << " 0" << '\n';
   }
 
-  fx << "End" << std::endl;
+  fx << "End" << '\n';
 }
 
 template<typename Starset>
