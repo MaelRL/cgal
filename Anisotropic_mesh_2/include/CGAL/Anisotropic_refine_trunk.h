@@ -862,6 +862,13 @@ public:
         si->print_faces();
         return vi->info();
       }
+      else
+      {
+        // the insertion was done correctly... But we need to check for OLDER points
+        // that could become in conflict with the star after the insertion of
+        // the new point...
+        insert_from_kd_tree(si);
+      }
     }
     return this_id;
   }
@@ -900,6 +907,11 @@ public:
         // Conflict zones are not computed for the target_stars, so we need
         // to create entries in the conflict zones map (for fill_ref_queue)
         m_stars_czones.conflict_zone(i);
+
+        // the insertion was done correctly... But we need to check for OLDER points
+        // that could become in conflict with the star after the insertion of
+        // the new point...
+        insert_from_kd_tree(si);
       }
     }
     return this_id;

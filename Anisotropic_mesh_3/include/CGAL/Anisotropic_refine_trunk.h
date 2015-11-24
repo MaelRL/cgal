@@ -1416,6 +1416,13 @@ public:
         std::cout << "Metric : \n" << si->metric().get_transformation() << std::endl;
         return vi->info();
       }
+      else
+      {
+        // the insertion was done correctly... But we need to check for OLDER points
+        // that could become in conflict with the star after the insertion of
+        // the new point...
+        insert_from_kd_tree(si);
+      }
     }
     return this_id;
   }
@@ -1453,6 +1460,11 @@ public:
         // Conflict zones are not computed for the target_stars, so we need
         // to create entries in the conflict zones map (for fill_ref_queue)
         m_stars_czones.conflict_zone(i);
+
+        // the insertion was done correctly... But we need to check for OLDER points
+        // that could become in conflict with the star after the insertion of
+        // the new point...
+        insert_from_kd_tree(si);
       }
     }
     return this_id;
@@ -1688,7 +1700,7 @@ public:
 
         compute_conflict_zones(p);
         m_stars_czones.compute_elements_needing_check();
-        insert(p, true, !m_is_3D_level/*surface*/);
+        insert(p, true/*conditional*/, !m_is_3D_level/*surface*/);
       }
       clear_conflict_zones();
     }
