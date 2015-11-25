@@ -60,7 +60,7 @@ public:
 
   typedef CGAL::Anisotropic_mesh_3::Starset<K>                     Starset;
 
-  typedef typename CGAL::Anisotropic_mesh_3::Metric_field<K>       Metric_field;
+  typedef CGAL::Anisotropic_mesh_3::Metric_field<K>                Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
   typedef CGAL::AABB_tree_bbox<K, Star>                            AABB_tree;
@@ -342,11 +342,15 @@ public:
     }
     */
 
+#ifdef ANISO_OUTPUT_WIP
     if(this->m_starset.size()%1000 == 0) //should be somewhere else todo
     {
       std::ofstream out_med("bambimboum_wip.mesh");
       output_medit(this->m_starset, out_med, false);
+      std::ofstream out_dump("dump_wip.mesh");
+      dump(this->m_starset, out_dump);
     }
+#endif
     return true;
   }
 // end of CRTP functions

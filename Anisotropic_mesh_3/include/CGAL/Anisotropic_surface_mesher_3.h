@@ -48,7 +48,7 @@ class Anisotropic_surface_mesher_3 : public Anisotropic_mesher_3_base
   typedef Anisotropic_mesher_3_base                             Base;
 
 public:
-  //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
+  //typedef CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef K                                                 KExact;
 
   typedef Stretched_Delaunay_3<K, KExact>                   Star;
@@ -112,7 +112,7 @@ public:
     timer.start();
     double elapsed_time = 0.;
 
-#if 1//ndef ANISO_VERBOSE
+#ifndef ANISO_VERBOSE
     // Scan surface and refine it
     m_facet_mesher.initialize();
     m_facet_mesher.refine(m_facet_visitor);

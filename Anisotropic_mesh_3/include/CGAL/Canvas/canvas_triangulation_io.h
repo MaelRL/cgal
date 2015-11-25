@@ -236,8 +236,8 @@ void add_facet_to_incident_cells_map(const typename Tr::Cell_handle c, int i,
   typedef typename Tr::Vertex_handle                            Vertex_handle;
   typedef typename Tr::Cell_handle                              Cell_handle;
   typedef std::set<Vertex_handle>                               Facet;
-  typedef typename std::pair<Cell_handle, int>                  Incident_cell;
-  typedef typename std::map<Facet, std::vector<Incident_cell> > Incident_cells_map;
+  typedef std::pair<Cell_handle, int>                           Incident_cell;
+  typedef std::map<Facet, std::vector<Incident_cell> >          Incident_cells_map;
 
   // the opposite vertex of f in c is i
   Facet f;
@@ -268,7 +268,7 @@ void build_finite_cells(Tr& tr,
                                  std::vector<std::pair<typename Tr::Cell_handle,
                                                        int> > >& incident_cells_map)
 {
-  typedef typename boost::array<int, 5>     Tet_with_ref; // 4 ids + 1 reference
+  typedef boost::array<int, 5>              Tet_with_ref; // 4 ids + 1 reference
 
   typedef typename Tr::Vertex_handle                            Vertex_handle;
   typedef typename Tr::Cell_handle                              Cell_handle;
@@ -339,13 +339,13 @@ void build_infinite_cells(Tr& tr,
                                    std::vector<std::pair<typename Tr::Cell_handle,
                                                          int> > >& incident_cells_map)
 {
-  typedef typename boost::array<int, 4>         Tet; // 4 ids
+  typedef boost::array<int, 4>                            Tet; // 4 ids
 
-  typedef typename Tr::Vertex_handle                              Vertex_handle;
-  typedef typename Tr::Cell_handle                                Cell_handle;
-  typedef std::set<Vertex_handle>                                 Facet;
-  typedef typename std::pair<Cell_handle, int>                    Incident_cell;
-  typedef typename std::map<Facet, std::vector<Incident_cell> >   Incident_cells_map;
+  typedef typename Tr::Vertex_handle                      Vertex_handle;
+  typedef typename Tr::Cell_handle                        Cell_handle;
+  typedef std::set<Vertex_handle>                         Facet;
+  typedef std::pair<Cell_handle, int>                     Incident_cell;
+  typedef std::map<Facet, std::vector<Incident_cell> >    Incident_cells_map;
 
   // build the infinite cells if provided
   for(std::size_t i=0; i<infinite_cells.size(); ++i)
@@ -448,8 +448,8 @@ void assign_neighbors(Tr& tr,
   typedef typename Tr::Vertex_handle                              Vertex_handle;
   typedef typename Tr::Cell_handle                                Cell_handle;
   typedef std::set<Vertex_handle>                                 Facet;
-  typedef typename std::pair<Cell_handle, int>                    Incident_cell;
-  typedef typename std::map<Facet, std::vector<Incident_cell> >   Incident_cells_map;
+  typedef std::pair<Cell_handle, int>                             Incident_cell;
+  typedef std::map<Facet, std::vector<Incident_cell> >            Incident_cells_map;
 
   // 4 facets per cell, each facet shared by 2 cells
   CGAL_precondition(incident_cells_map.size() == tr.number_of_cells() * 2);
@@ -480,8 +480,8 @@ bool build_triangulation(Tr& tr,
   typedef std::set<Vertex_handle>               Facet;
 
   // associate to a face the two (at most) incident tets and the id of the face in the cell
-  typedef typename std::pair<Cell_handle, int> Incident_cell;
-  typedef typename std::map<Facet, std::vector<Incident_cell> > Incident_cells_map;
+  typedef std::pair<Cell_handle, int>                   Incident_cell;
+  typedef std::map<Facet, std::vector<Incident_cell> >  Incident_cells_map;
 
   Incident_cells_map incident_cells_map;
   std::vector<Vertex_handle> vertex_handle_vector(points.size() + 1); // id to vertex_handle

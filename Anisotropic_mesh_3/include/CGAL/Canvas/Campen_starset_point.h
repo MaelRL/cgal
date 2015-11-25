@@ -64,7 +64,7 @@ private:
   typedef Campen_starset_point<K, Domain, MF, Criteria>               Self;
 
 public:
-  typedef typename std::vector<Self>                   Campen_starset_point_vector;
+  typedef std::vector<Self>                            Campen_starset_point_vector;
   typedef Self*                                        Campen_starset_point_handle;
 
   typedef int                          Vertex_Info; // index of the canvas point

@@ -43,16 +43,16 @@ public:
   typedef Refine_face_hash<K, KExact>                       Rface_hash;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Self,
-                                        Rface_hash,
-                                        Rface_comparer>     Rface_set;
+  typedef boost::unordered_set<Self,
+                               Rface_hash,
+                               Rface_comparer>              Rface_set;
 #else
-  typedef typename std::set<Self, Rface_comparer>           Rface_set;
+  typedef std::set<Self, Rface_comparer>                    Rface_set;
 #endif
 
   typedef typename Rface_set::iterator                      Rface_set_iterator;
-  typedef typename std::multiset<Rface_set_iterator,
-                                 Rface_it_comparer>         Queue;
+  typedef std::multiset<Rface_set_iterator,
+                        Rface_it_comparer>                  Queue;
   typedef typename Queue::iterator                          Queue_iterator;
 
 public:
@@ -131,11 +131,11 @@ class Refine_face_iterator_comparer
   typedef Refine_face_comparer<K, KExact>                  Rface_comparer;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Rface,
-                                        Refine_face_hash<K, KExact>,
-                                        Rface_comparer>    Rface_set;
+  typedef boost::unordered_set<Rface,
+                               Refine_face_hash<K, KExact>,
+                               Rface_comparer>             Rface_set;
 #else
-  typedef typename std::set<Rface, Rface_comparer>         Rface_set;
+  typedef std::set<Rface, Rface_comparer>                  Rface_set;
 #endif
 
   typedef typename Rface_set::iterator                     Rface_set_iterator;
@@ -163,17 +163,17 @@ public:
   typedef Refine_face_iterator_comparer<K, KExact>          Rface_it_comparer;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Rface,
-                                        Refine_face_hash<K, KExact>,
-                                        Rface_comparer>      Rface_set;
+  typedef boost::unordered_set<Rface,
+                               Refine_face_hash<K, KExact>,
+                               Rface_comparer>               Rface_set;
 #else
-  typedef typename std::set<Rface, Rface_comparer>           Rface_set;
+  typedef std::set<Rface, Rface_comparer>                    Rface_set;
 #endif
 
   typedef typename Rface_set::iterator                       Rface_set_iterator;
 
-  typedef typename std::multiset<Rface_set_iterator,
-                                 Rface_it_comparer>          Queue;
+  typedef std::multiset<Rface_set_iterator,
+                        Rface_it_comparer>                   Queue;
   typedef typename Queue::iterator                           Queue_iterator;
 
   typedef typename Rface::Star_handle                        Star_handle;

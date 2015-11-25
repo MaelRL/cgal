@@ -111,7 +111,6 @@ public:
         Star_handle star_j = m_ss->get_star(id);
         star_i->insert_to_star(star_j->center_point(), id, false/*conditional*/);
       }
-      std::cout << "built star: " << i << std::endl;
     }
     std::cout << m_ss->size() << " stars from dump" << std::endl;
     build_aabb_tree();
@@ -263,7 +262,7 @@ public:
 #endif
 
     CGAL_assertion(cp->state() == KNOWN);
-    typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+    typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
 
     Star_handle star = m_ss->get_star(cp->index());
     Cell_handle_handle cit = star->finite_star_cells_begin();
@@ -336,7 +335,7 @@ public:
 #if (verbosity > 5)
     std::cout << "Primal computations" << std::endl;
 #endif
-    typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+    typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
     for(std::size_t i=0, ts=m_ss->size(); i<ts; ++i)
     {
       const Star_handle star = m_ss->get_star(i);
@@ -431,11 +430,27 @@ public:
       int n1 = c.vertices()[1];
       int n2 = c.vertices()[2];
       int n3 = c.vertices()[3];
-      out << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1) << " 1"/* << colors[c]*/ << '\n';
-    }
 
-    out_bb << "End" << '\n';
-    out << "End" << '\n';
+      out << (n0+1) << " " << (n1+1) << " " << (n2+1) << " " << (n3+1);
+#if 0
+      Cell_handle useless;
+      bool is_consistent = (m_ss->get_star(n0)->has_cell(c, useless) &&
+                            m_ss->get_star(n1)->has_cell(c, useless) &&
+                            m_ss->get_star(n2)->has_cell(c, useless) &&
+                            m_ss->get_star(n3)->has_cell(c, useless) );
+      out << " " << is_consistent << '\n';
+#else
+      boost::unordered_set<std::size_t> materials;
+      for(std::size_t j=0; j<4; ++j)
+        materials.insert(this->canvas_points[c.vertices()[j]].closest_seed_id());
+
+      std::size_t mat = (materials.size()==1) ? (*(materials.begin())) :
+                                                (this->seeds.size());
+      out << " " << mat << std::endl;
+#endif
+    }
+    out_bb << "End" << std::endl;
+    out << "End" << std::endl;
   }
 
   Campen_starset_canvas(const std::string& canvas_str_,

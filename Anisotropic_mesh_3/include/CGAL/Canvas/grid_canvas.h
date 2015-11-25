@@ -170,7 +170,7 @@ public:
     // Amongst these, consider those that have a closest_seed_id different than cp's
     // to obtain primal simplices (of dim > 1).
 
-    typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+    typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
     Candidates_set candidates;
     candidates.insert(cp);
 
@@ -394,7 +394,7 @@ public:
       return;
     }
 
-    typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+    typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
     for(std::size_t i=0; i<this->canvas_points.size(); ++i)
     {
       const Canvas_point& cp = this->canvas_points[i];

@@ -37,7 +37,7 @@ private:
   typedef Campen_canvas_point<K, Metric_field>                        Self;
 
 public:
-  typedef typename std::vector<Campen_canvas_point>   Campen_canvas_point_vector;
+  typedef std::vector<Campen_canvas_point>            Campen_canvas_point_vector;
   typedef Self*                                       Campen_canvas_point_handle;
 
   typedef int                          Vertex_Info; // index of the canvas point
@@ -51,10 +51,10 @@ public:
   typedef typename Base::Metric                                       Metric;
   typedef typename Base::Vector3d                                     Vector3d;
 
-  typedef typename CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K>  Vb;
-  typedef typename CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>      Cb;
-  typedef typename CGAL::Triangulation_data_structure_3<Vb, Cb>                 TDS;
-  typedef CGAL::Triangulation_3<K, TDS>                                         Tr;
+  typedef CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K>        Vb;
+  typedef CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>            Cb;
+  typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                       TDS;
+  typedef CGAL::Triangulation_3<K, TDS>                                      Tr;
 
   typedef typename Tr::Vertex_handle                                  Vertex_handle;
   typedef typename Tr::Cell_handle                                    Cell_handle;

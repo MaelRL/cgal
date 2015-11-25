@@ -35,7 +35,7 @@ combinations(const Container& container,
   // at one level we pick one element, and we'll then build the combination
   // as : this element added to the (k-1)-sized combinations
   typedef typename Container::value_type                            Contained;
-  typedef typename std::vector<boost::array<Contained, k_max> >     Return_type;
+  typedef std::vector<boost::array<Contained, k_max> >              Return_type;
 
   if(container.size() < k_max)
     return Return_type();

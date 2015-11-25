@@ -49,6 +49,7 @@ void dump(const Starset& stars,
       fx << " " << (*vit)->info();
     fx << '\n';
   }
+  fx << std::endl;
 }
 
 template<typename Starset>
@@ -104,6 +105,7 @@ void output_off(const Starset& stars,
        << " "   << fit->vertices()[1]
        << " "   << fit->vertices()[2] << '\n';
   }
+  fx << std::endl;
 }
 
 template<typename Starset>
@@ -114,7 +116,8 @@ void output_medit(const Starset& stars,
 {
   std::cout << "Saving medit... @ " << stars.size() << '\n';
   unsigned int nb_inconsistent_stars = 0;
-  std::map<Facet_ijk, bool> color;
+  std::map<Facet_ijk, bool> colors;
+  int step_n = 100;
 
   fx << "MeshVersionFormatted 1\n";
   fx << "Dimension 2\n";
@@ -136,8 +139,8 @@ void output_medit(const Starset& stars,
     for(; fit!=fend; ++fit)
     {
       typename Starset::Face_handle fh = *fit;
-      //if(!star->is_inside(fh))
-      //  continue;
+//      if(!star->is_inside(fh))
+//        continue;
 
       if(ghost_faces.find(Facet_ijk(fh)) != ghost_faces.end() )
         continue;
@@ -146,7 +149,9 @@ void output_medit(const Starset& stars,
       {
         Facet_ijk face(fh);
         output_faces.insert(face);
-        color[face] = stars.is_consistent(fh);
+
+        typename Starset::FT distortion = compute_distortion_t(stars, fh);
+        colors[face] = (distortion - 1.) * step_n;
       }
       else
       {
@@ -166,19 +171,28 @@ void output_medit(const Starset& stars,
     int n0 = f.vertices()[0];
     int n1 = f.vertices()[1];
     int n2 = f.vertices()[2];
-    fx << (n0+1) << " " << (n1+1) << " " << (n2+1);
+    fx << (n0+1) << " " << (n1+1) << " " << (n2+1) << " ";
 
-    if(true) // tmp
+#if 1
+    if(consistent_only)
     {
-      if(color[f])
-        fx << " 2" << '\n';
-      else
-        fx << " 1" << '\n';
+      // if using consistent only, the tet is necessarily consistent
+      // and it's pointless to try to check for inconsistencies again
+      fx << " 1" << '\n';
     }
     else
-      fx << " 1" << '\n';
+    {
+      typename Starset::Face_handle dummy;
+      bool is_consistent = (stars.get_star(n0)->has_face(f, dummy) &&
+                            stars.get_star(n1)->has_face(f, dummy) &&
+                            stars.get_star(n2)->has_face(f, dummy));
+      fx << (is_consistent ? "0":"1") << '\n';
+    }
+#else
+    fx << colors[c] << '\n';
+#endif
   }
-  fx << "End" << '\n';
+  fx << "End" << std::endl;
 
   if(nb_inconsistent_stars > 0)
     std::cout << "Warning Medit: there are " << nb_inconsistent_stars << " inconsistent stars in the ouput mesh.\n";

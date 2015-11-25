@@ -15,10 +15,10 @@ namespace CGAL
   {
     typedef AABB_tree_bbox<GeomTraits, Star>            Self;
 
-    typedef typename CGAL::AABB_bbox_primitive<Star>             BboxPrimitive;
-    typedef typename CGAL::AABB_traits<GeomTraits,BboxPrimitive> AABBtraits; 
-    typedef typename CGAL::AABB_tree<AABBtraits>                 Base;
-    typedef Star*                                                Star_handle;
+    typedef CGAL::AABB_bbox_primitive<Star>             BboxPrimitive;
+    typedef CGAL::AABB_traits<GeomTraits,BboxPrimitive> AABBtraits;
+    typedef CGAL::AABB_tree<AABBtraits>                 Base;
+    typedef Star*                                       Star_handle;
 
   private:
     unsigned int m_insertion_buffer_max_size;
@@ -30,7 +30,7 @@ namespace CGAL
     mutable int m_rebuild_counter;
     mutable bool m_rebuild_needed;
 #endif
-    
+
   public:
     AABB_tree_bbox() :
         m_insertion_buffer_max_size(20),
@@ -72,7 +72,7 @@ namespace CGAL
 #endif
       }
       m_insertion_buffer.push_back(pstar);
-      
+
 //      if(m_insertion_buffer.size() < m_insertion_buffer_max_size)
 //        m_insertion_buffer.push_back(pstar);
 //      else
@@ -91,7 +91,7 @@ namespace CGAL
       Base::update_primitive(pstar);
     }
 
-    void remove_last() 
+    void remove_last()
     {
       m_insertion_buffer.pop_back();
       // note : the last inserted point always is in the insertion buffer
@@ -118,7 +118,7 @@ namespace CGAL
         ++first;
       }
     }
-    
+
     template<typename ConstPrimitiveIterator>
     void rebuild(ConstPrimitiveIterator first, //Star_handle_iterator
                  ConstPrimitiveIterator beyond)
@@ -139,7 +139,7 @@ namespace CGAL
 #endif
     }
 
-    
+
     void clear()
     {
       Base::clear();
@@ -154,7 +154,7 @@ namespace CGAL
     {
       if(this->empty() && m_insertion_buffer.empty())
         return;
-      
+
       // first traverse the buffer
       std::size_t N = m_insertion_buffer.size();
       std::size_t i = 0;
@@ -162,7 +162,7 @@ namespace CGAL
       {
         CGAL_PROFILER("[intersections Bbox-Pt in buffer]");
         traits.intersection(query, m_insertion_buffer[i]);
-        i++;      
+        i++;
       }
       // then use Base::traversal if not already ended in the buffer
       if(!this->empty() && traits.go_further())
@@ -207,7 +207,7 @@ public:
 #endif
       return out;
     }
-    
+
   }; // end class AABB_tree_bbox
 
 } // end namespace CGAL

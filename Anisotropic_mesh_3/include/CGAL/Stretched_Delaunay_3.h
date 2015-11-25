@@ -200,7 +200,8 @@ public:
   const bool& metric_needs_update() const { return m_metric_needs_update; }
 
 public:
-  bool has_vertex(const int i) const
+  template<typename I>
+  bool has_vertex(const I i) const
   {
     Vertex_handle_handle vit = finite_adjacent_vertices_begin();
     Vertex_handle_handle vend = finite_adjacent_vertices_end();
@@ -213,7 +214,8 @@ public:
     return false;
   }
 
-  bool has_vertex(const int i, Vertex_handle& v) const
+  template<typename I>
+  bool has_vertex(const I i, Vertex_handle& v) const
   {
     Vertex_handle_handle vit = finite_adjacent_vertices_begin();
     Vertex_handle_handle vend = finite_adjacent_vertices_end();
@@ -668,7 +670,9 @@ public:
     CGAL_PROFILER("[update_bbox]");
 
     if(this->dimension() < 3)
-      m_bbox = m_pConstrain->get_bbox(); //should be found by every request to aabb_tree
+    {
+      m_bbox = m_pConstrain->get_bbox(); // must be found by every request to aabb_tree
+    }
     else if(!m_is_in_3D_mesh)
     {
       m_bbox = this->surface_bbox();
@@ -733,19 +737,21 @@ public:
     Cell_handle_handle cend = finite_star_cells_end();
     for (; ci != cend; ci++)
     {
-      TPoint_3 cc = (*ci)->circumcenter(*m_traits);
+      Cell_handle ch = *ci;
+      TPoint_3 cc = ch->circumcenter(*m_traits);
       FT squared_radius = csd(cc, m_center->point());
+
+#ifdef ANISO_DEBUG_BBOX
+      std::cout << "computing circumcenter with points: " << std::endl;
+      std::cout << ch->vertex(0)->info() << " " << ch->vertex(0)->point() << std::endl;
+      std::cout << ch->vertex(1)->info() << " " << ch->vertex(1)->point() << std::endl;
+      std::cout << ch->vertex(2)->info() << " " << ch->vertex(2)->point() << std::endl;
+      std::cout << ch->vertex(3)->info() << " " << ch->vertex(3)->point() << std::endl;
+      std::cout << "cc: " << cc << " radius is: " << squared_radius << std::endl;
+#endif
 
 #ifdef ANISO_APPROXIMATE_SPHERE_BBOX
       double radius = sqrt(squared_radius);
-#ifdef ANISO_DEBUG_BBOX
-      std::cout << "computing circumcenter with points: " << std::endl;
-      std::cout << (*ci)->vertex(0)->info() << " " << (*ci)->vertex(0)->point() << std::endl;
-      std::cout << (*ci)->vertex(1)->info() << " " << (*ci)->vertex(1)->point() << std::endl;
-      std::cout << (*ci)->vertex(2)->info() << " " << (*ci)->vertex(2)->point() << std::endl;
-      std::cout << (*ci)->vertex(3)->info() << " " << (*ci)->vertex(3)->point() << std::endl;
-      std::cout << "cc: " << cc << " radius is: " << radius << std::endl;
-#endif
       Bbox bbs(cc.x()-radius, cc.y()-radius, cc.z()-radius,
               cc.x()+radius, cc.y()+radius, cc.z()+radius);
       bb = bb + bbs;
@@ -1906,7 +1912,7 @@ public:
 public:
   std::size_t clean(bool verbose = false) //remove non-adjacent vertices
   {
-    typedef typename std::pair<TPoint_3, int> PPoint;
+    typedef std::pair<TPoint_3, int>          PPoint;
     std::vector<PPoint> backup;
     std::size_t nbv = this->number_of_vertices();
 
@@ -2532,15 +2538,11 @@ public:
   {
     Index index = m_center->info();
 
-    std::cout << "checks: " << is_surface_star() << std::endl << metric().get_transformation() << std::endl;
-
     this->clear();
     m_center_point = new_centerpoint;
     m_center = Base::insert(m_metric.transform(new_centerpoint));
     m_center->info() = index;
     this->infinite_vertex()->info() = index_of_infinite_vertex;
-
-    std::cout << "checks@2: " << is_surface_star() << std::endl << metric().get_transformation() << std::endl;
 
     invalidate_cache();
   }

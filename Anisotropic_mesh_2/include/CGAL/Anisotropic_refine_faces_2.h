@@ -59,7 +59,7 @@ public:
 
   typedef CGAL::Anisotropic_mesh_2::Starset<K>                     Starset;
 
-  typedef typename CGAL::Anisotropic_mesh_2::Metric_field<K>       Metric_field;
+  typedef CGAL::Anisotropic_mesh_2::Metric_field<K>                Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
@@ -281,7 +281,7 @@ public:
     }
 // --------------------------------------------------------------------------------------------------
 
-#if 1
+#ifdef ANISO_OUTPUT_WIP
     if(this->m_starset.size()%1000 == 0)
     {
       std::ofstream out("bambimboum_wip.mesh");

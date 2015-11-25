@@ -26,7 +26,7 @@ public:
   typedef typename K::FT                                    FT;
   typedef typename K::Point_3                               Point_3;
   typedef Metric_base<K>                                    Metric;
-  typedef typename Eigen::Matrix<FT, 3, 1>                  Vector3d;
+  typedef Eigen::Matrix<FT, 3, 1>                           Vector3d;
 
   typedef boost::unordered_set<std::size_t>                 Point_set;
 
@@ -70,7 +70,7 @@ public:
                     std::size_t& trial_count, std::size_t& far_count)
   {
     if(new_state == m_state)
-      std::cerr << "WARNING: useless state change..." << std::endl;
+      std::cout << "WARNING: useless state change..." << std::endl;
 
     if(state() == FAR)
       --far_count;

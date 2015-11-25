@@ -32,10 +32,10 @@ typedef std::set<std::size_t>                                Simplex;
 typedef boost::array<std::size_t, 2>                         Edge;
 typedef boost::array<std::size_t, 3>                         Tri;
 
-typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
+typedef Eigen::Matrix<double, 2, 1>                          Vector2d;
 
-//typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
-typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+//typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 
 typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
 typedef typename KExact::Point_2                             EPoint;

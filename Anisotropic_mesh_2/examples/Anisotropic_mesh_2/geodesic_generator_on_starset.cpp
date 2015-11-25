@@ -1510,7 +1510,8 @@ public:
 //                << " and cellid: " << gp.closest_seed_id << std::endl;
     }
 
-    // test against criteria should be moved somewhere else than during the dual computations todo
+    // test against criteria should be moved somewhere else
+    // than during the dual computations todo
     if(dual_simplex.size() == 3 ||
        (dual_simplex.size() == 2 && gp.is_on_domain_border))
       test_simplex(gp, dual_simplex);
@@ -1519,7 +1520,7 @@ public:
   }
 
   void add_simplex_to_triangulation(const typename Star_set::Face_handle fh,
-                                    const std::set<std::size_t>& dual_simplex)
+                                    const Simplex& dual_simplex)
   {
     if(dual_simplex.size() <= 1)
       return;
@@ -1571,16 +1572,16 @@ public:
         std::size_t i1 = fh->vertex(1)->info();
         std::size_t i2 = fh->vertex(2)->info();
 
-#ifndef COMPUTE_DUAL_FOR_ALL_DIMENSIONS
         // filter triangles with only one color
         if(points[i0].closest_seed_id == points[i1].closest_seed_id &&
            points[i1].closest_seed_id == points[i2].closest_seed_id)
           continue;
 
+#ifndef COMPUTE_DUAL_FOR_ALL_DIMENSIONS
         if(points[i0].closest_seed_id != points[i1].closest_seed_id &&
            points[i1].closest_seed_id != points[i2].closest_seed_id &&
            points[i0].closest_seed_id != points[i2].closest_seed_id)
-        { /* filter the case: 3 different colors */ }
+        { /* don't filter the case: 3 different colors */ }
         else
         {
           // filter triangles with _exactly_ two colors and none of the vertices

@@ -27,12 +27,12 @@ template<typename K>
 class Hyperbolic_shock_metric_field : public Metric_field<K>
 {
 public:
-  typedef Metric_field<K>                    Base;
-  typedef typename Base::FT                  FT;
-  typedef typename Base::Metric              Metric;
-  typedef typename Base::Point_3             Point_3;
-  typedef typename Base::Vector_3            Vector_3;
-  typedef typename std::vector<std::pair<Point_3, FT> > ParticleList;
+  typedef Metric_field<K>                      Base;
+  typedef typename Base::FT                    FT;
+  typedef typename Base::Metric                Metric;
+  typedef typename Base::Point_3               Point_3;
+  typedef typename Base::Vector_3              Vector_3;
+  typedef std::vector<std::pair<Point_3, FT> > ParticleList;
 
 public:
   FT delta;

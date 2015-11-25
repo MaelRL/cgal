@@ -253,17 +253,17 @@ public:
   }
 };
 
-typedef typename boost::unordered_set<Edge_ij,
-                                      Ordered_simplex_base_hash<2>,
-                                      Ordered_simplex_base_comparer<2> >
+typedef boost::unordered_set<Edge_ij,
+                             Ordered_simplex_base_hash<2>,
+                             Ordered_simplex_base_comparer<2> >
                                                     Edge_ij_unordered_set;
-typedef typename boost::unordered_set<Facet_ijk,
-                                      Ordered_simplex_base_hash<3>,
-                                      Ordered_simplex_base_comparer<3> >
+typedef boost::unordered_set<Facet_ijk,
+                             Ordered_simplex_base_hash<3>,
+                             Ordered_simplex_base_comparer<3> >
                                                     Facet_ijk_unordered_set;
-typedef typename boost::unordered_set<Cell_ijkl,
-                                      Ordered_simplex_base_hash<4>,
-                                      Ordered_simplex_base_comparer<4> >
+typedef boost::unordered_set<Cell_ijkl,
+                             Ordered_simplex_base_hash<4>,
+                             Ordered_simplex_base_comparer<4> >
                                                     Cell_ijkl_unordered_set;
 
 

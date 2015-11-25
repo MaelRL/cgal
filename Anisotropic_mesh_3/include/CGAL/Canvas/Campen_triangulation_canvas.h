@@ -55,16 +55,16 @@ public:
   typedef typename Base::BTriangle                                BTriangle;
   typedef typename Base::BTetrahedron                             BTetrahedron;
 
-  typedef typename CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K> Vb;
-  typedef typename CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>     Cb;
-  typedef typename CGAL::Triangulation_data_structure_3<Vb, Cb>                TDS;
+  typedef CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K>          Vb;
+  typedef CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>              Cb;
+  typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                         TDS;
   typedef CGAL::Triangulation_3<K, TDS>                                        Tr;
 
-  typedef typename  Tr::Vertex_handle                      Vertex_handle;
+  typedef typename Tr::Vertex_handle                       Vertex_handle;
   typedef std::vector<Vertex_handle>                       Vertex_handle_vector;
   typedef typename Vertex_handle_vector::iterator          Vertex_handle_handle;
   typedef typename Tr::Finite_vertices_iterator            Finite_vertices_iterator;
-  typedef typename  Tr::Cell_handle                        Cell_handle;
+  typedef typename Tr::Cell_handle                         Cell_handle;
   typedef std::vector<Cell_handle>                         Cell_handle_vector;
   typedef typename Cell_handle_vector::iterator            Cell_handle_handle;
   typedef typename Tr::Finite_cells_iterator               Finite_cells_iterator;
@@ -402,7 +402,7 @@ public:
 #endif
 
     CGAL_assertion(cp->state() == KNOWN);
-    typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+    typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
 
     Cell_handle_handle cit = cp->finite_interior_incident_cells_begin();
     Cell_handle_handle cend = cp->finite_interior_incident_cells_end();
@@ -460,7 +460,7 @@ public:
 #if (verbosity > 5)
     std::cout << "Primal computations" << std::endl;
 #endif
-      typedef typename boost::unordered_set<const Canvas_point*>   Candidates_set;
+      typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
       Finite_cells_iterator cit = m_tr.finite_cells_begin();
       Finite_cells_iterator end = m_tr.finite_cells_end();
       for(; cit!=end; ++cit)

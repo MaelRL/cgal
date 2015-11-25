@@ -30,7 +30,7 @@
 
 #include <vector>
 #include <fstream>
-#include <limits>  
+#include <limits>
 
 namespace CGAL
 {
@@ -46,12 +46,13 @@ public:
   typedef typename Base::Point_3                            Point_3;
 
   typedef typename K::Sphere_3                              Sphere_3;
-  typedef typename CGAL::Point_with_normal_3<K>             Point_with_normal;
-  typedef typename std::vector<Point_with_normal>           PointList;
-  typedef typename CGAL::Poisson_reconstruction_function<K> Poisson_reconstruction_function;
-  typedef typename CGAL::Implicit_surface_3<K, Poisson_reconstruction_function> Surface_3;
+  typedef CGAL::Point_with_normal_3<K>                      Point_with_normal;
+  typedef std::vector<Point_with_normal>                    PointList;
+  typedef CGAL::Poisson_reconstruction_function<K>          Poisson_reconstruction_function;
+  typedef CGAL::Implicit_surface_3<K, Poisson_reconstruction_function>
+                                                            Surface_3;
 
-  typedef typename Constrain_surface_3<K>::Pointset Point_container;
+  typedef typename Constrain_surface_3<K>::Pointset         Point_container;
 
 protected:
   PointList points;
@@ -61,7 +62,7 @@ protected:
 public:
   FT get_bounding_radius() const { return radius; }
 
-  virtual typename CGAL::Bbox_3 get_bbox() const 
+  virtual typename CGAL::Bbox_3 get_bbox() const
   {
     double xmin = 0.5*DBL_MAX;
     double ymin = 0.5*DBL_MAX;
@@ -72,7 +73,7 @@ public:
     typename PointList::const_iterator it;
     for(it = points.begin(); it != points.end(); ++it)
     {
-      typename K::Point_3 p = *it; 
+      typename K::Point_3 p = *it;
       xmin = (std::min)(xmin, p.x());
       xmax = (std::max)(xmax, p.x());
       ymin = (std::min)(ymin, p.y());

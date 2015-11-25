@@ -20,7 +20,7 @@ public:
   typedef typename K::Ray_2             Ray_2;
   typedef typename K::FT                FT;
   typedef typename K::Vector_2          Vector_2;
-  typedef typename CGAL::Oriented_side  Oriented_side;
+  typedef CGAL::Oriented_side           Oriented_side;
 
 public:
   FT hside_x; //half side length along Ox

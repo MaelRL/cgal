@@ -76,6 +76,9 @@ public:
   template<typename I>
   Star_handle operator[](I i) const { return m_stars[i]; }
 
+  template<typename I>
+  Star_handle get_star(I i) const { return m_stars[i]; }
+
 public:
   unsigned int number_of_surface_stars() const
   {

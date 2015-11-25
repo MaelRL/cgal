@@ -32,7 +32,7 @@ public:
   typedef typename K::Ray_2                    Ray_2;
   typedef typename K::Line_2                   Line_2;
 
-  typedef typename CGAL::Oriented_side         Oriented_side;
+  typedef CGAL::Oriented_side                  Oriented_side;
   typedef int                                  Subdomain_index;
   typedef int                                  Surface_patch_index;
   typedef int                                  Index;

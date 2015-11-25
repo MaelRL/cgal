@@ -91,14 +91,14 @@ public:
   typedef FT (Self::*Function)(const Point_3& p) const;
 
   typedef Member_function_pointer_to_function_wrapper<Function, const Self*, FT, Point_3> Function_wrapper;
-  typedef typename CGAL::Implicit_mesh_domain_3<Function_wrapper, K> Mesh_domain;
+  typedef CGAL::Implicit_mesh_domain_3<Function_wrapper, K>        Mesh_domain;
 
   // Triangulation
-  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type Tr;
-  typedef typename CGAL::Mesh_complex_3_in_triangulation_3<Tr> C3t3;
+  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type   Tr;
+  typedef CGAL::Mesh_complex_3_in_triangulation_3<Tr>              C3t3;
 
   // Criteria
-  typedef typename CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
+  typedef CGAL::Mesh_criteria_3<Tr>                                Mesh_criteria;
 
 protected:
   mutable C3t3 m_c3t3;
@@ -367,7 +367,7 @@ public:
   typedef typename Base::Point_3                           Point_3;
   typedef typename Base::Oriented_side                     Oriented_side;
 
-  typedef typename std::vector<typename K::Point_3>        Point_container;
+  typedef std::vector<typename K::Point_3>                 Point_container;
 
 public:
   virtual FT get_bounding_radius() const = 0;

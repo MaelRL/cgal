@@ -44,7 +44,7 @@ struct Intersect_tetrahedra
   typedef typename Primal_tetrahedra_container::iterator         PTC_iterator;
 
   typedef CGAL::Bbox_3                                           Bbox;
-  typedef typename CGAL::Box_intersection_d::Box_with_handle_d<FT, 3, PTC_iterator>
+  typedef CGAL::Box_intersection_d::Box_with_handle_d<FT, 3, PTC_iterator>
                                                                  Box;
 
   Canvas* canvas;

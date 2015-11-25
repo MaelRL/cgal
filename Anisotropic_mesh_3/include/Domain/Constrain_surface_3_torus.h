@@ -39,7 +39,7 @@ public:
 
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    typedef typename CGAL::Bbox_3 Bbox;
+    typedef CGAL::Bbox_3        Bbox;
     return Bbox(-(R+r)*1.01, -(R+r)*1.01, -r*1.01,
                  (R+r)*1.01,  (R+r)*1.01,  r*1.01);
   }

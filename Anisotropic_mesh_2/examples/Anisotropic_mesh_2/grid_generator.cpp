@@ -30,14 +30,14 @@ typedef typename Star::TPoint_2                              TPoint_2;
 typedef typename Star::Metric                                Metric;
 typedef typename Star::Traits                                Traits;
 
-typedef typename Eigen::Matrix<double, 5, 1>                 Vector5d;
-typedef typename Eigen::Matrix<double, 2, 1>                 Vector2d;
+typedef Eigen::Matrix<double, 5, 1>                          Vector5d;
+typedef Eigen::Matrix<double, 2, 1>                          Vector2d;
 
 typedef boost::array<std::size_t, 2>                         Edge;
 typedef boost::array<std::size_t, 3>                         Tri;
 
-//typedef typename CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
-typedef typename CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+//typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 
 typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
 typedef typename KExact::Point_2                             EPoint;

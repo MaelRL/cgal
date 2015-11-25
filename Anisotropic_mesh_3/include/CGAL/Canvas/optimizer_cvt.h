@@ -36,7 +36,7 @@ public:
   typedef typename Canvas::Metric                                Metric;
 
   typedef std::vector<std::pair<Point_3, FT> >                   Centroid_vector;
-  typedef typename std::vector<Centroid_vector>                  Centroid_matrix;
+  typedef std::vector<Centroid_vector>                           Centroid_matrix;
 
   Canvas& canvas;
   std::size_t max_iter;

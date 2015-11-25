@@ -42,16 +42,16 @@ public:
   typedef Refine_facet_hash<K, KExact>                      Rfacet_hash;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Self,
-                                        Rfacet_hash,
-                                        Rfacet_comparer>    Rfacet_set;
+  typedef boost::unordered_set<Self,
+                               Rfacet_hash,
+                               Rfacet_comparer>             Rfacet_set;
 #else
-  typedef typename std::set<Self, Rfacet_comparer>          Rfacet_set;
+  typedef std::set<Self, Rfacet_comparer>                   Rfacet_set;
 #endif
 
   typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
-  typedef typename std::multiset<Rfacet_set_iterator,
-                                 Rfacet_it_comparer>        Queue;
+  typedef std::multiset<Rfacet_set_iterator,
+                        Rfacet_it_comparer>                 Queue;
   typedef typename Queue::iterator                          Queue_iterator;
 
 public:
@@ -129,11 +129,11 @@ class Refine_facet_iterator_comparer
   typedef Refine_facet_comparer<K, KExact>                  Rfacet_comparer;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Rfacet,
-                                        Refine_facet_hash<K, KExact>,
-                                        Rfacet_comparer>    Rfacet_set;
+  typedef boost::unordered_set<Rfacet,
+                               Refine_facet_hash<K, KExact>,
+                               Rfacet_comparer>             Rfacet_set;
 #else
-  typedef typename std::set<Rfacet, Rfacet_comparer>        Rfacet_set;
+  typedef std::set<Rfacet, Rfacet_comparer>                 Rfacet_set;
 #endif
 
   typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
@@ -161,17 +161,17 @@ public:
   typedef Refine_facet_iterator_comparer<K, KExact>         Rfacet_it_comparer;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Rfacet,
-                                        Refine_facet_hash<K, KExact>,
-                                        Rfacet_comparer>    Rfacet_set;
+  typedef boost::unordered_set<Rfacet,
+                               Refine_facet_hash<K, KExact>,
+                               Rfacet_comparer>             Rfacet_set;
 #else
-  typedef typename std::set<Rfacet, Rfacet_comparer>        Rfacet_set;
+  typedef std::set<Rfacet, Rfacet_comparer>                 Rfacet_set;
 #endif
 
   typedef typename Rfacet_set::iterator                     Rfacet_set_iterator;
 
-  typedef typename std::multiset<Rfacet_set_iterator,
-                                 Rfacet_it_comparer>        Queue;
+  typedef std::multiset<Rfacet_set_iterator,
+                        Rfacet_it_comparer>                 Queue;
   typedef typename Queue::iterator                          Queue_iterator;
 
   typedef typename Rfacet::Star_handle                      Star_handle;

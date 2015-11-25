@@ -42,16 +42,16 @@ public:
   typedef Refine_cell_hash<K, KExact>                       Rcell_hash;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Self,
-                                        Rcell_hash,
-                                        Rcell_comparer>     Rcell_set;
+  typedef boost::unordered_set<Self,
+                               Rcell_hash,
+                               Rcell_comparer>              Rcell_set;
 #else
-  typedef typename std::set<Self, Rcell_comparer>           Rcell_set;
+  typedef std::set<Self, Rcell_comparer>                    Rcell_set;
 #endif
 
   typedef typename Rcell_set::iterator                      Rcell_set_iterator;
-  typedef typename std::multiset<Rcell_set_iterator,
-                                 Rcell_it_comparer>         Queue;
+  typedef std::multiset<Rcell_set_iterator,
+                        Rcell_it_comparer>                  Queue;
   typedef typename Queue::iterator                          Queue_iterator;
 
 public:
@@ -129,11 +129,11 @@ class Refine_cell_iterator_comparer
   typedef Refine_cell_hash<K, KExact>                       Rcell_hash;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Rcell,
-                                        Rcell_hash,
-                                        Rcell_comparer>     Rcell_set;
+  typedef boost::unordered_set<Rcell,
+                               Rcell_hash,
+                               Rcell_comparer>              Rcell_set;
 #else
-  typedef typename std::set<Rcell, Rcell_comparer>          Rcell_set;
+  typedef std::set<Rcell, Rcell_comparer>                   Rcell_set;
 #endif
 
   typedef typename Rcell_set::iterator                      Rcell_set_iterator;
@@ -160,16 +160,16 @@ public:
   typedef Refine_cell_hash<K, KExact>                           Rcell_hash;
 
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-  typedef typename boost::unordered_set<Rcell,
-                                        Rcell_hash,
-                                        Rcell_comparer>         Rcell_set;
+  typedef boost::unordered_set<Rcell,
+                               Rcell_hash,
+                               Rcell_comparer>                  Rcell_set;
 #else
-  typedef typename std::set<Rcell, Rcell_comparer>              Rcell_set;
+  typedef std::set<Rcell, Rcell_comparer>                       Rcell_set;
 #endif
 
   typedef typename Rcell_set::iterator                          Rcell_set_iterator;
-  typedef typename std::multiset<Rcell_set_iterator,
-                                 Rcell_it_comparer>             Queue;
+  typedef std::multiset<Rcell_set_iterator,
+                        Rcell_it_comparer>                      Queue;
   typedef typename Queue::iterator                              Queue_iterator;
 
   typedef typename Rcell::Star_handle                           Star_handle;

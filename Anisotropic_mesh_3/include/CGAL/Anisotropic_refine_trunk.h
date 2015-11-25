@@ -82,7 +82,7 @@ public:
   typedef Stretched_Delaunay_3<K, KExact>                  Star;
   typedef CGAL::Anisotropic_mesh_3::Starset<K, KExact>     Starset;
   typedef Star*                                            Star_handle;
-  typedef typename std::vector<Star_handle>                Star_vector;
+  typedef std::vector<Star_handle>                         Star_vector;
   typedef CGAL::Anisotropic_mesh_3::Conflict_zone<K>       Czone;
   typedef typename Star::Index                             Index;
   typedef typename Star::Point_3                           Point;
@@ -689,7 +689,7 @@ public:
 
   typedef CGAL::Anisotropic_mesh_3::Starset<K>                     Starset;
 
-  typedef typename CGAL::Anisotropic_mesh_3::Metric_field<K>       Metric_field;
+  typedef CGAL::Anisotropic_mesh_3::Metric_field<K>                Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
   typedef CGAL::AABB_tree_bbox<K, Star>                            AABB_tree;
@@ -884,7 +884,7 @@ public:
 
       if(star->is_facet_encroached(transform_to_star_point(si->center_point(), star), facet))
       {
-#if 1//def ANISO_DEBUG_ENCROACHMENT
+#ifdef ANISO_DEBUG_ENCROACHMENT
         std::cout << "Facet ";
         std::cout << facet.first->vertex((facet.second + 1)%4)->info() << " ";
         std::cout << facet.first->vertex((facet.second + 2)%4)->info() << " ";
@@ -1260,6 +1260,22 @@ public:
   }
 
 // Point insertion functions
+  void create_star_from_all_stars(Star_handle& star) const
+  {
+    // Increasingly slow but will produce the correct star
+    typename Starset::iterator sit = m_starset.begin();
+    typename Starset::iterator send = m_starset.end();
+    for(; sit!=send; ++sit)
+    {
+      Star_handle star_i = get_star(sit);
+      star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(),
+                           false/*conditional*/);
+      // "false": no condition because they all need to be considered to get the
+      // proper star. Not being in conflict with the star when your number comes up
+      // does _NOT_ mean you're not part of the first ring of the new star in the end...
+    }
+  }
+
   void insert_from_kd_tree(Star_handle star) const
   {
     int counter = 0;
@@ -1278,6 +1294,7 @@ public:
       m_kd_tree.search(std::inserter(indices, indices.end()), query);
 
 #ifdef ANISO_DEBUG_KDTREE
+      std::cout << "star of size: " << star->number_of_vertices() << std::endl;
       std::cout << "bbox given to kd tree: " << std::endl;
       std::cout << pmin << std::endl << pmax << std::endl;
       std::cout << "kd tree finds : " << indices.size() << " pts out of "
@@ -1358,11 +1375,56 @@ public:
       Star_handle star_i = get_star(i);
       star->insert_to_star(star_i->center_point(), star_i->index_in_star_set(),
                            false/*conditional*/);
-        //"false": no condition because they should be there for consistency
+        // "false": no condition because they should be there for consistency
     }
 
     insert_from_kd_tree(star);
     star->clean();
+
+#ifdef ANISO_DEBUG_INSERT
+    star->print_vertices();
+    std::ofstream out_before("star_before.off");
+    output_star_off(star, out_before);
+
+    //check if we missed any other star in conflict
+    typename Star_vector::iterator it = stars().begin();
+    typename Star_vector::iterator iend = stars().end();
+    for(; it!=iend; it++)
+    {
+      Star_handle star_i = get_star(it);
+      if(star->has_vertex(star_i->index_in_star_set()))
+        continue;
+
+      const Point_3& cpi = star_i->center_point();
+      const TPoint_3& tcpi = star->metric().transform(cpi);
+      Cell_handle dummy;
+      CGAL_assertion(!star->is_conflicted(tcpi, dummy));
+    }
+
+    // check if rebuilding with everything would give the expected same result
+    if(m_is_3D_level)
+    {
+      // can't use this test if we're not using 3D bboxes & stuff like that since
+      // we intentionally restrict stars when in a mesher level that is only 2D
+
+      std::size_t mem = star->finite_adjacent_vertices_end() -
+                        star->finite_adjacent_vertices_begin();
+      star->reset();
+      for(std::size_t i=0; i<m_starset.size(); ++i)
+      {
+        Star_handle star_i = m_starset[i];
+        star->insert_to_star(star_i->center_point(), i, false/*no cond*/);
+      }
+      star->clean(true/*verbose*/);
+      star->print_vertices();
+
+      std::ofstream out_after("star_after.off");
+      output_star_off(star, out_after);
+
+      CGAL_postcondition(mem == (star->finite_adjacent_vertices_end() -
+                                 star->finite_adjacent_vertices_begin()));
+    }
+#endif
   }
 
   Star_handle create_star(const Point_3 &p,
@@ -1424,6 +1486,47 @@ public:
         insert_from_kd_tree(si);
       }
     }
+
+#ifdef ANISO_DEBUG_INSERT
+    // check if we have inserted the new point everywhere it's needed
+    typename Star_vector::iterator it = stars().begin();
+    typename Star_vector::iterator iend = stars().end();
+    for(; it != iend; it++)
+    {
+      Star_handle star_i = get_star(it);
+      Index si = star_i->index_in_star_set();
+
+      if(m_stars_czones.conflict_zones().find(si) != m_stars_czones.conflict_zones().end())
+        continue;
+
+      const TPoint_3& tpi = star_i->metric().transform(p);
+      Cell_handle dummy;
+      CGAL_assertion(!star_i->is_conflicted(tpi, dummy));
+    }
+
+    // check that the stars that were in conflict for the new point are correct (after insertion)
+    czit = m_stars_czones.begin();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+      Star_handle star_i = get_star(i);
+
+      it = stars().begin();
+      for(; it != iend; it++)
+      {
+        Star_handle star_j = get_star(it);
+
+        if(star_i->has_vertex(star_j->index_in_star_set()))
+          continue;
+
+        const Point_3& cpj = star_j->center_point();
+        const TPoint_3& tcpj = star_i->metric().transform(cpj);
+        Cell_handle dummy;
+        CGAL_assertion(!star_i->is_conflicted(tcpj, dummy));
+      }
+    }
+#endif
+
     return this_id;
   }
 

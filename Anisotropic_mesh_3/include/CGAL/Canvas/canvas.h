@@ -61,28 +61,28 @@ public:
   typedef Primal_simplex<Self, 3>                           Primal_triangle;
   typedef Primal_simplex<Self, 4>                           Primal_tetrahedron;
 
-  typedef typename boost::unordered_set<Primal_edge,
-                                        Primal_simplex_hash<Canvas, 2>,
-                                        Primal_simplex_comparer<Canvas, 2> >
+  typedef boost::unordered_set<Primal_edge,
+                               Primal_simplex_hash<Canvas, 2>,
+                               Primal_simplex_comparer<Canvas, 2> >
                                                             Primal_edges_container;
   typedef typename Primal_edges_container::iterator         PEC_iterator;
-  typedef typename boost::unordered_set<Primal_triangle,
-                                        Primal_simplex_hash<Canvas, 3>,
-                                        Primal_simplex_comparer<Canvas, 3> >
+  typedef boost::unordered_set<Primal_triangle,
+                               Primal_simplex_hash<Canvas, 3>,
+                               Primal_simplex_comparer<Canvas, 3> >
                                                             Primal_triangles_container;
   typedef typename Primal_triangles_container::iterator     PTrC_iterator;
-  typedef typename boost::unordered_set<Primal_tetrahedron,
-                                        Primal_simplex_hash<Canvas, 4>,
-                                        Primal_simplex_comparer<Canvas, 4> >
+  typedef boost::unordered_set<Primal_tetrahedron,
+                               Primal_simplex_hash<Canvas, 4>,
+                               Primal_simplex_comparer<Canvas, 4> >
                                                             Primal_tetrahedra_container;
   typedef typename Primal_tetrahedra_container::iterator    PTC_iterator;
 
   typedef std::vector<Canvas_point*>                        Canvas_point_handle_vector;
 
-  typedef typename Eigen::Matrix<FT, 3, 1>                  Vector3d;
+  typedef Eigen::Matrix<FT, 3, 1>                           Vector3d;
 
   typedef CGAL::Bbox_3                                      Bbox;
-  typedef typename CGAL::Box_intersection_d::Box_with_handle_d<FT, 3, PTC_iterator>
+  typedef CGAL::Box_intersection_d::Box_with_handle_d<FT, 3, PTC_iterator>
                                                             Box;
 
   // Canvas name
@@ -161,10 +161,10 @@ public:
   {
     if(cp.closest_seed_id() != static_cast<std::size_t>(-1))
     {
-      std::cerr << "WARNING: a new seed is overwriting the closest seed id";
-      std::cerr << " of a canvas point!" << std::endl;
-      std::cerr << "seed: " << seed_id << " wants to initialize point: " << cp.index() << "(" << cp.point() << ")";
-      std::cerr << " but seed " << cp.closest_seed_id() << " has done it already" << std::endl;
+      std::cout << "WARNING: a new seed is overwriting the closest seed id";
+      std::cout << " of a canvas point!" << std::endl;
+      std::cout << "seed: " << seed_id << " wants to initialize point: " << cp.index() << "(" << cp.point() << ")";
+      std::cout << " but seed " << cp.closest_seed_id() << " has done it already" << std::endl;
     }
 
     // We can't accept two seeds for one canvas point
@@ -256,7 +256,7 @@ public:
     bool is_t_empty = trial_points.empty();
 
     if(is_t_empty)
-      std::cerr << "Trying to paint without anything in the PQ..." << std::endl;
+      std::cout << "Trying to paint without anything in the PQ..." << std::endl;
     else
       std::cout << trial_points.size() << " initial points in the queue" << std::endl;
 
@@ -678,7 +678,7 @@ public:
     }
 
     if(colors.size() >= 5)
-      std::cerr << "WARNING: cosphericity in the candidate set" << std::endl;
+      std::cout << "WARNING: cosphericity in the candidate set" << std::endl;
   }
 
   void detect_tetrahedra_self_intersections()
@@ -741,7 +741,7 @@ public:
       const Canvas_point* dual_point = pt.dual_point();
       std::size_t ap_length = dual_point->count_ancestors();
       if(ap_length < ancestor_minimum_length)
-        std::cerr << "WARNING : the canvas is thin (" << ap_length
+        std::cout << "WARNING : the canvas is thin (" << ap_length
                   << ") for the primal : "<< pt << std::endl;
     }
 
@@ -752,7 +752,7 @@ public:
       const Canvas_point* dual_point = pt.dual_point();
       std::size_t ap_length = dual_point->count_ancestors();
       if(ap_length < ancestor_minimum_length)
-        std::cerr << "WARNING : the canvas is thin (" << ap_length
+        std::cout << "WARNING : the canvas is thin (" << ap_length
                   << ") for the primal : " << pt << std::endl;
     }
 
@@ -766,7 +766,7 @@ public:
       {
         for(int i=0; i<4; ++i)
           subdomain_indices.insert(pt[i]);
-        std::cerr << "WARNING : the canvas is thin (" << ap_length
+        std::cout << "WARNING : the canvas is thin (" << ap_length
                   << ") for the primal : " << pt << std::endl;
       }
     }
@@ -786,7 +786,7 @@ public:
   {
     if(primal_edges.empty() && primal_triangles.empty() && primal_tetrahedra.empty())
     {
-      std::cerr << "WARNING: empty primal data structures at output" << std::endl;
+      std::cout << "WARNING: empty primal data structures at output" << std::endl;
       return;
     }
 

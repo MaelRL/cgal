@@ -47,10 +47,10 @@ class Kd_tree_for_star_set :
 {
 
 private:
-  typedef typename CGAL::Kd_tree<
-    CGAL::Search_traits_adapter< typename Star_property_map<K, StarHandle>::Point,
-                                 Star_property_map<K, StarHandle>,
-                                 CGAL::Search_traits_2<K> > >                Base;
+  typedef CGAL::Kd_tree<CGAL::Search_traits_adapter<
+                           typename Star_property_map<K, StarHandle>::Point,
+                           Star_property_map<K, StarHandle>,
+                           CGAL::Search_traits_2<K> > >              Base;
 public:
   typedef Star_property_map<K, StarHandle>                           Star_pmap;
   typedef typename Star_pmap::Point                                  Point;

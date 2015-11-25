@@ -76,11 +76,11 @@ public:
   typedef typename Base::Pointset                    Point_container;
   typedef typename Base::Colored_poly                Colored_polyhedron;
 
-  typedef typename CGAL::Polyhedral_mesh_domain_3<Polyhedron, K> Mesh_domain;
+  typedef CGAL::Polyhedral_mesh_domain_3<Polyhedron, K> Mesh_domain;
 
-  typedef typename CGAL::AABB_polyhedron_triangle_primitive<K, Polyhedron> Primitive;
-  typedef typename CGAL::AABB_traits<K, Primitive> Traits;
-  typedef typename CGAL::AABB_tree<Traits> Tree;
+  typedef CGAL::AABB_polyhedron_triangle_primitive<K, Polyhedron> Primitive;
+  typedef CGAL::AABB_traits<K, Primitive>                         Traits;
+  typedef CGAL::AABB_tree<Traits>                                 Tree;
   typedef typename Tree::Object_and_primitive_id Object_and_primitive_id;
   typedef typename Tree::Point_and_primitive_id Point_and_primitive_id;
 
@@ -90,12 +90,12 @@ public:
   typedef typename Polyhedron::Halfedge_around_vertex_circulator HV_circulator;
 
   // for Mesh_3
-  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type Tr;
-  typedef typename CGAL::Mesh_complex_3_in_triangulation_3<Tr> C3t3;
-  typedef typename CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
+  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type    Tr;
+  typedef CGAL::Mesh_complex_3_in_triangulation_3<Tr>               C3t3;
+  typedef CGAL::Mesh_criteria_3<Tr>                                 Mesh_criteria;
 
   // exact
-  typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
+  typedef CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef typename KExact::FT                           Exact_FT;
   typedef typename KExact::Point_3                      Exact_Point_3;
   typedef typename KExact::Vector_3                     Exact_Vector_3;
@@ -227,9 +227,8 @@ public:
 
   virtual Point_container initial_points(const int nb) const
   {
-    typedef typename std::vector<std::pair<
-      typename Mesh_domain::Point_3,
-      typename Mesh_domain::Index> > PointIndex_container;
+    typedef std::vector<std::pair<typename Mesh_domain::Point_3,
+                                  typename Mesh_domain::Index> > PointIndex_container;
     PointIndex_container points_indices;
     std::back_insert_iterator<PointIndex_container> inserter(points_indices);
     domain->construct_initial_points_object()(inserter, nb);

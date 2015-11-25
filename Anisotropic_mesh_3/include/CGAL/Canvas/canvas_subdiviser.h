@@ -68,7 +68,7 @@ struct Canvas_subdivider
   typedef typename Tr::Vertex_handle                              Vertex_handle;
   typedef typename Tr::Facet                                      Facet;
   typedef typename Tr::Cell_handle                                Cell_handle;
-  typedef typename std::set<Vertex_handle>                        Vertex_handle_set;
+  typedef std::set<Vertex_handle>                                 Vertex_handle_set;
 
   typedef std::vector<Cell_handle>                                Cell_handle_vector;
   typedef typename Cell_handle_vector::iterator                   Cell_handle_handle;

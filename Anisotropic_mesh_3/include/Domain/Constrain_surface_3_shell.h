@@ -36,7 +36,7 @@ public:
   typedef typename K::Segment_3         Segment_3;
   typedef typename K::Ray_3             Ray_3;
   typedef typename K::FT                FT;
-  typedef typename CGAL::Oriented_side  Oriented_side;
+  typedef CGAL::Oriented_side           Oriented_side;
 
 public:
   FT radius_0;

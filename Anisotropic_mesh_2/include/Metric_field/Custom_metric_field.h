@@ -22,11 +22,10 @@ public:
   Metric radial_shock(const Point_2& p) const
   {
     FT x = p.x();
-
-    if(x == 0)
-      return Metric();
-
     FT y = p.y();
+
+    if(x == 0 && y == 0)
+      return Metric();
 
     FT r = x*x+y*y;
     FT nx = x/std::sqrt(r);
@@ -70,7 +69,7 @@ public:
     return Metric(v1, v2, l1/h, l2/h, this->epsilon);
   }
 
-  Metric hyberbolic_shock(const Point_2 &p,
+  Metric hyperbolic_shock(const Point_2 &p,
                           const FT delta = 0.6) const
   {
     FT h = 0.1; // 0.05
@@ -158,7 +157,8 @@ public:
   virtual Metric compute_metric(const Point_2 &p) const
   {
     return starred_shock(p);
-    return hyberbolic_shock(p);
+    return radial_shock(p);
+    return hyperbolic_shock(p);
     return yang_liu_cube_shock(p);
     return this->build_metric(Vector_2(1, 0),
                               Vector_2(0, 1),

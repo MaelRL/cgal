@@ -31,7 +31,7 @@ public:
 
   typedef typename Constrain_surface::C3t3                      C3t3;
 
-  typedef typename CGAL::Monge_via_jet_fitting<K>               Monge_via_jet_fitting;
+  typedef CGAL::Monge_via_jet_fitting<K>                        Monge_via_jet_fitting;
   typedef typename Monge_via_jet_fitting::Monge_form            Monge_form;
 
 public:

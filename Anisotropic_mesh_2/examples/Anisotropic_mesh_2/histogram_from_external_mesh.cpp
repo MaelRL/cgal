@@ -11,7 +11,7 @@
 #include <vector>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-//typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
+//typedef CGAL::Exact_predicates_exact_constructions_kernel KExact;
 typedef K                                                    KExact;
 
 typedef typename K::FT                                       FT;

@@ -755,7 +755,7 @@ public:
 public:
   std::size_t clean(bool verbose = false) //remove non-adjacent vertices
   {
-    typedef typename std::pair<TPoint_2, int> PPoint;
+    typedef std::pair<TPoint_2, int>          PPoint;
     std::vector<PPoint> backup;
     std::size_t nbv = this->number_of_vertices();
 

@@ -197,8 +197,6 @@ public:
             std::cout << " inconsistent : ";
             cell_told = true;
           }
-          std::cout << c->vertex(0)->info() << " " << c->vertex(1)->info() << " ";
-          std::cout << c->vertex(2)->info() << " " << c->vertex(3)->info();
           std::cout << " not in S_" << index << ", ";
         }
         retval = false;
@@ -206,7 +204,7 @@ public:
       }
     }
     if(verbose && !retval)
-      std::cout << "." << std::endl;
+      std::cout << std::endl;
     return retval;
   }
 
@@ -256,7 +254,7 @@ public:
     bool retval = true;
     int counter = 0;
     std::size_t N = m_stars.size();
-    for(std::size_t i = 0; i < N; i++)
+    for(std::size_t i=0; i<N; i++)
     {
       Star_handle star = m_stars[i];
       if(!is_consistent(star, verbose, option))

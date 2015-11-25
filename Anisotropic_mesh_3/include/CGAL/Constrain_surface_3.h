@@ -61,7 +61,7 @@ public:
   typedef typename K::Line_3                   Line_3;
   typedef typename K::Plane_3                  Plane_3;
 
-  typedef typename CGAL::Oriented_side         Oriented_side;
+  typedef CGAL::Oriented_side                  Oriented_side;
   typedef int                                  Subdomain_index;
   typedef int                                  Surface_patch_index;
   typedef int                                  Index;

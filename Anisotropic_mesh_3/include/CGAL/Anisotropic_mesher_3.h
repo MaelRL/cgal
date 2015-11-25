@@ -51,7 +51,7 @@ class Anisotropic_mesher_3 : public Anisotropic_mesher_3_base
   typedef Anisotropic_mesher_3_base                         Base;
 
 public:
-  //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
+  //typedef CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef K                                                 KExact;
 
   typedef Stretched_Delaunay_3<K, KExact>                   Star;
@@ -234,10 +234,10 @@ public:
     timer.stop(); timer.reset(); timer.start();
 #endif
 
-    std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
-    std::cout << "Total refining time: " << timer.time()+elapsed_time << "s" << std::endl;
+    std::cout << "Total refining time: " << timer.time() + elapsed_time << "s" << std::endl;
 #endif
 
+    report();
     timer.stop();
     elapsed_time += timer.time();
     return elapsed_time;

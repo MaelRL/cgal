@@ -34,7 +34,7 @@ public:
   typedef typename Star::Face_handle             Face_handle;
   typedef typename Star::Face_handle_vector      Face_handle_vector;
   typedef typename Star::Edge                    Edge;
-  typedef typename std::vector<Edge>             Edge_vector;
+  typedef std::vector<Edge>                      Edge_vector;
 
 private:
   //Conflict zones defining vectors. Valid only until the insertion of the point!
@@ -68,7 +68,7 @@ public:
   typedef Stretched_Delaunay_2<K, KExact>                  Star;
   typedef CGAL::Anisotropic_mesh_2::Starset<K, KExact>     Starset;
   typedef Star*                                            Star_handle;
-  typedef typename std::vector<Star_handle>                Star_vector;
+  typedef std::vector<Star_handle>                         Star_vector;
   typedef CGAL::Anisotropic_mesh_2::Conflict_zone<K>       Czone;
   typedef typename Star::Index                             Index;
   typedef typename Star::Point_2                           Point;
@@ -334,7 +334,7 @@ class Anisotropic_refine_trunk
 private:
   typedef Anisotropic_refine_trunk<K>                              Self;
 public:
-  //typedef typename CGAL::Exact_predicates_exact_constructions_kernel KExact;
+  //typedef CGAL::Exact_predicates_exact_constructions_kernel KExact;
   typedef K                                                        KExact;
 
   typedef Stretched_Delaunay_2<K>                                  Star;
@@ -358,7 +358,7 @@ public:
 
   typedef CGAL::Anisotropic_mesh_2::Starset<K>                     Starset;
 
-  typedef typename CGAL::Anisotropic_mesh_2::Metric_field<K>       Metric_field;
+  typedef CGAL::Anisotropic_mesh_2::Metric_field<K>                Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
@@ -753,10 +753,9 @@ public:
     }
   }
 
-  void create_star_from_full_starset(Star_handle& star) const
+  void create_star_from_all_stars(Star_handle& star) const
   {
     // Increasingly slow but will produce the correct star
-
     typename Starset::iterator sit = m_starset.begin();
     typename Starset::iterator send = m_starset.end();
     for(; sit!=send; ++sit)

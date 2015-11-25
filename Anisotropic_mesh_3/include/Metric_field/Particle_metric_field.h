@@ -29,7 +29,7 @@ public:
   typedef typename K::FT                                FT;
   typedef typename Metric_field<K>::Metric              Metric;
   typedef typename Metric_field<K>::Point_3             Point_3;
-  typedef typename std::vector<std::pair<Point_3, FT> > ParticleList;
+  typedef std::vector<std::pair<Point_3, FT> >          ParticleList;
   ParticleList particles;
 
 public:
