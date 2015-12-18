@@ -562,6 +562,14 @@ public:
 
   void create_and_insert_primal_triangle(const boost::array<const Canvas_point*, 3>& witnesses)
   {
+#ifndef COMPUTE_PRIMAL_ALL_DIMENSIONS
+    // if we're not interested in dual simplicies in all dimensions we only
+    // want to keep canvas triangles with 3 different colors AND on the border
+    if(!witnesses[0]->border_info() || !witnesses[1]->border_info() ||
+       !witnesses[2]->border_info())
+      return;
+#endif
+
     BTriangle triangle;
     if(!check_primal_simplex(witnesses, triangle))
       return;
@@ -653,18 +661,20 @@ public:
     std::cout << std::endl;
 #endif
 
+#ifdef COMPUTE_PRIMAL_ALL_DIMENSIONS
     if(colors.size() >= 2)
     {
       // get the 2-combinations & build primal edges
-      typedef typename std::vector<boost::array<const Canvas_point*, 2> > RType;
+      typedef std::vector<boost::array<const Canvas_point*, 2> > RType;
       RType combis = combinations<2>(candidates);
       add_to_primal_edges(combis.begin(), combis.end());
     }
+#endif
 
     if(colors.size() >= 3)
     {
       // get the 3-combinations & build primal triangles
-      typedef typename std::vector<boost::array<const Canvas_point*, 3> > RType;
+      typedef std::vector<boost::array<const Canvas_point*, 3> > RType;
       RType combis = combinations<3>(candidates);
       add_to_primal_triangles(combis.begin(), combis.end());
     }
@@ -672,7 +682,7 @@ public:
     if(colors.size() >= 4)
     {
       // get the 4-combinations & build primal tetrahedra
-      typedef typename std::vector<boost::array<const Canvas_point*, 4> > RType;
+      typedef std::vector<boost::array<const Canvas_point*, 4> > RType;
       RType combis = combinations<4>(candidates);
       add_to_primal_tetrahedra(combis.begin(), combis.end());
     }
@@ -723,11 +733,12 @@ public:
     are_tetrahedra_intersection_computed = true;
   }
 
-  std::set<int> check_canvas_density_with_primals(const std::size_t ancestor_minimum_length = 8) const
+  std::set<int> check_canvas_density_with_primals(const std::size_t ancestor_minimum_length = 8)
   {
 #if (verbosity > 10)
     std::cout << "density check" << std::endl;
 #endif
+    detect_tetrahedra_self_intersections();
     std::set<int> subdomain_indices;
 
     // we have taken the farthest witness point as dual information, we check
@@ -809,6 +820,17 @@ public:
     for(std::size_t i=0; i<seeds.size(); ++i)
       out << seeds[i] << " " << i+1 << std::endl;
 
+#ifdef COMPUTE_PRIMAL_ALL_DIMENSIONS
+    std::size_t bb_entries_n = primal_triangles.size() + primal_tetrahedra.size();
+#else
+    std::size_t bb_entries_n = primal_tetrahedra.size();
+#endif
+    out_bb << "3 1 " << bb_entries_n << " 1" << std::endl;
+
+#ifdef COMPUTE_PRIMAL_ALL_DIMENSIONS
+    // only output edges & triangles when we have computed them all
+    // side note : if the macro isn't defined we only know _some_ of the triangles
+
     out << "Edges" << std::endl;
     out << primal_edges.size() << std::endl;
     for(typename Primal_edges_container::iterator it = primal_edges.begin();
@@ -832,8 +854,6 @@ public:
     }
 #endif
 
-    std::size_t bb_entries_n = primal_triangles.size() + primal_tetrahedra.size();
-    out_bb << "3 1 " << bb_entries_n << " 1" << std::endl;
     out << "Triangles" << std::endl;
     out << primal_triangles.size() << std::endl;
     for(typename Primal_triangles_container::iterator it = primal_triangles.begin();
@@ -851,6 +871,7 @@ public:
       FT gamma = tr.compute_distortion(seeds.metrics());
       out_bb << gamma << std::endl;
     }
+#endif
 
     out << "Tetrahedra" << std::endl;
     out << primal_tetrahedra.size() << std::endl;

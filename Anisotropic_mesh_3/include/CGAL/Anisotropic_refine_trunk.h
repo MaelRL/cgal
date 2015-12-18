@@ -1818,6 +1818,69 @@ public:
     output_surface_medit(m_starset, out_facet);
   }
 
+  // it is way more efficient to use below
+  void resume_from_dump_file_(const char* filename)
+  {
+    if(!m_starset.empty())
+    {
+      std::cout << "resuming with a non empty star set... ?" << std::endl;
+      return;
+    }
+
+    // if resuming for a surface, add poles
+    if(!m_is_3D_level)
+    {
+#ifdef ANISO_USE_BOUNDING_BOX_VERTICES_AS_POLES
+      initialize_bounding_box_vertices();
+#endif
+      this->m_pConstrain->get_surface_points(50); // initial points are not used
+      initialize_medial_axis();
+      build_aabb_tree();
+    }
+
+    std::ifstream in(filename);
+    std::size_t stars_n, v_n, id; // number of stars, neighbors in a star, neighbhor id
+    FT x,y,z; // coordinates
+
+    in >> stars_n;
+    std::cout << "dump file has: " << stars_n << " stars" << std::endl;
+
+    for(std::size_t i=0; i<stars_n; ++i)
+    {
+      in >> x >> y >> z;
+      Point_3 p(x,y,z);
+
+      if(i%1000 == 0)
+        std::cout << i << " stars" << std::endl;
+
+      Star_handle star = new Star(m_criteria, m_pConstrain);
+      const Metric& m_p = m_metric_field->compute_metric(p);
+      star->reset(p, i, m_p);
+      m_starset.push_back(star);
+    }
+
+    std::cout << "built stars, now filling neighbors" << std::endl;
+
+    for(std::size_t i=0; i<stars_n; ++i)
+    {
+      if(i%1000 == 0)
+        std::cout << i << " neighborhood" << std::endl;
+
+
+      in >> v_n;
+      Star_handle star_i = m_starset.get_star(i);
+      for(std::size_t j=0; j<v_n; ++j)
+      {
+        in >> id;
+        Star_handle star_j = m_starset.get_star(id);
+        star_i->insert_to_star(star_j->center_point(), id, false);
+      }
+    }
+
+    build_aabb_tree();
+
+    std::cout << "starset of size: " << m_starset.size() << " stars from " << filename << std::endl;
+  }
 protected:
   void switch_to_volume_bboxes()
   {

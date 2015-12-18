@@ -97,6 +97,7 @@ int main(int argc, char** argv)
 //  mesher.resume_from_mesh_file("../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh");
 //  mesher.resume_from_mesh_file("/home/mrouxell/Downloads/review/AnisoMeshData/VOLUME/fig14_sine.mesh");
 //  mesher.resume_from_mesh_file("resumed_in.mesh");
+  mesher.resume_from_dump_file("dump_wip.txt");
 
   double elapsed_time = mesher.refine_mesh();
 

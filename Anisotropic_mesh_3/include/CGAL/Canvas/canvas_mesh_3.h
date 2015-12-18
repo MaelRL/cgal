@@ -222,7 +222,9 @@ void generate_canvas(const MF* mf)
   Mesh_criteria criteria(edge_criteria, facet_criteria, cell_criteria);
 
   // Mesh generation
-  C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
+  C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
+				      parameters::no_perturb(),
+				      parameters::no_exude());
 
   std::cout << "Number of vertices: " << c3t3.triangulation().number_of_vertices() << std::endl;
 

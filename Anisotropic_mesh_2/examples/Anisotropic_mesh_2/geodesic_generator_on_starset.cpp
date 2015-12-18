@@ -1743,7 +1743,8 @@ void Grid_point::print_ancestors() const
 
 bool Grid_point::find_in_ancestry(const std::size_t i) const
 {
-  anc_path_length(); // assert non circular ancestry
+  CGAL_assertion(ancestor == static_cast<std::size_t>(-1) ||
+                 anc_path_length()); // assert non circular ancestry
   std::size_t anc = ancestor;
   while(anc != static_cast<std::size_t>(-1))
   {

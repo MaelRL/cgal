@@ -109,7 +109,7 @@ public:
 
     derived().clear_conflict_zones();
 
-    if(pid%10 == 0)
+    if(pid%100 == 0)
       derived().clean_stars();
 
 #if 0//def ANISO_DEBUG_QUEUE
@@ -182,6 +182,11 @@ public:
   void resume_from_mesh_file(const char* filename)
   {
     derived().resume_from_mesh_file_(filename);
+  }
+
+  void resume_from_dump_file(const char* filename)
+  {
+    derived().resume_from_dump_file_(filename);
   }
 
   Anisotropic_mesher_level(Previous& previous)

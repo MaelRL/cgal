@@ -28,7 +28,7 @@ public:
   FT get_a() const { return a; }
   FT get_b() const { return b; }
   FT get_mu() const { return mu; }
-  
+
   virtual std::string name() const
   {
     std::ostringstream o;
@@ -43,7 +43,7 @@ public:
 
   virtual typename CGAL::Bbox_3 get_bbox() const
   {
-    typedef typename CGAL::Bbox_3 Bbox;
+    typedef CGAL::Bbox_3 Bbox;
     return Bbox(-10, -10, -10,
                 10, 10, 10);
   }
@@ -105,7 +105,7 @@ public:
   }
 
   Constrain_surface_3_cyclide* clone() const // Covariant Return Types
-  { 
+  {
     return new Constrain_surface_3_cyclide(*this);
   }
 

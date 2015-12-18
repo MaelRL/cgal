@@ -360,7 +360,7 @@ public:
     {
       std::ofstream out_med("bambimboum_wip.mesh");
       output_surface_medit(this->m_starset, out_med);
-      std::ofstream out_dump("dump_wip.mesh");
+      std::ofstream out_dump("dump_wip.txt");
       dump(this->m_starset, out_dump);
     }
 #endif

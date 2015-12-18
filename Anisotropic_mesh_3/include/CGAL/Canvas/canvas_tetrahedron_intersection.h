@@ -182,8 +182,11 @@ struct Intersect_tetrahedra
     p_tet_2->m_is_intersected = true;
 
     // only needed for visualization
+#ifdef COMPUTE_PRIMAL_ALL_DIMENSIONS
+    // if the macro isn't defined, we only care about tets
     mark_primal_triangles_as_interected(p_tet_1);
     mark_primal_triangles_as_interected(p_tet_2);
+#endif
   }
 
   void operator() (const Box* box_1, const Box* box_2)

@@ -3756,7 +3756,8 @@ void Grid_point::print_ancestors() const
 
 bool Grid_point::find_in_ancestry(const std::size_t i) const
 {
-  CGAL_assertion(anc_path_length()); // assert non circular ancestry
+  CGAL_assertion(ancestor == static_cast<std::size_t>(-1) ||
+                 anc_path_length()); // assert non circular ancestry
   std::size_t anc = ancestor;
   while(anc != static_cast<std::size_t>(-1))
   {
@@ -4007,6 +4008,8 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 
       // add 'index' to the new ancestor's children
       bm->points[ancestor].children.insert(index);
+//      std::cout << "insert " << index << " in " << ancestor << " 's children" << std::endl;
+//      std::cout << ancestor << " children size : " << bm->points[ancestor].children.size() << std::endl;
 
       CGAL_postcondition(anc_path_length() == ancestor_path_length); // checks for circular ancestry
 

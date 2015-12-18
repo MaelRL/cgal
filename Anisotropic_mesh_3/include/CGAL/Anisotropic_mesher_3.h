@@ -248,6 +248,11 @@ public:
     m_cell_consistency_mesher.resume_from_mesh_file(filename);
   }
 
+  void resume_from_dump_file(const char* filename)
+  {
+    m_cell_consistency_mesher.resume_from_dump_file(filename);
+  }
+
   // Step-by-step methods
   void initialize()
   {

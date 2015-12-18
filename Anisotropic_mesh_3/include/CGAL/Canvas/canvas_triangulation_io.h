@@ -506,7 +506,8 @@ bool build_triangulation(Tr& tr,
 
 template<class Tr>
 bool build_triangulation_from_file(std::istream& is,
-                                   Tr& tr)
+                                   Tr& tr,
+                                   std::vector<bool>& border_info_vec)
 {
   typedef typename Tr::Point                                  Point_3;
 
@@ -520,7 +521,7 @@ bool build_triangulation_from_file(std::istream& is,
 
   // grab the vertices
   int dim;
-  int nv, nf, ntet, nic, useless;
+  int nv, nf, ntet, nic, useless, border_info;
   std::string word;
 
   is >> word >> dim; // MeshVersionFormatted 1
@@ -536,7 +537,8 @@ bool build_triangulation_from_file(std::istream& is,
       for(int i=0; i<nv; ++i)
       {
         double x,y,z;
-        is >> x >> y >> z >> useless;
+        is >> x >> y >> z >> border_info;
+        border_info_vec.push_back(border_info);
         points.push_back(Point_3(x,y,z));
       }
     }

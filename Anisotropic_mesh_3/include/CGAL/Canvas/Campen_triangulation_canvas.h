@@ -176,15 +176,18 @@ public:
 
     // read and create the canvas points
     std::ifstream is((this->canvas_str + ".mesh").c_str());
-    bool is_tr_well_built = CGAL::build_triangulation_from_file(is, m_tr);
-    CGAL_assertion(is_tr_well_built);
+    std::vector<bool> border_info_vec;
+    bool is_tr_well_built = CGAL::build_triangulation_from_file(is, m_tr, border_info_vec);
+    CGAL_postcondition(is_tr_well_built);
+    CGAL_postcondition(border_info_vec.size() == m_tr.number_of_vertices());
 
     // build the canvas points
     std::size_t vertex_counter = 0;
     Finite_vertices_iterator vit = m_tr.finite_vertices_begin();
     for(; vit!=m_tr.finite_vertices_end(); ++vit)
     {
-      Canvas_point cp(vit->point(), vertex_counter++, vit, &m_tr, this);
+      Canvas_point cp(vit->point(), vertex_counter, vit, &m_tr, this);
+      cp.border_info() = border_info_vec[vertex_counter++];
       this->canvas_points.push_back(cp);
       vit->info() = this->canvas_points.size() - 1;
       CGAL_postcondition(this->canvas_points[vit->info()].point() == vit->point());
@@ -245,7 +248,7 @@ public:
       if(d == 0)
       {
 #if (verbosity > 2)
-        std::cerr << "vertex " << c->vertex(li)->info()
+        std::cout << "vertex " << c->vertex(li)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
 #endif
@@ -278,7 +281,7 @@ public:
       if(!found)
       {
 #if (verbosity > 2)
-        std::cerr << "edge " << c->vertex(li)->info() << " "
+        std::cout << "edge " << c->vertex(li)->info() << " "
                              << c->vertex(lj)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
@@ -304,7 +307,7 @@ public:
       if(c_mirror->info() < 1)
       {
 #if (verbosity > 2)
-        std::cerr << "face " << c->vertex((li + 1) % 4)->info() << " "
+        std::cout << "face " << c->vertex((li + 1) % 4)->info() << " "
                              << c->vertex((li + 2) % 4)->info() << " "
                              << c->vertex((li + 3) % 4)->info()
                   << " is not acceptable for seed " << seed_id
@@ -328,7 +331,7 @@ public:
     if(c->info() < 1)
     {
 #if (verbosity > 2)
-        std::cerr << "cell " << c->vertex(0)->info() << " "
+        std::cout << "cell " << c->vertex(0)->info() << " "
                              << c->vertex(1)->info() << " "
                              << c->vertex(2)->info() << " "
                              << c->vertex(3)->info()
@@ -358,7 +361,7 @@ public:
     Cell_handle c = m_tr.locate(t, lt, li, lj);
 
     if(m_tr.is_infinite(c))
-      std::cerr << "WARNING: seed located in an infinite cell" << std::endl;
+      std::cout << "WARNING: seed located in an infinite cell" << std::endl;
 
 #if (verbosity > 15)
     std::cout << "locate in triangulation : " << std::endl;
@@ -469,25 +472,42 @@ public:
         if(cit->info() < 1)
           continue;
 
-        if(this->canvas_points[cit->vertex(0)->info()].closest_seed_id() ==
-           this->canvas_points[cit->vertex(1)->info()].closest_seed_id() &&
-           this->canvas_points[cit->vertex(1)->info()].closest_seed_id() ==
-           this->canvas_points[cit->vertex(2)->info()].closest_seed_id() &&
-           this->canvas_points[cit->vertex(2)->info()].closest_seed_id() ==
-           this->canvas_points[cit->vertex(3)->info()].closest_seed_id())
+        std::size_t color_0 = this->canvas_points[cit->vertex(0)->info()].closest_seed_id();
+        std::size_t color_1 = this->canvas_points[cit->vertex(1)->info()].closest_seed_id();
+        std::size_t color_2 = this->canvas_points[cit->vertex(2)->info()].closest_seed_id();
+        std::size_t color_3 = this->canvas_points[cit->vertex(3)->info()].closest_seed_id();
+
+        // filter tets with only one color
+        if(color_0 == color_1 && color_1 == color_2 && color_2 == color_3)
           continue;
+
+#ifndef COMPUTE_PRIMAL_ALL_DIMENSIONS
+        if(color_0 != color_1 && color_0 != color_2 && color_0 != color_3 &&
+           color_1 != color_2 && color_1 != color_3 &&
+           color_2 != color_3)
+        { /* don't filter four different colors */ }
+        else // below is either 2 or 3 colors
+        {
+          // filter tets with two or three different colors but none of the vertices
+          // are on the border of the domain
+          if(!this->canvas_points[cit->vertex(0)->info()].border_info() &&
+             !this->canvas_points[cit->vertex(1)->info()].border_info() &&
+             !this->canvas_points[cit->vertex(2)->info()].border_info() &&
+             !this->canvas_points[cit->vertex(3)->info()].border_info())
+            continue;
+        }
+#endif
 
         Candidates_set candidates;
         for(std::size_t j=0; j<4; ++j)
           candidates.insert(&(this->canvas_points[cit->vertex(j)->info()]));
 
         Base::construct_primal_elements_from_candidates(candidates);
-        // todo add mark/compute Voronoi vertices
       }
       // todo add mark/compute Voronoi vertices etc.
     }
     else
-      std::cerr << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
+      std::cout << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
 
 #ifdef CGAL_ANISO_REFINE_LOW_CANVAS_DENSITY
     check_canvas_density();

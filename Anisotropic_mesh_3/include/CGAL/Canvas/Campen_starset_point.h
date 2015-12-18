@@ -38,18 +38,17 @@ bool is_a_corner_vertex(Vh vh)
   return vh->info() < 8;
 }
 
-template<typename Sh>
-bool has_a_corner_vertex(Sh star)
+template<typename Star>
+bool has_a_corner_vertex(Star* star)
 {
-  typename Sh::Vertex_handle_handle vit = star->finite_adjacent_vertices_begin();
-  typename Sh::Vertex_handle_handle vend = star->finite_adjacent_vertices_end();
+  typename Star::Vertex_handle_handle vit = star->finite_adjacent_vertices_begin();
+  typename Star::Vertex_handle_handle vend = star->finite_adjacent_vertices_end();
   for(; vit != vend; vit++)
   {
-    typename Sh::Vertex_handle vh = *vit;
+    typename Star::Vertex_handle vh = *vit;
     if(is_a_corner_vertex(vh))
       return true;
   }
-
   return false;
 }
 
@@ -308,9 +307,10 @@ public:
   Campen_starset_point() : Base(), m_ss(NULL) { }
 
   Campen_starset_point(const Point_3& p, const std::size_t index,
-                      Star_set* ss_, Canvas* canvas)
+                       bool border_info,
+                       Star_set* ss_, Canvas* canvas)
     :
-      Base(p, index, canvas),
+      Base(p, index, canvas, border_info),
       m_ss(ss_)
   { }
 };

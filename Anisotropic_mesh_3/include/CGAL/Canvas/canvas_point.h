@@ -31,20 +31,23 @@ public:
   typedef boost::unordered_set<std::size_t>                 Point_set;
 
 protected:
+  Canvas* m_canvas;
+
   Point_3 m_point;
   std::size_t m_index;
+  Metric m_metric;
+  bool m_is_on_domain_border;
+
+  // stuff that depends on the seeds :
+  FMM_state m_state;
   FT m_distance_to_closest_seed;
   std::size_t m_closest_seed_id;
-  FMM_state m_state;
-  Metric m_metric;
   std::size_t m_ancestor;
 
   // 'children' needs to be 'mutable' because compute_closest_seed takes a const ref
   // to an ancestor (because some ancestors are temporaries whose lifestime I extend
   // through const refs) and we need to modify children in compute_closest_seed
   mutable Point_set m_children;
-
-  Canvas* m_canvas;
 
 public:
   Point_3& point() { return m_point; }
@@ -65,6 +68,8 @@ public:
   const Canvas* canvas() const { return m_canvas; }
   Point_set& children() { return m_children; }
   const Point_set& children() const { return m_children; }
+  bool border_info() const { return m_is_on_domain_border; }
+  bool& border_info() { return m_is_on_domain_border; }
 
   void change_state(FMM_state new_state, std::size_t& known_count,
                     std::size_t& trial_count, std::size_t& far_count)
@@ -217,17 +222,19 @@ public:
 
   Canvas_point() { }
 
-  Canvas_point(const Point_3& point_, const std::size_t index_, Canvas* canvas)
+  Canvas_point(const Point_3& point_, const std::size_t index_,
+               Canvas* canvas, bool border_info_ = false)
     :
+      m_canvas(canvas),
       m_point(point_),
       m_index(index_),
+      m_metric(canvas->mf->compute_metric(m_point)),
+      m_is_on_domain_border(border_info_),
+      m_state(FAR),
       m_distance_to_closest_seed(FT_inf),
       m_closest_seed_id(-1),
-      m_state(FAR),
-      m_metric(canvas->mf->compute_metric(m_point)),
       m_ancestor(-1),
-      m_children(),
-      m_canvas(canvas)
+      m_children()
   { }
 };
 

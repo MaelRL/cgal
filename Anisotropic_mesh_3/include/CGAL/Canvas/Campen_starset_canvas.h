@@ -81,7 +81,7 @@ public:
   void read_dump()
   {
     std::cout << "Reading dump..." << std::endl;
-    std::ifstream in("dump.txt");
+    std::ifstream in("dump_wip.txt");
     m_ss->clear();
 
     std::size_t stars_n, v_n, id;
@@ -135,7 +135,8 @@ public:
     for(std::size_t i=0, sss=m_ss->size(); i<sss; ++i)
     {
       Star_handle star_i = m_ss->get_star(i);
-      Canvas_point cp(star_i->center_point(), vertex_counter++, m_ss, this);
+      bool is_on_border = has_a_corner_vertex(star_i);
+      Canvas_point cp(star_i->center_point(), vertex_counter++, is_on_border, m_ss, this);
       this->canvas_points.push_back(cp);
     }
     CGAL_postcondition(this->canvas_points.size() == m_ss->size());
@@ -193,28 +194,10 @@ public:
     Base::initialize_canvas_point(cp, std::sqrt(min_d), seed_id);
   }
 
-  void initialize_seed_in_cell(Star_handle star, Cell_handle c,
-                               std::size_t seed_id, const Point_3& t)
+  void initialize_seed_in_cell(Cell_handle c, std::size_t seed_id, const Point_3& t)
   {
-    // has to be an interior cell (this checks for infinite cell)
-    if(!star->is_inside(c))
-    {
-#if (verbosity > 2)
-        std::cout << "cell " << c->vertex(0)->info() << " "
-                             << c->vertex(1)->info() << " "
-                             << c->vertex(2)->info() << " "
-                             << c->vertex(3)->info()
-                  << " is not acceptable for seed " << seed_id
-                  << " 's initialization. (Seed point : " << t << ")" << std::endl;
-#endif
-#ifndef ANISO_GEO_FORCE_SEED_INITIALIZATION
-      return;
-#endif
-    }
-
     for(std::size_t j=0; j<4; ++j)
       initialize_vertex(c->vertex(j)->info(), seed_id, t);
-    return;
   }
 
   void locate_and_initialize(const Point_3& t, const std::size_t seed_id)
@@ -247,11 +230,25 @@ public:
         if(!star->is_inside(c))
           continue;
 
-        initialize_seed_in_cell(star, c, seed_id, t);
-        found = true;
-        return; // only initialize one cell
+        // expensive stuff...
+        Tetrahedron_3 tetra(m_ss->get_star(c->vertex(0)->info())->center_point(),
+                            m_ss->get_star(c->vertex(1)->info())->center_point(),
+                            m_ss->get_star(c->vertex(2)->info())->center_point(),
+                            m_ss->get_star(c->vertex(3)->info())->center_point());
+
+        typename Star::Traits traits;
+
+        if(traits.has_on_bounded_side_3_object()(tetra, t) ||
+           traits.has_on_boundary_3_object()(tetra, t))
+        {
+          std::cout << "initialize through star: " << star->index_in_star_set() << std::endl;
+          initialize_seed_in_cell(c, seed_id, t);
+          found = true;
+          return; // only initialize one cell
+        }
       }
     }
+    std::cout << "Failed to initialize a seed" << std::endl;
     CGAL_assertion(false);
   }
 
@@ -350,13 +347,31 @@ public:
         if(!star->is_inside(c))
           continue;
 
-        if(this->canvas_points[c->vertex(0)->info()].closest_seed_id() ==
-           this->canvas_points[c->vertex(1)->info()].closest_seed_id() &&
-           this->canvas_points[c->vertex(1)->info()].closest_seed_id() ==
-           this->canvas_points[c->vertex(2)->info()].closest_seed_id() &&
-           this->canvas_points[c->vertex(2)->info()].closest_seed_id() ==
-           this->canvas_points[c->vertex(3)->info()].closest_seed_id())
+        std::size_t color_0 = this->canvas_points[c->vertex(0)->info()].closest_seed_id();
+        std::size_t color_1 = this->canvas_points[c->vertex(1)->info()].closest_seed_id();
+        std::size_t color_2 = this->canvas_points[c->vertex(2)->info()].closest_seed_id();
+        std::size_t color_3 = this->canvas_points[c->vertex(3)->info()].closest_seed_id();
+
+        // filter tets with only one color
+        if(color_0 == color_1 && color_1 == color_2 && color_2 == color_3)
           continue;
+
+#ifndef COMPUTE_PRIMAL_ALL_DIMENSIONS
+        if(color_0 != color_1 && color_0 != color_2 && color_0 != color_3 &&
+           color_1 != color_2 && color_1 != color_3 &&
+           color_2 != color_3)
+        { /* don't filter four different colors */ }
+        else // below is either 2 or 3 colors
+        {
+          // filter tets with two or three different colors but none of the vertices
+          // are on the border of the domain
+          if(!this->canvas_points[c->vertex(0)->info()].border_info() &&
+             !this->canvas_points[c->vertex(1)->info()].border_info() &&
+             !this->canvas_points[c->vertex(2)->info()].border_info() &&
+             !this->canvas_points[c->vertex(3)->info()].border_info())
+            continue;
+        }
+#endif
 
         Candidates_set candidates;
         for(std::size_t j=0; j<4; ++j)

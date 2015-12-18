@@ -22,6 +22,8 @@ class Anisotropic_mesher_3_base
 public:
   virtual double refine_mesh() = 0;
   virtual void resume_from_mesh_file(const char* filename) = 0;
+  virtual void resume_from_dump_file(const char* filename) = 0;
+
 
   // Step-by-step methods
   virtual void initialize() = 0;
