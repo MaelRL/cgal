@@ -92,7 +92,7 @@ public:
   {
     // returns true if we improved the distance
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "------------------------------------------------" << std::endl;
     std::cout << "compute closest seed for : " << this->index();
     std::cout << " (" << this->point() << ") ";
@@ -138,7 +138,7 @@ public:
     for(int i=1; i<=k; ++i)
     {
       const Base& curr_ancestor = this->canvas()->get_point(curr_anc);
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
       std::cout << "current ancestor: " << curr_ancestor.index() << std::endl;
 #endif
 
@@ -177,7 +177,7 @@ public:
         FT l = transformed_curr_edge.norm(); // length of the normalized anc edge in the metric
 
         dist_to_ancestor += sp * l;
-#if (verbosity > 30)
+#if (VERBOSITY > 30)
         std::cout << "e0: " << e0.point() << " e1: " << e1.point() << std::endl;
         std::cout << "normalized_anc_edge: " << normalized_anc_edge.transpose() << std::endl;
 //        std::cout << "metrics:" << std::endl << m0.get_mat() << std::endl << m1.get_mat() << std::endl;
@@ -191,7 +191,7 @@ public:
       FT dist_at_anc = curr_ancestor.distance_to_closest_seed();
       FT new_d = dist_at_anc + dist_to_ancestor;
 
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
       std::cout << "potential update: " << new_d << " " << dist_at_anc
                 << " " << dist_to_ancestor << std::endl;
 #endif
@@ -206,7 +206,7 @@ public:
       curr_anc = curr_ancestor.ancestor();
     }
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "distance with that anc: " << d << std::endl;
 #endif
 
@@ -257,7 +257,7 @@ public:
   PQ_state update_neighbors_distances(std::vector<Self*>& trial_pq)
   {
     // consider all the neighbors of a KNOWN point and compute their distance to 'this'
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "update neighbors of " << Base::index() << std::endl;
 #endif
     CGAL_assertion(this->state() == KNOWN);

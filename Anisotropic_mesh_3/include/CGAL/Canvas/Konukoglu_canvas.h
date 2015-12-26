@@ -46,7 +46,7 @@ public:
   // Could do CRTP and used derived() etc... but it's a hassle.
   void initialize()
   {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialization" << std::endl;
 #endif
 
@@ -89,7 +89,7 @@ public:
         }
       }
     }
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "neighbors assigned" << std::endl;
 #endif
 
@@ -97,7 +97,7 @@ public:
     this->seeds.initialize_seeds();
     Base::locate_seeds_on_canvas();
 
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialized" << std::endl;
 #endif
   }
@@ -108,7 +108,7 @@ public:
 
     std::clock_t start = std::clock();
 
-#if (verbosity > 0)
+#if (VERBOSITY > 0)
     std::cout << "Determine ancestors" << std::endl;
 #endif
     CGAL_assertion(changed_points.empty() && this->trial_points.empty());
@@ -168,7 +168,7 @@ public:
   void paint()
   {
     std::clock_t start = std::clock();
-#if (verbosity > 0)
+#if (VERBOSITY > 0)
     std::cout << "main loop" << std::endl;
 #endif
 
@@ -178,11 +178,11 @@ public:
     Canvas_point* cp;
     while(!is_cp_empty || !is_t_empty)
     {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
       std::cout << "Queue sizes. Trial: " << this->trial_points.size() << " Changed: " << changed_points.size() << std::endl;
 #endif
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
       std::cout << "changed heap: " << std::endl;
       typename std::vector<Canvas_point*>::iterator it = changed_points.begin();
       for (; it != changed_points.end(); ++it)
@@ -212,7 +212,7 @@ public:
         this->trial_points.pop_back();
       }
 
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
       std::cout << "picked n° " << cp->index() << " (" << cp->point() << ")";
       std::cout << "at distance : " << cp->distance_to_closest_seed() << " from " << cp->closest_seed_id() << std::endl;
 #endif

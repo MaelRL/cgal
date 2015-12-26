@@ -18,8 +18,8 @@ namespace CGAL
 // - the finite cells not in complex are also given under 'Tetrahedra', but their
 //   reference field is '-1'
 // - the infinite cells are given under 'InfiniteCells', which is not a medit
-//   keyword, and it will get ignored by medit  but it's useful information (to me)
-//   when the output file is used as input to build a triangulation
+//   keyword and will get ignored by medit, but it is useful information (to me)
+//   to build a triangulation from the output file
 
 template <class C3T3,
           class Vertex_index_property_map,
@@ -62,9 +62,10 @@ output_to_medit_all_cells(std::ostream& os,
 
   std::map<Vertex_handle, int> V;
   int inum = 1;
-  for( Finite_vertices_iterator vit = tr.finite_vertices_begin();
-       vit != tr.finite_vertices_end();
-       ++vit)
+
+  Finite_vertices_iterator fvend = tr.finite_vertices_end();
+  for(Finite_vertices_iterator vit = tr.finite_vertices_begin();
+                               vit != fvend; ++vit)
   {
     V[vit] = inum++;
     Point_3 p = vit->point();
@@ -80,19 +81,19 @@ output_to_medit_all_cells(std::ostream& os,
   //-------------------------------------------------------
   typename C3T3::size_type number_of_triangles = c3t3.number_of_facets_in_complex();
 
-  if ( print_each_facet_twice )
+  if(print_each_facet_twice)
     number_of_triangles += number_of_triangles;
 
   os << "Triangles" << std::endl
      << number_of_triangles << std::endl;
 
-  for( Facet_iterator fit = c3t3.facets_in_complex_begin();
-       fit != c3t3.facets_in_complex_end();
-       ++fit)
+  Facet_iterator ficend = c3t3.facets_in_complex_end();
+  for(Facet_iterator fit = c3t3.facets_in_complex_begin();
+                     fit != ficend; ++fit)
   {
-    for (int i=0; i<4; i++)
+    for(int i=0; i<4; i++)
     {
-      if (i != fit->second)
+      if(i != fit->second)
       {
         const Vertex_handle vh = (*fit).first->vertex(i);
         os << V[vh] << " ";
@@ -101,11 +102,11 @@ output_to_medit_all_cells(std::ostream& os,
     os << get(facet_pmap, *fit) << std::endl;
 
     // Print triangle again if needed
-    if ( print_each_facet_twice )
+    if(print_each_facet_twice)
     {
-      for (int i=0; i<4; i++)
+      for(int i=0; i<4; i++)
       {
-        if (i != fit->second)
+        if(i != fit->second)
         {
           const Vertex_handle vh = (*fit).first->vertex(i);
           os << V[vh] << " ";
@@ -115,7 +116,8 @@ output_to_medit_all_cells(std::ostream& os,
     }
   }
 
-  std::cout << "ouput: " << std::endl;
+  std::cout << "output: " << std::endl;
+  std::cout << tr.number_of_vertices() << " vertices" << std::endl;
   std::cout << c3t3.number_of_cells_in_complex() << " finite cells in complex" << std::endl;
   std::cout << tr.number_of_finite_cells() << " finite cells" << std::endl;
   std::cout << tr.number_of_cells() << " total cells" << std::endl;
@@ -127,10 +129,11 @@ output_to_medit_all_cells(std::ostream& os,
   os << "Tetrahedra" << std::endl
      << tr.number_of_finite_cells() << std::endl;
 
-  for(Finite_cells_iterator cit=tr.finite_cells_begin();
-                            cit!=tr.finite_cells_end(); ++cit )
+  Finite_cells_iterator fcend = tr.finite_cells_end();
+  for(Finite_cells_iterator cit = tr.finite_cells_begin();
+                            cit != fcend; ++cit )
   {
-    for (int i=0; i<4; i++)
+    for(int i=0; i<4; i++)
       os << V[cit->vertex(i)] << " ";
     os << get(cell_pmap, cit) << std::endl;
   }
@@ -142,8 +145,9 @@ output_to_medit_all_cells(std::ostream& os,
   os << "InfiniteCells" << std::endl
      << tr.number_of_cells() - tr.number_of_finite_cells() << std::endl;
 
+  All_cells_iterator acend = tr.all_cells_end();
   for(All_cells_iterator cit=tr.all_cells_begin();
-                         cit!=tr.all_cells_end(); ++cit )
+                         cit!=acend; ++cit )
   {
     if(!tr.is_infinite(cit))
       continue;
@@ -250,13 +254,13 @@ void add_facet_to_incident_cells_map(const typename Tr::Cell_handle c, int i,
   std::vector<Incident_cell> vec;
   vec.push_back(e);
 
-  std::pair<typename Incident_cells_map::iterator, bool> is_insert_succesful =
+  std::pair<typename Incident_cells_map::iterator, bool> is_insert_successful =
                               incident_cells_map.insert(std::make_pair(f, vec));
-  if(!is_insert_succesful.second) // the entry already exists in the map
+  if(!is_insert_successful.second) // the entry already exists in the map
   {
     // a facet must have exactly two incident cells
-    CGAL_assertion(is_insert_succesful.first->second.size() == 1);
-    is_insert_succesful.first->second.push_back(e);
+    CGAL_assertion(is_insert_successful.first->second.size() == 1);
+    is_insert_successful.first->second.push_back(e);
   }
 }
 
@@ -596,7 +600,7 @@ bool build_triangulation_from_file(std::istream& is,
 
   if(!finite_exterior_cells_counter)
   {
-    // The finite interior cells better be the convex hulls of the point
+    // The finite interior cells MUST be the convex hulls of the point
     std::cerr << "WARNING: no finite exterior cell provided..." << std::endl;
     // todo, remesh the provided triangulation with Mesh_3
   }

@@ -2,7 +2,7 @@
 #define CGAL_ANISOTROPIC_MESH_3_CANVAS_CONFIG_H
 
 #define ANISO_GEO_FILTER_SEEDS_OUTSIDE_CANVAS_BBOX
-#define verbosity 11
+#define VERBOSITY 35
 
   // if one wants to still initialize vertices even if the seed is found to be in
   // an exterior cell (might want to use that when there are seeds on the border

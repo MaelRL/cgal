@@ -143,7 +143,7 @@ public:
   PQ_state update_neighbors_distances(std::vector<Self*>& trial_pq)
   {
     // consider all the neighbors of a KNOWN point and compute their distance to 'this'
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "update neighbors of " << this->index() << std::endl;
 #endif
     CGAL_assertion(this->state() == KNOWN);

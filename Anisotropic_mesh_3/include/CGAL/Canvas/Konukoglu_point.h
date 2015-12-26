@@ -48,7 +48,7 @@ public:
 
   bool compute_closest_seed_1D(const Konukoglu_canvas_point* cp)
   {
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "compute closest 1D " << this->index() << " to " << cp->index();
     std::cout << " ds " << cp->distance_to_closest_seed();
     std::cout << " resp. " << cp->closest_seed_id() << std::endl;
@@ -66,7 +66,7 @@ public:
     FT dcs_at_cp = cp->distance_to_closest_seed();
     FT d = dcs_at_cp + neighbor_d;
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "min 1D; min : " << d;
     std::cout << " vs current best: " << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -84,7 +84,7 @@ public:
       this->closest_seed_id() = static_cast<std::size_t>(-1);
       this->m_ancestor = cp->index();
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
       std::cout << "1D new best for " << this->index() << " : "
                 << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -219,7 +219,7 @@ public:
   bool compute_closest_seed_2D(const Konukoglu_canvas_point* cp,
                                const Konukoglu_canvas_point* cq)
   {
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     FT cp_d = cp->distance_to_closest_seed();
     FT cq_d = cq->distance_to_closest_seed();
     std::cout << "compute closest 2D " << this->index() << " to ";
@@ -235,7 +235,7 @@ public:
     FT p = 0.;
     const FT d = compute_min_distance_2D(cp, cq, p);
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "min 2D; min : " << d << " at " << p;
     std::cout << " vs current best: " << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -254,7 +254,7 @@ public:
       this->closest_seed_id() = -1;
       this->m_ancestor = cp->index();
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
       std::cout << "2D new best for " << this->index() << " : "
                 << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -300,7 +300,7 @@ public:
     const Vector v(dx, dy, dz);
     const Line char_line(this->point, v);
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "gradient: " << gx << " " << gy << " " << gz << std::endl;
     std::cout << "and char direction: " << dx << " " << dy << " " << dz << std::endl;
 #endif
@@ -402,7 +402,7 @@ public:
     FT x1 = (-w2 - sqrt_delta) * w1_den;
     FT x2 = (-w2 + sqrt_delta) * w1_den;
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
 // debug stuff
     std::cout << "debug of compute_min_distance_3D" << std::endl;
     std::cout << "cpcqcr " << cp->index << " " << cq->index << " " << cr->index << std::endl;
@@ -488,7 +488,7 @@ public:
     CGAL_assertion(cp && cp->closest_seed_id() != static_cast<std::size_t>(-1) &&
                    cq && cq->closest_seed_id() != static_cast<std::size_t>(-1));
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "determine ancestor 2D " << cp->index() << " " << cq->index();
     std::cout << " colors: " << cp->closest_seed_id() << " " << cq->closest_seed_id() << std::endl;
 #endif
@@ -526,7 +526,7 @@ public:
     this->closest_seed_id() = best_g->closest_seed_id();
     this->m_ancestor = best_g->index();
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "ancestor shen 2D @ " << this->index()
               << " color is : " << this->closest_seed_id() << std::endl;
 #endif
@@ -534,7 +534,7 @@ public:
 
   void determine_ancestor()
   {
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "determine ancestor for " << this->index()
               << " d: " << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -558,7 +558,7 @@ public:
     bool is_init_q = cq?(cq->closest_seed_id() != static_cast<std::size_t>(-1)):false;
     bool is_init_r = cr?(cr->closest_seed_id() != static_cast<std::size_t>(-1)):false;
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << " " << (cq?(cr?"3":"2"):"1") << "D" << std::endl;
 #endif
 
@@ -566,7 +566,7 @@ public:
     // cp, cq     non NULL => best is achieved from 2D
     // cp, cq, cr non NULL => best is achieved from 3D
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "ini bools: " << is_init_p << " " << is_init_q << " " << is_init_r;
     std::cout << " with colors: " << cp->closest_seed_id();
 
@@ -636,7 +636,7 @@ public:
     bool intersect_r = lambda_r >= -1e-2 && lambda_r <= this->canvas()->step + 1e-10;
     //fixme tolerance too big...
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "lambdas: " << lambda_p << " " << lambda_q << " " << lambda_r << std::endl;
     std::cout << "intersect bools " << intersect_p << " " << intersect_q << " " << intersect_r << std::endl;
 #endif
@@ -654,7 +654,7 @@ public:
         else // !p && !q && r
         {
           // gotta choose between p & q...
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
           if(cp->closest_seed_id() != cq->closest_seed_id())
             std::cerr << "mega warning [this p] and [this q]" << std::endl;
 #endif
@@ -666,7 +666,7 @@ public:
         if(!intersect_r) // !p && q && !r
         {
           // gotta choose between p & r...
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
           if(cp->closest_seed_id() != cr->closest_seed_id())
             std::cerr << "mega warning [this p] and [this r]" << std::endl;
 #endif
@@ -685,7 +685,7 @@ public:
         if(!intersect_r) // p && !q && !r
         {
           // gotta choose between q & r...
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
           if(cq->closest_seed_id() != cr->closest_seed_id())
             std::cerr << "mega warning [this q] and [this r]" << std::endl;
 #endif
@@ -705,7 +705,7 @@ public:
         else // p && q && r
         {
           // gotta choose between p & q & r...
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
           if(cp->closest_seed_id() != cq->closest_seed_id() ||
              (cr && cp->closest_seed_id() != cr->closest_seed_id()) ||
              (cr && cq->closest_seed_id() != cr->closest_seed_id()))
@@ -729,7 +729,7 @@ public:
     FT cq_d = cq->distance_to_closest_seed();
     FT cr_d = cr->distance_to_closest_seed();
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "compute closest 3D " << this->index();
     std::cout << " to " << cp->index() << ", " << cq->index() << " & " << cr->index() << " ";
     std::cout << " ds: " << cp_d << " " << cq_d << " " << cr_d;
@@ -833,7 +833,7 @@ public:
       FT neighbor_d = std::sqrt(v.transpose() * m * v);
       FT dp = dcs_at_p + neighbor_d;
 
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
       std::cout << "Debug compute_closest_seed_3D" << std::endl;
       std::cout << "the three points : " << std::endl;
       std::cout << cp->point() << std::endl;
@@ -854,13 +854,13 @@ public:
       }
     }
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "brute force calls min at : " << min_id << " min_d: " << min_d << std::endl;
 #endif
 #endif
     d = min_d;
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "min 3D; min : " << d;
     std::cout << " vs current best: " << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -878,7 +878,7 @@ public:
       this->closest_seed_id() = -1;
       this->m_ancestor = cp->index();
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
       std::cout << "3D new best for " << this->index()
                 << " : " << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -932,7 +932,7 @@ public:
   {
     // returns true if we improved the distance
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "compute closest high level " << this->index();
     std::cout << " with ancestor: " << anc->index();
 #endif
@@ -944,7 +944,7 @@ public:
     // if no face is available, then compute 1D: this-ancestor
     boost::array<std::size_t, 4> adj_n = get_adjacent_neighbors(this, anc);
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << " neighbors: ";
     for(std::size_t i=0; i<4; ++i)
       if(adj_n[i])
@@ -985,7 +985,7 @@ public:
       }
     }
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "End high level. color and value: " << this->closest_seed_id() << " ";
     std::cout << this->distance_to_closest_seed() << std::endl;
 #endif
@@ -1011,14 +1011,14 @@ public:
 #ifdef USE_RECURSIVE_UPDATES
       if(cp.state() == KNOWN || cp.state() == CHANGED) // that's the recursive part
       {
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
         FT mem = cp.distance_to_closest_seed();
         std::size_t ancestor_mem = cp.ancestor();
 #endif
         // recompute the distance in the direction cp-'this'
         if(cp.compute_closest_seed(this))
         {
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
           std::cout << "new value at " << cp.index() << " : " << cp.distance_to_closest_seed();
           std::cout << " with ancestor: " << cp.ancestor();
           std::cout << " (mem: " << mem << " ancestor: " << ancestor_mem << ") ";

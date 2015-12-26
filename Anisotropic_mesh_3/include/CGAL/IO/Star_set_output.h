@@ -99,9 +99,9 @@ void output_surface_star_off(const Starset& stars,
   typename Facet_ijk_unordered_set::iterator fitend = output_facets.end();
   for (; fit != fitend; fit++)
   {
-    fx << "3  " << match_indices[fit->vertices()[0] ]
-        << " "   << match_indices[fit->vertices()[1] ]
-        << " "   << match_indices[fit->vertices()[2] ] << '\n';
+    fx << "3  " << match_indices[fit->vertices()[0]]
+        << " "   << match_indices[fit->vertices()[1]]
+        << " "   << match_indices[fit->vertices()[2]] << '\n';
   }
   fx << std::endl;
 }

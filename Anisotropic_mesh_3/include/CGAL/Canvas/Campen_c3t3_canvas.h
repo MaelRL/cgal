@@ -1,9 +1,9 @@
-#ifndef CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_CANVAS_H
-#define CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_CANVAS_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_CAMPEN_C3T3_CANVAS_H
+#define CGAL_ANISOTROPIC_MESH_3_CAMPEN_C3T3_CANVAS_H
 
 #include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/canvas.h>
-#include <CGAL/Canvas/Campen_triangulation_point.h>
+#include <CGAL/Canvas/Campen_c3t3_point.h>
 #include <CGAL/Canvas/canvas_triangulation_io.h>
 #include <CGAL/Canvas/canvas_subdiviser.h>
 
@@ -40,8 +40,8 @@ public:
   typedef Campen_canvas_point<K, Metric_field>                    Canvas_point;
   typedef Canvas_point*                                           Canvas_point_handle;
 
-  typedef int                                  Vertex_Info; // index of the canvas point
-  typedef int                                  Cell_Info; // index of the subdomain
+  typedef int                          Vertex_Info; // index of the canvas point
+  typedef int                          Cell_Info; // index of the subdomain
 
   typedef Canvas<K, Canvas_point, Metric_field>                   Base;
 
@@ -55,10 +55,10 @@ public:
   typedef typename Base::BTriangle                                BTriangle;
   typedef typename Base::BTetrahedron                             BTetrahedron;
 
-  typedef CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K>          Vb;
-  typedef CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>              Cb;
-  typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                         TDS;
-  typedef CGAL::Triangulation_3<K, TDS>                                        Tr;
+  typedef CGAL::Triangulation_vertex_base_with_info_3<Vertex_Info, K>       Vb;
+  typedef CGAL::Triangulation_cell_base_with_info_3<Cell_Info, K>           Cb;
+  typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                      TDS;
+  typedef CGAL::Triangulation_3<K, TDS>                                     Tr;
 
   typedef typename Tr::Vertex_handle                       Vertex_handle;
   typedef std::vector<Vertex_handle>                       Vertex_handle_vector;
@@ -70,16 +70,6 @@ public:
   typedef typename Tr::Finite_cells_iterator               Finite_cells_iterator;
 
   Tr m_tr;
-
-  struct set_set_comparer
-  {
-    bool operator()(const std::set<std::size_t>& s1, const std::set<std::size_t>& s2)
-    {
-      CGAL_assertion(s1.size() == s2.size());
-      return std::lexicographical_compare(s1.begin(), s1.end(),
-                                          s2.begin(), s2.end());
-    }
-  };
 
   std::size_t compute_precise_Voronoi_vertex_on_edge(const std::size_t p,
                                                      const std::size_t q,
@@ -170,7 +160,7 @@ public:
 
   void initialize()
   {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialization" << std::endl;
 #endif
 
@@ -209,7 +199,7 @@ public:
     this->seeds.initialize_seeds();
     Base::locate_seeds_on_canvas();
 
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialized with " << this->seeds.size() << " seeds" << std::endl;
 #endif
   }
@@ -233,7 +223,8 @@ public:
     Base::initialize_canvas_point(cp, d, seed_id);
   }
 
-  void initialize_seed_on_vertex(Cell_handle c, int li, std::size_t seed_id,
+  void initialize_seed_on_vertex(Cell_handle c, int li,
+                                 std::size_t seed_id,
                                  const Point_3& t)
   {
     Vertex_handle vh = c->vertex(li);
@@ -247,7 +238,7 @@ public:
 
       if(d == 0)
       {
-#if (verbosity > 2)
+#if (VERBOSITY > 2)
         std::cout << "vertex " << c->vertex(li)->info()
                   << " is not acceptable for seed " << seed_id
                   << " 's initialization. (Seed point : " << t << ")" << std::endl;
@@ -260,7 +251,8 @@ public:
     initialize_vertex(vh, seed_id, t);
   }
 
-  void initialize_seed_on_edge(Cell_handle c, int li, int lj, std::size_t seed_id,
+  void initialize_seed_on_edge(Cell_handle c, int li, int lj,
+                               std::size_t seed_id,
                                const Point_3& t)
   {
     if(c->info() < 1)
@@ -280,7 +272,7 @@ public:
       } while (current_cell != done);
       if(!found)
       {
-#if (verbosity > 2)
+#if (VERBOSITY > 2)
         std::cout << "edge " << c->vertex(li)->info() << " "
                              << c->vertex(lj)->info()
                   << " is not acceptable for seed " << seed_id
@@ -297,7 +289,8 @@ public:
         initialize_vertex(c->vertex(i), seed_id, t);
   }
 
-  void initialize_seed_on_triangle(Cell_handle c, int li, std::size_t seed_id,
+  void initialize_seed_on_triangle(Cell_handle c, int li,
+                                   std::size_t seed_id,
                                    const Point_3& t)
   {
     if(c->info() < 1)
@@ -306,7 +299,7 @@ public:
       Cell_handle c_mirror = c->neighbor(li);
       if(c_mirror->info() < 1)
       {
-#if (verbosity > 2)
+#if (VERBOSITY > 2)
         std::cout << "face " << c->vertex((li + 1) % 4)->info() << " "
                              << c->vertex((li + 2) % 4)->info() << " "
                              << c->vertex((li + 3) % 4)->info()
@@ -325,12 +318,14 @@ public:
     return;
   }
 
-  void initialize_seed_in_cell(Cell_handle c, std::size_t seed_id, const Point_3& t)
+  void initialize_seed_in_cell(Cell_handle c,
+                               std::size_t seed_id,
+                               const Point_3& t)
   {
     // has to be an interior cell (this checks for infinite cell)
     if(c->info() < 1)
     {
-#if (verbosity > 2)
+#if (VERBOSITY > 2)
         std::cout << "cell " << c->vertex(0)->info() << " "
                              << c->vertex(1)->info() << " "
                              << c->vertex(2)->info() << " "
@@ -353,7 +348,7 @@ public:
     // find the tetrahedron that contains the seed and initialize the distance at
     // these four points accordingly.
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
         std::cout << "locating seed " << seed_id << " point: " << t  << std::endl;
 #endif
     typename Tr::Locate_type lt;
@@ -363,7 +358,7 @@ public:
     if(m_tr.is_infinite(c))
       std::cout << "WARNING: seed located in an infinite cell" << std::endl;
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "locate in triangulation : " << std::endl;
     std::cout << "locate type: " << lt << " li/j: " << li << " " << lj << std::endl;
     std::cout << "cell : " << &*c << " with info : " << c->info() << std::endl;
@@ -400,7 +395,7 @@ public:
 
   void primal_shenanigans(const Canvas_point* cp)
   {
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "primal shenanigans at : " << cp->index() << std::endl;
 #endif
 
@@ -410,7 +405,7 @@ public:
     Cell_handle_handle cit = cp->finite_interior_incident_cells_begin();
     Cell_handle_handle cend = cp->finite_interior_incident_cells_end();
 
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
     std::cout << "cp: " << cp->index() << " (" << cp->point() << ") ";
     std::cout << "has " << cend - cit << " incident interior cells" << std::endl;
 #endif
@@ -460,7 +455,7 @@ public:
   {
     if(this->primal_edges.empty() && this->primal_triangles.empty() && this->primal_tetrahedra.empty())
     {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "Primal computations" << std::endl;
 #endif
       typedef boost::unordered_set<const Canvas_point*>   Candidates_set;
@@ -687,6 +682,7 @@ public:
 
   void output_canvas(const std::string str_base) const
   {
+#define ONLY_PRINT_BISECTORS
     std::ofstream out((str_base + ".mesh").c_str());
     std::ofstream out_bb((str_base + ".bb").c_str());
 
@@ -701,8 +697,11 @@ public:
       const Canvas_point& cp = this->canvas_points[i];
       out << cp.point() << " " << i+1 << std::endl;
 
-//      out_bb << cp.closest_seed_id < < std::endl;
+#ifdef ONLY_PRINT_BISECTORS
+      out_bb << cp.closest_seed_id() << std::endl;
+#else
       out_bb << cp.distance_to_closest_seed() << std::endl;
+#endif
     }
 
     /*
@@ -718,7 +717,7 @@ public:
         continue;
 
       for(std::size_t j=1; j<=3; ++j)
-        out << c->vertex((fit->second+j)%4)->info()->index() + 1 << " ";
+        out << c->vertex((fit->second+j)%4)->info() + 1 << " ";
       out << "1" << std::endl;
     }
     */
@@ -734,10 +733,14 @@ public:
 
       boost::unordered_set<std::size_t> materials;
       for(std::size_t j=0; j<4; ++j)
-      {
         materials.insert(this->canvas_points[cit->vertex(j)->info()].closest_seed_id());
+
+#ifdef ONLY_PRINT_BISECTORS
+      if(materials.size() == 1)
+        continue;
+#endif
+      for(std::size_t j=0; j<4; ++j)
         out << cit->vertex(j)->info() + 1 << " ";
-      }
       std::size_t mat = (materials.size()==1) ? (*(materials.begin())) :
                                                 (this->seeds.size());
       out << mat << std::endl;
@@ -760,4 +763,4 @@ public:
 } // namespace Anisotropic_mesh_3
 } // namespace CGAL
 
-#endif // CGAL_ANISOTROPIC_MESH_3_CAMPEN_TRI_CANVAS_H
+#endif // CGAL_ANISOTROPIC_MESH_3_CAMPEN_C3T3_CANVAS_H

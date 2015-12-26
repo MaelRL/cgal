@@ -63,7 +63,7 @@ public:
 
     Canvas_point& cp = this->canvas_points[index_z*sq_n + index_y*n + index_x];
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "looking for p: " << p << std::endl;
     std::cout << "found cp: " << cp.index() << " [" << cp.point() << "]" << std::endl;
     std::cout << "index: " << index_x << " " << index_y << " " << index_z << std::endl;
@@ -82,7 +82,7 @@ public:
 
   void initialize()
   {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialization" << std::endl;
 #endif
 
@@ -125,7 +125,7 @@ public:
         }
       }
     }
-#if (verbosity > 6)
+#if (VERBOSITY > 6)
     std::cout << "neighbors assigned" << std::endl;
 #endif
 
@@ -133,7 +133,7 @@ public:
     this->seeds.initialize_seeds();
     Base::locate_seeds_on_canvas();
 
-#if (verbosity > 6)
+#if (VERBOSITY > 6)
     std::cout << "canvas initialized" << std::endl;
 #endif
   }
@@ -276,7 +276,7 @@ public:
 
   void output_canvas(const std::string str_base) const
   {
-#if (verbosity > 3)
+#if (VERBOSITY > 3)
     std::cout << "Output canvas" << std::endl;
 #endif
 
@@ -385,7 +385,7 @@ public:
   {
     // this version computes the primal by looping over the canvas points
     // and looking at the amount of colors in said point and said point's neighbors
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "primal computations" << std::endl;
 #endif
     if(!this->primal_edges.empty() || !this->primal_triangles.empty() || !this->primal_tetrahedra.empty())

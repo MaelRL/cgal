@@ -248,7 +248,7 @@ public:
 
   void build_refinement_queue()
   {
-#if (verbosity > 8)
+#if (VERBOSITY > 8)
     std::cout << "build refinement queue" << std::endl;
 #endif
 
@@ -308,7 +308,7 @@ public:
 
   void refine(const Point_3& new_seed)
   {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "refine with : " << new_seed << std::endl;
 #endif
 

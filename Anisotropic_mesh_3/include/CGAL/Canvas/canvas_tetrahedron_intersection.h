@@ -65,7 +65,7 @@ struct Intersect_tetrahedra
     CGAL::Sign o3 = CGAL::orientation(p, s, q, t);
     CGAL::Sign o4 = CGAL::orientation(q, s, r, t);
 
-#if (verbosity > 30)
+#if (VERBOSITY > 30)
     std::cout << "is: " << t << " contained in : " << std::endl;
     std::cout << p << " || " << q << " || " << r << " || " << s << std::endl;
     std::cout << "orientations: " << o1 << " " << o2 << " " << o3 << " " << o4 << std::endl;
@@ -230,7 +230,7 @@ struct Intersect_tetrahedra
       // (could be done anyway as a tiny optimization todo)
     }
 
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
     std::cout << "operator() with tetrahedras: " << std::endl;
     std::cout << tet_1[0] << " " << tet_1[1] << " " << tet_1[2] << " " << tet_1[3] << std::endl;
     std::cout << tet_2[0] << " " << tet_2[1] << " " << tet_2[2] << " " << tet_2[3] << std::endl;
@@ -271,7 +271,7 @@ struct Intersect_tetrahedra
       std::size_t id_1 = tet_1[0] + tet_1[1] + tet_1[2] + tet_1[3] - shared_ids_sum;
       std::size_t id_2 = tet_2[0] + tet_2[1] + tet_2[2] + tet_2[3] - shared_ids_sum;
 
-#if (verbosity > 40)
+#if (VERBOSITY > 40)
       std::cout << "shared vertices 3" << std::endl;
       std::cout << "non shared ids : id1/2 :" << id_1 << " " << id_2 << std::endl;
 #endif
@@ -285,7 +285,7 @@ struct Intersect_tetrahedra
                            canvas->seeds[shared_vertices_ids[2]],
                            canvas->seeds[id_2]))
       {
-#if (verbosity > 35)
+#if (VERBOSITY > 35)
         std::cout << "shared vertices 3 intersection" << std::endl;
 #endif
         mark_primal_tetrahedra_as_intersected(p_tet_1, p_tet_2);
@@ -300,7 +300,7 @@ struct Intersect_tetrahedra
       const ESimplex opposite_edge_1 = get_opposite_edge(tet_1, shared_vertex_0, shared_vertex_1);
       const ESimplex opposite_edge_2 = get_opposite_edge(tet_2, shared_vertex_0, shared_vertex_1);
 
-#if (verbosity > 40)
+#if (VERBOSITY > 40)
       std::cout << "shared vertices 2" << std::endl;
       std::cout << "opposite edge 1 : " << opposite_edge_1[0] << " "
                 << opposite_edge_1[1] << std::endl;
@@ -311,7 +311,7 @@ struct Intersect_tetrahedra
       if(check_intersection_edge_tet(opposite_edge_1, tet_2) ||
          check_intersection_edge_tet(opposite_edge_2, tet_1))
       {
-#if (verbosity > 35)
+#if (VERBOSITY > 35)
         std::cout << "shared vertices 2 intersection" << std::endl;
 #endif
         mark_primal_tetrahedra_as_intersected(p_tet_1, p_tet_2);
@@ -324,7 +324,7 @@ struct Intersect_tetrahedra
       const TrSimplex opposite_face_1 = get_opposite_face(tet_1, shared_vertex);
       const TrSimplex opposite_face_2 = get_opposite_face(tet_2, shared_vertex);
 
-#if (verbosity > 40)
+#if (VERBOSITY > 40)
       std::cout << "shared vertices 2" << std::endl;
       std::cout << "opposite face 1: " << opposite_face_1[0] << " "
                 << opposite_face_1[1] << " " << opposite_face_1[2] << std::endl;
@@ -335,7 +335,7 @@ struct Intersect_tetrahedra
       if(check_intersection_triangle_tet(opposite_face_1, tet_2) ||
          check_intersection_triangle_tet(opposite_face_2, tet_1))
       {
-#if (verbosity > 35)
+#if (VERBOSITY > 35)
         std::cout << "shared vertices 1 intersection" << std::endl;
 #endif
 
@@ -353,7 +353,7 @@ struct Intersect_tetrahedra
                           canvas->seeds[tet_2[2]], canvas->seeds[tet_2[3]]);
     if(CGAL::do_intersect(tetra_1, tetra_2))
     {
-#if (verbosity > 35)
+#if (VERBOSITY > 35)
         std::cout << "tet-tet intersection" << std::endl;
 #endif
       mark_primal_tetrahedra_as_intersected(p_tet_1, p_tet_2);

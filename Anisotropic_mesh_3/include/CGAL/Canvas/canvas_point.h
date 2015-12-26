@@ -123,7 +123,7 @@ public:
   void initialize_from_point(const FT d,
                              const std::size_t seed_id)
   {
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "initialize " << m_index << " (" << m_point << ")";
     std::cout << " at distance " << d << " from " << seed_id << std::endl;
 #endif

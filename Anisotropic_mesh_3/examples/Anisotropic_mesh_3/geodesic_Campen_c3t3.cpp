@@ -4,10 +4,10 @@
 // the canvas used is a triangulation
 
 #include <CGAL/Canvas/canvas_config.h>
-#include <CGAL/Canvas/Campen_triangulation_canvas.h>
-#include <CGAL/Canvas/Campen_triangulation_point.h>
+#include <CGAL/Canvas/Campen_c3t3_canvas.h>
+#include <CGAL/Canvas/Campen_c3t3_point.h>
 #include <CGAL/Canvas/mesher.h>
-#include <CGAL/Canvas/canvas_mesh_3.h>
+#include <CGAL/Canvas/c3t3_canvas_generator.h>
 #include <CGAL/Canvas/canvas_triangulation_io.h>
 #include <CGAL/Canvas/optimizer_cvt.h>
 
@@ -44,31 +44,32 @@ int main(int, char**)
   std::srand(0);
 
   //----------- pick a metric field! ----
-//  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
-  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
+  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(2.,2.,2.);
+
+//  CGAL::generate_canvas<K, MF>(metric_field);
+//  exit(0);
 
   // select the canvas
-  const std::string canvas_str = "dense_base_mesh";
-  // select the input seeds
-  std::size_t max_seeds_n = 150;
-  const std::string seeds_str = "dense_base_mesh_tr_primal.mesh";
+  const std::string canvas_str = "input_base_mesh";
 
-  CGAL::generate_canvas<K, MF>(metric_field);
-//  exit(0);
+  // select the input seeds
+  std::size_t max_seeds_n = 2005;
+  const std::string seeds_str = "ref_2005_primal.mesh";
 
   Canvas canvas(canvas_str, seeds_str, max_seeds_n, metric_field);
   canvas.initialize();
   canvas.paint();
 
   // Refinement
-  std::size_t n_refine = 100000;
+  std::size_t n_refine = 0;
   Canvas_mesher mesher(canvas, n_refine);
   mesher.refine();
 
   canvas.output_canvas_data_and_primal(canvas_str + "_tr");
 
   // Optimization
-  std::size_t max_opti_iter = 1000;
+  std::size_t max_opti_iter = 0;
   CVT_optimizer optimizer(canvas, max_opti_iter);
   optimizer.optimize_seeds(canvas_str);
 

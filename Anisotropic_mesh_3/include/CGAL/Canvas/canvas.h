@@ -205,7 +205,7 @@ public:
 
     Canvas_point& cp = canvas_points[cp_id];
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "looking for p: " << p << std::endl;
     std::cout << "found cp: " << cp.index() << " [" << cp.point() << "] ";
     std::cout << "at distance: " << std::sqrt(min_d) << std::endl;
@@ -245,7 +245,7 @@ public:
 
   virtual void paint(const bool refining = false)
   {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "Paiting..." << std::endl;
 #endif
 
@@ -262,17 +262,17 @@ public:
 
     while(!is_t_empty)
     {
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
       if(known_count % ((std::max)(static_cast<std::size_t>(1),
                                    canvas_points.size()/100)) == 0)
         print_states();
 #endif
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbosity > 55)
+#if (VERBOSITY > 55)
       std::cout << "trial heap: " << std::endl;
       for(typename std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
@@ -287,7 +287,7 @@ public:
                     Canvas_point_comparer<Canvas_point>());
       trial_points.pop_back();
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
       std::cout << "picked n° " << cp->index() << " (" << cp->point() << ") ";
       std::cout << "at distance : " << cp->distance_to_closest_seed()
                 << " from " << cp->closest_seed_id() << std::endl;
@@ -315,19 +315,19 @@ public:
 
     CGAL_expensive_assertion_code(debug());
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "final states after painting: " << std::endl;
     for(std::size_t i=0; i<canvas_points.size(); ++i)
     {
       const Canvas_point& cp = canvas_points[i];
-      std::cout << cp.index() << "( " << cp.point() << ")";
+      std::cout << cp.index() << " (" << cp.point() << ")";
       std::cout << " at distance: " << cp.distance_to_closest_seed();
       std::cout << " from " << cp.closest_seed_id() << std::endl;
       cp.print_ancestor_tree();
     }
 #endif
 
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "End of paint. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
 #endif
@@ -475,7 +475,7 @@ public:
     std::pair<PE_container_it, bool> is_insert_successful;
     is_insert_successful = primal_edges.insert(p_edge);
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "built primal edge : " << p_edge[0] << " " << p_edge[1] << std::endl;
 #endif
 
@@ -484,13 +484,13 @@ public:
       // already exist, check the distances
       FT new_distance = p_edge.dual_point()->distance_to_closest_seed();
       FT old_distance = is_insert_successful.first->dual_point()->distance_to_closest_seed();
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
       std::cout << "already in; old/new: " << old_distance << " " << new_distance << std::endl;
 #endif
       if(new_distance > old_distance)
       {
         // the newer element is better, we must replace the old entry in the primal edge set
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
         std::cout << "found a farther dual point at : " << p_edge.dual_point()->index();
         std::cout << " (" << p_edge.dual_point()->point() << ")" << std::endl;
 #endif
@@ -533,7 +533,7 @@ public:
     std::pair<PT_container_it, bool> is_insert_successful;
     is_insert_successful = primal_triangles.insert(p_triangle);
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "built primal triangle : ";
     std::cout << p_triangle[0] << " " << p_triangle[1] << " " << p_triangle[2] << std::endl;
 #endif
@@ -543,13 +543,13 @@ public:
       // already exist, check the distances
       FT new_distance = p_triangle.dual_point()->distance_to_closest_seed();
       FT old_distance = is_insert_successful.first->dual_point()->distance_to_closest_seed();
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
       std::cout << "already in; old/new: " << old_distance << " " << new_distance << std::endl;
 #endif
       if(new_distance > old_distance)
       {
         // the newer element is better, we must replace the old entry in the primal triangles
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
         std::cout << "found a farther dual point at : " << p_triangle.dual_point()->index();
         std::cout << " (" << p_triangle.dual_point()->point() << ")" << std::endl;
 #endif
@@ -600,7 +600,7 @@ public:
     std::pair<PT_container_it, bool> is_insert_successful;
     is_insert_successful = primal_tetrahedra.insert(p_tetrahedron);
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "built primal tetrahedron : ";
     std::cout << p_tetrahedron[0] << " " << p_tetrahedron[1] << " "
               << p_tetrahedron[2] << " " << p_tetrahedron[3] << std::endl;
@@ -611,13 +611,13 @@ public:
       // already exist, check the distances
       FT new_distance = p_tetrahedron.dual_point()->distance_to_closest_seed();
       FT old_distance = is_insert_successful.first->dual_point()->distance_to_closest_seed();
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
       std::cout << "already in; old/new: " << old_distance << " " << new_distance << std::endl;
 #endif
       if(new_distance > old_distance)
       {
         // the newer element is better, we must replace the old entry in the primal tetrahedra
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
         std::cout << "found a farther dual point at : " << p_tetrahedron.dual_point()->index();
         std::cout << " (" << p_tetrahedron.dual_point()->point() << ")" << std::endl;
 #endif
@@ -653,7 +653,7 @@ public:
     for(typename Candidates_set::iterator it=candidates.begin(); it!=candidates.end(); ++it)
       colors.insert((*it)->closest_seed_id());
 
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
     std::cout << "construct from canditate : ";
     typename Candidates_set::iterator it = candidates.begin();
     for(; it!=candidates.end(); ++it)
@@ -735,7 +735,7 @@ public:
 
   std::set<int> check_canvas_density_with_primals(const std::size_t ancestor_minimum_length = 8)
   {
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "density check" << std::endl;
 #endif
     detect_tetrahedra_self_intersections();
@@ -801,7 +801,7 @@ public:
       return;
     }
 
-#if (verbosity > 6)
+#if (VERBOSITY > 6)
     std::cout << "captured: ";
     std::cout << seeds.size() << " vertices ";
     std::cout << primal_edges.size() << " edges, ";

@@ -190,7 +190,7 @@ public:
       return rp_status;
 
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
-    // of the (same) queue in hope that the (succesful) refinement of another element
+    // of the (same) queue in hope that the (successful) refinement of another element
     // will also solve the problem for the rejected element.
     if(0 && rp_status == PICK_VALID_FAILED &&
        bad_cell->value != m_refine_queue.queue_min_value(bad_cell->queue_type) && //nothing to push if already last

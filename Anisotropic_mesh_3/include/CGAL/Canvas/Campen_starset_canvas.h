@@ -118,7 +118,7 @@ public:
 
   void initialize()
   {
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialization" << std::endl;
 #endif
 
@@ -145,7 +145,7 @@ public:
     this->seeds.initialize_seeds();
     Base::locate_seeds_on_canvas();
 
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "canvas initialized with " << this->seeds.size() << " seeds" << std::endl;
 #endif
   }
@@ -254,7 +254,7 @@ public:
 
   void primal_shenanigans(const Canvas_point* cp)
   {
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "primal shenanigans at : " << cp->index() << std::endl;
 #endif
 
@@ -265,7 +265,7 @@ public:
     Cell_handle_handle cit = star->finite_star_cells_begin();
     Cell_handle_handle cend = star->finite_star_cells_end();
 
-#if (verbosity > 25)
+#if (VERBOSITY > 25)
     std::cout << "cp: " << cp->index() << " (" << cp->point() << ") ";
     std::cout << "has " << cend - cit << " incident interior cells" << std::endl;
 #endif
@@ -329,7 +329,7 @@ public:
        !this->primal_tetrahedra.empty())
       std::cout << "WARNING: call to compute_primal with non-empty primal data structures..." << std::endl;
 
-#if (verbosity > 5)
+#if (VERBOSITY > 5)
     std::cout << "Primal computations" << std::endl;
 #endif
     typedef boost::unordered_set<const Canvas_point*>   Candidates_set;

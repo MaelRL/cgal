@@ -47,14 +47,14 @@ public:
 #ifdef ANISO_GEO_FILTER_SEEDS_OUTSIDE_CANVAS_BBOX
     if(canvas.is_point_outside_canvas(x, y, z))
     {
-  #if (verbosity > 1)
+  #if (VERBOSITY > 1)
       std::cout << "filtered : " << x << " " << y << " " << z << std::endl;
   #endif
       return seeds.size();
     }
 #endif
 
-#if (verbosity > 0)
+#if (VERBOSITY > 0)
     std::cout << "added new seed: " << x << " " << y << " " << z;
     std::cout << " (" << seeds.size() << ")" << std::endl;
 #endif
@@ -90,7 +90,7 @@ public:
       if(seeds.size() >= max_seeds_n)
         break;
     }
-#if (verbosity > 0)
+#if (VERBOSITY > 0)
     std::cout << "seeds: " << seeds.size() << std::endl;
 #endif
     return seeds.size();

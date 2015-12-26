@@ -298,7 +298,7 @@ struct Canvas_subdivider
 
   void paint_new_canvas()
   {
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "must reset everything with color : ";
     std::set<int>::iterator strit = seeds_to_reset.begin();
     for(; strit!=seeds_to_reset.end(); ++strit)
@@ -404,12 +404,12 @@ CGAL_expensive_assertion_code(
   std::size_t subdivide_cells()
   {
     std::size_t init_point_count = m_canvas->canvas_points.size();
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "split cells" << std::endl;
     std::cout << "before split: " << init_point_count << " vertices" << std::endl;
 #endif
 
-#if (verbosity > 20)
+#if (VERBOSITY > 20)
     std::cout << "the ids to subdivide are: ";
     std::set<int>::iterator it = m_criterion.seed_indices.begin();
     for(; it!=m_criterion.seed_indices.end(); ++it)
@@ -446,7 +446,7 @@ CGAL_expensive_assertion_code(
     }
 
     std::size_t final_point_count = m_canvas->canvas_points.size();
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "after split: " << final_point_count << " vertices" << std::endl;
 #endif
     CGAL_assertion(final_point_count >= init_point_count);

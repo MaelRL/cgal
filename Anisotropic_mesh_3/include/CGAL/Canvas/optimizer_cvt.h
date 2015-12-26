@@ -258,7 +258,7 @@ public:
   FT optimize_seed(std::size_t seed_id,
                    const Centroid_vector& seed_centroids)
   {
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
     std::cout << "Optimizing seed: " << seed_id << std::endl;
 #endif
 
@@ -272,7 +272,7 @@ public:
                                    Kernel().compute_squared_distance_3_object();
     FT displacement = sqd(old_seed, new_seed);
 
-#if (verbosity > 17)
+#if (VERBOSITY > 17)
     std::cout << "centroid with grid triangles " << new_seed << std::endl;
     std::cout << "seed: " << seed_id << " displacement: " << displacement << std::endl;
 #endif
@@ -285,7 +285,7 @@ public:
     if(max_iter == 0)
       return;
 
-#if (verbosity > 10)
+#if (VERBOSITY > 10)
     std::cout << "Optimizing all seeds" << std::endl;
 #endif
 
@@ -297,7 +297,7 @@ public:
 
     do
     {
-#if (verbosity > 12)
+#if (VERBOSITY > 12)
       std::cout << "Optimizing: iteration " << counter << std::endl;
 #endif
 
@@ -311,7 +311,7 @@ public:
       for(std::size_t i=0; i<canvas.seeds.size(); ++i)
         cumulated_displacement += optimize_seed(i, centroids[i]);
 
-#if (verbosity > 15)
+#if (VERBOSITY > 15)
        std::cout << "cumulated displacement : " << cumulated_displacement << std::endl;
 #endif
 
