@@ -307,7 +307,7 @@ public:
     }
     else
     {
-      //std::cout << "insert succesful" << std::endl;
+      //std::cout << "insert successful" << std::endl;
       is_insert_successful.first->queue_it = queues[queue_type]->insert(is_insert_successful.first);
     }
   }

@@ -1642,11 +1642,11 @@ struct Base_mesh
     int nmin = ordered ? n_p : n_q;
     int nmax = ordered ? n_q : n_p;
 
-    std::pair<typename Edge_mpts_map::iterator, bool> is_insert_succesful =
+    std::pair<typename Edge_mpts_map::iterator, bool> is_insert_successful =
         edge_mid_points.insert(std::make_pair(std::make_pair(nmin, nmax), -1)); // -1 is a placeholder
 
-    if(!is_insert_succesful.second) // already exists in the map
-      n_pq = is_insert_succesful.first->second;
+    if(!is_insert_successful.second) // already exists in the map
+      n_pq = is_insert_successful.first->second;
     else if(create_if_not_found) // the mid point hasn't been computed yet and we want to build it
     {
       Point_2 mid_point = CGAL::barycenter(points[n_p].point, 0.5,
@@ -1656,7 +1656,7 @@ struct Base_mesh
 
       Grid_point gm(this, mid_point, n_pq, border_info);
       points.push_back(gm);
-      is_insert_succesful.first->second = n_pq;
+      is_insert_successful.first->second = n_pq;
     }
 
     return n_pq;

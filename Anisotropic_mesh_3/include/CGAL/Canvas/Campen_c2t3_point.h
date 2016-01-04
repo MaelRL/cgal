@@ -346,7 +346,7 @@ public:
     CGAL_precondition(s != 0.);
     rot_m = rot_m + sm + sm*sm*(1-c)/(s*s);
 
-    CGAL_postcondition(CGAL::abs((rot_m*rot_m.transpose()).norm() - CGAL::sqrt(3.)) < 1e-10);
+    CGAL_postcondition(CGAL::abs((rot_m*rot_m.transpose()).norm() - CGAL::sqrt(3.)) < 1e-10); // tmp
     CGAL_postcondition(CGAL::abs((rot_m * orig).dot(end) - end.dot(end)) < 1e-10);
 
     // the metric if F = V^T D V
@@ -360,6 +360,35 @@ public:
     v2 = transform<typename Gt::Vector_3>(rot_m, v2);
 
     return build_UDUt<K>(v0, v1, v2, e0, e1, e2);
+  }
+
+  void output_ancestor_edge(std::size_t n,
+                            const std::vector<Point_3>& folded_points,
+                            const std::vector<Point_3>& unfolded_points) const
+  {
+    std::ofstream out("folding_visualization.mesh");
+
+    CGAL_precondition(n < folded_points.size());
+
+    out << "MeshVersionFormatted 1" << std::endl;
+    out << "Dimension 3" << std::endl;
+    out << "Vertices" << std::endl;
+    out << 2.*n << std::endl;
+
+    for(std::size_t i=0; i<n; ++i)
+      out << folded_points[i] << " " << i << std::endl;
+
+    for(std::size_t i=0; i<n; ++i)
+      out << unfolded_points[i] << " " << i << std::endl;
+
+    out << "Edges" << std::endl;
+    out << 2.*(n-1) << std::endl;
+
+    for(std::size_t i=1; i<n; ++i)
+    {
+      out << i << " " << i+1 << " 1" << std::endl;
+      out << n+i << " " << n+i+1 << " 1" << std::endl;
+    }
   }
 
   // this function is the heart of the painter
@@ -412,6 +441,7 @@ public:
 
     Vector3d unfolded_edge = Vector3d::Zero(); // between 'this' and the i-th unfolded ancestor
     Vector3d unfolding_plane_normal;
+    std::vector<Point_3> folded_points(k+1); // only needed for debug
     std::vector<Point_3> unfolded_points(k+1);
     std::vector<Vector3d> edge_segments(k);
     std::vector<Vector3d> unfolded_edge_segments(k);
@@ -420,13 +450,17 @@ public:
     std::size_t prev_id = anc.index();
 
     unfolded_points[0] = this->point();
+    folded_points[0] =  this->point();
     unfolded_points[1] = anc.point();
 
-    for(int i=1; i<=k; ++i)
+    for(int i = 1; i<=k; ++i)
     {
+      std::cout << "~~~~~~ depth i: " << i << std::endl;
       const Base& next_p = this->canvas()->get_point(next_id);
       const Base& curr_p = this->canvas()->get_point(curr_id);
       const Base& prev_p = this->canvas()->get_point(prev_id);
+
+      folded_points[i] = prev_p.point();
 
 #if (VERBOSITY > 25)
       std::cout << "current triplet on the ancestor path : "
@@ -512,14 +546,24 @@ public:
         dist_to_ancestor += sp * l;
 
 #if (VERBOSITY > 30)
-        std::cout << "unfolded to : " << unfolded_points[i] << std::endl;
         std::cout << "unfolding normal : " << unfolding_plane_normal.transpose() << std::endl;
+        std::cout << "unfolded to : " << unfolded_points[j+1] << std::endl;
+
+        std::cout << "compare distance from 'this' to curr (folded/unfolded): "
+                  << CGAL::sqrt(CGAL::squared_distance(this->point(), folded_points[j+1])) << " "
+                  << CGAL::sqrt(CGAL::squared_distance(this->point(), unfolded_points[j+1])) << std::endl;
+
+        std::cout << "compare distance from prev to curr (folded/unfolded): "
+                  << CGAL::sqrt(CGAL::squared_distance(folded_points[j], folded_points[j+1])) << " "
+                  << CGAL::sqrt(CGAL::squared_distance(unfolded_points[j], unfolded_points[j+1])) << std::endl;
+
         std::cout << "folded edge segment: " << edge_segment.transpose() << std::endl;
         std::cout << "unfolded edge segment: " << unfolded_edge_segment.transpose() << std::endl;
+        std::cout << "norm of the unfolded (full) edge: " << ancestor_edge_length << std::endl;
         std::cout << "normalized unfolded (full) edge: " << normalized_unfolded_edge.transpose() << std::endl;
-        std::cout << "rotated tranfsormation metric:" << std::endl << f << std::endl << std::endl;
+        std::cout << "rotated tranfsormation metric:" << std::endl << f << std::endl;
         std::cout << "transformed edge: " << transformed_unfolded_edge.transpose() << std::endl;
-        std::cout << "dist_to_anc: " << dist_to_ancestor << " sp: " << sp << " l: " << l << std::endl;
+        std::cout << "dist_to_anc: " << dist_to_ancestor << " sp: " << sp << " l: " << l << std::endl << std::endl;
 #endif
       }
       dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);

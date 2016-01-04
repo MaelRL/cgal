@@ -147,9 +147,18 @@ public:
     // Sine
     Vector_3 w = cross_product(u,v);
     FT abs_sin = CGAL::sqrt(sq_length(w)) / product;
-    if ( abs_sin < FT(-1) ) { abs_sin = FT(-1); }
+
     if ( abs_sin > FT(1) ) { abs_sin = FT(1); }
-    return FT(std::asin(abs_sin));
+    CGAL_assertion(abs_sin >= 0.);
+    CGAL_assertion(abs_sin <= 1);
+
+    // We just need cosine sign
+    FT cosine_sign = scalar_product(u,v);
+
+    if ( cosine_sign >= FT(0) )
+      return FT(std::asin(abs_sin));
+    else
+      return FT(CGAL_PI) - FT(std::asin(abs_sin));
   }
 
   FT compute_loc_angle(Finite_vertices_iterator vh0,
