@@ -55,6 +55,7 @@ public:
   typedef typename K::FT                                              FT;
   typedef typename Gt::Weighted_point                                 Weighted_point_3;
   typedef typename Gt::Bare_point                                     Point_3;
+  typedef typename Gt::Vector_3                                       Vector_3;
   typedef typename Base::Metric                                       Metric;
 
   typedef Eigen::Matrix<FT, 2, 1>                                     Vector2d;
@@ -314,28 +315,49 @@ public:
     FT new_sin = new_normal.norm();
     new_sin *= (new_normal.dot(normal) > 0) ? 1 : -1;
 
-    CGAL_postcondition(CGAL::abs(c - new_cos) < 1e-10);
-    CGAL_postcondition(CGAL::abs(s - new_sin) < 1e-10);
+    CGAL_postcondition(CGAL::abs(c - new_cos) < 1e-5);
+    CGAL_postcondition(CGAL::abs(s - new_sin) < 1e-5);
 
     return new_point;
   }
 
   Eigen::Matrix3d rotate_metric(const Eigen::Matrix3d& f,
-                                const Vector3d& orig,
-                                const Vector3d& end) const
+                                const Vector3d& edge_normal,
+                                const Vector3d& unfolding_normal) const
   {
-    // normalize the vectors
-    Vector3d n_orig = orig / orig.norm();
-    Vector3d n_end = end / end.norm();
+    // rotate the metric from one plane to another
 
-    // check some degenerate (and easy) cases
-    if(n_orig == n_end || n_orig == -n_end)
+    // todo
+    // I'm sure there's something way smarter than expliciting the rotation,
+    // desconstructing the metric, applying the rotation and rebuilding the metric
+    // (and it's costly)
+
+    CGAL_precondition(std::abs(edge_normal.norm() - 1.) < 1e-10 &&
+                      std::abs(unfolding_normal.norm() - 1.) < 1e-10);
+
+    // get the rotation axis (note that the directions do not matter)
+    Vector3d rot_axis = edge_normal.cross(unfolding_normal);
+    FT ra_norm = rot_axis.norm();
+
+    if(std::abs(ra_norm < 1e-5)) // parallel planes
       return f;
 
+    rot_axis = rot_axis / ra_norm;
+
     // Rodrigues formula to get the rotation matrix in a standard case
-    Vector3d v = n_orig.cross(n_end);
-    FT s = v.norm(); // that's the sin of the angle since the vectors are normalized
-    FT c = n_orig.dot(n_end); // that's the cos of the angle since the vectors are normalized
+    FT c = edge_normal.dot(unfolding_normal);
+
+    if(c > FT(1.)) c = 1.;
+    if(c < FT(-1.)) c = -1.;
+
+    FT theta = std::acos(c); // dihedral angle between the planes... Should atan2 be used instead ?
+    FT s = std::sin(theta);
+
+#if (VERBOSITY > 25)
+    std::cout << "dihedral: " << theta << std::endl;
+#endif
+
+    const Vector3d& v = rot_axis;
 
     Eigen::Matrix3d sm = Eigen::Matrix3d::Zero(); // skew_matrix
     sm(0,0) = 0; sm(0,1) = -v(2); sm(0,2) = v(1);
@@ -343,14 +365,21 @@ public:
     sm(2,0) = -v(1); sm(2,1) = v(0); sm(2,2) = 0;
 
     Eigen::Matrix3d rot_m = Eigen::Matrix3d::Identity(); // rot_m
-    CGAL_precondition(s != 0.);
-    rot_m = rot_m + sm + sm*sm*(1-c)/(s*s);
+    rot_m = rot_m + s*sm + (1-c)*sm*sm;
 
-    CGAL_postcondition(CGAL::abs((rot_m*rot_m.transpose()).norm() - CGAL::sqrt(3.)) < 1e-10); // tmp
-    CGAL_postcondition(CGAL::abs((rot_m * orig).dot(end) - end.dot(end)) < 1e-10);
+#if (VERBOSITY > 25)
+    std::cout << "rotation matrix : " << std::endl << rot_m << std::endl;
+#endif
 
-    // the metric if F = V^T D V
-    // the rotation is F_rot = (RV)^T D (RV), R being the rotation...
+    // some debug
+    Eigen::Matrix3d m_check = rot_m*rot_m.transpose();
+    CGAL_postcondition((m_check - Eigen::Matrix3d::Identity()).norm() < 1e-5);
+    Vector3d rotated_edge_normal = rot_m * edge_normal;
+    CGAL_postcondition((rotated_edge_normal.cross(unfolding_normal)).norm() < 1e-5 &&
+                        rotated_edge_normal.dot(unfolding_normal) > 0);
+
+    // the metric if M = F^TF with F = V^T D V
+    // the rotation is given by F_rot = (RV)^T D (RV), R being the rotation...
     typename Gt::Vector_3 v0, v1, v2;
     FT e0, e1, e2;
     get_eigen_vecs_and_vals<K>(f, v0, v1, v2, e0, e1, e2);
@@ -359,21 +388,41 @@ public:
     v1 = transform<typename Gt::Vector_3>(rot_m, v1);
     v2 = transform<typename Gt::Vector_3>(rot_m, v2);
 
+    // some more debug
+    Eigen::Matrix3d asd_f = build_UDUt<K>(v0, v1, v2, e0, e1, e2);
+    for(int i=0; i<10; ++i)
+    {
+      Vector3d random_vec = Vector3d::Random();
+      FT length_in_metric_pre_rot = (f * random_vec).norm();
+      random_vec = rot_m * random_vec;
+      FT length_in_metric_post_rot = (asd_f * random_vec).norm();
+      CGAL_postcondition((length_in_metric_post_rot - length_in_metric_pre_rot)<1e-5);
+    }
+    // end debug
+
     return build_UDUt<K>(v0, v1, v2, e0, e1, e2);
   }
 
+  template<typename Array_k, typename Array_kp1>
   void output_ancestor_edge(std::size_t n,
-                            const std::vector<Point_3>& folded_points,
-                            const std::vector<Point_3>& unfolded_points) const
+                            const Array_kp1& folded_points,
+                            const Array_kp1& unfolded_points,
+                            const Array_k& metrics) const
   {
     std::ofstream out("folding_visualization.mesh");
 
     CGAL_precondition(n < folded_points.size());
 
+    // outputs :
+    // - the folded edge (the path on the initial mesh)
+    // - the unfolded edge (edges moved to a common plane while preserving angles
+    //   and lengths)
+    // - the rotated metrics
+
     out << "MeshVersionFormatted 1" << std::endl;
     out << "Dimension 3" << std::endl;
     out << "Vertices" << std::endl;
-    out << 2.*n << std::endl;
+    out << 2.*n /*edges*/ + 4*(n-1) /*metrics*/ << std::endl;
 
     for(std::size_t i=0; i<n; ++i)
       out << folded_points[i] << " " << i << std::endl;
@@ -381,14 +430,47 @@ public:
     for(std::size_t i=0; i<n; ++i)
       out << unfolded_points[i] << " " << i << std::endl;
 
+    for(std::size_t i=0; i<n-1; ++i)
+    {
+      // metric on the edge unfolded[i] unfolded[i+1]
+      const Eigen::Matrix3d& m = metrics[i];
+      const Point_3& mid_point = CGAL::midpoint(unfolded_points[i], unfolded_points[i+1]);
+
+      FT e0, e1, e2;
+      Vector_3 v0, v1, v2;
+      get_eigen_vecs_and_vals<K>(m, v0, v1, v2, e0, e1, e2);
+
+      // note that there's no sqrt() since this is F (the square root of M) and not M
+      e1 = 1./std::abs(e1);
+      e2 = 1./std::abs(e2);
+      e0 = 1./std::abs(e0);
+
+      FT scaling = 0.1; // something pretty todo
+
+      out << mid_point << " " << i << std::endl;
+      out << mid_point + scaling * e0 * v0 << " " << i << std::endl;
+      out << mid_point + scaling * e1 * v1 << " " << i << std::endl;
+      out << mid_point + scaling * e2 * v2 << " " << i << std::endl;
+    }
+
     out << "Edges" << std::endl;
-    out << 2.*(n-1) << std::endl;
+    out << 2.*(n-1) /*edges*/ + 3*(n-1) /*metrics*/ << std::endl;
 
     for(std::size_t i=1; i<n; ++i)
     {
-      out << i << " " << i+1 << " 1" << std::endl;
-      out << n+i << " " << n+i+1 << " 1" << std::endl;
+      out << i << " " << i+1 << " 1" << std::endl; // folded
+      out << n+i << " " << n+i+1 << " 2" << std::endl; // unfolded
     }
+
+    for(std::size_t i=2*n+1; i<=2*n+4*(n-1);)
+    {
+      out << i << " " << i + 1 << " 3" << std::endl;
+      out << i << " " << i + 2 << " 4" << std::endl;
+      out << i << " " << i + 3 << " 5" << std::endl;
+      i += 4;
+    }
+
+    out << "End" << std::endl;
   }
 
   // this function is the heart of the painter
@@ -453,7 +535,46 @@ public:
     folded_points[0] =  this->point();
     unfolded_points[1] = anc.point();
 
-    for(int i = 1; i<=k; ++i)
+    // set up the normal
+    bool found = false;
+    Facet_handle fh = this->incident_facets_in_complex_begin();
+    Facet_handle fend = this->incident_facets_in_complex_end();
+    for(; fh!=fend; ++fh)
+    {
+      Cell_handle ch = fh->first;
+      std::size_t second = fh->second;
+
+      if(!c3t3().is_in_complex(ch))
+      {
+        ch = ch->neighbor(fh->second);
+        second = ch->index(fh->first);
+      }
+
+      std::cout << "consider facet :" << std::endl;
+      std::cout << ch->vertex((second+1)%4)->info() << std::endl;
+      std::cout << ch->vertex((second+2)%4)->info() << std::endl;
+      std::cout << ch->vertex((second+3)%4)->info() << std::endl;
+      std::cout << "trying to find : " << m_v->info() << " and " << anc.m_v->info() << std::endl;
+
+      Facet f(ch, second);
+      CGAL_postcondition(c3t3().is_in_complex(f.first));
+
+      int useless;
+      if(c3t3().triangulation().has_vertex(f, m_v, useless) &&
+         c3t3().triangulation().has_vertex(f, anc.m_v, useless))
+      {
+        std::cout << "found facet" << std::endl;
+        found = true;
+        CGAL_assertion(this->canvas()->m_facet_normals.find(f) !=
+                       this->canvas()->m_facet_normals.end());
+        unfolding_plane_normal = this->canvas()->m_facet_normals[f];
+        CGAL_postcondition(std::abs(unfolding_plane_normal.norm() - 1.) < 1e-5);
+        break;
+      }
+    }
+    CGAL_postcondition(found);
+
+    for(int i=1; i<=k; ++i)
     {
       std::cout << "~~~~~~ depth i: " << i << std::endl;
       const Base& next_p = this->canvas()->get_point(next_id);
@@ -478,35 +599,12 @@ public:
       CGAL_assertion(edge_segment_length > 1e-16);
       edge_segments[i-1] = edge_segment;
 
-      if(i == 1)
-      {
-        // the unfolding plane could be taken as the normal
-        // of the surface at the center, but is there a point ?
-
-        // edge_segment = (a,b,c), (-c,-c,a+b) is orthogonal but is (0,0,0) if c=0
-        // and b=-a so we need to test out that case. In that degenerate case,
-        // edge_semgent = (a,-a,0) and we can take (a,a,0) as orthogonal vector
-        if(edge_segment(2) == 0. && edge_segment(0) == -edge_segment(1))
-        {
-          unfolding_plane_normal(0) = edge_segment(0);
-          unfolding_plane_normal(1) = edge_segment(0);
-          unfolding_plane_normal(2) = 0;
-        }
-        else
-        {
-          unfolding_plane_normal(0) = -edge_segment(2);
-          unfolding_plane_normal(1) = -edge_segment(2);
-          unfolding_plane_normal(2) = edge_segment(0) + edge_segment(1);
-        }
-
-        CGAL_postcondition(CGAL::abs(unfolding_plane_normal.dot(edge_segment)) < 1e-10);
-        unfolding_plane_normal = unfolding_plane_normal / unfolding_plane_normal.norm();
-      }
-      else // i > 1
-      {
       // the next point to be unfolded is at distance edge_segment_length from
       // the previous unfolded point and with an angle
+      if(i > 1)
+      {
         FT angle = compute_flattening_angle(next_id, curr_id, prev_id);
+
         unfolded_points[i] = compute_unfolded_coordinates(unfolded_points[i-2],
                                                           unfolded_points[i-1],
                                                           unfolding_plane_normal,
@@ -522,6 +620,48 @@ public:
       FT ancestor_edge_length = unfolded_edge.norm();
       Vector3d normalized_unfolded_edge = unfolded_edge / ancestor_edge_length;
 
+      // we must rotate the metric of the folded edge so that it is appropriate
+      // for the unfolded edge
+      Vector3d folded_edge_segment_normal;
+
+      std::size_t i1, i2;
+      if(prev_id < curr_id)
+      {
+        i1 = prev_id;
+        i2 = curr_id;
+      }
+      else
+      {
+        i1 = curr_id;
+        i2 = prev_id;
+      }
+
+      std::pair<std::size_t, std::size_t> e(i1, i2);
+      CGAL_assertion(this->canvas()->m_edge_normals.find(e) !=
+                     this->canvas()->m_edge_normals.end());
+
+      folded_edge_segment_normal = this->canvas()->m_edge_normals[e];
+
+      rotated_path_metrics[i-1] = rotate_metric(path_metrics[i-1],
+                                                folded_edge_segment_normal,
+                                                unfolding_plane_normal);
+
+/*
+ * Below is wrong: while this rotation will send the folded edge on the unfolded_edge,
+ * it does not provide the correct rotation for the metric.
+ * Leaving it here commented so the future generations can learn from the mistakes
+ * of the past ones.
+      rotated_path_metrics[i-1] = rotate_metric(path_metrics[i-1],
+                                                edge_segments[i-1],
+                                                unfolded_edge_segments[i-1]);
+*/
+
+#if (VERBOSITY > 25)
+      std::cout << "folded edge segment: " << edge_segment.transpose() << std::endl;
+      std::cout << "normalized unfolded (full) edge: " << normalized_unfolded_edge.transpose() << std::endl;
+      std::cout << "norm of the unfolded (full) edge: " << ancestor_edge_length << std::endl;
+#endif
+
       // compute the distance for the current depth (i) by splitting the unfolded
       // edge in segments.
       // The metric for each segment is drawn from the metric of the folded edge
@@ -530,17 +670,11 @@ public:
       for(int j=0; j<i; ++j)
       {
         const Vector3d& unfolded_edge_segment = unfolded_edge_segments[j];
-
-        // interpolate between both metric and transform the normalized edge
-        // then we have (transformed_edge).norm() = || e ||_M = sqrt(e^t M e).
-        // Since we have unfolded the edge, the metric must be rotated
-        // by the rotation from the folded edge segment to the unfolded edge segment
-        const Eigen::Matrix3d& f = rotate_metric(path_metrics[j],
-                                                 edge_segments[j], // folded
-                                                 unfolded_edge_segment);
+        const Eigen::Matrix3d& f = rotated_path_metrics[j];
 
         Vector3d transformed_unfolded_edge = f * normalized_unfolded_edge;
         FT sp = unfolded_edge_segment.dot(normalized_unfolded_edge);
+
         // length of the normalized unfolded edge in the metric of the edge segment
         FT l = transformed_unfolded_edge.norm();
         dist_to_ancestor += sp * l;

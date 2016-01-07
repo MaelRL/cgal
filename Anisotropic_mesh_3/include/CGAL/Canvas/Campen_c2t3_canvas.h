@@ -48,7 +48,6 @@ public:
 
   typedef Canvas<K, Canvas_point, Metric_field>            Base;
 
-
   typedef typename Base::Metric                            Metric;
   typedef typename Base::Vector3d                          Vector3d;
   typedef typename Base::Simplex                           Simplex;
@@ -70,6 +69,7 @@ public:
   typedef typename Tr::Vertex_handle                       Vertex_handle;
   typedef std::vector<Vertex_handle>                       Vertex_handle_vector;
   typedef typename Vertex_handle_vector::iterator          Vertex_handle_handle;
+  typedef typename Tr::Edge                                Edge;
   typedef typename Tr::Facet                               Facet;
   typedef std::vector<Facet>                               Facet_vector;
   typedef typename Facet_vector::iterator                  Facet_handle;
@@ -80,8 +80,14 @@ public:
   typedef boost::unordered_map<Oriented_edge, FT>                       Angle_map;
   typedef typename boost::unordered_map<Oriented_edge, FT>::iterator    Angle_map_iterator;
 
+  typedef boost::unordered_map<Facet, Vector3d>           Facet_normal_map;
+  typedef boost::unordered_map<std::pair<std::size_t, std::size_t>, Vector3d>
+                                                          Edge_normal_map;
+
   C3t3& m_c3t3;
   Angle_map m_angles;
+  Facet_normal_map m_facet_normals;
+  Edge_normal_map m_edge_normals;
 
   std::size_t compute_precise_Voronoi_vertex_on_edge(const std::size_t p,
                                                      const std::size_t q,
@@ -228,6 +234,88 @@ public:
     }
   }
 
+  void add_to_edge_normals_map(Vertex_handle v1, Vertex_handle v2,
+                               const Vector3d& normal)
+  {
+    CGAL_precondition(v1->info() != v2->info());
+    CGAL_precondition((normal.norm() - 1.) < 1e-10);
+    if(v1->info() > v2->info())
+    {
+      Vertex_handle tmp = v1;
+      v1 = v2;
+      v2 = tmp;
+    }
+
+    std::pair<std::size_t, std::size_t> e(v1->info(), v2->info());
+    std::pair<typename Edge_normal_map::iterator, bool> is_insert_successful =
+        m_edge_normals.insert(std::make_pair(e, normal));
+    if(!is_insert_successful.second) // already exists in the map
+    {
+      typename Edge_normal_map::iterator it = is_insert_successful.first;
+      Vector3d& n = it->second;
+      n += normal;
+      n /= n.norm();
+    }
+  }
+
+  void compute_facets_and_edges_in_complex_normals()
+  {
+    Facet_iterator fh = m_c3t3.facets_in_complex_begin();
+    Facet_iterator fend = m_c3t3.facets_in_complex_end();
+    for(; fh!=fend; ++fh)
+    {
+      Cell_handle ch = fh->first;
+      std::size_t second = fh->second;
+
+      if(!m_c3t3.is_in_complex(ch))
+      {
+        ch = ch->neighbor(fh->second);
+        second = ch->index(fh->first);
+      }
+
+      CGAL_postcondition(m_c3t3.is_in_complex(ch));
+
+      Vertex_handle va = ch->vertex((second + 1)%4);
+      Vertex_handle vb = ch->vertex((second + 2)%4);
+      Vertex_handle vc = ch->vertex((second + 3)%4);
+      Vertex_handle vd = ch->vertex(second);
+
+      const Point_3& a = va->point();
+      const Point_3& b = vb->point();
+      const Point_3& c = vc->point();
+      const Point_3& d = vd->point();
+
+      Vector3d v_ab, v_ac, v_ad;
+      v_ab(0) = b.x() - a.x();
+      v_ab(1) = b.y() - a.y();
+      v_ab(2) = b.z() - a.z();
+
+      v_ac(0) = c.x() - a.x();
+      v_ac(1) = c.y() - a.y();
+      v_ac(2) = c.z() - a.z();
+
+      v_ad(0) = d.x() - a.x();
+      v_ad(1) = d.y() - a.y();
+      v_ad(2) = d.z() - a.z();
+
+      Vector3d normal = v_ab.cross(v_ac);
+      CGAL_postcondition(normal.norm() > 1e-10);
+
+      // the normal and ad need to point to opposite directions since d is inside
+      if(normal.dot(v_ad) > 0)
+        normal = -normal;
+
+      normal = normal / normal.norm();
+      Facet f(ch, second);
+      m_facet_normals[f] = normal;
+
+      // add this facet normal to the edges
+      add_to_edge_normals_map(va, vb, normal);
+      add_to_edge_normals_map(va, vc, normal);
+      add_to_edge_normals_map(vb, vc, normal);
+    }
+  }
+
   void initialize()
   {
 #if (VERBOSITY > 5)
@@ -259,6 +347,7 @@ public:
     std::cout << this->canvas_points.size() << " points on canvas" << std::endl;
 
     initialize_cumulative_angles();
+    compute_facets_and_edges_in_complex_normals();
 
     Base::compute_canvas_bbox();
     this->seeds.initialize_seeds();
@@ -583,7 +672,9 @@ public:
     :
       Base(canvas_str_, seeds_str_, max_seeds_n_, mf_),
       m_c3t3(c3t3),
-      m_angles()
+      m_angles(),
+      m_facet_normals(),
+      m_edge_normals()
   { }
 };
 
