@@ -451,6 +451,8 @@ public:
                                std::size_t seed_id,
                                const Point_3& t)
   {
+    // reject cells (we might go through the domain and initialize a point on
+    // the other side with a much shorter value (and messing up everything)
 #if (VERBOSITY > 2)
     std::cout << "cell " << c->vertex(0)->info() << " "
               << c->vertex(1)->info() << " "
@@ -481,7 +483,49 @@ public:
     CGAL_assertion(lt < 3); // must be a vertex, an edge or a triangle
 
     if(!m_c3t3.is_in_complex(c))
+    {
       std::cout << "WARNING: seed located in a cell outside of the complex" << std::endl;
+      CGAL_assertion(lt < 3);
+    }
+
+    if(lt != 0)
+    {
+      // check if it's just an imprecision
+      FT shortest_edge_length = FT_inf;
+
+      const Point_3& p = c->vertex(0)->point();
+      const Point_3& q = c->vertex(1)->point();
+      const Point_3& r = c->vertex(2)->point();
+      const Point_3& s = c->vertex(3)->point();
+
+      typename Gt::Compute_squared_distance_3 o = K().compute_squared_distance_3_object();
+      shortest_edge_length = min(min(min(min(min(o(p, q), o(p, r)), o(p, s)), o(q, r)), o(q, s)), o(r, s)); // fixme for windows...
+
+      for(int i=0; i<4; ++i)
+      {
+        Vertex_handle v = c->vertex(i);
+        FT sq_d = o(v->point(), t);
+
+#if (VERBOSITY > 25)
+        std::cout << "sqd & shortest : " << sq_d << " " << shortest_edge_length << std::endl;
+#endif
+
+        if(sq_d < 0.01 * shortest_edge_length)
+        {
+#if (VERBOSITY > 25)
+          std::cout << "Found a vertex very close to the seed" << std::endl;
+#endif
+
+          // change locate's result to initialize that vertex only
+          lt = static_cast<typename Tr::Locate_type>(0);
+          li = i;
+          break;
+        }
+
+        if(i == 3) // didn't find a close point
+          exit(0);
+      }
+    }
 
 #if (VERBOSITY > 15)
     std::cout << "locate in triangulation : " << std::endl;
@@ -492,10 +536,7 @@ public:
       Vertex_handle vh = c->vertex(i);
       std::cout << "point: " << vh->info() << std::endl;
       if(!m_c3t3.triangulation().is_infinite(vh))
-      {
-        std::cout << c->vertex(i)->point() << " || "
-                  << this->canvas_points[vh->info()].point() << std::endl;
-      }
+        std::cout << c->vertex(i)->point() << std::endl;
     }
 #endif
 
@@ -507,7 +548,7 @@ public:
       initialize_seed_on_triangle(c, li, seed_id, t);
     else
     {
-      std::cerr << "WARNING: Initialization of a seed in a cell..." << std::endl;
+      std::cout << "WARNING: Initialization of a seed in a cell..." << std::endl;
       initialize_seed_in_cell(c, seed_id, t);
     }
   }
