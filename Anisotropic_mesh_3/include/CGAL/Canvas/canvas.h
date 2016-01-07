@@ -256,7 +256,10 @@ public:
     bool is_t_empty = trial_points.empty();
 
     if(is_t_empty)
+    {
       std::cout << "Trying to paint without anything in the PQ..." << std::endl;
+      exit(0);
+    }
     else
       std::cout << trial_points.size() << " initial points in the queue" << std::endl;
 

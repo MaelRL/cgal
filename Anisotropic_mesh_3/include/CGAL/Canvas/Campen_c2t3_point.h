@@ -64,6 +64,7 @@ public:
   typedef typename Tr::Vertex_handle                                  Vertex_handle;
   typedef std::vector<Vertex_handle>                                  Vertex_handle_vector;
   typedef typename Vertex_handle_vector::iterator                     Vertex_handle_handle;
+  typedef typename Tr::Edge                                           Edge;
   typedef typename Tr::Facet                                          Facet;
   typedef std::vector<Facet>                                          Facet_vector;
   typedef typename Facet_vector::iterator                             Facet_handle;
@@ -71,13 +72,12 @@ public:
 
   Vertex_handle m_v; // corresponding vertex in the c3t3
 
-  C3t3& c3t3() { return this->canvas()->m_c3t3; }
-  const C3t3& c3t3() const { return this->canvas()->m_c3t3; }
-
   mutable bool m_is_vertices_cache_dirty, m_is_facets_cache_dirty;
-
   mutable Vertex_handle_vector m_adjacent_vertices_cache; // on the complex boundary
   mutable Facet_vector m_incident_facets_cache; // on the complex boundary
+
+  C3t3& c3t3() { return this->canvas()->m_c3t3; }
+  const C3t3& c3t3() const { return this->canvas()->m_c3t3; }
 
   // cache related functions
   struct In_complex_filter
@@ -171,12 +171,9 @@ public:
     typename boost::unordered_map<Vertex_handle, Vertex_handle>::iterator it = oriented_edges.begin();
     Vertex_handle init = it->first;
 
-//    std::cout << "adjacency of : " << this->index() << std::endl;
-
     while(true)
     {
       Vertex_handle edge_beginning = it->first;
-//      std::cout << it->first->info() << " ";
 
       m_adjacent_vertices_cache.push_back(edge_beginning);
       it = oriented_edges.find(it->second);
@@ -185,7 +182,6 @@ public:
       if(it->first == init)
         break;
     }
-//    std::cout << std::endl;
     CGAL_postcondition(m_adjacent_vertices_cache.size() == oriented_edges.size());
   }
 
@@ -270,10 +266,12 @@ public:
     // 'in' and 'center' are unfolded point coordinates
     // knowing the length and the angle, we compute the new unfolded point
 
+#if (VERBOSITY > 20)
     std::cout << "Computing unfolding of new point..." << std::endl;
     std::cout << "Previous two: " << in << " || " << center << std::endl;
     std::cout << "normal: " << normal.transpose() << std::endl;
     std::cout << "point at length: " << length << " and angle: " << angle << std::endl;
+#endif
 
     Vector3d v;
     v(0) = in.x() - center.x();
@@ -298,16 +296,18 @@ public:
                       center.z() + length * out(2));
 
     // debug stuff
-    CGAL_precondition(CGAL::abs(v.norm()) > 1e-10);
-    Eigen::Matrix3d asd = r*r.transpose();
-    CGAL_postcondition(CGAL::abs(asd.norm() - CGAL::sqrt(3.)) < 1e-10);
-    CGAL_postcondition(CGAL::abs(r.determinant() - 1.) < 1e-10);
+    CGAL_precondition(CGAL::abs(v.norm()) > 1e-5);
+    Eigen::Matrix3d sq_r = r*r.transpose();
+    CGAL_postcondition(CGAL::abs(sq_r.norm() - CGAL::sqrt(3.)) < 1e-5);
+    CGAL_postcondition(CGAL::abs(r.determinant() - 1.) < 1e-5);
 
     Vector3d new_vec(new_point.x() - center.x(),
                      new_point.y() - center.y(),
                      new_point.z() - center.z());
-    CGAL_postcondition(CGAL::abs(new_vec.dot(normal)) < 1e-10);
-    CGAL_postcondition(CGAL::abs(new_vec.norm() - length) < 1e-10);
+//    FT new_dot = CGAL::abs(new_vec.dot(normal));
+//    CGAL_postcondition(new_dot < 1e-5);
+    FT length_check = CGAL::abs(new_vec.norm() - length);
+    CGAL_postcondition(length_check < 1e-5);
     new_vec = new_vec / new_vec.norm();
     FT new_cos = new_vec.dot(v);
 
@@ -500,7 +500,7 @@ public:
     ancestor_path[1] = anc.index();
 
     // compute the metric at the edges
-    boost::array<Eigen::Matrix3d, k> path_metrics;
+    boost::array<Eigen::Matrix3d, k> path_metrics; // THESE ARE 'F', NOT 'M' !!!
     for(int i=0; i<k; ++i)
     {
       if(i >= 1)
@@ -523,10 +523,11 @@ public:
 
     Vector3d unfolded_edge = Vector3d::Zero(); // between 'this' and the i-th unfolded ancestor
     Vector3d unfolding_plane_normal;
-    std::vector<Point_3> folded_points(k+1); // only needed for debug
-    std::vector<Point_3> unfolded_points(k+1);
-    std::vector<Vector3d> edge_segments(k);
-    std::vector<Vector3d> unfolded_edge_segments(k);
+    boost::array<Point_3, k+1> folded_points; // only needed for debug
+    boost::array<Point_3, k+1> unfolded_points;
+    boost::array<Vector3d, k> edge_segments;
+    boost::array<Vector3d, k> unfolded_edge_segments;
+    boost::array<Eigen::Matrix3d, k> rotated_path_metrics;
     std::size_t next_id = this->index(); // the descendant (opposite of ancestor)
     std::size_t curr_id = this->index();
     std::size_t prev_id = anc.index();
@@ -535,7 +536,7 @@ public:
     folded_points[0] =  this->point();
     unfolded_points[1] = anc.point();
 
-    // set up the normal
+    // set up the unfolding plane's normal
     bool found = false;
     Facet_handle fh = this->incident_facets_in_complex_begin();
     Facet_handle fend = this->incident_facets_in_complex_end();
@@ -550,11 +551,13 @@ public:
         second = ch->index(fh->first);
       }
 
+#if (VERBOSITY > 30)
       std::cout << "consider facet :" << std::endl;
       std::cout << ch->vertex((second+1)%4)->info() << std::endl;
       std::cout << ch->vertex((second+2)%4)->info() << std::endl;
       std::cout << ch->vertex((second+3)%4)->info() << std::endl;
       std::cout << "trying to find : " << m_v->info() << " and " << anc.m_v->info() << std::endl;
+#endif
 
       Facet f(ch, second);
       CGAL_postcondition(c3t3().is_in_complex(f.first));
@@ -563,7 +566,6 @@ public:
       if(c3t3().triangulation().has_vertex(f, m_v, useless) &&
          c3t3().triangulation().has_vertex(f, anc.m_v, useless))
       {
-        std::cout << "found facet" << std::endl;
         found = true;
         CGAL_assertion(this->canvas()->m_facet_normals.find(f) !=
                        this->canvas()->m_facet_normals.end());
@@ -576,7 +578,9 @@ public:
 
     for(int i=1; i<=k; ++i)
     {
+#if (VERBOSITY > 20)
       std::cout << "~~~~~~ depth i: " << i << std::endl;
+#endif
       const Base& next_p = this->canvas()->get_point(next_id);
       const Base& curr_p = this->canvas()->get_point(curr_id);
       const Base& prev_p = this->canvas()->get_point(prev_id);
@@ -616,6 +620,52 @@ public:
       unfolded_edge_segments[i-1](1) = unfolded_points[i].y() - unfolded_points[i-1].y();
       unfolded_edge_segments[i-1](2) = unfolded_points[i].z() - unfolded_points[i-1].z();
       unfolded_edge += unfolded_edge_segments[i-1];
+
+#if (VERBOSITY > 25)
+      std::cout << "unfolding normal : " << unfolding_plane_normal.transpose() << std::endl;
+      std::cout << "unfolded " << prev_id << " (" << folded_points[i] << ") to : "
+                << unfolded_points[i] << std::endl;
+      std::cout << "compare distance from " << this->index() << " to " << prev_id << " "
+                << CGAL::sqrt(CGAL::squared_distance(this->point(), folded_points[i])) << " "
+                << CGAL::sqrt(CGAL::squared_distance(this->point(), unfolded_points[i])) << std::endl;
+
+      std::cout << "compare distance from " << curr_id << " to " << prev_id << " "
+                << CGAL::sqrt(CGAL::squared_distance(folded_points[i-1], folded_points[i])) << " "
+                << CGAL::sqrt(CGAL::squared_distance(unfolded_points[i-1], unfolded_points[i])) << std::endl;
+
+      if(i > 1)
+      {
+        std::cout << "check the angles (folded unfolded)" << std::endl;
+        Vector3d folded_v_in, folded_v_out, unfolded_v_in, unfolded_v_out;
+
+        folded_v_in(0) = folded_points[i-2].x() - folded_points[i-1].x();
+        folded_v_in(1) = folded_points[i-2].y() - folded_points[i-1].y();
+        folded_v_in(2) = folded_points[i-2].z() - folded_points[i-1].z();
+        folded_v_in = folded_v_in / folded_v_in.norm();
+
+        folded_v_out(0) = folded_points[i].x() - folded_points[i-1].x();
+        folded_v_out(1) = folded_points[i].y() - folded_points[i-1].y();
+        folded_v_out(2) = folded_points[i].z() - folded_points[i-1].z();
+        folded_v_out = folded_v_out / folded_v_out.norm();
+
+        unfolded_v_in(0) = unfolded_points[i-2].x() - unfolded_points[i-1].x();
+        unfolded_v_in(1) = unfolded_points[i-2].y() - unfolded_points[i-1].y();
+        unfolded_v_in(2) = unfolded_points[i-2].z() - unfolded_points[i-1].z();
+        unfolded_v_in = unfolded_v_in / unfolded_v_in.norm();
+
+        unfolded_v_out(0) = unfolded_points[i].x() - unfolded_points[i-1].x();
+        unfolded_v_out(1) = unfolded_points[i].y() - unfolded_points[i-1].y();
+        unfolded_v_out(2) = unfolded_points[i].z() - unfolded_points[i-1].z();
+        unfolded_v_out = unfolded_v_out / unfolded_v_out.norm();
+
+        std::cout << folded_v_in.transpose() << std::endl;
+        std::cout << folded_v_out.transpose() << std::endl;
+        std::cout << unfolded_v_in.transpose() << std::endl;
+        std::cout << unfolded_v_out.transpose() << std::endl;
+
+        std::cout << folded_v_in.dot(folded_v_out) << " " << unfolded_v_in.dot(unfolded_v_out) << std::endl; // that's the cos
+      }
+#endif
 
       FT ancestor_edge_length = unfolded_edge.norm();
       Vector3d normalized_unfolded_edge = unfolded_edge / ancestor_edge_length;
@@ -665,10 +715,12 @@ public:
       // compute the distance for the current depth (i) by splitting the unfolded
       // edge in segments.
       // The metric for each segment is drawn from the metric of the folded edge
-      // segments (but this metric needs to also be unfolded)
       FT dist_to_ancestor = 0.;
       for(int j=0; j<i; ++j)
       {
+#if (VERBOSITY > 20)
+        std::cout << "adding part of depth: " << j+1 << " out of " << i << std::endl;
+#endif
         const Vector3d& unfolded_edge_segment = unfolded_edge_segments[j];
         const Eigen::Matrix3d& f = rotated_path_metrics[j];
 
@@ -680,23 +732,9 @@ public:
         dist_to_ancestor += sp * l;
 
 #if (VERBOSITY > 30)
-        std::cout << "unfolding normal : " << unfolding_plane_normal.transpose() << std::endl;
-        std::cout << "unfolded to : " << unfolded_points[j+1] << std::endl;
-
-        std::cout << "compare distance from 'this' to curr (folded/unfolded): "
-                  << CGAL::sqrt(CGAL::squared_distance(this->point(), folded_points[j+1])) << " "
-                  << CGAL::sqrt(CGAL::squared_distance(this->point(), unfolded_points[j+1])) << std::endl;
-
-        std::cout << "compare distance from prev to curr (folded/unfolded): "
-                  << CGAL::sqrt(CGAL::squared_distance(folded_points[j], folded_points[j+1])) << " "
-                  << CGAL::sqrt(CGAL::squared_distance(unfolded_points[j], unfolded_points[j+1])) << std::endl;
-
-        std::cout << "folded edge segment: " << edge_segment.transpose() << std::endl;
         std::cout << "unfolded edge segment: " << unfolded_edge_segment.transpose() << std::endl;
-        std::cout << "norm of the unfolded (full) edge: " << ancestor_edge_length << std::endl;
-        std::cout << "normalized unfolded (full) edge: " << normalized_unfolded_edge.transpose() << std::endl;
-        std::cout << "rotated tranfsormation metric:" << std::endl << f << std::endl;
-        std::cout << "transformed edge: " << transformed_unfolded_edge.transpose() << std::endl;
+        std::cout << "rotated transformation :" << std::endl << f << std::endl;
+        std::cout << "current transformed (unfolded full) edge: " << transformed_unfolded_edge.transpose() << std::endl;
         std::cout << "dist_to_anc: " << dist_to_ancestor << " sp: " << sp << " l: " << l << std::endl << std::endl;
 #endif
       }
@@ -714,7 +752,7 @@ public:
       if(new_d < d)
       {
 #if (VERBOSITY > 25)
-        std::cout << "better length with a depth " << i << std::endl;
+        std::cout << "better length at depth " << i << std::endl;
 #endif
         d = new_d;
       }

@@ -26,21 +26,21 @@ class Mesh_edge_criteria_w_distortion_3 :
     public Mesh_edge_criteria_3<Tr>
 
 {
-  //todo
+  // todo
 };
 
 template<typename Tr>
 class Mesh_facet_criteria_w_distortion_3 :
     public Mesh_facet_criteria_3<Tr>
 {
-  //todo
+  // todo
 };
 
 template<typename Tr>
 class Mesh_cell_criteria_w_distortion_3 :
     public Mesh_cell_criteria_3<Tr>
 {
-  //todo
+  // todo
 };
 
 // Sizing field
@@ -108,7 +108,7 @@ void generate_canvas(C3t3& c3t3, const MF* metric_field)
                            parameters::no_perturb(),
                            parameters::no_exude());
 
-  std::cout << "Number of vertices: "
+  std::cout << "Number of corners: "
             << c3t3.number_of_vertices_in_complex() << std::endl;
 
   // Output

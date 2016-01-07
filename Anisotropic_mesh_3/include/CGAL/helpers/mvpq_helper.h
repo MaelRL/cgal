@@ -53,7 +53,6 @@ typename K::FT angle_in_radian(const typename K::Vector_3& u,
   Vector_3 w = cross_product(u,v);
   FT abs_sin = CGAL::sqrt(sq_length(w)) / product;
 
-  if ( abs_sin < FT(-1) ) { abs_sin = FT(-1); }
   if ( abs_sin > FT(1) ) { abs_sin = FT(1); }
 
   // We just need cosine sign
