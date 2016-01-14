@@ -27,6 +27,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <boost/unordered_map.hpp>
 
+#include <deque>
 #include <iostream>
 #include <functional>
 #include <limits>
@@ -35,8 +36,6 @@
 #include <vector>
 #include <set>
 #include <utility>
-
-// #define COMPUTE_PRECISE_VOR_VERTICES
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef K::FT                                                FT;
@@ -55,6 +54,10 @@ MF mf;
 
 // stuff to generate the grid using Mesh_2 since Aniso_mesh_2 is a turtle.
 // Need to define our own refinement criterion based on metric shenanigans
+
+FT delta = 0.01;
+
+bool ignore_children = false;
 
 namespace CGAL
 {
@@ -393,9 +396,9 @@ void generate_grid()
 
 typedef K::Point_2                                  Point_2;
 typedef K::Point_3                                  Point_3;
-typedef std::set<std::size_t>                                Simplex;
-typedef boost::array<std::size_t, 2>                         Edge;
-typedef boost::array<std::size_t, 3>                         Tri;
+typedef std::set<std::size_t>                       Simplex;
+typedef boost::array<std::size_t, 2>                Edge;
+typedef boost::array<std::size_t, 3>                Tri;
 typedef Eigen::Matrix<double, 2, 1>                 Vector2d;
 
 typedef K::Segment_2                                Segment;
@@ -413,6 +416,8 @@ typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
 To_exact to_exact;
 Back_from_exact back_from_exact;
 
+// #define COMPUTE_PRECISE_VOR_VERTICES
+#define COMPUTE_DUAL_FOR_ALL_DIMENSIONS
 //#define USE_FULL_REBUILDS
 //#define REFINE_GRID
 #define FILTER_SEEDS_OUTSIDE_GRID
@@ -742,9 +747,11 @@ struct Grid_point
 
   // stuff that depends on the seeds
   FMM_state state;
+  int is_seed_holder; // fixme this is ugly, a bimap [seeds, grid_points_id] would be best
   FT distance_to_closest_seed;
   std::size_t closest_seed_id;
   std::size_t ancestor;
+  std::size_t depth;
   Point_set children;
   bool is_Voronoi_vertex;
   std::size_t ancestor_path_length;
@@ -760,7 +767,7 @@ struct Grid_point
   void mark_descendants(std::size_t& count, boost::unordered_set<std::size_t>& potential_parents);
   void reset_descendants();
   void deal_with_descendants();
-  bool compute_closest_seed(const std::size_t n_anc, const bool overwrite = true);
+  bool compute_closest_seed(const std::size_t anc_id, const bool overwrite = true);
   PQ_state update_neighbors_distances(std::vector<Grid_point*>& trial_pq) const;
   FT distortion_to_seed() const;
   void reset();
@@ -965,6 +972,7 @@ struct Base_mesh
                              const FT dist,
                              const std::size_t seed_id)
   {
+    CGAL_precondition(gp);
     if(gp->closest_seed_id != static_cast<std::size_t>(-1))
     {
       std::cout << "WARNING: a new seed is overwriting the closest seed id at ";
@@ -987,6 +995,8 @@ struct Base_mesh
   void locate_and_initialize(const Point_2& s,
                              const std::size_t seed_id)
   {
+    CGAL_precondition(!tree.empty());
+
     // find the triangle that contains the seed and initialize the distance at
     // these three points accordingly.
     bool found = false;
@@ -1018,6 +1028,9 @@ struct Base_mesh
 #endif
 
         // we're inside! compute the distance to the vertices of the triangle
+        // only initialize the closest one
+        FT min_d = FT_inf;
+        std::size_t best_id = -1;
         for(int j=0; j<3; ++j)
         {
           Grid_point& gp = points[tr[j]];
@@ -1030,12 +1043,18 @@ struct Base_mesh
           v(1) = s.y() - gp.point.y();
           v = f * v;
           FT d = v.norm(); // d = std::sqrt(v^t * M * v) = (f*v).norm()
-          initialize_grid_point(&gp, d, seed_id);
+          if(d < min_d)
+          {
+            best_id = tr[j];
+            min_d = d;
+          }
         }
+
+        initialize_grid_point(&(points[best_id]), min_d, seed_id);
         break; // no need to check the other primitives
       }
     }
-    CGAL_assertion(found);
+    CGAL_postcondition(found);
   }
 
   void build_aabb_tree()
@@ -1472,13 +1491,6 @@ struct Base_mesh
     }
   }
 
-  void spread_distances_from_one_seed(const int seed_id)
-  {
-    // spread distances from the seed_id, until it has reached its neighboring
-    // seeds
-
-  }
-
   bool get_next_trial_point(Grid_point*& gp)
   {
     while(!trial_points.empty())
@@ -1495,8 +1507,8 @@ struct Base_mesh
         std::cout << "WARNING : point with a state non-TRIAL in the PQ : ";
         std::cout << gp->index << "... Ignoring it!" << std::endl;
       }
-      else
-        return true;
+
+      return true;
     }
     return false;
   }
@@ -1625,6 +1637,675 @@ struct Base_mesh
 
     std::cout << "End of debug. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
+  }
+
+  void add_to_neighboring_map(const Edge& e,
+                              std::map<std::size_t,
+                                       boost::unordered_set<std::size_t> >& m)
+  {
+    typedef std::map<std::size_t, boost::unordered_set<std::size_t> >       Map;
+
+    std::size_t min = e[0], max = e[1];
+    CGAL_precondition(min != max);
+    if(min > max)
+    {
+      min = e[1];
+      max = e[0];
+    }
+    CGAL_postcondition(min < max);
+
+    std::pair<typename Map::iterator, bool> is_insert_successful;
+
+    boost::unordered_set<std::size_t> s;
+    s.insert(max);
+
+    is_insert_successful = m.insert(std::make_pair(min, s));
+    if(!is_insert_successful.second)
+      (is_insert_successful.first)->second.insert(max);
+  }
+
+  void build_neighboring_info(std::map<std::size_t,
+                                       boost::unordered_set<std::size_t> >& neighbors)
+  {
+    boost::unordered_set<Edge>::iterator it = dual_edges.begin();
+    boost::unordered_set<Edge>::iterator end = dual_edges.end();
+
+    for(; it!=end; ++it)
+    {
+      const Edge& e = *it;
+      add_to_neighboring_map(e, neighbors);
+    }
+  }
+
+  std::size_t ancestor_with_depth(const Grid_point* gp)
+  {
+    CGAL_precondition(gp);
+    std::size_t depth = gp->depth;
+
+    if(depth == 0)
+      return -1;
+
+    CGAL_precondition(depth > 0);
+    std::size_t anc = gp->ancestor;
+    --depth;
+
+    while(depth > 0)
+    {
+      CGAL_precondition(anc != static_cast<std::size_t>(-1));
+      anc = points[anc].ancestor;
+      --depth;
+    }
+
+    CGAL_postcondition(anc != static_cast<std::size_t>(-1));
+    return anc;
+  }
+
+  std::deque<std::pair<std::size_t, FT> >
+  simplify_geodesic(const std::deque<std::pair<std::size_t, FT> >& geodesic_path)
+  {
+    std::size_t max_point_n = 50;
+    FT step = 1./static_cast<FT>(max_point_n - 1);
+    FT curr_time = 0.;
+    std::deque<std::pair<std::size_t, FT> > simplified_geodesic_path;
+
+    // first point is naturally in
+    simplified_geodesic_path.push_back(geodesic_path[0]);
+
+    for(std::size_t i=0; i<geodesic_path.size(); ++i)
+    {
+      const std::pair<std::size_t, FT>& p = geodesic_path[i];
+      const FT time = p.second;
+
+      if(time - curr_time >= step)
+      {
+        // this point is sufficiently far from the previous one
+        simplified_geodesic_path.push_back(p);
+        curr_time = time;
+      }
+    }
+
+    // need to make sure we have the final point of the geodesic in
+    if(simplified_geodesic_path.back() != geodesic_path.back())
+      simplified_geodesic_path.push_back(geodesic_path.back());
+
+    std::cout << "simplified from " << geodesic_path.size()
+              << " to " << simplified_geodesic_path.size() << std::endl;
+
+    return simplified_geodesic_path;
+  }
+
+  void extract_geodesic(const Grid_point* gp,
+                        std::vector<std::deque<std::pair<std::size_t, FT> > >& geodesics)
+  {
+    std::deque<std::pair<std::size_t, FT> > geodesic_path;
+    FT total_length = gp->distance_to_closest_seed;
+    geodesic_path.push_front(std::make_pair(gp->index, 1.));
+    CGAL_assertion(total_length != 0.);
+    FT total_length_inv = 1./total_length;
+
+#define EXTRACT_WITH_DEPTH
+#ifdef EXTRACT_WITH_DEPTH
+    std::size_t anc = ancestor_with_depth(gp);
+#else
+    std::size_t anc = gp->ancestor;
+#endif
+    CGAL_precondition(anc != static_cast<std::size_t>(-1));
+
+    while(anc != static_cast<std::size_t>(-1))
+    {
+      FT t = points[anc].distance_to_closest_seed * total_length_inv;
+      if(t < 0) t = 0.;
+      CGAL_postcondition(t >= 0. && t< 1.);
+
+      geodesic_path.push_front(std::make_pair(anc, t));
+#ifdef EXTRACT_WITH_DEPTH
+      anc = ancestor_with_depth(&(points[anc]));
+#else
+      anc = points[anc].ancestor;
+#endif
+    }
+
+    std::size_t s1 = gp->closest_seed_id;
+    int s2 = gp->is_seed_holder;
+
+    CGAL_precondition(s2 >= 0);
+    CGAL_precondition(s1 < static_cast<std::size_t>(s2));
+
+    std::cout << "built geodesic of " << s1 << " " << s2 << std::endl;
+    geodesics.push_back(geodesic_path);
+  }
+
+  void spread_distances_from_one_seed(const std::size_t seed_id,
+                                      std::map<std::size_t,
+                                               boost::unordered_set<std::size_t> >& neighbors,
+                                      std::vector<std::deque<std::pair<std::size_t, FT> > >& geodesics,
+                                      std::vector<Grid_point>& grid_point_memory)
+  {
+    // Spread distances from the seed_id, until it has reached its neighboring seeds
+    CGAL_precondition(trial_points.empty());
+
+    boost::unordered_set<std::size_t>& seeds_to_reach = neighbors[seed_id];
+    std::cout << "neighbors to reach : ";
+    typename boost::unordered_set<std::size_t>::iterator it = seeds_to_reach.begin();
+    typename boost::unordered_set<std::size_t>::iterator end = seeds_to_reach.end();
+    for(; it!=end; ++it)
+      std::cout << *it << " ";
+    std::cout << std::endl;
+
+    // (really) uglily for now, restart from the seed by searching the previous seed holder...
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      Grid_point& gp = points[i];
+
+      if(static_cast<std::size_t>(gp.is_seed_holder) == seed_id)
+      {
+        CGAL_assertion(gp.closest_seed_id == seed_id);
+        CGAL_assertion(gp.ancestor == static_cast<std::size_t>(-1));
+        CGAL_assertion(gp.depth == 0);
+
+        gp.state = TRIAL;
+        trial_points.push_back(&gp);
+        std::push_heap(trial_points.begin(), trial_points.end(),
+                       Grid_point_comparer<Grid_point>());
+        break;
+      }
+    }
+
+    bool is_t_empty = trial_points.empty();
+    CGAL_precondition(!is_t_empty);
+
+    known_count = 0;
+    Grid_point* gp = NULL;
+    while(!is_t_empty)
+    {
+      if(known_count%10000 == 0)
+        print_states();
+
+#if (verbose > 10)
+      std::cout << "Trial queue size : " << trial_points.size() << std::endl;
+#endif
+
+#if (verbose > 40)
+      std::cout << "trial heap: " << std::endl;
+      for (std::vector<Grid_point*>::iterator it = trial_points.begin();
+           it != trial_points.end(); ++it)
+        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
+      std::cout << std::endl;
+#endif
+
+      if(!get_next_trial_point(gp))
+        break;
+
+#if (verbose > 10)
+      std::cout << "-------------------------------------------------------" << std::endl;
+      std::cout << "picked n° " << gp->index << " (" << gp->point.x() << ", " << gp->point.y() << ") ";
+      std::cout << "at distance : " << gp->distance_to_closest_seed << " from the seed "
+                << gp->closest_seed_id << " ancestor : " << gp->ancestor << std::endl;
+#endif
+
+      // Check if we have reached one of the required seeds
+      if(gp->is_seed_holder >= 0) // really ugly, fixme (see comment at member def)
+      {
+        std::cout << "found the seed " << gp->is_seed_holder << " at " << gp->index << " (" << gp->point << ") " << std::endl;
+
+        // That's the center of a Voronoi cell (no ancestor)
+        std::size_t reached_seed_id = gp->is_seed_holder;
+        CGAL_assertion(gp->closest_seed_id == seed_id);
+
+        // Geodesic are symmetrical, no need to compute it both ways.
+        // This also dodges the first point of the trial queue (which will be the
+        // seed_holder for the seed 'seed_id' and we don't care about it
+        if(reached_seed_id < seed_id)
+          continue;
+
+        boost::unordered_set<std::size_t>::iterator sit =
+                                            seeds_to_reach.find(reached_seed_id);
+        if(sit != seeds_to_reach.end())
+        {
+          // the seed that we have reached is part of the neighbors we want to reach
+          extract_geodesic(gp, geodesics);
+          seeds_to_reach.erase(sit);
+        }
+      }
+
+      // only spread as little as possible
+      if(seeds_to_reach.empty())
+        break;
+
+      gp->state = KNOWN;
+      known_count++; // tmp --> use change_state()
+
+      // Change the distance_to_closest_seed of points to allow for seed_id's
+      // cell to spread
+
+      typename Grid_point::Point_set::const_iterator it = gp->neighbors.begin(),
+                                                     end = gp->neighbors.end();
+      for(; it!=end; ++it)
+      {
+        Grid_point& gq = points[*it];
+
+        if(gq.state == FAR)
+        {
+          grid_point_memory.push_back(gq);
+          gq.distance_to_closest_seed = FT_inf;
+        }
+      }
+
+      gp->update_neighbors_distances(trial_points);
+
+      // always rebuild the priority queue
+      std::make_heap(trial_points.begin(), trial_points.end(),
+                     Grid_point_comparer<Grid_point>());
+      is_t_empty = trial_points.empty();
+    }
+
+    std::cout << "reached all the seeds in " << known_count << " points" << std::endl;
+
+    // make sure we've reached all the neighboring seeds
+    CGAL_postcondition(seeds_to_reach.empty());
+  }
+
+  void rollback_points(const std::vector<Grid_point>& gp_memory)
+  {
+    std::cout << "rollback" << std::endl;
+    for(std::size_t i=0, gpms=gp_memory.size(); i<gpms; ++i)
+    {
+      const Grid_point& gp_m = gp_memory[i];
+      std::size_t id = gp_m.index;
+      CGAL_assertion(points[id].point == gp_m.point);
+      points[id] = gp_m;
+    }
+
+    trial_points.clear();
+  }
+
+  void output_geodesics(const std::vector<std::deque<std::pair<std::size_t, FT> > >& geodesics,
+                        const std::string str_base)
+  {
+    if(geodesics.empty())
+    {
+      std::cout << "no geodesic to output" << std::endl;
+      return;
+    }
+
+    std::ofstream out((str_base + "_geodesics.mesh").c_str());
+
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+
+    out << "Vertices" << '\n';
+    out << points.size() << '\n';
+    for(std::size_t i=0; i<points.size(); ++i)
+      out << points[i].point << " " << i+1 << '\n';
+
+    std::size_t edges_n = 0.;
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+      edges_n += geodesics[i].size() - 1;
+
+    out << "Edges" << '\n';
+    out << edges_n << '\n';
+
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+    {
+      const std::deque<std::pair<std::size_t, FT> >& geo_path = geodesics[i];
+      std::size_t geo_path_size_m1 = geo_path.size()-1;
+      for(std::size_t j=0; j<geo_path_size_m1; ++j)
+      {
+        const std::pair<std::size_t, FT>& p = geo_path[j];
+        const std::pair<std::size_t, FT>& pp1 = geo_path[j+1];
+
+        // +1 due to medit
+        out << p.first + 1 << " " << pp1.first + 1 << " " << i << std::endl;
+      }
+    }
+
+    out << "End" << std::endl;
+  }
+
+  std::size_t combi(std::size_t n, std::size_t k)
+  {
+    // n choose k
+    // this will (silently) overflow for large n...
+
+    if (k > n)
+      return 0;
+
+    std::size_t r = 1;
+    for(std::size_t i=1; i<=k; ++i)
+    {
+      r *= n--;
+      r /= i;
+    }
+
+    return r;
+  }
+
+  FT evaluate_Berstein_poly(const std::size_t i, const std::size_t n,
+                            const  FT t)
+  {
+    // computes (i n) (1-t)^{n-i} t^i
+
+    std::size_t c = combi(n, i);
+    FT a = std::pow((1-t), n-i);
+    FT b = std::pow(t, i);
+
+//    std::cout << "eval berstein poly : " << i << " " << n << " " << t << std::endl;
+//    std::cout << "c: " << c << " a: " << a << " b: " << b << " cab: " << c*a*b << std::endl;
+
+    return c * a * b;
+  }
+
+  Point_2 evaluate_Bezier_curve(const std::vector<Point_2>& control_points, const  FT t)
+  {
+    // using de casteljau's algorithm
+    std::size_t number_of_control_points = control_points.size();
+    std::vector<FT> cp_xs(number_of_control_points);
+    std::vector<FT> cp_ys(number_of_control_points);
+
+    for(std::size_t i=0; i<number_of_control_points; ++i)
+    {
+      cp_xs[i] = control_points[i].x();
+      cp_ys[i] = control_points[i].y();
+    }
+
+    for(std::size_t i=1; i<number_of_control_points; ++i)
+    {
+      for(std::size_t j=0; j<number_of_control_points - i; ++j)
+      {
+        cp_xs[j] = (1-t) * cp_xs[j] + t * cp_xs[j+1];
+        cp_ys[j] = (1-t) * cp_ys[j] + t * cp_ys[j+1];
+      }
+    }
+
+    return Point_2(cp_xs[0], cp_ys[0]);
+  }
+
+  void compute_control_points(const std::deque<std::pair<std::size_t, FT> >& geodesic,
+                              std::vector<Point_2>& control_points)
+  {
+    // the deque is made of points and a time between [0,1] obtained by knowing
+    // that the speed is constant along a geodesic
+
+    // A Bézier curve is B(t) = \sum_i (i n) (1-t)^{n-i} t^i P_i
+    // and we know B(t0), \dots, B(tn). This is thus solving a system AX=B
+
+    // the construction is definitely not the most efficient...
+    std::size_t geo_path_size = geodesic.size();
+    Eigen::MatrixXd A(geo_path_size, geo_path_size);
+    Eigen::VectorXd B(geo_path_size);
+    Eigen::VectorXd X(geo_path_size), Y(geo_path_size);
+
+    // solve for the x coefficients
+    std::size_t row_id = 0.;
+    for(; row_id < geo_path_size; ++row_id)
+    {
+      const std::pair<std::size_t, FT>& pair = geodesic[row_id];
+      const Point_2& p = points[pair.first].point;
+      const FT time = pair.second;
+
+      B(row_id) = p.x();
+      std::cout << "set_b@x: " << row_id << " " << p.x() << std::endl;
+
+      for(std::size_t col_id=0; col_id < geo_path_size; ++col_id)
+      {
+        FT e = evaluate_Berstein_poly(col_id, geo_path_size-1, time);
+        std::cout << "set_a: " << row_id << " " << col_id << " " << e << std::endl;
+        A(row_id, col_id) = e;
+      }
+    }
+    X = A.fullPivLu().solve(B);
+
+    // solve for the y coefficients (the matrix A stays the same)
+    row_id = 0.;
+    for(; row_id < geo_path_size; ++row_id)
+    {
+      const std::pair<std::size_t, FT>& pair = geodesic[row_id];
+      const Point_2& p = points[pair.first].point;
+
+      B(row_id) = p.y();
+      std::cout << "set_b@y: " << row_id << " " << p.y() << std::endl;
+    }
+    Y = A.fullPivLu().solve(B);
+
+    // combine to obtain the control points !
+    CGAL_precondition(control_points.size() == geodesic.size());
+
+    std::cout << "solutions : " << std::endl << X.transpose() << std::endl << Y.transpose() << std::endl;
+
+    for(std::size_t i=0; i<geo_path_size; ++i)
+    {
+      Point_2 p(X(i), Y(i));
+
+//      std::cout << "control point i: " << i << " is " << p << std::endl;
+      control_points[i] = p;
+    }
+
+    // debug (make sure that we go through the points that we wanted to interpolate)
+    for(std::size_t i=0; i<geodesic.size(); ++i)
+    {
+      const std::pair<std::size_t, FT>& pair = geodesic[i];
+      const Point_2& p = evaluate_Bezier_curve(control_points, pair.second);
+
+//      std::cout << "i/t: " << i << " " << pair.second << std::endl;
+//      std::cout << "compare : " << p << " and " << points[pair.first].point << std::endl;
+      CGAL_assertion(CGAL::squared_distance(p, points[pair.first].point) < 1e-8);
+    }
+  }
+
+  void compute_Bezier_curve(const std::deque<std::pair<std::size_t, FT> >& geodesic,
+                            std::vector<Point_2>& control_points)
+  {
+    // todo simplify some notations maybe...
+
+    // Before computing the control points, we might want to split the geodesic
+    // in small segments of n points to limit the degree of the interpolating
+    // Bezier curve
+    CGAL_precondition(geodesic.size() == control_points.size());
+    CGAL_precondition(geodesic.size() >= 2);
+
+    std::size_t size_of_geodesic_segment = 4;
+    std::size_t size_of_geodesic_path = geodesic.size();
+    std::size_t start_of_segment = 0;
+    std::size_t remaining_points = size_of_geodesic_path - 1;
+
+    while(start_of_segment < size_of_geodesic_path - 1)
+    {
+      CGAL_assertion(remaining_points > 0); // can't make a segment if there is no remaining point
+      if(remaining_points < size_of_geodesic_segment - 1) // can't make a full segment
+        size_of_geodesic_segment = 1 + remaining_points;
+
+      CGAL_assertion(size_of_geodesic_segment > 1); // proper segment
+
+      std::cout << "total length of the path : " << size_of_geodesic_path << std::endl;
+      std::cout << "Segment from : " << start_of_segment << " and size: " << size_of_geodesic_segment << std::endl;
+      CGAL_assertion(start_of_segment + size_of_geodesic_segment - 1 < size_of_geodesic_path);
+
+      // We want to go through the first and last point of the segment, thus we need
+      // to locally scale up the time associated with these points
+      FT start_of_segment_t = geodesic[start_of_segment].second;
+      FT end_of_segment_t = geodesic[start_of_segment + size_of_geodesic_segment - 1].second;
+      FT diff_t = end_of_segment_t - start_of_segment_t;
+      FT scaling = 1. / diff_t;
+
+      // fill the segment (todo make it lighter without copy)
+      std::deque<std::pair<std::size_t, FT> > geodesic_segment;
+
+
+      std::cout << "geodesic segment : " << std::endl;
+      for(std::size_t i=0; i<size_of_geodesic_segment; ++i)
+      {
+        // same point but the time is scaled
+        geodesic_segment.push_back(std::make_pair(geodesic[start_of_segment + i].first,
+            scaling * (geodesic[start_of_segment + i].second - start_of_segment_t)));
+        std::cout << "init: " << points[geodesic[start_of_segment + i].first].point
+                  << " and time: " << geodesic[start_of_segment + i].second << std::endl;
+        std::cout << "local : " << points[geodesic_segment[i].first].point
+                  << " and time: " << geodesic_segment[i].second << std::endl;
+      }
+
+      std::vector<Point_2> segment_control_points(size_of_geodesic_segment);
+      compute_control_points(geodesic_segment, segment_control_points);
+
+      std::cout << "geodesic control points: " << std::endl;
+      for(std::size_t i=0; i<size_of_geodesic_segment; ++i)
+      {
+        CGAL_assertion(start_of_segment + i < control_points.size());
+        control_points[start_of_segment + i] = segment_control_points[i];
+        std::cout << segment_control_points[i] << std::endl;
+      }
+
+      CGAL_postcondition(CGAL::squared_distance(control_points[start_of_segment],
+                                                points[geodesic[start_of_segment].first].point) < 1e-8);
+      CGAL_postcondition(CGAL::squared_distance(control_points[start_of_segment + size_of_geodesic_segment - 1],
+                                                points[geodesic[start_of_segment + size_of_geodesic_segment - 1].first].point) < 1e-8);
+
+      // -1 because the next segment starts at the end of the previous one
+      start_of_segment += size_of_geodesic_segment - 1;
+
+      // -1 because it's not useful to count the next starting point as part of the remaining points
+      remaining_points -= size_of_geodesic_segment - 1;
+    }
+
+    for(std::size_t i=0; i<size_of_geodesic_path; ++i)
+    {
+      CGAL_postcondition(control_points[i] != Point_2());
+    }
+  }
+
+  void output_Bezier_curves(const std::vector<std::vector<Point_2> >& control_points,
+                            std::size_t offset = 0,
+                            const bool draw_control_points = false)
+  {
+    std::ofstream out("Bezier_test.mesh");
+    std::size_t number_of_sample_points = 1000;
+    FT step = 1./static_cast<FT>(number_of_sample_points - 1.);
+    std::size_t number_of_curves = control_points.size();
+
+    std::size_t total_vertices_n = number_of_curves * number_of_sample_points;
+    std::size_t total_edges_n = number_of_curves * (number_of_sample_points - 1);
+
+    if(draw_control_points)
+    {
+      for(std::size_t i=0; i<number_of_curves; ++i)
+      {
+        total_vertices_n += control_points[i].size();
+        total_edges_n += control_points[i].size()-1;
+      }
+    }
+
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+
+    out << "Vertices" << '\n';
+    out << total_vertices_n << std::endl;
+
+
+    for(std::size_t i=0; i<number_of_curves; ++i)
+    {
+      const std::vector<Point_2>& local_control_points = control_points[i];
+
+      if(draw_control_points)
+      {
+        for(std::size_t j=0; j<local_control_points.size(); ++j)
+          out << local_control_points[j] << " " << i << std::endl;
+      }
+
+      for(std::size_t j=0; j<number_of_sample_points; ++j)
+      {
+        out << evaluate_Bezier_curve(local_control_points, step * static_cast<FT>(j))
+            << " " << i << std::endl;
+      }
+    }
+
+    out << "Edges" << '\n';
+    out << total_edges_n << '\n';
+    for(std::size_t i=0; i<number_of_curves; ++i)
+    {
+      if(draw_control_points)
+      {
+        std::size_t number_of_local_control_points = control_points[i].size();
+
+        // edges to draw the control points
+        for(std::size_t j=0; j<number_of_local_control_points-1; ++j)
+          out << offset+j+1 << " " << offset+j+2 << " " << i << '\n'; // +1 for medit
+
+        offset += number_of_local_control_points;
+      }
+
+      // edges to draw the bezier curve
+      for(std::size_t j=0; j<number_of_sample_points-1; ++j)
+        out << offset+j+1 << " " << offset+j+2 << " " << i << '\n'; // +1 for medit
+
+      offset += number_of_sample_points;
+    }
+
+    out << "End" << std::endl;
+  }
+
+  void approximate_geodesics_with_Bezier(std::vector<std::deque<std::pair<std::size_t, FT> > >& geodesics)
+  {
+    std::vector<std::vector<Point_2> > control_points;
+
+    for(std::size_t i=0, gs=geodesics.size(); i<gs; ++i)
+    {
+      const std::deque<std::pair<std::size_t, FT> >& geodesic = geodesics[i];
+      const std::size_t geo_size = geodesic.size();
+
+      std::vector<Point_2> single_geodesic_control_points(geo_size);
+      compute_Bezier_curve(geodesic, single_geodesic_control_points);
+      control_points.push_back(single_geodesic_control_points);
+    }
+
+    CGAL_postcondition(geodesics.size() == control_points.size());
+
+    output_Bezier_curves(control_points,
+                         0, //points.size() /*offset*/,
+                         false/*draw control points*/);
+  }
+
+  void compute_geodesics(const std::string str_base)
+  {
+    std::cout << "computing geodesics" << std::endl;
+
+    // For each seed, we must spread to the nearest neighbors to grab the geodesic
+    // between both seeds
+    CGAL_precondition(!dual_edges.empty());
+
+    std::map<std::size_t/*seed_id*/,
+             boost::unordered_set<std::size_t>/*neighbor ids*/> neighbors;
+    build_neighboring_info(neighbors);
+
+    std::cout << "built neighboring info : " << neighbors.size() << std::endl;
+
+    std::vector<std::deque<std::pair<std::size_t/*id*/,FT/*time*/> > > geodesics;
+
+    for(std::size_t seed_id=0, ss=seeds.size(); seed_id<ss; ++seed_id)
+    {
+      std::cout << "computing geodesics from : " << seed_id << std::endl;
+
+      // below is kind of ugly... but it's clearer than switching everything to
+      // 'FAR' earlier and then having the memory overwrite 'KNOWN' with 'FAR'
+      // every loop iteration
+      for(std::size_t i=0, ptss=points.size(); i<ptss; ++i)
+        points[i].state = FAR;
+
+      // since we're spreading from a seed over the other cells, we must keep
+      // the previous colors in memory
+      std::vector<Grid_point> grid_point_memory;
+
+      spread_distances_from_one_seed(seed_id, neighbors, geodesics, grid_point_memory);
+      rollback_points(grid_point_memory); // reset the points we have overwritten
+    }
+
+    output_geodesics(geodesics, str_base);
+
+    // simplify geodesics
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+    {
+//      geodesics[i] = simplify_geodesic(geodesics[i]);
+    }
+
+    approximate_geodesics_with_Bezier(geodesics);
   }
 
   std::size_t probe_edge_midpoints_map(const std::size_t n_p,
@@ -1884,7 +2565,7 @@ struct Base_mesh
     if(seeds_to_refine.empty())
       return false;
 
-    std::cout << points.size() << " points before grid refinement" << std::endl;
+    std::cout << points.size() << " points before grid refinement" << '\n';
     std::cout << triangles.size() << " triangles before grid refinement" << std::endl;
 
     // base mesh refining, not seeds refining !
@@ -2213,11 +2894,11 @@ CGAL_expensive_assertion_code(
 
     PQ_entry best_entry;
 
-//    std::cout << "queues: " << std::endl;
-//    std::cout << "size queue : " << size_queue.size() << std::endl;
+//    std::cout << "queues: " << '\n';
+//    std::cout << "size queue : " << size_queue.size() << '\n';
 //    typename PQ::const_iterator pqcit = size_queue.begin();
 //    for(; pqcit!=size_queue.end(); ++pqcit)
-//      std::cout << *pqcit << std::endl;
+//      std::cout << *pqcit << '\n';
 
     if(!size_queue.empty())
        best_entry = *(size_queue.begin());
@@ -2477,12 +3158,12 @@ CGAL_expensive_assertion_code(
     std::deque<const Grid_point*> geodesic_path; // starting at the grid point closest to seed
     geodesic_path.push_front(&gp);
 
-    std::size_t n_anc = gp.ancestor;
-    while(n_anc != static_cast<std::size_t>(-1))
+    std::size_t anc_id = gp.ancestor;
+    while(anc_id != static_cast<std::size_t>(-1))
     {
-      const Grid_point& anc = points[n_anc];
+      const Grid_point& anc = points[anc_id];
       geodesic_path.push_front(&anc);
-      n_anc = anc.ancestor;
+      anc_id = anc.ancestor;
     }
 
     // determine gq
@@ -3550,15 +4231,15 @@ CGAL_expensive_assertion_code(
 
     std::ofstream out((str_base + "_dual.mesh").c_str());
 
-    out << "MeshVersionFormatted 1" << std::endl;
-    out << "Dimension 2" << std::endl;
-    out << "Vertices" << std::endl;
-    out << seeds.size() << std::endl;
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+    out << "Vertices" << '\n';
+    out << seeds.size() << '\n';
     for(std::size_t i=0; i<seeds.size(); ++i)
-      out << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << std::endl;
+      out << seeds[i].x() << " " << seeds[i].y() << " " << i+1 << '\n';
 
-    out << "Triangles" << std::endl;
-    out << dual_triangles.size() << std::endl;
+    out << "Triangles" << '\n';
+    out << dual_triangles.size() << '\n';
 
     for(boost::unordered_set<Tri>::iterator it = dual_triangles.begin();
                                             it != dual_triangles.end(); ++it)
@@ -3567,7 +4248,7 @@ CGAL_expensive_assertion_code(
       const Tri& tr = *it;
       for(std::size_t i=0; i<tr.size(); ++i)
         out << tr[i] + 1 << " ";
-      out << is_triangle_intersected(tr, dual_edges) << std::endl;
+      out << is_triangle_intersected(tr, dual_edges) << '\n';
     }
     out << "End" << std::endl;
   }
@@ -3639,35 +4320,35 @@ CGAL_expensive_assertion_code(
 
       triangles_count++;
       triangles_out << local[tr[0]]+1 << " " << local[tr[1]]+1 << " " << local[tr[2]]+1 // +1 due to medit
-                    << " 1" << std::endl;
+                    << " 1" << '\n';
     }
 
     // output everything neatly to the file
-    out << "MeshVersionFormatted 1" << std::endl;
-    out << "Dimension 2" << std::endl;
-    out << "Vertices" << std::endl;
-    out << vertices_count << std::endl;
-    out << vertices_out.str().c_str() << std::endl;
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+    out << "Vertices" << '\n';
+    out << vertices_count << '\n';
+    out << vertices_out.str().c_str() << '\n';
 
-    out_bb << "2 1 " << points.size() << " 2" << std::endl;
-    out_bb << vertices_out_bb.str().c_str() << std::endl;
-    out_bb << "End" << std::endl;
+    out_bb << "2 1 " << points.size() << " 2" << '\n';
+    out_bb << vertices_out_bb.str().c_str() << '\n';
+    out_bb << "End" << '\n';
 
-    out << "Triangles" << std::endl;
-    out << triangles_count << std::endl;
-    out << triangles_out.str().c_str() << std::endl;
+    out << "Triangles" << '\n';
+    out << triangles_count << '\n';
+    out << triangles_out.str().c_str() << '\n';
 
 #ifdef COMPUTE_PRECISE_VOR_VERTICES
     // output edges between the Voronoi vertices
     std::size_t edges_count = Vor_vertices.size();
 
-    out << "Edges" << std::endl;
-    out << edges_count << std::endl;
+    out << "Edges" << '\n';
+    out << edges_count << '\n';
     for(std::size_t i=0; i<edges_count; ++i)
     {
       std::size_t j = (i+1) % edges_count;
       out << local[Vor_vertices[i].index]+1 << " "
-          << local[Vor_vertices[j].index]+1 << " 0" << std::endl; // +1 due to medit
+          << local[Vor_vertices[j].index]+1 << " 0" << '\n'; // +1 due to medit
     }
 #endif
 
@@ -3713,12 +4394,12 @@ void Grid_point::change_state(FMM_state new_state)
 std::size_t Grid_point::anc_path_length() const
 {
   std::size_t i = 0;
-  std::size_t n_anc = ancestor;
-  while(n_anc != static_cast<std::size_t>(-1))
+  std::size_t anc_id = ancestor;
+  while(anc_id != static_cast<std::size_t>(-1))
   {
     ++i;
-    const Grid_point& anc = bm->points[n_anc];
-    n_anc = anc.ancestor;
+    const Grid_point& anc = bm->points[anc_id];
+    anc_id = anc.ancestor;
 
     CGAL_assertion(i < bm->points.size());
   }
@@ -3734,7 +4415,7 @@ void Grid_point::print_children() const
   for(; cit!=cend; ++cit)
   {
     CGAL_assertion(*cit < bm->points.size());
-    std::cout << *cit;
+    std::cout << *cit << " ";
   }
   std::cout << std::endl;
 }
@@ -3897,18 +4578,20 @@ void Grid_point::deal_with_descendants()
 #endif
 }
 
-bool Grid_point::compute_closest_seed(const std::size_t n_anc,
+bool Grid_point::compute_closest_seed(const std::size_t anc_id,
                                       const bool overwrite)
 {
 #if (verbose > 20)
-  std::cout << "closest seed at " << index << " from " << n_anc;
+  std::cout << "closest seed at " << index << " from " << anc_id;
   std::cout << " (current d/a: " << distance_to_closest_seed << " " << ancestor;
   std::cout << " seed: " << closest_seed_id << ")" << std::endl;
 #endif
 
-  CGAL_precondition(static_cast<std::size_t>(n_anc) < bm->points.size());
-  const Grid_point& anc = bm->points[n_anc];
-  if(anc.state != KNOWN)
+  CGAL_precondition(static_cast<std::size_t>(anc_id) < bm->points.size());
+  const Grid_point& anc = bm->points[anc_id];
+  CGAL_precondition(anc.ancestor_path_length == anc.anc_path_length());
+
+      if(anc.state != KNOWN)
     std::cout << "WARNING: potential ancestor is not KNOWN" << std::endl;
 
   if(anc.find_in_ancestry(index))
@@ -3919,12 +4602,14 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   // the path is 'this' to ancestor1, ancestor1 to ancestor2, etc.
   // stored as 'this', ancestor1, ancestor2, etc.
   boost::array<std::size_t, k+1> ancestor_path;
-  for(int i=1; i<k+1; ++i)
+  for(int i=0; i<k+1; ++i)
     ancestor_path[i] = -1;
+
   ancestor_path[0] = this->index;
+
   CGAL_assertion(ancestor_path[0] != static_cast<std::size_t>(-1));
 
-  std::size_t n_curr_ancestor = n_anc;
+  std::size_t n_curr_ancestor = anc_id;
   std::size_t best_i = -1;
   for(int i=1; i<=k; ++i)
   {
@@ -3992,7 +4677,7 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 #if (verbose > 20)
     std::cout << "improving " << distance_to_closest_seed << " from " << ancestor
               << " (" << closest_seed_id << ")";
-    std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id
+    std::cout << " to " << d << " from " << anc_id << " (" << anc.closest_seed_id
               << ")" << std::endl;
 #endif
     if(overwrite)
@@ -4001,7 +4686,8 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
       if(ancestor != static_cast<std::size_t>(-1))
         bm->points[ancestor].remove_from_children(index);
 
-      ancestor = n_anc;
+      ancestor = anc_id;
+      depth = best_i;
       distance_to_closest_seed = d;
       closest_seed_id = anc.closest_seed_id;
       ancestor_path_length = anc.ancestor_path_length + 1;
@@ -4034,11 +4720,16 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 //        std::cout << "position : " << point << std::endl;
 //      }
 
+      if(ignore_children)
+        return true;
+
       while(!children.empty())
       {
         Grid_point& gp = bm->points[*(children.begin())];
         gp.deal_with_descendants();
-        CGAL_postcondition(gp.anc_path_length() == gp.ancestor_path_length); // checks for circular ancestry
+
+        // checks for circular ancestry
+        CGAL_postcondition(gp.anc_path_length() == gp.ancestor_path_length);
       }
 #endif
     }
@@ -4089,11 +4780,11 @@ FT Grid_point::distortion_to_seed() const
   FT gamma = 1.;
   //    std::cout << "init gamma: " << gamma << " " << index << std::endl;
   const Grid_point* curr = this;
-  std::size_t n_anc = ancestor;
+  std::size_t anc_id = ancestor;
 
-  while(n_anc != static_cast<std::size_t>(-1))
+  while(anc_id != static_cast<std::size_t>(-1))
   {
-    const Grid_point& anc = bm->points[n_anc];
+    const Grid_point& anc = bm->points[anc_id];
     const Metric& m1 = anc.metric;
     const Metric& m2 = curr->metric;
     FT loc_gamma = m1.compute_distortion(m2);
@@ -4104,7 +4795,7 @@ FT Grid_point::distortion_to_seed() const
     gamma = (std::max)(loc_gamma, gamma);
 #endif
     //      std::cout << "gamma: " << gamma << std::endl;
-    n_anc = anc.ancestor;
+    anc_id = anc.ancestor;
     curr = &anc;
   }
 
@@ -4131,9 +4822,11 @@ void Grid_point::reset()
     bm->points[*cit].ancestor = -1;
 
   state = FAR;
+  is_seed_holder = -1;
   distance_to_closest_seed = FT_inf;
   closest_seed_id = -1;
   ancestor = -1;
+  depth = 0;
   children.clear();
   is_Voronoi_vertex = false;
   ancestor_path_length = 0;
@@ -4147,6 +4840,7 @@ void Grid_point::initialize_from_point(const FT d,
   closest_seed_id = seed_id;
   distance_to_closest_seed = d;
   state = TRIAL;
+  is_seed_holder = seed_id;
   ancestor = -1;
 }
 bool Grid_point::operator==(const Grid_point& gp) const
@@ -4165,9 +4859,11 @@ Grid_point::Grid_point()
     incident_triangles(),
     is_on_domain_border(false),
     state(FAR),
+    is_seed_holder(-1),
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
@@ -4186,9 +4882,11 @@ Grid_point::Grid_point(Base_mesh* bm_,
     incident_triangles(),
     is_on_domain_border(is_on_domain_border_),
     state(FAR),
+    is_seed_holder(-1),
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
@@ -4204,9 +4902,11 @@ Grid_point::Grid_point(const Grid_point& gp)
     incident_triangles(gp.incident_triangles),
     is_on_domain_border(gp.is_on_domain_border),
     state(gp.state),
+    is_seed_holder(gp.is_seed_holder),
     distance_to_closest_seed(gp.distance_to_closest_seed),
     closest_seed_id(gp.closest_seed_id),
     ancestor(gp.ancestor),
+    depth(gp.depth),
     children(gp.children),
     is_Voronoi_vertex(gp.is_Voronoi_vertex),
     ancestor_path_length(gp.ancestor_path_length)
@@ -4286,7 +4986,6 @@ int main(int, char**)
   }
 
   bm.output_grid_data_and_dual(str_base_mesh + "_tr");
-//  bm.check_edelsbrunner();
 
   // optimize stuff
   if(max_opti_n > 0)
@@ -4294,6 +4993,9 @@ int main(int, char**)
     bm.optimize_seeds();
     bm.output_grid_data_and_dual("bis_optimized_" + str_base_mesh + "_tr");
   }
+
+  ignore_children = true;
+  bm.compute_geodesics(str_base_mesh);
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "duration: " << duration << std::endl;
