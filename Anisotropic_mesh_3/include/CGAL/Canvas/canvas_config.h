@@ -1,14 +1,19 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_CANVAS_CONFIG_H
 #define CGAL_ANISOTROPIC_MESH_3_CANVAS_CONFIG_H
 
+// todo homogenize the macros' names.
+
+  // Whether we ignore seeds that fall outside the canvas' bbox
 #define ANISO_GEO_FILTER_SEEDS_OUTSIDE_CANVAS_BBOX
-#define VERBOSITY 35
+
+#define VERBOSITY 15 // verbose level, the higher the more info
 
   // if one wants to still initialize vertices even if the seed is found to be in
   // an exterior cell (might want to use that when there are seeds on the border
   // of the domain since numerical issues might not find it in the domain)
 //#define ANISO_GEO_FORCE_SEED_INITIALIZATION
 
+  // Verbose for Mesh_3
 #define CGAL_MESH_3_VERBOSE
 
   // if we want to make sure the (Campen) canvas is always dense enough around

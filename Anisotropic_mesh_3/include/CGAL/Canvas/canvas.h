@@ -187,7 +187,7 @@ public:
     int cp_id = -1; // index of the closest seed
 
     FT min_d = FT_inf;
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
     {
       Vector3d v;
       v(0) = p.x() - canvas_points[i].point().x();
@@ -217,7 +217,7 @@ public:
   void compute_canvas_bbox()
   {
     canvas_bbox = CGAL::Bbox_3();
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
       canvas_bbox += canvas_points[i].point().bbox();
 
     std::cout << "final bbox: x "
@@ -299,7 +299,7 @@ public:
       cp->state() = KNOWN;
       ++known_count; // todo --> use change_state()
 
-      if(!refining)
+      if(false/*!refining*/) // tmp fix primal shenanigans properly before using them again
       {
         // if we're refining, we're only painting a small part of the canvas
         // (the new voronoi cell) and maintening the primal triangulation is
@@ -320,7 +320,7 @@ public:
 
 #if (VERBOSITY > 15)
     std::cout << "final states after painting: " << std::endl;
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
     {
       const Canvas_point& cp = canvas_points[i];
       std::cout << cp.index() << " (" << cp.point() << ")";
@@ -340,7 +340,7 @@ public:
   {
     CGAL_assertion(trial_points.empty() );
 
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
     {
       const Canvas_point& cp = canvas_points[i];
 
@@ -367,7 +367,7 @@ public:
   void refresh_canvas_point_states()
   {
     CGAL_assertion(trial_points.empty());
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
       canvas_points[i].state() = FAR;
 
     reset_counters();
@@ -375,7 +375,7 @@ public:
 
   void set_points_states_to_known()
   {
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
       canvas_points[i].state() = KNOWN;
 
     known_count = canvas_points.size();
@@ -388,7 +388,7 @@ public:
     // Remove everything related to "paint" but not the geometric information
     // (therefore the point position, metric, neighbors, etc. aren't reset)
 
-    for(std::size_t i=0; i<canvas_points.size(); ++i)
+    for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
     {
       Canvas_point& cp = canvas_points[i];
       cp.state() = FAR;
@@ -845,7 +845,7 @@ public:
 
 #ifdef USE_BRUTAL_TRIANGLE_INTERSECTIONS
     // build from the primal edges, the set of segments that will be used to check
-    // self intersections
+    // self intersections of triangles
     std::set<typename K::Segment_3, Segment_3_comparer<K> > segments;
     for(typename Primal_edges_container::const_iterator it = primal_edges.begin();
                                                         it != primal_edges.end();

@@ -228,9 +228,9 @@ public:
       v1 = get_eigenvector<K>(vecs.col((min_id + 1) % 3));
       v2 = get_eigenvector<K>(vecs.col((min_id + 2) % 3));
 
-      //make sure the vectors form an orthogonal matrix
-      //when eigenvalues are the same, vectors returned by Eigen are not
-      //necessarily orthogonal
+      // make sure the vectors form an orthogonal matrix
+      // when eigenvalues are the same, vectors returned by Eigen are not
+      // necessarily orthogonal
       if(std::abs(v1*v2) > ZERO_DOT_PRODUCT)
         v2 = normalize(CGAL::cross_product(v0, v1));
     }
@@ -242,10 +242,10 @@ public:
       else if(z1 && z2) id = min_id;//d0
       else std::cerr << "Error1 : see tensor_frame, zeros==2\n";
 
-      //the non-zero one
+      // the non-zero one
       e1 = std::abs(std::real(vals[id]));
       v1 = get_eigenvector<K>(vecs.col(id));
-      //the last one : choose the vector which is not // to the normal
+      // the last one : choose the vector which is not // to the normal
       Vector_3 normal_test_1 = get_eigenvector<K>(vecs.col((id + 1) % 3));
       Vector_3 normal_test_2 = get_eigenvector<K>(vecs.col((id + 2) % 3));
       if(are_equal(normal_test_1, v0))
@@ -274,7 +274,7 @@ public:
       e2 = 0.;
     }
     else
-    {//zeros == 0
+    { //zeros == 0
       std::cout << "Error : see tensor_frame, zeros==0\n";
       std::cout << "p : " << p << std::endl;
       std::cout << ev0 << " " << ev1 << " " << ev2 << std::endl;
@@ -284,7 +284,7 @@ public:
     e0 = (std::max)(e1, e2);
   }
 
-  virtual Metric compute_metric(const Point_3 &p) const
+  virtual Metric compute_metric(const Point_3& p) const
   {
     Vector_3 vn, v1, v2;
     double en, e1, e2;

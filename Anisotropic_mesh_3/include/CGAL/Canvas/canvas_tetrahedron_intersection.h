@@ -21,7 +21,7 @@ template<typename Canvas>
 struct Intersect_tetrahedra
 {
   // In this struct, we are only interested in 'real' intersections, that is
-  // if the intersection of the two tets is not simply a vertex/an edge or a
+  // if the intersection of the two tets is not simply a common vertex, edge or
   // face of the tets.
 
   typedef typename Canvas::Kernel                                Kernel;
@@ -212,7 +212,7 @@ struct Intersect_tetrahedra
       }
       else if(pl_1 == OUTSIDE)
         continue;
-      else // pl1 == FIRST/SECOND/THIRD or FOURTH_VERTEX
+      else // pl_1 == FIRST/SECOND/THIRD or FOURTH_VERTEX
       {
         // here, the state pl_1 is the index in tet_2
         shared_vertices_ids.push_back(tet_2[pl_1]);

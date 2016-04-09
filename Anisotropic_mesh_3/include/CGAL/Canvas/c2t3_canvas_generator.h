@@ -62,18 +62,15 @@ struct Geo_sizing_field
     const FT base = 1.;
 
     const Metric& m = mf->compute_metric(p); // could be kept in memory todo
-    const FT e_max = m.get_max_eigenvalue();
-    const FT e_min = m.get_min_eigenvalue();
-    const FT e_third = m.get_third_eigenvalue();
-    CGAL_precondition(e_max >= e_min);
-    const FT max = (std::max)(e_max, e_third);
-    const FT width = 1. / max;
+    const FT l_max = 1. / std::sqrt( m.get_max_eigenvalue() );
+    const FT l_min = 1. / std::sqrt( m.get_min_eigenvalue() );
+    const FT l_third = 1. / std::sqrt( m.get_third_eigenvalue() );
+    const FT min_width = std::min(l_max, l_min);
 
     const FT discretization = 6.;
-    const FT metric_based_size = width / discretization;
+    const FT metric_based_size = min_width / discretization;
 
     // fixme needs to take into account the curvature of the domain here
-
     return (std::min)(base, metric_based_size);
   }
 

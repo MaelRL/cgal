@@ -18,6 +18,24 @@ std::size_t fact(std::size_t n)
   return (n==0)?1:n*fact(n-1);
 }
 
+std::size_t combi(std::size_t n, std::size_t k)
+{
+  // n choose k
+  // this will (silently) overflow for large n...
+
+  if (k > n)
+    return 0;
+
+  std::size_t r = 1;
+  for(std::size_t i=1; i<=k; ++i)
+  {
+    r *= n--;
+    r /= i;
+  }
+
+  return r;
+}
+
 template<typename Metric>
 Eigen::Matrix3d get_interpolated_transformation(const Metric& m0, const Metric& m1)
 {

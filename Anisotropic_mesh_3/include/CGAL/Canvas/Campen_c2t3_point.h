@@ -72,6 +72,8 @@ public:
 
   Vertex_handle m_v; // corresponding vertex in the c3t3
 
+  bool ignore_children;
+
   mutable bool m_is_vertices_cache_dirty, m_is_facets_cache_dirty;
   mutable Vertex_handle_vector m_adjacent_vertices_cache; // on the complex boundary
   mutable Facet_vector m_incident_facets_cache; // on the complex boundary
@@ -110,8 +112,8 @@ public:
     CGAL_assertion(m_v != Vertex_handle());
     CGAL_assertion(c3t3().triangulation().dimension() > 1);
 
-    // Build a map<Vh, Vh> (each entry is one oriented edge) and we link them together
-    // by going through the map at the end to build the oriented ring
+    // Build a map<Vh, Vh> (each entry is one edge of the link)
+    // and we order the vertices by walking the link (the map) at the end
     boost::unordered_map<Vertex_handle, Vertex_handle> oriented_edges;
 
     Facet_handle fit = incident_facets_in_complex_begin();
@@ -344,9 +346,7 @@ public:
 
     rot_axis = rot_axis / ra_norm;
 
-    // Rodrigues formula to get the rotation matrix in a standard case
     FT c = edge_normal.dot(unfolding_normal);
-
     if(c > FT(1.)) c = 1.;
     if(c < FT(-1.)) c = -1.;
 
@@ -359,6 +359,7 @@ public:
 
     const Vector3d& v = rot_axis;
 
+    // Rodrigues formula to get the rotation matrix
     Eigen::Matrix3d sm = Eigen::Matrix3d::Zero(); // skew_matrix
     sm(0,0) = 0; sm(0,1) = -v(2); sm(0,2) = v(1);
     sm(1,0) = v(2); sm(1,1) = 0; sm(1,2) = -v(0);
@@ -388,18 +389,6 @@ public:
     v1 = transform<typename Gt::Vector_3>(rot_m, v1);
     v2 = transform<typename Gt::Vector_3>(rot_m, v2);
 
-    // some more debug
-    Eigen::Matrix3d asd_f = build_UDUt<K>(v0, v1, v2, e0, e1, e2);
-    for(int i=0; i<10; ++i)
-    {
-      Vector3d random_vec = Vector3d::Random();
-      FT length_in_metric_pre_rot = (f * random_vec).norm();
-      random_vec = rot_m * random_vec;
-      FT length_in_metric_post_rot = (asd_f * random_vec).norm();
-      CGAL_postcondition((length_in_metric_post_rot - length_in_metric_pre_rot)<1e-5);
-    }
-    // end debug
-
     return build_UDUt<K>(v0, v1, v2, e0, e1, e2);
   }
 
@@ -409,7 +398,7 @@ public:
                             const Array_kp1& unfolded_points,
                             const Array_k& metrics) const
   {
-    std::ofstream out("folding_visualization.mesh");
+    std::ofstream out("unfolding_visualization.mesh");
 
     CGAL_precondition(n < folded_points.size());
 
@@ -576,6 +565,7 @@ public:
     }
     CGAL_postcondition(found);
 
+    std::size_t best_i = -1;
     for(int i=1; i<=k; ++i)
     {
 #if (VERBOSITY > 20)
@@ -755,11 +745,14 @@ public:
         std::cout << "better length at depth " << i << std::endl;
 #endif
         d = new_d;
+        best_i = i;
       }
 
       // checks if we can go farther up in the ancestor path
-      if(prev_p.ancestor() == static_cast<std::size_t>(-1))
+      if(prev_p.ancestor() == static_cast<std::size_t>(-1) || i == k)
+      {
         break;
+      }
 
       next_id = curr_id;
       curr_id = prev_id;
@@ -787,6 +780,7 @@ public:
       if(this->ancestor() != static_cast<std::size_t>(-1))
         this->canvas()->get_point(this->ancestor()).remove_from_children(this->index());
 
+      this->depth() = best_i;
       this->ancestor() = anc.index();
       this->distance_to_closest_seed() = d;
       this->closest_seed_id() = anc.closest_seed_id();
@@ -800,6 +794,9 @@ public:
 //                  << " descendant(s) of " << this->index() << std::endl;
 //        std::cout << "position : " << this->point() << std::endl;
 //      }
+
+      if(ignore_children)
+        return true;
 
       while(!this->children().empty())
       {
@@ -860,12 +857,12 @@ public:
   }
 
   Campen_canvas_point() : Base(), m_v(NULL) { }
-
   Campen_canvas_point(const Weighted_point_3& p, const std::size_t index,
                       Vertex_handle v, Canvas* canvas)
     :
       Base(p.point(), index, canvas),
       m_v(v),
+      ignore_children(false),
       m_is_vertices_cache_dirty(true),
       m_is_facets_cache_dirty(true),
       m_adjacent_vertices_cache(),

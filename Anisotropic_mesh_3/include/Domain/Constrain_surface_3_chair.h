@@ -24,7 +24,7 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K>
-class Constrain_surface_3_chair : public Constrain_surface_3_implicit<K> 
+class Constrain_surface_3_chair : public Constrain_surface_3_implicit<K>
 {
 
 public:
@@ -37,7 +37,7 @@ public:
   FT a, b, k;
 
 public:
-  virtual std::string name() const { return std::string("Implicit chair"); } 
+  virtual std::string name() const { return std::string("Implicit chair"); }
 
   void set_a(const FT& aa) { a = aa; }
   void set_b(const FT& bb) { b = bb; }
@@ -45,8 +45,8 @@ public:
   FT get_a() const { return a; }
   FT get_b() const { return b; }
   FT get_k() const { return k; }
-  
-  virtual typename CGAL::Bbox_3 get_bbox() const 
+
+  virtual typename CGAL::Bbox_3 get_bbox() const
   {
     FT r = get_bounding_radius();
     return CGAL::Bbox_3(-r, -r, -r, r, r, r);
@@ -75,11 +75,11 @@ public:
     return new Constrain_surface_3_chair(*this);
   }
 
-  Constrain_surface_3_chair(const FT a_ = 0.8, const FT b_ = 0.4, const FT k_ = 1.0) 
-    : a(a_), b(b_), k(k_)    {}
+  Constrain_surface_3_chair(const FT a_ = 0.8, const FT b_ = 0.4, const FT k_ = 1.0)
+    : Base(), a(a_), b(b_), k(k_)    { }
   Constrain_surface_3_chair(const Constrain_surface_3_chair& c)
-    : a(c.a), b(c.b), k(c.k) {}
-  ~Constrain_surface_3_chair() {}
+    : Base(), a(c.a), b(c.b), k(c.k) { }
+  ~Constrain_surface_3_chair() { }
 };
 
 } // Anisotropic_mesh_3

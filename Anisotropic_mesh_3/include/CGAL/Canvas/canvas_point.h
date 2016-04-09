@@ -41,6 +41,8 @@ protected:
   // stuff that depends on the seeds :
   FMM_state m_state;
   FT m_distance_to_closest_seed;
+  std::size_t m_depth;
+  int m_is_seed_holder; // ugly and awkward (should use the fact that it has no ancestor instead)
   std::size_t m_closest_seed_id;
   std::size_t m_ancestor;
 
@@ -56,6 +58,10 @@ public:
   std::size_t index() const { return m_index; }
   FT& distance_to_closest_seed() { return m_distance_to_closest_seed; }
   const FT distance_to_closest_seed() const { return m_distance_to_closest_seed; }
+  int& is_seed_holder() { return m_is_seed_holder; }
+  int is_seed_holder() const { return m_is_seed_holder; }
+  std::size_t& depth() { return m_depth; }
+  std::size_t depth() const { return m_depth; }
   std::size_t& closest_seed_id() { return m_closest_seed_id; }
   std::size_t closest_seed_id() const { return m_closest_seed_id; }
   FMM_state& state() { return m_state; }
@@ -129,10 +135,10 @@ public:
 #endif
     reset_paint();
 
+    m_is_seed_holder = seed_id;
     m_closest_seed_id = seed_id;
     m_distance_to_closest_seed = d;
     m_state = TRIAL;
-    m_ancestor = -1;
   }
 
   void print_ancestor_tree() const
@@ -215,13 +221,14 @@ public:
 
     m_state = FAR;
     m_distance_to_closest_seed = FT_inf;
+    m_depth = 0;
+    m_is_seed_holder = -1;
     m_closest_seed_id = -1;
     m_ancestor = -1;
     m_children.clear();
   }
 
   Canvas_point() { }
-
   Canvas_point(const Point_3& point_, const std::size_t index_,
                Canvas* canvas, bool border_info_ = false)
     :
@@ -232,6 +239,8 @@ public:
       m_is_on_domain_border(border_info_),
       m_state(FAR),
       m_distance_to_closest_seed(FT_inf),
+      m_depth(0),
+      m_is_seed_holder(-1),
       m_closest_seed_id(-1),
       m_ancestor(-1),
       m_children()

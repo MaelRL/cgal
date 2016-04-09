@@ -7,6 +7,8 @@
 #include <CGAL/Canvas/canvas_triangulation_io.h>
 #include <CGAL/Canvas/canvas_subdiviser.h>
 
+#include <CGAL/Canvas/geodesic_drawing_helper.h>
+
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/Triangulation_cell_base_with_info_3.h>
 #include <CGAL/Triangulation_3.h>
@@ -47,6 +49,7 @@ public:
   typedef int                          Cell_Info; // index of the subdomain
 
   typedef Canvas<K, Canvas_point, Metric_field>            Base;
+  typedef K                                                Kernel;
 
   typedef typename Base::Metric                            Metric;
   typedef typename Base::Vector3d                          Vector3d;

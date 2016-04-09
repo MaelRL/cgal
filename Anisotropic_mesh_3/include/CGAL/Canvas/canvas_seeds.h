@@ -71,8 +71,8 @@ public:
     std::size_t useless, nv, dim;
     FT r_x, r_y, r_z;
 
-    in >> word >> useless; //MeshVersionFormatted i
-    in >> word >> dim; //Dimension d
+    in >> word >> useless; // MeshVersionFormatted i
+    in >> word >> dim; // Dimension d
     in >> word >> nv;
     std::cout << "seeds nv: " << nv << std::endl;
     CGAL_assertion(dim == 3);

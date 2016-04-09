@@ -1,18 +1,3 @@
-// Copyright (c) 2011  INRIA Sophia-Antipolis (France), ETH Zurich (Switzerland).
-// All rights reserved.
-//
-// This file is part of CGAL (www.cgal.org); you may redistribute it under
-// the terms of the Q Public License version 1.0.
-// See the file LICENSE.QPL distributed with CGAL.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Author(s) : Kan-Le Shi
-
 #ifndef CGAL_ANISOTROPIC_MESH_3_HYPERBOLIC_SHOCK_METRIC_FIELD
 #define CGAL_ANISOTROPIC_MESH_3_HYPERBOLIC_SHOCK_METRIC_FIELD
 
@@ -32,7 +17,6 @@ public:
   typedef typename Base::Metric                Metric;
   typedef typename Base::Point_3               Point_3;
   typedef typename Base::Vector_3              Vector_3;
-  typedef std::vector<std::pair<Point_3, FT> > ParticleList;
 
 public:
   FT delta;

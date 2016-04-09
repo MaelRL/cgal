@@ -597,6 +597,7 @@ void output_surface_off(const Starset& stars,
                         const bool consistent_only = true)
 {
   std::ofstream out(f);
+  out.precision(17);
   return output_surface_off(stars, out, consistent_only);
 }
 
@@ -606,6 +607,7 @@ void output_off(const Starset &stars,
                 const bool consistent_only = true)
 {
   std::ofstream out(f);
+  out.precision(17);
   return output_off(stars, out, consistent_only);
 }
 
@@ -616,6 +618,7 @@ void output_surface_medit(const Starset &stars,
                           const bool fake_3D = false)
 {
   std::ofstream out(f);
+  out.precision(17);
   return output_surface_medit(stars, out, positive_vol, fake_3D);
 }
 
@@ -626,6 +629,7 @@ void output_medit(const Starset &stars,
                   const bool positive_vol = false)
 {
   std::ofstream out(f);
+  out.precision(17);
   return output_medit(stars, out, consistent_only, positive_vol);
 }
 
@@ -634,6 +638,7 @@ void output_surface_voronoi(const Starset &stars,
                             const char* f)
 {
   std::ofstream out(f);
+  out.precision(17);
   return output_surface_voronoi(stars, out);
 }
 
