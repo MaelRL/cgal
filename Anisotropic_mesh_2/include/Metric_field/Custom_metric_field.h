@@ -19,6 +19,122 @@ public:
   typedef typename Base::Vector_2   Vector_2;
 
 public:
+  Metric phase_portrait(const Point_2& p) const
+  {
+    FT x = p.x();
+    FT y = p.y();
+
+    FT f1 = x + 1.;
+    FT f2 = x - 1.;
+
+    FT l = std::sqrt(f1*f1 + f2*f2);
+
+    std::cout << "vector length: " << l << std::endl;
+
+    FT epsilon = 0.0;
+
+    if(l < epsilon)
+      return Metric();
+
+    FT lambda_1 = 1./(l*l);
+    FT lambda_2 = 1.;
+
+    // scale a bit the eigenvalues... multiply by x^2 divides the length by x
+    lambda_1 = lambda_1*100;
+    lambda_2 = lambda_2*100;
+
+    f1 /= l;
+    f2 /= l;
+    Vector_2 v1(f1, f2);
+    Vector_2 v2(-f2, f1);
+
+    return this->build_metric(v1, v2, lambda_1, lambda_2);
+  }
+
+  Metric swirl(const Point_2& p) const
+  {
+    FT x = p.x();
+    FT y = p.y();
+
+    FT lambda = 3.;
+    FT mu = 1.;
+    FT eta = 1.;
+
+    FT cla = std::cos(lambda);
+    FT sla = std::sin(lambda);
+
+    FT r = x*x + y*y;
+
+    if(r < 1e-15)
+      return Metric();
+
+    FT v1x = (-(x*sla + y*cla) +
+      (1 - x*x - y*y) * (1 - x*x - y*y) * (x*cla - y*sla)) /
+               (mu*((x/eta)*(x/eta) + (y/eta)*(y/eta)));
+
+    FT v1y = ((x*cla - y*sla) +
+      (1 - x*x - y*y) * (1 - x*x - y*y) * (x*sla + y*cla)) /
+               (mu*((x/eta)*(x/eta) + (y/eta)*(y/eta)));
+
+    FT n = std::sqrt(v1x*v1x + v1y*v1y);
+    v1x /= n;
+    v1y /= n;
+
+    Vector_2 v1(v1x, v1y);
+    Vector_2 v2(-v1y, v1x);
+
+    r = std::sqrt(r);
+    FT nr_r = std::pow(r, 1./3.);
+    FT f_r = (nr_r + r) / 2.;
+
+    FT a = std::abs(50 * (1 - (f_r - 1)*(f_r - 1) ) );
+    FT e1 = std::pow(1./(std::pow(a,1) + 1), 1);
+//    1./(std::pow((r*r+1), 3));
+    FT e2 = 1.;
+
+    // some scaling
+    double s = 2500;
+    e1 *= s;
+    e2 *= s;
+
+//    std::cout << "at: " << x << " " << y << std::endl;
+//    std::cout << "e12 " << e1 << " " << e2 << std::endl;
+
+    return this->build_metric(v1, v2, std::sqrt(e1), std::sqrt(e2));
+  }
+
+  Metric bump(const Point_2& p) const
+  {
+//    return this->build_metric(Vector_2(1, 0), Vector_2(0, 1), 1., 1.);
+
+    FT x = p.x();
+    FT y = p.y();
+
+    FT delta = 0.01;
+    FT lambda = 100000;//2*(1-CGAL::sqrt(1-delta*delta));
+
+    FT l_x = delta / 10.;
+    FT l_y = 0.25;
+
+    FT d_x = (x - delta / 2.) / l_x;
+    FT d_y = (y - 0.5) / l_y;
+    FT denom = 1. - d_x*d_x - d_y*d_y;
+    FT e = std::exp(-1. / denom);
+
+    Vector_2 v1(1., 0.);
+    Vector_2 v2(0., 1.);
+
+    bool is_in_the_bump = (denom > 0);
+
+    FT l;
+    if(is_in_the_bump)
+      l = 1. + lambda * e;
+    else
+      l = 1.;
+
+    return this->build_metric(v1, v2, l, l);
+  }
+
   Metric radial_shock(const Point_2& p) const
   {
     FT x = p.x();
@@ -155,10 +271,12 @@ public:
 
   virtual Metric compute_metric(const Point_2 &p) const
   {
-    return starred_shock(p);
-    return radial_shock(p);
+    return swirl(p);
+    return phase_portrait(p);
     return hyperbolic_shock(p);
     return yang_liu_cube_shock(p);
+    return starred_shock(p);
+    return radial_shock(p);
     return this->build_metric(Vector_2(1, 0),
                               Vector_2(0, 1),
                               std::sqrt(6.*p.x()*p.x() + 1.),
