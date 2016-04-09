@@ -121,7 +121,7 @@ void generate_starset(Star_set& ss)
 void read_dump(Star_set& ss)
 {
   std::cout << "Reading dump..." << std::endl;
-  std::ifstream in("geo_starset_dump.mesh");
+  std::ifstream in("dump.mesh");
   ss.clear();
 
   std::size_t stars_n, v_n, id;
@@ -2215,6 +2215,9 @@ int main(int, char**)
   Star_set starset;
 //  generate_starset(starset);
   read_dump(starset);
+
+  duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+  std::cout << "Generated starset: " << duration << std::endl;
 
   Base_mesh bm(starset);
 

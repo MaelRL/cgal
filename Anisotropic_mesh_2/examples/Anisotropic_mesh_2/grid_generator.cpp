@@ -297,6 +297,7 @@ int insert_new_seed(const FT x, const FT y)
 int build_seeds()
 {
   std::ifstream in(str_seed.c_str());
+  CGAL_precondition(in);
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y;

@@ -147,7 +147,6 @@ public:
     Vector_2 v1(p.x(), p.y());
     Vector_2 v2(p.y(), -p.x());
 
-
     double h1 = (std::max)(1e-5, std::abs(std::cos(3*p.x())));
     double h2 = 1.;
 

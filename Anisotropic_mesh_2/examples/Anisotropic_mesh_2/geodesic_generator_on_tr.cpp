@@ -815,7 +815,7 @@ int insert_new_seed(const FT x, const FT y)
 
 int build_seeds()
 {
-  std::ifstream in((str_seeds + ".mesh").c_str());
+  std::ifstream in((seeds_str + ".mesh").c_str());
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y;
@@ -2176,6 +2176,11 @@ struct Base_mesh
                             std::size_t offset = 0,
                             const bool draw_control_points = false)
   {
+    // fixme if the geodesics are approximated by multiple low level Bezier curves
+    // then what is drawn should be each curve independantly, not treating the
+    // list of control points of different Bezier curves as if they were the
+    // control points of a single high degree Bezier curve
+
     std::ofstream out("Bezier_test.mesh");
     std::size_t number_of_sample_points = 1000;
     FT step = 1./static_cast<FT>(number_of_sample_points - 1.);
@@ -2574,6 +2579,10 @@ struct Base_mesh
       Tri& triangle = triangles[i];
 
       // the triangle must be refined if at least one of its colors is in seeds_to_refine
+
+      // todo: a better algorithm would be to spread from a triangle for whom
+      // a vertex needs a refinement (a geodesic Voronoi cell is convex)
+
       bool must_be_refined = false;
       for(int j=0; j<3; ++j)
       {
@@ -3731,9 +3740,9 @@ CGAL_expensive_assertion_code(
       Point_2 alt_centroid_1 = compute_centroid_with_grid_triangles(seed_id);
       std::cout << "centroid with grid triangles " << alt_centroid_1 << std::endl;
 
-      Point_2 alt_centroid_2 = compute_centroid_with_grid_triangles_precomputed(seed_id,
-                                                                                centroids);
-      std::cout << "centroid with grid triangles " << alt_centroid_2 << std::endl;
+//      Point_2 alt_centroid_2 = compute_centroid_with_grid_triangles_precomputed(seed_id,
+//                                                                                centroids);
+//      std::cout << "centroid with grid triangles " << alt_centroid_2 << std::endl;
 
       // below is not a good idea if the metric field is not uniform
 //      Point_2 alt_centroid_3 = compute_centroid_with_voronoi_vertices(seed_id);
@@ -3889,7 +3898,8 @@ CGAL_expensive_assertion_code(
       // Optimize each seed
       FT cumulated_displacement = 0;
       for(std::size_t i=0, ss=seeds.size(); i<ss; ++i)
-        cumulated_displacement += optimize_seed(i, mapped_points, centroids, counter);
+        cumulated_displacement += optimize_seed(i, mapped_points,
+                                                centroids, counter);
 
       FT e = compute_CVT_energy();
 
@@ -4621,7 +4631,7 @@ bool Grid_point::compute_closest_seed(const std::size_t anc_id,
     ancestor_edge(0) = point.x() - curr_ancestor.point.x();
     ancestor_edge(1) = point.y() - curr_ancestor.point.y();
     FT ancestor_edge_length = ancestor_edge.norm();
-    Vector2d normalized_anc_edge = ancestor_edge/ancestor_edge_length;
+    Vector2d normalized_anc_edge = ancestor_edge / ancestor_edge_length;
 
     // compute the distance for the current depth (i)
     FT dist_to_ancestor = 0.;

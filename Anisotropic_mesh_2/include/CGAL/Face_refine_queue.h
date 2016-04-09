@@ -95,8 +95,8 @@ public:
   bool operator() (const Refine_face<K, KExact>& left,
                    const Refine_face<K, KExact>& right) const
   {
+    CGAL_precondition(left.face.vertices().size() == right.face.vertices().size());
 #ifdef ANISO_USE_BOOST_UNORDERED_SET
-    // ought to make sure the ranges are identical fixme
     return std::equal(left.face.vertices().begin(),
                       left.face.vertices().end(),
                       right.face.vertices().begin());
