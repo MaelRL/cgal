@@ -89,14 +89,10 @@ void generate_canvas(C3t3& c3t3,
   typedef typename Mesh_criteria::Facet_criteria                 Facet_criteria;
   typedef typename Mesh_criteria::Cell_criteria                  Cell_criteria;
 
-  // Domain
-  Domain const * const domain = sphere_domain<Domain>();
-//  Domain const * const domain = cube_domain_with_features<Domain>();
-
   // Set mesh criteria
   Geo_sizing_field<Triangulation, MF, Domain> size(metric_field);
   Edge_criteria edge_criteria(size);
-  Facet_criteria facet_criteria(30, size, 0.05); // angle, size, approximation
+  Facet_criteria facet_criteria(30, size, 0.1); // angle, size, approximation
 
   // large radius-edge ratio & radius so the cells aren't refined
   Cell_criteria cell_criteria(Anisotropic_mesh_3::FT_inf,
@@ -104,7 +100,7 @@ void generate_canvas(C3t3& c3t3,
   Mesh_criteria criteria(edge_criteria, facet_criteria, cell_criteria);
 
   // Mesh generation
-  c3t3 = make_mesh_3<C3t3>(*domain, criteria,
+  c3t3 = make_mesh_3<C3t3>(domain, criteria,
                            parameters::no_perturb(),
                            parameters::no_exude());
 
@@ -112,12 +108,32 @@ void generate_canvas(C3t3& c3t3,
             << c3t3.number_of_vertices_in_complex() << std::endl;
 
   // Output
-  std::ofstream medit_file("input_c2t3.mesh");
+  std::ofstream medit_file("input_c2t3_fertility.mesh");
   output_to_medit_all_cells<C3t3, true/*rebind*/, false/*no patch*/>(medit_file, c3t3);
+}
 
+template<typename C3t3, typename MF, typename MD>
+void generate_canvas(C3t3& c3t3, const MF* metric_field)
+{
+//  MD const * const domain = sphere_domain<MD>();
+//  MD const * const domain = cube_domain_with_features<MD>();
+//  MD const * const domain = chair_domain<MD>();
+
+  // Polyhedral
+    // bit ugly, would be nicer to use the constrain_surface_3_poly_domain
+    // but it uses enriched polyhedron items...
+  typedef typename MD::Polyhedron_type Polyhedron;
+  std::ifstream input("/home/mrouxell/Data/OFF/fertility.off");
+  if(!input)
+    std::cout << "\nWarning : file does not exist" << std::endl;
+  Polyhedron poly;
+  input >> poly;
+  MD const * const domain = new MD(poly);
+
+  generate_canvas<C3t3, MF, MD>(c3t3, metric_field, *domain);
   delete domain;
 }
 
-}  // namespace CGAL
+} // namespace CGAL
 
 #endif // CGAL_ANISOTROPIC_MESH_3_C2T3_CANVAS_GENERATOR_H

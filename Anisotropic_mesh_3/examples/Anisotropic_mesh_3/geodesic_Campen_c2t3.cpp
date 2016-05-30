@@ -3,6 +3,8 @@
 
 // the canvas used is a c2t3
 
+#include <CGAL/Mesh_3/global_parameters.h>
+
 #include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/Campen_c2t3_canvas.h>
 #include <CGAL/Canvas/Campen_c2t3_point.h>
@@ -44,18 +46,23 @@ using namespace CGAL::Anisotropic_mesh_3;
 
 int main(int, char**)
 {
-  typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel      K;
 
-  typedef typename K::FT                                       FT;
-  typedef typename K::Point_3                                  Point_3;
 
   typedef int                          Vertex_Info; // index of the canvas point
   typedef int                          Cell_Info; // index of the subdomain
 
   // Define the domain type
-  typedef FT (Function)(const Point_3&);
-  typedef CGAL::Implicit_mesh_domain_3<Function, K>                Mesh_domain;
-  typedef CGAL::Mesh_domain_with_polyline_features_3<Mesh_domain>  Mesh_domain_WF;
+    // implicit
+//  typedef typename K::FT                                           FT;
+//  typedef typename K::Point_3                                      Point_3;
+//  typedef FT (Function)(const Point_3&);
+//  typedef CGAL::Implicit_mesh_domain_3<Function, K>        Implicit_Mesh_domain;
+//  typedef CGAL::Mesh_domain_with_polyline_features_3<Implicit_Mesh_domain> Mesh_domain;
+
+  // polyhedral
+  typedef CGAL::Polyhedron_3<K>                                    Polyhedron;
+  typedef CGAL::Polyhedral_mesh_domain_3<Polyhedron, K>            Mesh_domain;
 
   // Define a C3T3 whose underlying regular triangulation has an info member on
   // both the vertices and the cells
@@ -66,10 +73,10 @@ int main(int, char**)
   typedef CGAL::Regular_triangulation_cell_base_3<Gt, Cb>                   Rcb;
   typedef CGAL::Regular_triangulation_cell_base_with_weighted_circumcenter_3<Gt, Rcb>
                                                                             Rcbwc;
-  typedef CGAL::Mesh_vertex_base_3<Gt, Mesh_domain_WF, Vb>                  Mvb;
-  typedef CGAL::Mesh_cell_base_3<Gt, Mesh_domain_WF, Rcbwc>                 Mcb;
+  typedef CGAL::Mesh_vertex_base_3<Gt, Mesh_domain, Vb>                     Mvb;
+  typedef CGAL::Mesh_cell_base_3<Gt, Mesh_domain, Rcbwc>                    Mcb;
 
-  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain_WF,
+  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain,
                                               K,
                                               CGAL::Sequential_tag,
                                               Mvb, Mcb>::type               Tr;
@@ -85,29 +92,51 @@ int main(int, char**)
   std::cout.precision(17);
 //  std::freopen("log.txt", "w", stdout);
 
+  std::streambuf * old = std::cout.rdbuf();
+//  std::cout.rdbuf(0);
+
   double duration;
   std::clock_t start = std::clock();
   std::srand(0);
 
+  const std::string domain_str = "fertility";
+  const std::string domain_addr = "/home/mrouxell/Data/OFF/" + domain_str + ".off";
+
   //----------- pick a metric field! ------------
 //  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
-  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(1.,1.,1.);
+//  Euclidean_metric_field<K>* metric_field =
+//                            new Euclidean_metric_field<K>(0.1,0.1,0.1);
+//  Hyperbolic_shock_metric_field<K>* metric_field =
+//                            new Hyperbolic_shock_metric_field<K>(0.6);
+
+//  Constrain_surface_3_chair<K>* pdomain =
+//                          new Constrain_surface_3_chair<K>(0.8, 0.4, 1.0);
+//  Implicit_curvature_metric_field<K>* metric_field =
+//                          new Implicit_curvature_metric_field<K>(*pdomain, 0.3);
+
+  Constrain_surface_3_polyhedral<K>* pdomain =
+                     new Constrain_surface_3_polyhedral<K>(domain_addr.c_str());
+  Polyhedral_curvature_metric_field<K>* metric_field =
+                             new Polyhedral_curvature_metric_field<K>(*pdomain);
 
   //----------- Generate the canvas! ------------
-  const std::string canvas_str = "input_c2t3";
+
+  const std::string canvas_str = "c2t3_" + domain_str;
   C3t3 c3t3;
-  CGAL::generate_canvas<C3t3, MF, Mesh_domain_WF>(c3t3, metric_field);
+
+  CGAL::generate_canvas<C3t3, MF, Mesh_domain>(c3t3, metric_field);
 
   // select the input seeds
-  std::size_t max_seeds_n = 1;
-  const std::string seeds_str = "test_input.mesh";
+  std::size_t max_seeds_n = 1020;
+//  const std::string seeds_str = "input_c2t3_" + domain_str + ".mesh";
+  const std::string seeds_str = "c2t3_fertility_tr_primal.mesh";
 
   Canvas canvas(c3t3, canvas_str, seeds_str, max_seeds_n, metric_field);
   canvas.initialize();
   canvas.paint();
 
-  // Refinement
-  std::size_t n_refine = 0;
+  // Refinement (meshing criteria are in mesher.h atm)
+  std::size_t n_refine = 5000;
   Canvas_mesher mesher(canvas, n_refine);
   mesher.refine();
 
@@ -116,6 +145,11 @@ int main(int, char**)
   // Optimization
   // todo
 
+  // output geodesics
+//  compute_geodesics(canvas, canvas_str);
+
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cerr << "duration: " << duration << std::endl;
+
+  delete pdomain;
 }
