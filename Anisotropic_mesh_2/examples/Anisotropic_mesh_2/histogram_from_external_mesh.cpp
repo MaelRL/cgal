@@ -17,6 +17,7 @@ typedef K                                                    KExact;
 typedef typename K::FT                                       FT;
 typedef typename K::Point_2                                  Point_2;
 typedef typename K::Point_2                                  TPoint_2;
+typedef typename K::Vector_2                                 Vector_2;
 
 typedef CGAL::Anisotropic_mesh_2::Metric_base<K>             Metric;
 typedef CGAL::Anisotropic_mesh_2::Starset<K>                 Starset;
@@ -206,6 +207,7 @@ void face_distortion_histogram(const std::vector<Point_2>& points,
 {
   if(faces.empty())
     return;
+
   std::cout << "face distortion external histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_distortion.bb").c_str());
@@ -275,6 +277,7 @@ void face_quality_histogram(const std::vector<Point_2>& points,
 {
   if(faces.empty())
     return;
+
   std::cout << "face quality external histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_quality.bb").c_str());
@@ -316,6 +319,7 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
 {
   if(faces.empty())
     return;
+
   std::cout << "face edge external histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_edge_length.bb").c_str());
@@ -373,6 +377,65 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
     out_bb << max_edge_r[i] << std::endl;
 }
 
+void face_angle_histogram(const std::vector<Point_2>& points,
+                                const std::vector<int>& faces,
+                                const std::vector<Metric>& metrics,
+                                const std::string filename_core)
+{
+  if(faces.empty())
+    return;
+
+  std::cout << "face edge external histo with size: " << faces.size() << std::endl;
+
+  std::vector<FT> values;
+
+  for(std::size_t i=0; i<faces.size();)
+  {
+    std::vector<int> ns(3);
+    std::vector<Point_2> ps(3);
+
+    for(int j=0; j<3; ++j)
+    {
+      ns[j] = faces[i++];
+      ps[j] = points[ns[j]];
+    }
+
+    for(int j=0; j<3; ++j)
+    {
+      const Metric& m = metrics[ns[j]];
+      std::vector<TPoint_2> tps(3);
+
+      for(int k=0; k<3; ++k)
+        tps[k] = m.transform(ps[(j+k)%3]);
+
+      const Point_2& a = tps[0];
+      const Point_2& b = tps[1];
+      const Point_2& c = tps[2];
+
+      Vector_2 v1 = b - a;
+      Vector_2 v2 = c - a;
+      FT angle_cos = v1 * v2 / CGAL::sqrt(v1 * v1) / CGAL::sqrt(v2 * v2);
+      FT angle = std::acos(angle_cos);
+
+      // make sure it's within 0 pi
+      if(angle < 0)
+        angle += CGAL_PI;
+
+      std::cout << v1 << " " << v2 << std::endl;
+
+      std::cout << "angle: " << angle << std::endl;
+
+
+      CGAL_assertion(angle >=0 && angle <= CGAL_PI);
+
+      values.push_back(angle);
+    }
+  }
+  std::cout << "n of values: " << values.size() << std::endl;
+
+  output_histogram(values, "histogram_face_angles_external.cvs");
+}
+
 int main(int, char**)
 {
 //  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
@@ -397,6 +460,7 @@ int main(int, char**)
   face_distortion_histogram(points, faces, metrics, filename_core);
   face_quality_histogram(points, faces, metrics, filename_core);
   face_edge_length_histogram(points, faces, metrics, filename_core);
+  face_angle_histogram(points, faces, metrics, filename_core);
 
   delete metric_field;
 

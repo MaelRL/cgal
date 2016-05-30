@@ -22,6 +22,7 @@ typedef K                                                    KExact;
 typedef typename K::FT                                       FT;
 typedef typename K::Point_3                                  Point_3;
 typedef typename K::Point_3                                  TPoint_3;
+typedef typename K::Vector_3                                 Vector_3;
 
 typedef CGAL::Anisotropic_mesh_3::Metric_base<K>             Metric;
 typedef CGAL::Anisotropic_mesh_3::Starset<K>                 Starset;
@@ -302,6 +303,61 @@ void facet_edge_length_histogram(const std::vector<Point_3>& points,
     out_bb << max_edge_r[i] << std::endl;
 }
 
+void facet_angle_histogram(const std::vector<Point_3>& points,
+                           const std::vector<int>& facets,
+                           const std::vector<Metric>& metrics)
+{
+  if(facets.empty())
+    return;
+
+  std::cout << "facet angle histo with size: " << facets.size() << std::endl;
+
+  std::vector<FT> values;
+
+  for(std::size_t i=0; i<facets.size();)
+  {
+    std::vector<int> ns(3);
+    std::vector<Point_3> ps(3);
+
+    for(int j=0; j<3; ++j)
+    {
+      ns[j] = facets[i++];
+      ps[j] = points[ns[j]];
+    }
+
+    for(int j=0; j<3; ++j)
+    {
+      const Metric& m = metrics[ns[j]];
+      std::vector<TPoint_3> tps(3);
+
+      for(int k=0; k<3; ++k)
+        tps[k] = m.transform(ps[(j+k)%3]);
+
+      const Point_3& a = tps[0];
+      const Point_3& b = tps[1];
+      const Point_3& c = tps[2];
+
+      Vector_3 v1 = b - a;
+      Vector_3 v2 = c - a;
+      FT angle_cos = v1 * v2 / CGAL::sqrt(v1*v1) / CGAL::sqrt(v2 * v2);
+      FT angle = std::acos(angle_cos);
+
+      // make sure it's within 0 pi
+      if(angle < 0)
+        angle += CGAL_PI;
+
+      std::cout << "angle: " << angle << std::endl;
+
+      CGAL_assertion(angle >=0 && angle <= CGAL_PI);
+
+      values.push_back(angle);
+    }
+  }
+  std::cout << "n of values: " << values.size() << std::endl;
+
+  output_histogram(values, "histogram_face_angles_external.cvs");
+}
+
 void cell_distortion_histogram(const std::vector<Point_3>& points,
                                const std::vector<int>& cells,
                                const std::vector<Metric>& metrics)
@@ -521,12 +577,13 @@ int main(int, char**)
   fetch_mesh(mesh_filename, points, facets, cells);
   compute_metrics(points, metric_field, metrics);
 
-  facet_distortion_histogram(points, facets, metrics);
-  facet_edge_length_histogram(points, facets, metrics);
-  cell_distortion_histogram(points, cells, metrics);
-  cell_edge_length_histogram(points, cells, metrics);
-  //cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
-  //cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
+//  facet_distortion_histogram(points, facets, metrics);
+//  facet_edge_length_histogram(points, facets, metrics);
+  facet_angle_histogram(points, facets, metrics);
+//  cell_distortion_histogram(points, cells, metrics);
+//  cell_edge_length_histogram(points, cells, metrics);
+//  cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
+//  cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
 
 //  delete pdomain;
   delete metric_field;
