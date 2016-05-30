@@ -7,6 +7,7 @@
 #include <CGAL/Metric.h>
 #include <Domain/Mesh_3/surface_3_cube.h>
 #include <Domain/Mesh_3/surface_3_sphere.h>
+#include <Domain/Mesh_3/surface_3_chair.h>
 
 #include <CGAL/Mesh_criteria_3.h>
 #include <CGAL/make_mesh_3.h>
@@ -78,7 +79,9 @@ struct Geo_sizing_field
 };
 
 template<typename C3t3, typename MF, typename Domain>
-void generate_canvas(C3t3& c3t3, const MF* metric_field)
+void generate_canvas(C3t3& c3t3,
+                     const MF* metric_field,
+                     const Domain& domain)
 {
   typedef typename C3t3::Triangulation                           Triangulation;
   typedef Mesh_criteria_3<Triangulation>                         Mesh_criteria;

@@ -1216,6 +1216,7 @@ struct Geo_grid
     std::size_t seed_id = seeds.size() - 1;
     const Point_2& p = seeds.back();
     locate_and_initialize(p, seed_id);
+
     geo_grid_loop();
   }
 

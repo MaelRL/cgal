@@ -10,14 +10,24 @@
 #include <CGAL/Canvas/canvas_triangulation_io.h>
 #include <CGAL/Canvas/optimizer_cvt.h>
 #include <CGAL/Canvas/c2t3_canvas_generator.h>
+#include <CGAL/Canvas/geodesic_drawing_helper.h>
 
-#include <Domain/Mesh_3/surface_3_cube.h>
-#include <Metric_field/Euclidean_metric_field.h>
+#include <Domain/Constrain_surface_3_chair.h>
+#include <Domain/Constrain_surface_3_cube.h>
+#include <Domain/Constrain_surface_3_sphere.h>
+#include <CGAL/Constrain_surface_3_polyhedral.h>
+
+#include <CGAL/Implicit_curvature_metric_field.h>
+#include <CGAL/Polyhedral_curvature_metric_field.h>
 #include <Metric_field/Custom_metric_field.h>
+#include <Metric_field/Euclidean_metric_field.h>
+#include <Metric_field/Hyperbolic_shock_metric_field.h>
 
 #include <CGAL/Mesh_vertex_base_3.h>
 #include <CGAL/Mesh_cell_base_3.h>
+
 #include <CGAL/Implicit_mesh_domain_3.h>
+#include <CGAL/Polyhedral_mesh_domain_3.h>
 #include <CGAL/Mesh_domain_with_polyline_features_3.h>
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>

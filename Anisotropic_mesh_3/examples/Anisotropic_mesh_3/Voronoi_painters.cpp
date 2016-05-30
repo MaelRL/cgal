@@ -369,13 +369,13 @@ void full_grid()
   std::ofstream out_bb("grid.bb");
   out_bb << "3 1 " << (int) n_cube << " 2" << std::endl;
 
-  for(unsigned int i=0; i<n; ++i)
+  for(unsigned int k=0; k<n; ++k)
   {
     for(unsigned int j=0; j<n; ++j)
     {
-      for(unsigned int k=0; k<n; ++k)
+      for(unsigned int i=0; i<n; ++i)
       {
-        Point_3 p(offset_x+j*step, offset_y+i*step, offset_z+k*step);
+        Point_3 p(offset_x + i*step, offset_y + j*step, offset_z + k*step);
         out << p.x() << " " << p.y() << " " << p.z() << " " << ++counter << std::endl;
 
         FT ret = value_at_point(p);
@@ -384,13 +384,31 @@ void full_grid()
     }
   }
   out << "Tetrahedra" << std::endl;
-  out << (int) tet_n << std::endl;
-  for(int i=1; i<(n-1); ++i)
+  out << 5*(n-1)*(n-1)*(n-1) << std::endl;
+  for(std::size_t i=0; i<(n-1); ++i)
   {
-    for(int j=0; j<(n-1); ++j)
+    for(std::size_t j=0; j<(n-1); ++j)
     {
-      std::cout << "fixme" << std::endl; // need to define the 5 tets depending on i,j,k,i-1, etc.
-      CGAL_assertion(false);
+      for(std::size_t j=0; j<(n-1); ++j)
+      {
+        // define the cube 01234567
+
+        // + 1 at the end for medit
+        std::size_t id_0 = i + j*n + k*n*n + 1;
+        std::size_t id_1 = i+1 + j*n + k*n*n + 1;
+        std::size_t id_2 = i+1 + (j+1)*n + k*n*n + 1;
+        std::size_t id_3 = i + (j+1)*n + k*n*n + 1;
+        std::size_t id_4 = i + j*n + (k+1)*n*n + 1;
+        std::size_t id_5 = i+1 + (j+1)*n + (k+1)*n*n + 1;
+        std::size_t id_6 = i+1 + (j+1)*n + (k+1)*n*n + 1;
+        std::size_t id_7 = i + j*n + (k+1)*n*n + 1;
+
+        out << id_0 << " " << id_1 << " " << id_2 << " " << id_5 << " " << i+j*n+k*n*n << std::endl;
+        out << id_0 << " " << id_2 << " " << id_5 << " " << id_7 << " " << i+j*n+k*n*n << std::endl;
+        out << id_0 << " " << id_2 << " " << id_3 << " " << id_7 << " " << i+j*n+k*n*n << std::endl;
+        out << id_0 << " " << id_4 << " " << id_5 << " " << id_7 << " " << i+j*n+k*n*n << std::endl;
+        out << id_2 << " " << id_5 << " " << id_6 << " " << id_7 << " " << i+j*n+k*n*n << std::endl;
+      }
     }
   }
   out << "End" << std::endl;

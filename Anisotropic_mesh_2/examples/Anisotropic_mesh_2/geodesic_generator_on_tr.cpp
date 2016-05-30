@@ -42,8 +42,29 @@ typedef K::FT                                                FT;
 
 using namespace CGAL::Anisotropic_mesh_2;
 
-typedef K::Vector_2                                          Vector;
-typedef Metric_base<K>                                       Metric;
+typedef K::Vector_2                                         Vector;
+typedef Metric_base<K>                                      Metric;
+
+typedef K::Point_2                                          Point_2;
+typedef K::Vector_2                                         Vector_2;
+typedef K::Point_3                                          Point_3;
+typedef std::set<std::size_t>                               Simplex;
+typedef boost::array<std::size_t, 2>                        Edge;
+typedef boost::array<std::size_t, 3>                        Tri;
+typedef Eigen::Matrix<double, 2, 1>                         Vector2d;
+
+typedef K::Segment_2                                        Segment;
+typedef K::Triangle_2                                       Triangle_2;
+typedef K::Segment_3                                        Segment_3;
+typedef K::Triangle_3                                       Triangle_3;
+
+typedef CGAL::Exact_predicates_exact_constructions_kernel   KExact;
+typedef KExact::Point_2                                     EPoint;
+typedef KExact::Segment_2                                   ESegment;
+typedef KExact::Triangle_2                                  ETriangle;
+
+typedef CGAL::Cartesian_converter<K, KExact>                To_exact;
+typedef CGAL::Cartesian_converter<KExact, K>                Back_from_exact;
 
 // 'bit ugly to have the metric field running around here but we need to pass
 // it around and around and around and it's faster this way !
@@ -54,10 +75,50 @@ MF mf;
 
 // stuff to generate the grid using Mesh_2 since Aniso_mesh_2 is a turtle.
 // Need to define our own refinement criterion based on metric shenanigans
-
-FT delta = 0.01;
-
 bool ignore_children = false;
+
+To_exact to_exact;
+Back_from_exact back_from_exact;
+
+// #define COMPUTE_PRECISE_VOR_VERTICES
+#define COMPUTE_DUAL_FOR_ALL_DIMENSIONS
+//#define USE_FULL_REBUILDS
+//#define REFINE_GRID
+#define FILTER_SEEDS_OUTSIDE_GRID
+#define verbose 10
+
+const FT FT_inf = std::numeric_limits<FT>::infinity();
+
+// using a lot of global variables, it's ugly but passing them by function is tedious
+std::size_t vertices_nv = 3911;
+static const int k = 8; // depth of the ancestor edge
+
+// the metric field and the seeds
+std::vector<Point_2> seeds;
+std::vector<Metric> seeds_m;
+
+// seeds
+const std::string seeds_str = "ref_3911_dual";
+
+// base mesh
+const std::string str_base_mesh = "shock";
+CGAL::Bbox_2 base_mesh_bbox;
+
+// refinement
+int n_refine = 0;
+std::size_t min_ancestor_path_length = 5;
+
+// optimization
+int max_opti_n = 0;
+int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
+
+//debug & info
+int known_count=0, trial_count=0, far_count=0;
+std::clock_t start;
+std::vector<int> optimal_depths(k, 0);
+
+typedef boost::unordered_map<boost::array<std::size_t, k+1>, FT> Path_map;
+Path_map computed_paths;
 
 namespace CGAL
 {
@@ -387,73 +448,12 @@ void generate_grid()
 
   std::cout << "Number of vertices: " << cdt.number_of_vertices() << std::endl;
 
-  output_cdt_to_mesh(cdt, "iso_base_mesh");
+  output_cdt_to_mesh(cdt, str_base_mesh + "_base");
 }
 
 // -----------------------------------------------------------------------------
 // Geodesic stuff now !
 // -----------------------------------------------------------------------------
-
-typedef K::Point_2                                  Point_2;
-typedef K::Point_3                                  Point_3;
-typedef std::set<std::size_t>                       Simplex;
-typedef boost::array<std::size_t, 2>                Edge;
-typedef boost::array<std::size_t, 3>                Tri;
-typedef Eigen::Matrix<double, 2, 1>                 Vector2d;
-
-typedef K::Segment_2                                Segment;
-typedef K::Triangle_2                               Triangle_2;
-typedef K::Segment_3                                Segment_3;
-typedef K::Triangle_3                               Triangle_3;
-
-typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
-typedef KExact::Point_2                             EPoint;
-typedef KExact::Segment_2                           ESegment;
-typedef KExact::Triangle_2                          ETriangle;
-typedef CGAL::Cartesian_converter<K, KExact>                 To_exact;
-typedef CGAL::Cartesian_converter<KExact, K>                 Back_from_exact;
-
-To_exact to_exact;
-Back_from_exact back_from_exact;
-
-// #define COMPUTE_PRECISE_VOR_VERTICES
-#define COMPUTE_DUAL_FOR_ALL_DIMENSIONS
-//#define USE_FULL_REBUILDS
-//#define REFINE_GRID
-#define FILTER_SEEDS_OUTSIDE_GRID
-#define verbose 6
-const FT FT_inf = std::numeric_limits<FT>::infinity();
-
-// using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 1;
-static const int k = 8; // depth of the ancestor edge
-
-// the metric field and the seeds
-std::vector<Point_2> seeds;
-std::vector<Metric> seeds_m;
-
-// seeds
-const std::string str_seeds = "super_dense_base_mesh_tr_dual";
-
-// base mesh
-const std::string str_base_mesh = "rough_base_mesh";
-CGAL::Bbox_2 base_mesh_bbox;
-
-// refinement
-int n_refine = 0;
-std::size_t min_ancestor_path_length = 6;
-
-// optimization
-int max_opti_n = 0;
-int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
-
-//debug & info
-int known_count=0, trial_count=0, far_count=0;
-std::clock_t start;
-std::vector<int> optimal_depths(k, 0);
-
-typedef boost::unordered_map<boost::array<std::size_t, k+1>, FT> Path_map;
-Path_map computed_paths;
 
 // -----------------------------------------------------------------------------
 // Utility functions below
@@ -1085,7 +1085,11 @@ struct Base_mesh
 #endif
 
     // read and create the base mesh points
-    std::ifstream in((str_base_mesh + ".mesh").c_str());
+    std::ifstream in((str_base_mesh + "_base.mesh").c_str());
+
+    if(!in)
+      std::cout << "couldn't open base mesh" << std::endl;
+
     std::string word;
     std::size_t useless, nv, nt, dim;
     FT r_x, r_y;
@@ -2204,7 +2208,6 @@ struct Base_mesh
     out << "Vertices" << '\n';
     out << total_vertices_n << std::endl;
 
-
     for(std::size_t i=0; i<number_of_curves; ++i)
     {
       const std::vector<Point_2>& local_control_points = control_points[i];
@@ -2498,7 +2501,7 @@ struct Base_mesh
 //      geodesics[i] = simplify_geodesic(geodesics[i]);
     }
 
-    approximate_geodesics_with_Bezier(geodesics);
+//    approximate_geodesics_with_Bezier(geodesics);
   }
 
   std::size_t probe_edge_midpoints_map(const std::size_t n_p,
@@ -3160,7 +3163,7 @@ CGAL_expensive_assertion_code(
         materials.insert(points[triangles[i][j]].closest_seed_id);
         out << triangles[i][j]+1 << " ";
       }
-      std::size_t mat = (materials.size()==1)?(*(materials.begin())):(seeds.size());
+      std::size_t mat = (materials.size()==1)?(*(materials.begin())):(seeds.size()+1);
       out << mat << '\n';
     }
 
@@ -5141,23 +5144,28 @@ int main(int, char**)
   start = std::clock();
   std::srand(0);
 
-//  mf = new Euclidean_metric_field<K>(5., 1.);
+//  mf = new Euclidean_metric_field<K>(1., 1.);
   mf = new Custom_metric_field<K>();
 //  mf = new External_metric_field<K>("freefem.mesh", "freefem.sol");
 
-//  generate_grid();
-//  exit(0);
+  generate_grid();
+
+  duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+  std::cout << "generated canvas: " << duration << std::endl;
 
   Base_mesh bm;
   bm.initialize_base_mesh();
+
 //  draw_metric_field(mf, bm);
+//  exit(0);
+
   initialize_seeds();
   bm.locate_and_initialize_seeds();
   bm.spread_distances(true/*use_dual_shenanigans*/);
 
   if(n_refine > 0)
   {
-    bm.output_grid_data_and_dual("pre_ref");
+    bm.output_grid_data_and_dual(str_base_mesh + "_pre_ref");
 
     for(int i=0; i<n_refine; ++i)
     {

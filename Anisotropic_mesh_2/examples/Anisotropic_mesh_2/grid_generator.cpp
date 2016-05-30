@@ -713,13 +713,13 @@ void output_smart_grid(const std::list<Quad>& final_quads,
   std::size_t values_n = values.size();
   std::cout << "check: " << points.size() << " " << values.size() << " vertices" << std::endl;
 
-  std::ofstream out("smart_grid.mesh");
+  std::ofstream out("smart_grid_LS.mesh");
   out << "MeshVersionFormatted 1" << '\n';
   out << "Dimension 2" << '\n';
   out << "Vertices" << '\n';
   out << values_n << '\n';
 
-  std::ofstream out_bb("smart_grid.bb");
+  std::ofstream out_bb("smart_grid_LS.bb");
   out_bb << "2 1 " << values_n << " 2" << '\n';
 
   int counter = 0;
@@ -860,7 +860,7 @@ void output_simplices()
 {
   std::cout << "captured: " << simplices.size() << " simplices" << std::endl;
 
-  std::ofstream outd("grid_dual.mesh");
+  std::ofstream outd("grid_dual_LS.mesh");
   outd << "MeshVersionFormatted 1" << '\n';
   outd << "Dimension 2" << '\n';
   outd << "Vertices" << '\n';

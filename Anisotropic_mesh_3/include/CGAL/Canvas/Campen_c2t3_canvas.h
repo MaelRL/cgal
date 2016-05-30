@@ -526,7 +526,10 @@ public:
         }
 
         if(i == 3) // didn't find a close point
-          exit(0);
+        {
+          std::cout << "found no close point" << std::endl;
+          // exit(0);
+        }
       }
     }
 

@@ -21,8 +21,14 @@
 //#define CGAL_ANISO_REFINE_LOW_CANVAS_DENSITY
 
   // Whether we use exact full rebuilds after point insertion or only spread from
-  // the new point (which can create issues)
+  // the new point (which can sometimes create issues)
 //#define USE_FULL_REBUILD
+
+  // Whether all simplices of the primal are collected or only the tetrahedra
+#define COMPUTE_PRIMAL_ALL_DIMENSIONS
+
+  // Whether we use brute force computations for the triangle-triangle intersections
+#define USE_BRUTE_FORCE_TRIANGLE_INTERSECTIONS
 
 #include <limits>
 

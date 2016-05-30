@@ -843,7 +843,7 @@ public:
       out << edge[0]+1 << " " << edge[1]+1 << " 1" << std::endl;
     }
 
-#ifdef USE_BRUTAL_TRIANGLE_INTERSECTIONS
+#ifdef USE_BRUTE_FORCE_TRIANGLE_INTERSECTIONS
     // build from the primal edges, the set of segments that will be used to check
     // self intersections of triangles
     std::set<typename K::Segment_3, Segment_3_comparer<K> > segments;
@@ -865,7 +865,7 @@ public:
     {
       const Primal_triangle& tr = *it;
       out << tr[0]+1 << " " << tr[1]+1 << " " << tr[2]+1 << " ";
-#ifdef USE_BRUTAL_TRIANGLE_INTERSECTIONS
+#ifdef USE_BRUTE_FORCE_TRIANGLE_INTERSECTIONS
       const typename K::Triangle_3 triangle(seeds[tr[0]], seeds[tr[1]], seeds[tr[2]]);
       out << is_triangle_intersected<K>(triangle, segments) << std::endl;
 #else

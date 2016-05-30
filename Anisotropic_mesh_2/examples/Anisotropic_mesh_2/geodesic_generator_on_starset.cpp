@@ -2230,7 +2230,7 @@ int main(int, char**)
 
   if(n_refine > 0)
   {
-    bm.output_grid_data_and_dual("pre_ref");
+    bm.output_grid_data_and_dual(str_base_mesh + "_pre_ref");
 
     for(int i=0; i<n_refine; ++i)
     {
@@ -2256,7 +2256,7 @@ int main(int, char**)
     std::cout << "End refinement: " << duration << std::endl;
   }
 
-  bm.output_grid_data_and_dual("starset_tr");
+  bm.output_grid_data_and_dual(str_base_mesh + "_starset_tr");
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "duration: " << duration << std::endl;

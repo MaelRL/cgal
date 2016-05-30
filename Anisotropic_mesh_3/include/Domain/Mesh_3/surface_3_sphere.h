@@ -18,7 +18,7 @@ Domain const * sphere_domain()
   typedef typename Traits::Point_3               Point_3;
   typedef typename Traits::Sphere_3              Sphere_3;
 
-  typename Traits::FT radius = 2.*2.;
+  typename Traits::FT radius = 2. * 2.;
   return new Domain(sphere_function<Traits>,
                     Sphere_3(Point_3(1., 1., 1.), radius),
                     1e-6);

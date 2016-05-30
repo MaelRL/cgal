@@ -141,10 +141,10 @@ private:
     std::ofstream out("poly_curvatures.txt");
     out << this->m_pConstrain.m_vertices.size() << std::endl;
 
-    for (std::size_t i = 0; i < this->m_pConstrain.m_vertices.size(); ++i)
+    for(std::size_t i=0; i<this->m_pConstrain.m_vertices.size(); ++i)
     {
-      if (i % 100 == 0)
-        std::cout << ".";
+      if (i % 1000 == 0)
+        std::cout << i << " out of " << this->m_pConstrain.m_vertices.size() << std::endl;
 
       Vector_3 v0, v1, v2;
       FT e0, e1, e2;
@@ -167,7 +167,7 @@ private:
       out << e0 << " " << e1 << " " << e2 << "     ";
       out << v1.x() << " " << v1.y() << " " << v1.z() << "     ";
       out << v2.x() << " " << v2.y() << " " << v2.z() << "     ";
-      out << v0.x() << " " << v0.y() << " " << v0.z() << std::endl;
+      out << v0.x() << " " << v0.y() << " " << v0.z() << std::endl << std::endl;
 
       std::size_t index = this->m_pConstrain.m_vertices[i]->tag();
       if(i != index)
@@ -197,13 +197,14 @@ public:
   }
 
   Polyhedral_curvature_metric_field(const Constrain_surface& surface_,
-                                    const FT epsilon_ = 1.0,
+                                    const FT epsilon_ = 1e-6,
                                     const FT& en_factor_ = 0.999)
     :
       Base(surface_, epsilon_, en_factor_)
   {
     compute_local_metric();
     this->global_smooth();
+    this->output_mf_polylines();
   }
 };
 
