@@ -2268,6 +2268,192 @@ struct Base_mesh
                          false/*draw control points*/);
   }
 
+  FT compute_Riemannian_angle(
+      std::size_t origin,
+      std::size_t extr_id_1,
+      std::size_t extr_id_2,
+      const std::vector<std::deque<std::pair<std::size_t/*id*/,
+                                             FT/*time*/> > >& geodesics)
+  {
+    // computes the angle between the tangents of the geodesics
+    // ori -- extr_1 and ori -- extr_2
+
+    std::cout << "orign: " << origin << std::endl;
+    std::cout << "t1: " << extr_id_1 << std::endl;
+    std::cout << "t2: " << extr_id_2 << std::endl;
+
+    // first, find the geodesics in the geodesics map
+    // geodesics were only draw from id1 to id2 with id1 < id2 so we need to know
+    // if it's at the end of a geodesic
+    std::size_t look_up_orig_1 = origin, look_up_orig_2 = origin;
+    std::size_t look_up_end_1 = extr_id_1, look_up_end_2 = extr_id_2;
+
+    // now find the corresponding geodesics
+    // and extract the corresponding segments and points
+    std::size_t ori_1 = -1, ori_2 = -1; // second one not really needed
+    std::size_t tangent_extr_1 = -1, tangent_extr_2 = -1;
+
+    // warning: disgustingly unefficient
+    // proper way would be to have geodesics to be a map[id_1, id_2] = deque of pairs<id, time>
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+    {
+      const std::deque<std::pair<std::size_t, FT> >& geo = geodesics[i];
+      std::size_t gs = geo.size();
+
+/*
+      std::cout << "considering geodesic between ";
+      std::cout << points[geo[0].first].is_seed_holder << " and ";
+      std::cout << points[geo[gs-1].first].is_seed_holder << std::endl;
+
+      std::cout << geo[0].first << " " << geo[1].first << " ";
+      std::cout << geo[gs-2].first << " " << geo[gs-1].first << std::endl;
+*/
+      if(points[geo.front().first].is_seed_holder == look_up_orig_1 &&
+         points[geo.back().first].is_seed_holder == look_up_end_1)
+      {
+        ori_1 = geo[0].first;
+        tangent_extr_1 = geo[1].first;
+      }
+      else if(points[geo.front().first].is_seed_holder == look_up_end_1 &&
+              points[geo.back().first].is_seed_holder == look_up_orig_1)
+      {
+        ori_1 = geo[gs-1].first;
+        tangent_extr_1 = geo[gs-2].first;
+      }
+
+      if(points[geo.front().first].is_seed_holder == look_up_orig_2 &&
+         points[geo.back().first].is_seed_holder == look_up_end_2)
+      {
+        ori_2 = geo[0].first;
+        tangent_extr_2 = geo[1].first;
+      }
+      else if(points[geo.front().first].is_seed_holder == look_up_end_2 &&
+              points[geo.back().first].is_seed_holder == look_up_orig_2)
+      {
+        ori_2 = geo[gs-1].first;
+        tangent_extr_2 = geo[gs-2].first;
+      }
+
+      if(ori_1 != -1 && ori_2 != -1)
+        break; // found both geodesics
+    }
+
+    if(tangent_extr_1 == -1 || tangent_extr_2 == -1)
+      std::cout << " didn't find the geodesics... " << std::endl;
+
+    if(ori_1 != ori_2 && ori_1 != -1)
+      std::cout << "screwed up the origins" << std::endl;
+
+    std::cout << "ori: " << ori_1 << " " << ori_2 << std::endl;
+    std::cout << "seed holders: " << points[ori_1].is_seed_holder << std::endl;
+    std::cout << "t1: " << tangent_extr_1 << std::endl;
+    std::cout << "t2: " << tangent_extr_2 << std::endl;
+
+    if(tangent_extr_1 == tangent_extr_2)
+    {
+      std::cout << "degenerate case with equal tangent segments" << std::endl;
+      return 0.;
+    }
+
+    // compute the angle and make sure it's within 0 pi
+    Point_2 o_p = points[ori_1].point;
+    Point_2 t1_p = points[tangent_extr_1].point;
+    Point_2 t2_p = points[tangent_extr_2].point;
+
+    const Metric& m = points[ori_1].metric;
+    Point_2 t_o_p = m.transform(o_p);
+    Point_2 t_t1p = m.transform(t1_p);
+    Point_2 t_t2p = m.transform(t2_p);
+
+    Vector_2 v1 = t_t1p - t_o_p;
+    Vector_2 v2 = t_t2p - t_o_p;
+
+    FT angle_cos = v1 * v2 / CGAL::sqrt(v1*v1) / CGAL::sqrt(v2 * v2);
+    FT angle = std::acos(angle_cos);
+
+    // make sure it's within 0 pi
+    if(angle < 0)
+      angle += CGAL_PI;
+
+    std::cout << "angle " << angle << std::endl;
+    CGAL_assertion(angle >= 0 && angle <= CGAL_PI);
+
+     return angle;
+  }
+
+  // histograms
+  void output_histogram(const std::vector<int>& histogram,
+                        FT min, FT max,
+                        const char* filename)
+  {
+    std::cout << "output: " << filename << std::endl;
+    std::ofstream out(filename);
+    std::size_t histo_n = histogram.size();
+    std::cout << "histo_n: " << histo_n << std::endl;
+    for(std::size_t i=0; i<histo_n; ++i)
+    {
+      FT val = min + (max-min)*((FT) i)/((FT) histo_n);
+      out << i << "," << val << "," << histogram[i] << std::endl;
+    }
+  }
+
+  void output_histogram(std::vector<FT>& values,
+                        const char* filename)
+  {
+    FT min_value = *(std::min_element(values.begin(), values.end()));
+    FT max_value = *(std::max_element(values.begin(), values.end()));
+
+    std::cout << "Outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
+
+    int histogram_size = 1000;
+    std::vector<int> histogram(histogram_size, 0);
+    FT limit_val = histogram_size - 1.;
+    FT step_size = (max_value - min_value) / (FT) histogram_size;
+
+    for(std::size_t i=0; i<values.size(); ++i)
+      histogram[(std::min)(limit_val, std::floor((values[i]-min_value)/step_size))]++;
+
+    output_histogram(histogram, min_value, max_value, filename);
+  }
+
+  void compute_Riemannian_angles(
+         const std::vector<std::deque<std::pair<std::size_t/*id*/,
+                                                FT/*time*/> > >& geodesics,
+         const std::string str_base)
+  {
+    std::cout << "computing Riemannian angles" << std::endl;
+
+    // Evaluate the angles of the Riemannian simplices
+
+    // The angles are computed at the vertex in the metric of the vertex
+    // and are defined as the angle between the tangent vectors of the
+    // geodesics
+
+    // loop all the Riemannian triangles
+    std::vector<FT> values;
+    for(boost::unordered_set<Tri>::iterator it = dual_triangles.begin();
+                                            it != dual_triangles.end(); ++it)
+
+    {
+      const Tri& tr = *it;
+      CGAL_assertion(tr.size() == 3);
+
+      for(std::size_t i=0; i<tr.size(); ++i)
+      {
+        std::size_t orig = tr[i];
+
+        std::size_t dest_1 = tr[(i+1)%3];
+        std::size_t dest_2 = tr[(i+2)%3];
+
+        std::cout << "in triangle: " << tr[0] << " " << tr[1] << " " << tr[2] << std::endl;
+
+        FT angle = compute_Riemannian_angle(orig, dest_1, dest_2, geodesics);
+        values.push_back(angle);
+      }
+    }
+    output_histogram(values, "histogram_riemannian_face_angles.cvs");
+  }
+
   void compute_geodesics(const std::string str_base)
   {
     std::cout << "computing geodesics" << std::endl;
@@ -2298,10 +2484,12 @@ struct Base_mesh
       // the previous colors in memory
       std::vector<Grid_point> grid_point_memory;
 
-      spread_distances_from_one_seed(seed_id, neighbors, geodesics, grid_point_memory);
+      spread_distances_from_one_seed(seed_id, neighbors, geodesics,
+                                     grid_point_memory);
       rollback_points(grid_point_memory); // reset the points we have overwritten
     }
 
+    compute_Riemannian_angles(geodesics, str_base);
     output_geodesics(geodesics, str_base);
 
     // simplify geodesics
