@@ -19,6 +19,9 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
+#include <CGAL/QP_models.h>
+#include <CGAL/QP_functions.h>
+
 #include <Eigen/Dense>
 #include <omp.h>
 #include <boost/array.hpp>
@@ -85,8 +88,43 @@ Back_from_exact back_from_exact;
 
 //typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
 typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
-//typedef CGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
+//typedefCGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
 MF mf;
+
+// using a lot of global variables, it's ugly but passing them by function is tedious
+std::size_t vertices_nv = 50;
+static const int k = 8; // depth of the ancestor edge
+
+// the metric field and the seeds
+std::vector<Point_2> seeds;
+std::vector<Metric> seeds_m;
+
+// seeds
+const std::string str_seeds = "swirl_input";
+
+// base mesh
+const std::string str_base_mesh = "swirl";
+CGAL::Bbox_2 base_mesh_bbox;
+
+// refinement
+int n_refine = 0;
+std::size_t min_ancestor_path_length = 5;
+
+// optimization
+int max_opti_n = 10;
+int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
+
+//debug & info
+int known_count=0, trial_count=0, far_count=0;
+std::clock_t start;
+std::vector<int> optimal_depths(k, 0);
+
+typedef boost::unordered_map<boost::array<std::size_t, k+1>, FT> Path_map;
+Path_map computed_paths;
+
+// stuff to generate the grid using Mesh_2 since Aniso_mesh_2 is a turtle.
+// Need to define our own refinement criterion based on metric shenanigans
+bool ignore_children = false;
 
 //geometry
 FT a = 2; // half the side (x)
@@ -199,33 +237,6 @@ bool has_a_corner_vertex(Star_handle star)
 // -----------------------------------------------------------------------------
 // Geodesic stuff now !
 // -----------------------------------------------------------------------------
-
-// using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 5;
-static const int k = 8; // depth of the ancestor edge
-
-// the metric field and the seeds
-std::vector<Point_2> seeds;
-std::vector<Metric> seeds_m;
-
-// seeds
-const std::string str_seeds = "ref_3052_dual";
-
-// base mesh
-const std::string str_base_mesh = "geo_starset_dump";
-CGAL::Bbox_2 base_mesh_bbox;
-
-// refinement
-int n_refine = 1000;
-std::size_t min_ancestor_path_length = 5;
-
-//debug & info
-int known_count=0, trial_count=0, far_count=0;
-std::clock_t start;
-std::vector<int> optimal_depths(k, 0);
-
-typedef boost::unordered_map<boost::array<std::size_t, k+1>, FT> Path_map;
-Path_map computed_paths;
 
 // -----------------------------------------------------------------------------
 // Utility functions below
@@ -379,105 +390,6 @@ FT sq_bbox_diagonal_length(const CGAL::Bbox_2& bbox)
   return dx*dx + dy*dy;
 }
 
-FT triangle_area(const Point_2& p, const Point_2& q, const Point_2& r)
-{
-   K::Compute_area_2 o;
-  return std::abs(o(p, q, r));
-
-  FT pq_x = q.x() - p.x();
-  FT pq_y = q.y() - p.y();
-  FT sq_pq = pq_x*pq_x + pq_y*pq_y;
-
-  FT pr_x = r.x() - p.x();
-  FT pr_y = r.y() - p.y();
-  FT sq_pr = pr_x*pr_x + pr_y*pr_y;
-
-  FT qr_x = q.x() - r.x();
-  FT qr_y = q.y() - r.y();
-  FT sq_qr = qr_x*qr_x + qr_y*qr_y;
-
-  FT p1 = sq_pq + sq_pr + sq_qr;
-  FT sq_p1 = p1*p1;
-
-  FT qu_pq = sq_pq*sq_pq;
-  FT qu_pr = sq_pr*sq_pr;
-  FT qu_qr = sq_qr*sq_qr;
-
-  FT p2 = qu_pq + qu_pr + qu_qr;
-
-  FT diff = sq_p1 - 2*p2;
-  CGAL_assertion(diff > -1e-16);
-  diff = (std::max)(0., diff);
-
-  FT area = 0.25 * std::sqrt(diff);
-  return area;
-}
-
-FT triangle_area_in_metric(const Point_2& p, const Point_2& q, const Point_2& r)
-{
-  // compute the interpolated's metric transformation
-  FT third = 1./3.;
-
-  // very unefficient fixme
-  Eigen::Matrix2d f = third*(mf->compute_metric(p).get_transformation() +
-                             mf->compute_metric(q).get_transformation() +
-                             mf->compute_metric(r).get_transformation());
-
-  // transform the points
-  Eigen::Vector2d v(p.x(), p.y());
-  v = f*v;
-  const Point_2 tp(v(0), v(1));
-
-  v(0) = q.x(); v(1) = q.y();
-  v = f*v;
-  const Point_2 tq(v(0), v(1));
-
-  v(0) = r.x(); v(1) = r.y();
-  v = f*v;
-  const Point_2 tr(v(0), v(1));
-
-  K::Compute_area_2 o;
-  return std::abs(o(tp, tq, tr));
-}
-
-void compute_bary_weights(const Point_2&p , const Point_2& a, const Point_2& b, const Point_2& c,
-                          FT& lambda_a, FT& lambda_b, FT& lambda_c)
-{
-  CGAL_assertion(!(Triangle_2(a,b,c)).is_degenerate());
-  Vector2d v_ab, v_ac, v_ap;
-  v_ab(0) = b.x() - a.x();
-  v_ab(1) = b.y() - a.y();
-
-  v_ac(0) = c.x() - a.x();
-  v_ac(1) = c.y() - a.y();
-
-  v_ap(0) = p.x() - a.x();
-  v_ap(1) = p.y() - a.y();
-
-  FT d11 = v_ab.dot(v_ab);
-  FT d12 = v_ab.dot(v_ac);
-  FT d22 = v_ac.dot(v_ac);
-  FT d31 = v_ap.dot(v_ab);
-  FT d32 = v_ap.dot(v_ac);
-  CGAL_assertion(d11 * d22 - d12 * d12 != 0.);
-  FT den = 1. / (d11 * d22 - d12 * d12);
-  lambda_b = (d22 * d31 - d12 * d32) * den;
-  lambda_c = (d11 * d32 - d12 * d31) * den;
-  lambda_a = 1. - lambda_b - lambda_c;
-
-//  Triangle t(a,b,c);
-//  Triangle ta(b,c,p), tb(a,c,p), tc(a,b,p);
-//  FT asd = ta.area() / t.area();
-//  FT bsd = tb.area() / t.area();
-//  FT csd = tc.area() / t.area();
-
-//  FT check_x = lambda_a*a.x() + lambda_b*b.x() + lambda_c*c.x();
-//  FT check_y = lambda_a*a.y() + lambda_b*b.y() + lambda_c*c.y();
-
-//  CGAL_assertion(std::abs(lambda_a*a.x() + lambda_b*b.x() + lambda_c*c.x() - p.x()) < 1e-10 &&
-//                 std::abs(lambda_a*a.y() + lambda_b*b.y() + lambda_c*c.y() - p.y()) < 1e-10);
-}
-
 Eigen::Matrix2d get_interpolated_transformation(const Metric& m0, const Metric& m1)
 {
   // note that we return the transformation and not the full metric !
@@ -545,14 +457,16 @@ enum PQ_state
 
 struct Base_mesh;
 
-struct Grid_point
+struct Canvas_point
 {
   typedef boost::unordered_set<std::size_t>                           Point_set;
   typedef std::list<std::size_t>                                      Point_list;
 
   // immuable stuff
   Base_mesh* bm;
-  std::size_t index;
+  Point_2 point; // both this and the metric info are redundant with the starset info
+  std::size_t index; //  return bm->ss[index]->metric();
+  Metric metric; // but it's needed for virtual points... fixme, I suppose.
   bool is_on_domain_border;
 
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
@@ -561,15 +475,15 @@ struct Grid_point
 
   // stuff that depends on the seeds
   FMM_state state;
+  int is_seed_holder;
   FT distance_to_closest_seed;
   std::size_t closest_seed_id;
   std::size_t ancestor;
+  std::size_t depth;
   Point_set children;
   bool is_Voronoi_vertex;
   std::size_t ancestor_path_length;
 
-  const Point_2& point() const;
-  const Metric& metric() const;
   void change_state(FMM_state new_state);
   std::size_t anc_path_length() const;
   void print_children() const;
@@ -580,7 +494,7 @@ struct Grid_point
   void reset_descendants();
   void deal_with_descendants();
   bool compute_closest_seed(const std::size_t n_anc, const bool overwrite = true);
-  void update_neighbor_distance(Grid_point& gp,
+  void update_neighbor_distance(Canvas_point& cp,
                                 std::vector<std::size_t> & trial_pq,
                                 PQ_state& pqs_ret) const;
   PQ_state update_neighbors_distances(std::vector<std::size_t> & trial_pq) const;
@@ -588,28 +502,33 @@ struct Grid_point
   void reset();
   void initialize_from_point(const FT d, const std::size_t seed_id);
 
-  bool operator==(const Grid_point& gp) const;
+  bool operator==(const Canvas_point& cp) const;
 
-  Grid_point();
-  Grid_point(Base_mesh* bm_,
-             const std::size_t index_,
-             const bool is_on_domain_border_ = false);
-  Grid_point(const Grid_point& gp);
+  Canvas_point();
+  Canvas_point(Base_mesh* bm_,
+              const std::size_t index_,
+              const bool is_on_domain_border_ = false);
+  Canvas_point(Base_mesh * bm_,
+               const Point_2& p,
+               const std::size_t index_,
+               const Metric& metric_,
+               const bool is_on_domain_border_ = false);
+  Canvas_point(const Canvas_point& cp);
 };
 
 template<typename BM>
-struct Grid_point_comparer
+struct Canvas_point_comparer
 {
   BM const * const bm;
 
   bool operator()(const std::size_t i1, const std::size_t i2)
   {
-    const Grid_point& gp1 = bm->points[i1];
-    const Grid_point& gp2 = bm->points[i2];
-    return gp1.distance_to_closest_seed > gp2.distance_to_closest_seed;
+    const Canvas_point& cp1 = bm->points[i1];
+    const Canvas_point& cp2 = bm->points[i2];
+    return cp1.distance_to_closest_seed > cp2.distance_to_closest_seed;
   }
 
-  Grid_point_comparer(BM const * const bm_) : bm(bm_) { }
+  Canvas_point_comparer(BM const * const bm_) : bm(bm_) { }
 };
 
 int insert_new_seed(const FT x, const FT y)
@@ -635,13 +554,19 @@ int insert_new_seed(const FT x, const FT y)
 
 int build_seeds()
 {
+  std::cout << "build seeds" << std::endl;
+
   std::ifstream in((str_seeds + ".mesh").c_str());
+
+  if(!in)
+    std::cout << "couldn't open seed file" << std::endl;
+
   std::string word;
   std::size_t useless, nv, dim;
   FT r_x, r_y;
 
-  in >> word >> useless; //MeshVersionFormatted i
-  in >> word >> dim; //Dimension d
+  in >> word >> useless; // MeshVersionFormatted i
+  in >> word >> dim; // Dimension d
   in >> word >> nv;
   std::cout << "seeds nv: " << nv << std::endl;
   CGAL_assertion(dim == 2);
@@ -675,7 +600,7 @@ inline std::ostream& operator<<(std::ostream& os,
 {
   std::cout << "PQ entry element:" << std::endl;
   std::cout << "Simplex: " << pqe.get<0>();
-  std::cout << "gp: " << pqe.get<1>();
+  std::cout << "cp: " << pqe.get<1>();
   std::cout << "val: " << pqe.get<2>() << std::endl;
 
   return os;
@@ -688,13 +613,13 @@ struct PQ_entry_comparator
 
   bool operator()(const PQ_entry& left, const PQ_entry& right) const
   {
-    const Grid_point& gpl = bm->points[left.get<1>()];
-    const Grid_point& gpr = bm->points[right.get<1>()];
+    const Canvas_point& cpl = bm->points[left.get<1>()];
+    const Canvas_point& cpr = bm->points[right.get<1>()];
 
     if(left.get<2>() == right.get<2>()) // that's the value
     {
-      if(gpl.distance_to_closest_seed ==
-         gpr.distance_to_closest_seed) // that's the dist to the ref point
+      if(cpl.distance_to_closest_seed ==
+         cpr.distance_to_closest_seed) // that's the dist to the ref point
       {
         const Simplex& s1 = left.get<0>();
         const Simplex& s2 = right.get<0>();
@@ -708,7 +633,6 @@ struct PQ_entry_comparator
         return left.get<1>() > right.get<1>(); // first the farthest ref point if values are the same
     }
 
-
     return left.get<2>() > right.get<2>(); // first the biggest value
   }
 
@@ -721,9 +645,9 @@ private:
   typedef Base_mesh                                         Self;
 
 public:
-  typedef std::vector<Grid_point*>                           Grid_point_vector;
+  typedef std::vector<Canvas_point*>                           Canvas_point_vector;
 
-  typedef std::vector<Grid_point>                            Voronoi_vertices_container;
+  typedef std::vector<Canvas_point>                            Voronoi_vertices_container;
   typedef std::vector<Voronoi_vertices_container>            Voronoi_vertices_vector;
 
   // Refinement
@@ -764,7 +688,7 @@ public:
   // The starset
   Star_set& ss;
 
-  std::vector<Grid_point> points;
+  std::vector<Canvas_point> points;
   std::vector<std::size_t> trial_points;
 
   // Duality
@@ -799,10 +723,10 @@ public:
     {
       Star_handle star = ss[i];
       bool is_on_border = has_a_corner_vertex(star);
-      Grid_point gp(this, i, is_on_border);
-      points.push_back(gp);
+      Canvas_point cp(this, i, is_on_border);
+      points.push_back(cp);
 
-      base_mesh_bbox += points[i].point().bbox();
+      base_mesh_bbox += points[i].point.bbox();
 
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
       // build reciprocal adjacency
@@ -818,31 +742,34 @@ public:
 #endif
     }
 
+    std::cout << "bbox: " << base_mesh_bbox.xmin() << " " << base_mesh_bbox.xmax();
+    std::cout << " " << base_mesh_bbox.ymin() << " " << base_mesh_bbox.ymax() << std::endl;
+
     build_aabb_tree();
   }
 
-  void initialize_grid_point(std::size_t id,
-                             const FT dist,
-                             const std::size_t seed_id)
+  void initialize_canvas_point(std::size_t id,
+                               const FT dist,
+                               const std::size_t seed_id)
   {
-    Grid_point& gp = points[id];
-    if(gp.closest_seed_id != static_cast<std::size_t>(-1))
+    Canvas_point& cp = points[id];
+    if(cp.closest_seed_id != static_cast<std::size_t>(-1))
     {
       std::cout << "WARNING: a new seed is overwriting the closest seed id at ";
-      std::cout << gp.index << ". Previous index is: " << gp.closest_seed_id;
+      std::cout << cp.index << ". Previous index is: " << cp.closest_seed_id;
       std::cout << " (" << seeds.size() << " seeds)" << std::endl;
     }
 
-    if(gp.state == TRIAL)
+    if(cp.state == TRIAL)
     {
-      // it's already a trial point, we can't accept two seeds for one grid pt
-      CGAL_assertion(false && "the grid is not dense enough for the input...");
+      // it's already a trial point, we can't accept two seeds for one canvas pt
+      CGAL_assertion(false && "the canvas is not dense enough for the input...");
     }
 
-    gp.initialize_from_point(dist, seed_id);
-    trial_points.push_back(gp.index);
+    cp.initialize_from_point(dist, seed_id);
+    trial_points.push_back(cp.index);
     std::push_heap(trial_points.begin(), trial_points.end(),
-                   Grid_point_comparer<Self>(this));
+                   Canvas_point_comparer<Self>(this));
   }
 
   void find_and_initialize_closest_vertex(const Point_2& s,
@@ -864,7 +791,7 @@ public:
         min_d = d;
       }
     }
-    initialize_grid_point(min_id, std::sqrt(min_d), seed_id);
+    initialize_canvas_point(min_id, std::sqrt(min_d), seed_id);
   }
 
   void locate_and_initialize(const Point_2& s,
@@ -894,9 +821,9 @@ public:
     for(; it!=end; ++it)
     {
       const typename Star_set::Face_handle fh = *it;
-      const Triangle_2 tr_2(points[fh->vertex(0)->info()].point(),
-                            points[fh->vertex(1)->info()].point(),
-                            points[fh->vertex(2)->info()].point());
+      const Triangle_2 tr_2(points[fh->vertex(0)->info()].point,
+                            points[fh->vertex(1)->info()].point,
+                            points[fh->vertex(2)->info()].point);
 
       if(K().has_on_bounded_side_2_object()(tr_2, s) ||
          K().has_on_boundary_2_object()(tr_2, s))
@@ -910,25 +837,25 @@ public:
         std::cout << "locating seed " << seed_id
                   << " point: " << s.x() << " " << s.y() << std::endl;
         std::cout << "found triangle: " << std::endl;
-        std::cout << i0 << " [" << points[i0].point() << "] " << std::endl;
-        std::cout << i1 << " [" << points[i1].point() << "] " << std::endl;
-        std::cout << i2 << " [" << points[i2].point() << "] " << std::endl;
+        std::cout << i0 << " [" << points[i0].point << "] " << std::endl;
+        std::cout << i1 << " [" << points[i1].point << "] " << std::endl;
+        std::cout << i2 << " [" << points[i2].point << "] " << std::endl;
 #endif
 
         // we're inside! compute the distance to the vertices of the triangle
         for(int j=0; j<3; ++j)
         {
-          Grid_point& gp = points[fh->vertex(j)->info()];
+          Canvas_point& cp = points[fh->vertex(j)->info()];
           const Metric& seed_m = mf->compute_metric(s);
-          const Metric& v_m = gp.metric();
+          const Metric& v_m = cp.metric;
           const Eigen::Matrix2d& f = get_interpolated_transformation(seed_m, v_m);
 
           Vector2d v;
-          v(0) = s.x() - gp.point().x();
-          v(1) = s.y() - gp.point().y();
+          v(0) = s.x() - cp.point.x();
+          v(1) = s.y() - cp.point.y();
           v = f * v;
           FT d = v.norm(); // d = std::sqrt(v^t * M * v) = (f*v).norm()
-          initialize_grid_point(gp.index, d, seed_id);
+          initialize_canvas_point(cp.index, d, seed_id);
         }
         break; // no need to check the other primitives
       }
@@ -954,15 +881,15 @@ public:
         if(is_face_outside_domain(star, fh))
           continue;
 
-        const Point_2& p0 = points[fh->vertex(0)->info()].point();
-        const Point_2& p1 = points[fh->vertex(1)->info()].point();
-        const Point_2& p2 = points[fh->vertex(2)->info()].point();
+        const Point_2& p0 = points[fh->vertex(0)->info()].point;
+        const Point_2& p1 = points[fh->vertex(1)->info()].point;
+        const Point_2& p2 = points[fh->vertex(2)->info()].point;
 
         Point_3 p(p0.x(), p0.y(), 0.);
-        Triangle_3 tr_3(p,
-                        Point_3(p1.x(), p1.y(), 0.),
-                        Point_3(p2.x(), p2.y(), 0.));
-        Primitive pri(fh, tr_3, p);
+        Triangle_3 tr(p,
+                      Point_3(p1.x(), p1.y(), 0.),
+                      Point_3(p2.x(), p2.y(), 0.));
+        Primitive pri(fh, tr, p);
         tree.insert(pri);
       }
     }
@@ -980,10 +907,10 @@ public:
     Voronoi_vertices.resize(seeds.size());
   }
 
-  void dual_shenanigans(Grid_point& gp)
+  void dual_shenanigans(Canvas_point& cp)
   {
-    CGAL_assertion(gp.state == KNOWN);
-    const Star_handle star = ss[gp.index];
+    CGAL_assertion(cp.state == KNOWN);
+    const Star_handle star = ss[cp.index];
 
     Face_handle_handle fhit = star->finite_incident_faces_begin();
     Face_handle_handle fhend = star->finite_incident_faces_end();
@@ -996,15 +923,15 @@ public:
       Simplex dual_simplex;
       for(std::size_t j=0; j<3; ++j)
       {
-        const Grid_point& gq = points[fh->vertex(j)->info()];
-        if(gq.state != KNOWN)
+        const Canvas_point& cq = points[fh->vertex(j)->info()];
+        if(cq.state != KNOWN)
           continue;
 
-        std::size_t q_id = gq.closest_seed_id;
+        std::size_t q_id = cq.closest_seed_id;
         CGAL_assertion(q_id != static_cast<std::size_t>(-1));
         dual_simplex.insert(q_id);
       }
-      add_simplex_to_triangulation(gp, dual_simplex);
+      add_simplex_to_triangulation(cp, dual_simplex);
     }
   }
 
@@ -1014,16 +941,16 @@ public:
     {
       id = trial_points.front();
       std::pop_heap(trial_points.begin(), trial_points.end(),
-                    Grid_point_comparer<Self>(this));
+                    Canvas_point_comparer<Self>(this));
       trial_points.pop_back();
 
       CGAL_assertion(id < points.size());
 
-      const Grid_point& gp = points[id];
-      if(gp.state != TRIAL)
+      const Canvas_point& cp = points[id];
+      if(cp.state != TRIAL)
       {
         std::cout << "WARNING : point with a state non-TRIAL in the PQ : ";
-        std::cout << gp.index << "... Ignoring it!" << std::endl;
+        std::cout << cp.index << "... Ignoring it!" << std::endl;
       }
       else
         return true;
@@ -1067,7 +994,7 @@ public:
 
 #if (verbose > 40)
       std::cout << "trial heap: " << std::endl;
-      for (std::vector<Grid_point*>::iterator it = trial_points.begin();
+      for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
         std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
       std::cout << std::endl;
@@ -1076,25 +1003,25 @@ public:
       if(!get_next_trial_point(id))
         break;
 
-      Grid_point& gp = points[id];
+      Canvas_point& cp = points[id];
 
 #if (verbose > 10)
       std::cout << "-------------------------------------------------------" << std::endl;
-      std::cout << "picked n° " << gp.index << " (" << gp.point() << ") ";
-      std::cout << "at distance : " << gp.distance_to_closest_seed << " from the seed "
-                << gp.closest_seed_id << " ancestor : " << gp.ancestor << std::endl;
+      std::cout << "picked n° " << cp.index << " (" << cp.point << ") ";
+      std::cout << "at distance : " << cp.distance_to_closest_seed << " from the seed "
+                << cp.closest_seed_id << " ancestor : " << cp.ancestor << std::endl;
 #endif
 
-      gp.state = KNOWN;
+      cp.state = KNOWN;
       known_count++; // tmp --> use change_state()
 
       if(false && use_dual_shenanigans) // tmp
-        dual_shenanigans(gp);
+        dual_shenanigans(cp);
 
-      PQ_state pqs = gp.update_neighbors_distances(trial_points);
+      PQ_state pqs = cp.update_neighbors_distances(trial_points);
       if(pqs == REBUILD_TRIAL)
         std::make_heap(trial_points.begin(), trial_points.end(),
-                       Grid_point_comparer<Self>(this));
+                       Canvas_point_comparer<Self>(this));
       is_t_empty = trial_points.empty();
     }
 
@@ -1124,36 +1051,36 @@ public:
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
-      const Grid_point& gp = points[i];
+      const Canvas_point& cp = points[i];
 
-      if(gp.ancestor != static_cast<std::size_t>(-1) &&
-         points[gp.ancestor].closest_seed_id != gp.closest_seed_id)
+      if(cp.ancestor != static_cast<std::size_t>(-1) &&
+         points[cp.ancestor].closest_seed_id != cp.closest_seed_id)
       {
          failed = true;
-         std::cout << "ancestor/children don't agree on the seed @ " << gp.index << std::endl;
+         std::cout << "ancestor/children don't agree on the seed @ " << cp.index << std::endl;
       }
 
-      if(gp.ancestor != static_cast<std::size_t>(-1) &&
-         points[gp.ancestor].children.find(gp.index) == points[gp.ancestor].children.end())
+      if(cp.ancestor != static_cast<std::size_t>(-1) &&
+         points[cp.ancestor].children.find(cp.index) == points[cp.ancestor].children.end())
       {
         failed = true;
-        std::cout << "failure in ancestor/children relationship at " << gp.index << std::endl;
-        std::cout << "ancestor is : " << gp.ancestor << " color: " << gp.closest_seed_id << std::endl;
+        std::cout << "failure in ancestor/children relationship at " << cp.index << std::endl;
+        std::cout << "ancestor is : " << cp.ancestor << " color: " << cp.closest_seed_id << std::endl;
       }
 
-      if(gp.distance_to_closest_seed == FT_inf || gp.closest_seed_id >= seeds.size() ||
-         (gp.ancestor != static_cast<std::size_t>(-1) &&
-          points[gp.ancestor].closest_seed_id != gp.closest_seed_id))
+      if(cp.distance_to_closest_seed == FT_inf || cp.closest_seed_id >= seeds.size() ||
+         (cp.ancestor != static_cast<std::size_t>(-1) &&
+          points[cp.ancestor].closest_seed_id != cp.closest_seed_id))
       {
         failed = true;
-        std::cout << "debug: " << i << " [" << gp.point() << "] " << " at distance : ";
-        std::cout << gp.distance_to_closest_seed << " from " << gp.closest_seed_id;
-        std::cout << " ancestor: " << gp.ancestor;
+        std::cout << "debug: " << i << " [" << cp.point << "] " << " at distance : ";
+        std::cout << cp.distance_to_closest_seed << " from " << cp.closest_seed_id;
+        std::cout << " ancestor: " << cp.ancestor;
         std::cout << " ancid: ";
-        if(gp.ancestor==static_cast<std::size_t>(-1))
+        if(cp.ancestor==static_cast<std::size_t>(-1))
            std::cout << "-1" << std::endl;
         else
-          std::cout << points[gp.ancestor].closest_seed_id << std::endl;
+          std::cout << points[cp.ancestor].closest_seed_id << std::endl;
         std::cout << std::endl;
       }
     }
@@ -1181,12 +1108,12 @@ public:
 
   void reset()
   {
-    std::cout << "grid reset" << std::endl;
+    std::cout << "canvas reset" << std::endl;
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
-      Grid_point& gp = points[i];
-      gp.reset();
+      Canvas_point& cp = points[i];
+      cp.reset();
     }
 
     known_count = 0;
@@ -1196,7 +1123,7 @@ public:
     clear_dual();
   }
 
-  void refresh_grid_point_states()
+  void refresh_canvas_point_states()
   {
     CGAL_assertion(trial_points.empty());
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
@@ -1215,7 +1142,7 @@ public:
     reset();
     locate_and_initialize_seeds();
 #else
-    refresh_grid_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
+    refresh_canvas_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
     locate_and_initialize(new_seed, seeds.size()-1);
 #endif
 
@@ -1254,7 +1181,7 @@ public:
       return false;
     }
 
-    Point_2 ref_point = points[best_entry.get<1>()].point();
+    Point_2 ref_point = points[best_entry.get<1>()].point;
 
     std::cout << "naturally we picked : " << best_entry.get<1>() << "[ ";
     std::cout << ref_point << " ]" << std::endl;
@@ -1264,7 +1191,7 @@ public:
     return true;
   }
 
-  void output_grid(const std::string str_base) const
+  void output_canvas(const std::string str_base) const
   {
     std::ofstream out((str_base + ".mesh").c_str());
     std::ofstream out_bb((str_base + ".bb").c_str());
@@ -1277,12 +1204,12 @@ public:
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
-      const Grid_point& gp = points[i];
-      out << gp.point() << " " << i+1 << '\n';
+      const Canvas_point& cp = points[i];
+      out << cp.point << " " << i+1 << '\n';
 
-      out_bb << gp.distance_to_closest_seed << '\n';
-//      out_bb << gp.closest_seed_id << '\n';
-//      out_bb << (gp.is_Voronoi_vertex?"1":"0") << '\n';
+      out_bb << cp.distance_to_closest_seed << '\n';
+//      out_bb << cp.closest_seed_id << '\n';
+//      out_bb << (cp.is_Voronoi_vertex?"1":"0") << '\n';
     }
 
     // count the faces in the starset
@@ -1363,8 +1290,8 @@ public:
       // that dual simplex is already on track to be refined. We want to increase
       // its priority only if the new refinement point is farther away
 
-      const Grid_point& git = points[it->get<1>()];
-      const Grid_point& ge = points[entry.get<1>()];
+      const Canvas_point& git = points[it->get<1>()];
+      const Canvas_point& ge = points[entry.get<1>()];
 
       if(git.distance_to_closest_seed < ge.distance_to_closest_seed)
       {
@@ -1382,7 +1309,7 @@ public:
     queue.insert(entry);
   }
 
-  void test_simplex(const Grid_point& gp,
+  void test_simplex(const Canvas_point& cp,
                     const Simplex& dual_simplex)
   {
     // test the simplex 'dual_simplex' agaisnt the criteria to decide
@@ -1410,10 +1337,10 @@ public:
     // size
     if(max_size > 0.)
     {
-      FT gpd = gp.distance_to_closest_seed;
-      if(gpd > max_size)
+      FT cpd = cp.distance_to_closest_seed;
+      if(cpd > max_size)
       {
-        PQ_entry pqe = boost::make_tuple(dual_simplex, gp.index, gpd);
+        PQ_entry pqe = boost::make_tuple(dual_simplex, cp.index, cpd);
         insert_in_PQ(pqe, size_queue, 0);
         size_queue.insert(pqe);
         return;
@@ -1423,10 +1350,10 @@ public:
     // distortion
     if(max_distortion > 1.)
     {
-      FT gamma = gp.distortion_to_seed();
+      FT gamma = cp.distortion_to_seed();
       if(gamma > max_distortion)
       {
-        PQ_entry pqe = boost::make_tuple(dual_simplex, gp.index, gamma);
+        PQ_entry pqe = boost::make_tuple(dual_simplex, cp.index, gamma);
         insert_in_PQ(pqe, distortion_queue, 1);
         return;
       }
@@ -1446,7 +1373,7 @@ public:
         {
           Triangle_2 tri(seeds[tr[0]], seeds[tr[1]], seeds[tr[2]]);
           FT area = tri.area();
-          PQ_entry pqe = boost::make_tuple(dual_simplex, gp.index, area);
+          PQ_entry pqe = boost::make_tuple(dual_simplex, cp.index, area);
           insert_in_PQ(pqe, intersection_queue, 2);
           return;
         }
@@ -1460,7 +1387,7 @@ public:
         {
           CGAL_assertion(qual > 1e-17);
           // 1./qual to refine the worst element first
-          PQ_entry pqe = boost::make_tuple(dual_simplex, gp.index, 1./qual);
+          PQ_entry pqe = boost::make_tuple(dual_simplex, cp.index, 1./qual);
           insert_in_PQ(pqe, quality_queue, 3);
           return;
         }
@@ -1468,15 +1395,383 @@ public:
     }
   }
 
-  void test_simplex(const Tri& grid_tri,
+  void test_simplex(const Tri& canvas_tr,
                     const Simplex& dual_simplex)
   {
-    Tri::const_iterator it = grid_tri.begin();
-    Tri::const_iterator end = grid_tri.end();
+    Tri::const_iterator it = canvas_tr.begin();
+    Tri::const_iterator end = canvas_tr.end();
     for(; it!=end; ++it)
      test_simplex(points[*it], dual_simplex);
   }
 
+  // Optimization --------------------------------------------------------------
+  FT triangle_area_in_metric(const Canvas_point& cp,
+                             const Canvas_point& cq,
+                             const Canvas_point& cr) const
+  {
+    // compute the interpolated's metric transformation
+    FT third = 1./3.;
+
+    // very unefficient fixme
+    Eigen::Matrix2d f = third*(cp.metric.get_transformation() +
+                               cq.metric.get_transformation() +
+                               cr.metric.get_transformation());
+
+    // transform the points
+    const Point_2& p = cp.point;
+    const Point_2& q = cq.point;
+    const Point_2& r = cr.point;
+
+    Eigen::Vector2d v(p.x(), p.y());
+    v = f*v;
+    const Point_2 tp(v(0), v(1));
+
+    v(0) = q.x(); v(1) = q.y();
+    v = f*v;
+    const Point_2 tq(v(0), v(1));
+
+    v(0) = r.x(); v(1) = r.y();
+    v = f*v;
+    const Point_2 tr(v(0), v(1));
+
+    K::Compute_area_2 o;
+    return std::abs(o(tp, tq, tr));
+  }
+
+  Canvas_point Vor_vertex_on_edge(const std::size_t n_q,
+                                  const std::size_t n_r,
+                                  int call_count = 0)
+  {
+    // do the complicated split, see formula on notes todo
+    // taking the easy way for now
+
+    Point_2 centroid = CGAL::barycenter(points[n_q].point, 0.5,
+                                        points[n_r].point, 0.5);
+
+    std::size_t id = points.size();
+    Canvas_point c(this, centroid, id,
+                   mf->compute_metric(centroid),
+                   true/*on border*/);
+
+    // need to push it to points (temporarily) for compute_closest_seed() to work
+    points.push_back(c); // WARNING: MIGHT INVALIDATE ALL REF AND POINTERS
+
+    Canvas_point& cp = points.back();
+    cp.compute_closest_seed(n_q);
+    cp.compute_closest_seed(n_r);
+    cp.state = KNOWN;
+
+    if(call_count > max_depth)
+      return cp;
+
+    if(cp.closest_seed_id == points[n_q].closest_seed_id)
+      return Vor_vertex_on_edge(cp.index, n_r, ++call_count);
+    else
+    {
+      CGAL_assertion(cp.closest_seed_id == points[n_r].closest_seed_id);
+      return Vor_vertex_on_edge(cp.index, n_q, ++call_count);
+    }
+  }
+
+  Canvas_point Vor_vertex_in_triangle(const std::size_t n_q,
+                                      const std::size_t n_r,
+                                      const std::size_t n_s,
+                                      int call_count = 0)
+  {
+    CGAL_precondition(n_q < points.size() &&
+                      n_r < points.size() &&
+                      n_s < points.size());
+
+    // centroid is probably not the most optimal...
+    Point_2 centroid = CGAL::centroid(points[n_q].point,
+                                      points[n_r].point,
+                                      points[n_s].point);
+
+    std::size_t id = points.size();
+    Canvas_point c(this, centroid, id,
+                   mf->compute_metric(centroid),
+                   false/*border info*/);
+    // it's actually possible for the centroid to be on the domain border,
+    // but it doesn't matter since it's not a real grid point
+    // and we'll never use this border information
+
+    // need to push it back to points anyway for compute_closest_seed to work
+    points.push_back(c);
+
+    Canvas_point& cp = points.back();
+    cp.compute_closest_seed(n_q);
+    cp.compute_closest_seed(n_r);
+    cp.compute_closest_seed(n_s);
+    cp.state = KNOWN;
+
+    // another potential stop is if the (max) distance between the centroid
+    // and a point of the triangle is below a given distance
+    if(call_count > max_depth)
+      return cp;
+
+    if(cp.closest_seed_id == points[n_q].closest_seed_id)
+      return Vor_vertex_in_triangle(id, n_r, n_s, ++call_count);
+    else if(cp.closest_seed_id == points[n_r].closest_seed_id)
+      return Vor_vertex_in_triangle(id, n_q, n_s, ++call_count);
+    else
+    {
+      CGAL_assertion(cp.closest_seed_id == points[n_s].closest_seed_id);
+      return Vor_vertex_in_triangle(id, n_q, n_r, ++call_count);
+    }
+  }
+
+  Canvas_point compute_precise_Voronoi_vertex(const Tri& tri)
+  {
+    std::size_t real_points_n = points.size();
+    Canvas_point centroid = Vor_vertex_in_triangle(tri[0], tri[1], tri[2]);
+
+    // clean off the virtual points created by Vor_vertex_in_triangle
+    shave_off_virtual_points(real_points_n);
+
+    return centroid;
+  }
+
+  void add_to_centroids(const Canvas_point& p,
+                        const Canvas_point& q,
+                        const Canvas_point& r,
+                        const std::size_t seed_id,
+                        std::vector<FT>& xs, std::vector<FT>& ys,
+                        std::vector<FT>& total_areas)
+  {
+    CGAL_precondition(seed_id < seeds.size());
+
+    Point_2 local_centroid = CGAL::centroid(p.point, q.point, r.point);
+    FT area = triangle_area_in_metric(p, q, r);
+    CGAL_postcondition(area != 0.);
+
+    xs[seed_id] += area * local_centroid.x();
+    ys[seed_id] += area * local_centroid.y();
+    total_areas[seed_id] += area;
+  }
+
+  void compute_centroid_of_starset_face(const typename Star_set::Face_handle fh,
+                                        std::vector<FT>& xs, std::vector<FT>& ys,
+                                        std::vector<FT>& total_areas)
+  {
+    Tri triangle;
+    triangle[0] = fh->vertex(0)->info();
+    triangle[1] = fh->vertex(1)->info();
+    triangle[2] = fh->vertex(2)->info();
+
+    Simplex colors;
+    for(int i=0; i<3; ++i)
+      colors.insert(points[triangle[i]].closest_seed_id);
+
+    if(colors.size() == 1)
+    {
+      const Canvas_point& cp = points[triangle[0]];
+
+      add_to_centroids(cp,
+                       points[triangle[1]],
+                       points[triangle[2]],
+                       cp.closest_seed_id, xs, ys, total_areas);
+    }
+    else if(false && colors.size() == 2)
+    {
+      // see what's done in the [colors.size() == 2] case in geo_gen_on_tr
+      // I don't like the way how it is split there, though.
+      // Thus, always splitting in three if I can't not split.
+    }
+    else // colors.size() == 3
+    {
+      // compute the on the edges
+      boost::array<Canvas_point,3> mid_pts;
+      for(int i=0; i<3; ++i)
+        mid_pts[i] = Vor_vertex_on_edge(triangle[i], triangle[(i+1)%3]);
+
+      // compute roughly the center point
+      const Canvas_point& v = compute_precise_Voronoi_vertex(triangle);
+
+      const Canvas_point& cp = points[triangle[0]];
+      const Canvas_point& cq = points[triangle[1]];
+      const Canvas_point& cr = points[triangle[2]];
+
+      // 'triangle' is split in 6 smaller triangles.
+      // p-i1-v & p-i3-v --> associated to the seed p's closest_seed_id
+      // q-i1-v & q-i2-v --> associated to the seed q's closest_seed_id
+      // r-i2-v & r-i3-v --> associated to the seed r's closest_seed_id
+
+      //            p
+      //           / |
+      //          /  |
+      //         /   |
+      //       i1    |
+      //       /|    |
+      //      /  |   |
+      //     /   v---i3
+      //    /    |   |
+      // q /____i2___| r
+
+      add_to_centroids(cp, v, mid_pts[0], cp.closest_seed_id, xs, ys, total_areas);
+      add_to_centroids(cp, v, mid_pts[2], cp.closest_seed_id, xs, ys, total_areas);
+
+      add_to_centroids(cq, v, mid_pts[0], cq.closest_seed_id, xs, ys, total_areas);
+      add_to_centroids(cq, v, mid_pts[1], cq.closest_seed_id, xs, ys, total_areas);
+
+      add_to_centroids(cr, v, mid_pts[1], cr.closest_seed_id, xs, ys, total_areas);
+      add_to_centroids(cr, v, mid_pts[2], cr.closest_seed_id, xs, ys, total_areas);
+    }
+  }
+
+  void shave_off_virtual_points(const std::size_t real_points_n)
+  {
+//    std::cout << "shaving: " << points.size() << " to " << real_points_n << std::endl;
+    std::vector<Canvas_point>::iterator it = points.begin();
+    std::advance(it, real_points_n);
+    points.erase(it, points.end());
+  }
+
+  void compute_all_centroids(std::vector<Point_2>& centroids)
+  {
+    // compute the centroid through the sum c = sum_i (ci*area_i) / sum_i (area_i)
+    // with the tiny triangles of the base mesh
+
+    // it's not exact because we only consider the triangles with all vertices
+    // having seed_id as closest seed (thus ignoring border triangles that
+    // only have <= 2 vertices that have seed_id as closest_seed)
+
+    std::size_t seeds_n = centroids.size();
+    std::vector<FT> total_areas(seeds_n, 0);
+    std::vector<FT> xs(seeds_n, 0);
+    std::vector<FT> ys(seeds_n, 0);
+
+    std::size_t real_points_n = points.size();
+
+    for(std::size_t i=0, sss=ss.size(); i<sss; ++i)
+    {
+      Star_handle star = ss[i];
+
+      Face_handle_handle fhit = star->finite_incident_faces_begin();
+      Face_handle_handle fhend = star->finite_incident_faces_end();
+      for(; fhit!=fhend; ++fhit)
+      {
+        typename Star_set::Face_handle fh = *fhit;
+
+        if(is_face_outside_domain(star, fh))
+          continue;
+
+        compute_centroid_of_starset_face(fh, xs, ys, total_areas);
+      }
+    }
+
+    shave_off_virtual_points(real_points_n);
+
+    for(std::size_t i=0; i<seeds_n; ++i)
+    {
+      CGAL_precondition(total_areas[i] != 0.);
+      FT d = 1. / total_areas[i];
+      FT x = xs[i] * d;
+      FT y = ys[i] * d;
+      Point_2 c(x, y);
+      centroids[i] = c;
+    }
+  }
+
+  FT optimize_seed(const std::size_t seed_id,
+                   const std::vector<Point_2>& cell_centroids)
+  {
+    std::cout << "optimize seed: " << seed_id << std::endl;
+
+    const Point_2 old_seed = seeds[seed_id];
+    const Point_2& new_seed = cell_centroids[seed_id];
+
+    seeds[seed_id] = new_seed;
+    seeds_m[seed_id] = mf->compute_metric(new_seed);
+    std::cout << "centroid with canvas triangles " << new_seed << std::endl;
+
+    // squared displacement between the old and the new seed
+    K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
+    FT displacement = sqd(old_seed, new_seed);
+    std::cout << "seed: " << seed_id << " ";
+    std::cout << old_seed << " " << new_seed << std::endl;
+    std::cout << " displacement: " << displacement << std::endl;
+
+    return displacement;
+  }
+
+  FT compute_CVT_energy() const
+  {
+    FT e = 0.;
+    FT third = 1./3.;
+
+    for(std::size_t i=0, sss=ss.size(); i<sss; ++i)
+    {
+      Star_handle star = ss[i];
+
+      Face_handle_handle fhit = star->finite_incident_faces_begin();
+      Face_handle_handle fhend = star->finite_incident_faces_end();
+      for(; fhit!=fhend; ++fhit)
+      {
+        typename Star_set::Face_handle fh = *fhit;
+
+        if(is_face_outside_domain(star, fh))
+          continue;
+
+        const Canvas_point& cp = points[fh->vertex(0)->info()];
+        const Canvas_point& cq = points[fh->vertex(1)->info()];
+        const Canvas_point& cr = points[fh->vertex(2)->info()];
+
+        FT dist = third * (cp.distance_to_closest_seed +
+                           cq.distance_to_closest_seed +
+                           cr.distance_to_closest_seed);
+        FT area = triangle_area_in_metric(cp, cq, cr);
+        e += area * dist * dist;
+      }
+    }
+
+    return e;
+  }
+
+  void optimize_seeds()
+  {
+    std::cout << "optimize seeds" << std::endl;
+
+    for(std::size_t i=0, ps=points.size(); i<ps; ++i)
+      if(points[i].state != KNOWN)
+        std::cout << "Warning: point " << i << " is not KNOWN at Opti" << std::endl;
+
+    FT sq_bbox_diag_l = sq_bbox_diagonal_length(base_mesh_bbox);
+    bool is_optimized = false;
+    int counter = 0;
+
+    do
+    {
+      // compute the centroid of every face of the star set
+      std::vector<Point_2> cell_centroids(seeds.size());
+      compute_all_centroids(cell_centroids);
+
+      // Optimize each seed
+      FT cumulated_displacement = 0;
+      for(std::size_t i=0, ss=seeds.size(); i<ss; ++i)
+        cumulated_displacement += optimize_seed(i, cell_centroids);
+
+      FT e = compute_CVT_energy();
+
+      std::cout << "at : " << counter << ", cumulated displacement : "
+                << cumulated_displacement << std::endl;
+      std::cout << "energy at : " << e << std::endl;
+
+      reset();
+      locate_and_initialize_seeds();
+      spread_distances(true/*use_dual_shenanigans*/);
+
+      std::ostringstream opti_out;
+      opti_out << "optimized_" << str_base_mesh << "_starset_" << counter << std::ends;
+      output_canvas_data_and_dual(opti_out.str().c_str());
+
+      is_optimized = (++counter > max_opti_n); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
+      if(cumulated_displacement == 0.0)
+        break;
+    }
+    while(!is_optimized);
+  }
+
+  // Dual stuff ----------------------------------------------------------------
   void add_simplex_to_triangulation(const Simplex& dual_simplex)
   {
     CGAL_assertion(dual_simplex.size() <= 3);
@@ -1496,25 +1791,25 @@ public:
     }
   }
 
-  void add_simplex_to_triangulation(const Grid_point& gp,
+  void add_simplex_to_triangulation(const Canvas_point& cp,
                                     const Simplex& dual_simplex)
   {
     if(dual_simplex.size() <= 1)
       return;
 
-    std::size_t length = gp.ancestor_path_length;
+    std::size_t length = cp.ancestor_path_length;
     if(length < min_ancestor_path_length)
     {
-//      std::cout << "the canvas is thin (" << length << ") at : " << gp.index << " ("
-//                << gp.point() << ") dual simplex of size: " << dual_simplex.size()
-//                << " and cellid: " << gp.closest_seed_id << std::endl;
+//      std::cout << "the canvas is thin (" << length << ") at : " << cp.index << " ("
+//                << cp.point << ") dual simplex of size: " << dual_simplex.size()
+//                << " and cellid: " << cp.closest_seed_id << std::endl;
     }
 
     // test against criteria should be moved somewhere else
     // than during the dual computations todo
     if(dual_simplex.size() == 3 ||
-       (dual_simplex.size() == 2 && gp.is_on_domain_border))
-      test_simplex(gp, dual_simplex);
+       (dual_simplex.size() == 2 && cp.is_on_domain_border))
+      test_simplex(cp, dual_simplex);
 
     add_simplex_to_triangulation(dual_simplex);
   }
@@ -1529,8 +1824,8 @@ public:
     FT max = -FT_inf;
     for(int i=0; i<3; ++i)
     {
-      const Grid_point& gp = points[fh->vertex(i)->info()];
-      const FT d = gp.distance_to_closest_seed;
+      const Canvas_point& cp = points[fh->vertex(i)->info()];
+      const FT d = cp.distance_to_closest_seed;
 
       if(d > max)
       {
@@ -1539,7 +1834,7 @@ public:
       }
     }
 
-    // keep as dual point the farthest grid point -- at least until we have
+    // keep as dual point the farthest canvas point -- at least until we have
     // precise Voronoi computations)
     return add_simplex_to_triangulation(points[max_dist_p], dual_simplex);
   }
@@ -1642,9 +1937,9 @@ public:
     out << "End" << std::endl;
   }
 
-  void output_grid_data_and_dual(const std::string str_base)
+  void output_canvas_data_and_dual(const std::string str_base)
   {
-    output_grid(str_base);
+    output_canvas(str_base);
     output_straight_dual(str_base);
   }
 
@@ -1665,17 +1960,7 @@ public:
   }
 };
 
-const Point_2& Grid_point::point() const
-{
-  return bm->ss[index]->center_point();
-}
-
-const Metric& Grid_point::metric() const
-{
-  return bm->ss[index]->metric();
-}
-
-void Grid_point::change_state(FMM_state new_state)
+void Canvas_point::change_state(FMM_state new_state)
 {
   if(new_state == state)
     std::cout << "WARNING: useless state change..." << std::endl;
@@ -1697,14 +1982,14 @@ void Grid_point::change_state(FMM_state new_state)
   state = new_state;
 }
 
-std::size_t Grid_point::anc_path_length() const
+std::size_t Canvas_point::anc_path_length() const
 {
   std::size_t i = 0;
   std::size_t n_anc = ancestor;
   while(n_anc != static_cast<std::size_t>(-1))
   {
     ++i;
-    const Grid_point& anc = bm->points[n_anc];
+    const Canvas_point& anc = bm->points[n_anc];
     n_anc = anc.ancestor;
 
     CGAL_assertion(i < bm->ss.size());
@@ -1712,7 +1997,7 @@ std::size_t Grid_point::anc_path_length() const
   return i;
 }
 
-void Grid_point::print_children() const
+void Canvas_point::print_children() const
 {
   std::cout << "point : " << index << " children: ";
 
@@ -1726,7 +2011,7 @@ void Grid_point::print_children() const
   std::cout << std::endl;
 }
 
-void Grid_point::print_ancestors() const
+void Canvas_point::print_ancestors() const
 {
   CGAL_expensive_assertion_code(anc_path_length()); // assert non circular ancestry
   std::cout << "point : " << index << " ancestors: ";
@@ -1741,7 +2026,7 @@ void Grid_point::print_ancestors() const
   std::cout << std::endl;
 }
 
-bool Grid_point::find_in_ancestry(const std::size_t i) const
+bool Canvas_point::find_in_ancestry(const std::size_t i) const
 {
   CGAL_assertion(ancestor == static_cast<std::size_t>(-1) ||
                  anc_path_length()); // assert non circular ancestry
@@ -1755,7 +2040,7 @@ bool Grid_point::find_in_ancestry(const std::size_t i) const
   return false;
 }
 
-void Grid_point::remove_from_children(const std::size_t c)
+void Canvas_point::remove_from_children(const std::size_t c)
 {
   // 99% of the time, the child is found, but if during the initialization of
   // a new seed, you reset (at least) two points that have an ancestry relationship
@@ -1770,7 +2055,7 @@ void Grid_point::remove_from_children(const std::size_t c)
 //  }
 }
 
-void Grid_point::mark_descendants(std::size_t& count)
+void Canvas_point::mark_descendants(std::size_t& count)
 {
 //  std::cout << "marking " << index << " (a: " << ancestor << ") and its "
 //            << children.size() << " children: ";
@@ -1787,21 +2072,21 @@ void Grid_point::mark_descendants(std::size_t& count)
   Point_set::iterator end = children.end();
   for(; cit!=end; ++cit)
   {
-    Grid_point& cp = bm->points[*cit];
+    Canvas_point& cp = bm->points[*cit];
     if(cp.state == ORPHAN)
       continue;
     cp.mark_descendants(count);
   }
 }
 
-void Grid_point::reset_descendants()
+void Canvas_point::reset_descendants()
 {
 //  std::cout << "reset descendant at: " << index << std::endl;
   CGAL_precondition(state == ORPHAN);
 
   while(!children.empty())
   {
-    Grid_point& cp = bm->points[*(children.begin())];
+    Canvas_point& cp = bm->points[*(children.begin())];
     cp.reset_descendants();
   }
 
@@ -1811,7 +2096,7 @@ void Grid_point::reset_descendants()
   state = ORPHAN;
 }
 
-void Grid_point::deal_with_descendants()
+void Canvas_point::deal_with_descendants()
 {
 //  std::cout << "lineage starting at " << index << std::endl;
 
@@ -1829,7 +2114,7 @@ void Grid_point::deal_with_descendants()
 //  std::cout <<  count << " children in the lineage" << std::endl;
 }
 
-bool Grid_point::compute_closest_seed(const std::size_t n_anc,
+bool Canvas_point::compute_closest_seed(const std::size_t n_anc,
                                       const bool overwrite)
 {
 #if (verbose > 20)
@@ -1839,7 +2124,7 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 #endif
 
   CGAL_precondition(static_cast<std::size_t>(n_anc) < bm->points.size());
-  const Grid_point& anc = bm->points[n_anc];
+  const Canvas_point& anc = bm->points[n_anc];
   if(anc.state != KNOWN)
     std::cout << "WARNING: potential ancestor is not KNOWN" << std::endl;
 
@@ -1862,11 +2147,11 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   {
     // add the new segment to the ancestor path
     ancestor_path[i] = n_curr_ancestor;
-    const Grid_point& curr_ancestor = bm->points[n_curr_ancestor];
+    const Canvas_point& curr_ancestor = bm->points[n_curr_ancestor];
 
     Vector2d ancestor_edge;
-    ancestor_edge(0) = point().x() - curr_ancestor.point().x();
-    ancestor_edge(1) = point().y() - curr_ancestor.point().y();
+    ancestor_edge(0) = point.x() - curr_ancestor.point.x();
+    ancestor_edge(1) = point.y() - curr_ancestor.point.y();
     FT ancestor_edge_length = ancestor_edge.norm();
     Vector2d normalized_anc_edge = ancestor_edge/ancestor_edge_length;
 
@@ -1878,15 +2163,15 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 
       CGAL_assertion(ancestor_path[j] < bm->points.size() &&
                      ancestor_path[j+1] < bm->points.size());
-      const Grid_point& e0 = (j==0)?*this:bm->points[ancestor_path[j]];
-      const Grid_point& e1 = bm->points[ancestor_path[j+1]];
+      const Canvas_point& e0 = (j==0)?*this:bm->points[ancestor_path[j]];
+      const Canvas_point& e1 = bm->points[ancestor_path[j+1]];
 
-      const Metric& m0 = e0.metric();
-      const Metric& m1 = e1.metric();
+      const Metric& m0 = e0.metric;
+      const Metric& m1 = e1.metric;
 
       Vector2d curr_edge;
-      curr_edge(0) = e0.point().x() - e1.point().x();
-      curr_edge(1) = e0.point().y() - e1.point().y();
+      curr_edge(0) = e0.point.x() - e1.point.x();
+      curr_edge(1) = e0.point.y() - e1.point.y();
 
       // interpolate between both metric and transform the normalized edge
       // then we have (transformed_edge).norm() = || e ||_M = sqrt(e^t M e)
@@ -1934,6 +2219,7 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
         bm->points[ancestor].remove_from_children(index);
 
       ancestor = n_anc;
+      depth = best_i;
       distance_to_closest_seed = d;
       closest_seed_id = anc.closest_seed_id;
       ancestor_path_length = anc.ancestor_path_length + 1;
@@ -1966,11 +2252,14 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
 //        std::cout << "position : " << point << std::endl;
 //      }
 
+      if(ignore_children)
+        return true;
+
       while(!children.empty())
       {
-        Grid_point& gp = bm->points[*(children.begin())];
-        gp.deal_with_descendants();
-        CGAL_postcondition(gp.anc_path_length() == gp.ancestor_path_length); // checks for circular ancestry
+        Canvas_point& cp = bm->points[*(children.begin())];
+        cp.deal_with_descendants();
+        CGAL_postcondition(cp.anc_path_length() == cp.ancestor_path_length); // checks for circular ancestry
       }
 #endif
     }
@@ -1979,36 +2268,36 @@ bool Grid_point::compute_closest_seed(const std::size_t n_anc,
   return false;
 }
 
-void Grid_point::update_neighbor_distance(Grid_point& gp,
+void Canvas_point::update_neighbor_distance(Canvas_point& cp,
                                           std::vector<std::size_t>& trial_pq,
                                           PQ_state& pqs_ret) const
 {
 #if (verbose > 12)
-  std::cout << "neighbor: " << gp.index << " has state: " << gp.state << std::endl;
+  std::cout << "neighbor: " << cp.index << " has state: " << cp.state << std::endl;
 #endif
 
-  if(gp.state == KNOWN)
+  if(cp.state == KNOWN)
     return;
-  else if(gp.state == TRIAL)
+  else if(cp.state == TRIAL)
   {
     // note that we don't insert in trial_pq since it's already in
-    if(gp.compute_closest_seed(index))
+    if(cp.compute_closest_seed(index))
       pqs_ret = REBUILD_TRIAL;
   }
   else
   {
-    CGAL_assertion(gp.state == FAR || gp.state == ORPHAN);
-    if(gp.compute_closest_seed(index))
+    CGAL_assertion(cp.state == FAR || cp.state == ORPHAN);
+    if(cp.compute_closest_seed(index))
     {
-      gp.state = TRIAL;
-      trial_pq.push_back(gp.index);
+      cp.state = TRIAL;
+      trial_pq.push_back(cp.index);
       std::push_heap(trial_pq.begin(), trial_pq.end(),
-                     Grid_point_comparer<Base_mesh>(bm));
+                     Canvas_point_comparer<Base_mesh>(bm));
     }
   }
 }
 
-PQ_state Grid_point::update_neighbors_distances(std::vector<std::size_t>& trial_pq) const
+PQ_state Canvas_point::update_neighbors_distances(std::vector<std::size_t>& trial_pq) const
 {
   // consider all the neighbors of a KNOWN point and compute their distance to 'this'
 #if (verbose > 10)
@@ -2028,8 +2317,8 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<std::size_t>& trial_
     if(is_a_corner_vertex(vh))
       continue;
 
-    Grid_point& gp = bm->points[vh->info()];
-    update_neighbor_distance(gp, trial_pq, pqs_ret);
+    Canvas_point& cp = bm->points[vh->info()];
+    update_neighbor_distance(cp, trial_pq, pqs_ret);
   }
 
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
@@ -2040,26 +2329,26 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<std::size_t>& trial_
     if(is_a_corner_vertex(*lit))
       continue;
 
-    Grid_point& gp = bm->points[*lit];
-    update_neighbor_distance(gp, trial_pq, pqs_ret);
+    Canvas_point& cp = bm->points[*lit];
+    update_neighbor_distance(cp, trial_pq, pqs_ret);
   }
 #endif
 
   return pqs_ret;
 }
 
-FT Grid_point::distortion_to_seed() const
+FT Canvas_point::distortion_to_seed() const
 {
   FT gamma = 1.;
   //    std::cout << "init gamma: " << gamma << " " << index << std::endl;
-  const Grid_point* curr = this;
+  const Canvas_point* curr = this;
   std::size_t n_anc = ancestor;
 
   while(n_anc != static_cast<std::size_t>(-1))
   {
-    const Grid_point& anc = bm->points[n_anc];
-    const Metric& m1 = anc.metric();
-    const Metric& m2 = curr->metric();
+    const Canvas_point& anc = bm->points[n_anc];
+    const Metric& m1 = anc.metric;
+    const Metric& m2 = curr->metric;
     FT loc_gamma = m1.compute_distortion(m2);
     //      std::cout << "loc: " << loc_gamma << " " << anc->index << std::endl;
 #if 1
@@ -2079,7 +2368,7 @@ FT Grid_point::distortion_to_seed() const
   return gamma;
 }
 
-void Grid_point::reset()
+void Canvas_point::reset()
 {
   // this only resets 'color'-related fields
 #if (verbose > 30)
@@ -2096,80 +2385,122 @@ void Grid_point::reset()
 
   state = FAR;
   distance_to_closest_seed = FT_inf;
+  is_seed_holder = -1;
   closest_seed_id = -1;
   ancestor = -1;
+  depth = -1;
   children.clear();
   is_Voronoi_vertex = false;
   ancestor_path_length = 0;
 }
 
-void Grid_point::initialize_from_point(const FT d,
+void Canvas_point::initialize_from_point(const FT d,
                                        const std::size_t seed_id)
 {
   reset();
 
   closest_seed_id = seed_id;
   distance_to_closest_seed = d;
+  is_seed_holder = seed_id;
   state = TRIAL;
   ancestor = -1;
 }
-bool Grid_point::operator==(const Grid_point& gp) const
+bool Canvas_point::operator==(const Canvas_point& cp) const
 {
   // the only thing that really matters is the point
-  return (point() == gp.point());
+  return (point == cp.point);
 }
 
-Grid_point::Grid_point()
+Canvas_point::Canvas_point()
   :
     bm(NULL),
+    point(),
     index(static_cast<std::size_t>(-1)),
+    metric(),
     is_on_domain_border(false),
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
     reciprocal_neighbors(),
 #endif
     state(FAR),
     distance_to_closest_seed(FT_inf),
+    is_seed_holder(-1),
     closest_seed_id(-1),
     ancestor(-1),
+    depth(-1),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
 { }
 
-Grid_point::Grid_point(Base_mesh * bm_,
-                       const std::size_t index_,
-                       const bool is_on_domain_border_)
+Canvas_point::Canvas_point(Base_mesh * bm_,
+                           const std::size_t index_,
+                           const bool is_on_domain_border_)
   :
     bm(bm_),
+    point(bm->ss[index_]->center_point()),
     index(index_),
+    metric(bm->ss[index_]->metric()),
     is_on_domain_border(is_on_domain_border_),
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
     reciprocal_neighbors(),
 #endif
     state(FAR),
     distance_to_closest_seed(FT_inf),
+    is_seed_holder(-1),
     closest_seed_id(-1),
     ancestor(-1),
+    depth(-1),
+    children(),
+    is_Voronoi_vertex(false),
+    ancestor_path_length(0)
+{
+
+}
+
+Canvas_point::Canvas_point(Base_mesh * bm_,
+                           const Point_2& p,
+                           const std::size_t index_,
+                           const Metric& metric_,
+                           const bool is_on_domain_border_)
+  :
+    bm(bm_),
+    point(p),
+    index(index_),
+    metric(metric_),
+    is_on_domain_border(is_on_domain_border_),
+#ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
+    reciprocal_neighbors(),
+#endif
+    state(FAR),
+    distance_to_closest_seed(FT_inf),
+    is_seed_holder(-1),
+    closest_seed_id(-1),
+    ancestor(-1),
+    depth(-1),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
 { }
 
-Grid_point::Grid_point(const Grid_point& gp)
+Canvas_point::Canvas_point(const Canvas_point& cp)
   :
-    bm(gp.bm),
-    index(gp.index),
-    is_on_domain_border(gp.is_on_domain_border),
+    bm(cp.bm),
+    point(cp.point),
+    index(cp.index),
+    metric(cp.metric),
+    is_on_domain_border(cp.is_on_domain_border),
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
-    reciprocal_neighbors(gp.reciprocal_neighbors),
+    reciprocal_neighbors(cp.reciprocal_neighbors),
 #endif
-    state(gp.state),
-    distance_to_closest_seed(gp.distance_to_closest_seed),
-    closest_seed_id(gp.closest_seed_id),
-    ancestor(gp.ancestor),
-    children(gp.children),
-    is_Voronoi_vertex(gp.is_Voronoi_vertex),
-    ancestor_path_length(gp.ancestor_path_length)
+    state(cp.state),
+    distance_to_closest_seed(cp.distance_to_closest_seed),
+    is_seed_holder(cp.is_seed_holder),
+    closest_seed_id(cp.closest_seed_id),
+    ancestor(cp.ancestor),
+    depth(cp.depth),
+    children(cp.children),
+    is_Voronoi_vertex(cp.is_Voronoi_vertex),
+    ancestor_path_length(cp.ancestor_path_length)
 { }
 
 void initialize_seeds()
@@ -2179,18 +2510,18 @@ void initialize_seeds()
 }
 
 struct Point_extracter
-    : public std::unary_function<Grid_point, Point_2>
+    : public std::unary_function<Canvas_point, Point_2>
 {
-  const Point_2 operator()(const Grid_point& gp) const
+  const Point_2 operator()(const Canvas_point& cp) const
   {
-    return gp.point();
+    return cp.point;
   }
 };
 
 void draw_metric_field(const MF mf, const Base_mesh& bm)
 {
   typedef boost::transform_iterator<Point_extracter,
-      std::vector<Grid_point>::const_iterator> Extracted_iterator;
+      std::vector<Canvas_point>::const_iterator> Extracted_iterator;
   mf->draw(Extracted_iterator(bm.points.begin(), Point_extracter()),
            Extracted_iterator(bm.points.end(), Point_extracter()));
 }
@@ -2230,7 +2561,7 @@ int main(int, char**)
 
   if(n_refine > 0)
   {
-    bm.output_grid_data_and_dual(str_base_mesh + "_pre_ref");
+    bm.output_canvas_data_and_dual(str_base_mesh + "_pre_ref");
 
     for(int i=0; i<n_refine; ++i)
     {
@@ -2242,7 +2573,7 @@ int main(int, char**)
       {
         std::ostringstream out;
         out << "ref_" << seeds.size();
-        bm.output_grid_data_and_dual(out.str());
+        bm.output_canvas_data_and_dual(out.str());
       }
 
       if(!successful_insert)
@@ -2256,7 +2587,15 @@ int main(int, char**)
     std::cout << "End refinement: " << duration << std::endl;
   }
 
-  bm.output_grid_data_and_dual(str_base_mesh + "_starset_tr");
+  bm.output_canvas_data_and_dual(str_base_mesh + "_starset");
+
+  // optimize stuff
+  if(max_opti_n > 0)
+  {
+    bm.optimize_seeds();
+    bm.output_canvas_data_and_dual("optimized_" + str_base_mesh + "_starset");
+  }
+
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "duration: " << duration << std::endl;

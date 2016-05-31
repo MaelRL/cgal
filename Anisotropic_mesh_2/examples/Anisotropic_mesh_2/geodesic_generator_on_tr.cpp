@@ -19,6 +19,9 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
+#include <CGAL/QP_models.h>
+#include <CGAL/QP_functions.h>
+
 #include <Eigen/Dense>
 #include <omp.h>
 #include <boost/array.hpp>
@@ -1372,7 +1375,7 @@ struct Base_mesh
     gp.compute_closest_seed(n_r);
     gp.state = KNOWN;
 
-    if(call_count > max_depth) // don't hardcode stuff like that fixme
+    if(call_count > max_depth)
       return gp;
 
     if(gp.closest_seed_id == points[n_q].closest_seed_id)
@@ -1686,7 +1689,7 @@ struct Base_mesh
     CGAL_precondition(gp);
     std::size_t depth = gp->depth;
 
-    if(depth == 0)
+    if(depth == -1)
       return -1;
 
     CGAL_precondition(depth > 0);
@@ -1805,7 +1808,7 @@ struct Base_mesh
       {
         CGAL_assertion(gp.closest_seed_id == seed_id);
         CGAL_assertion(gp.ancestor == static_cast<std::size_t>(-1));
-        CGAL_assertion(gp.depth == 0);
+        CGAL_assertion(gp.depth == -1);
 
         gp.state = TRIAL;
         trial_points.push_back(&gp);
@@ -3640,11 +3643,7 @@ CGAL_expensive_assertion_code(
         // compute the on the edges
         boost::array<Grid_point,3> mid_pts;
         for(int i=0; i<3; ++i)
-        {
-          const Grid_point& gp0 = points[triangle[i]];
-          const Grid_point& gp1 = points[triangle[(i+1)%3]];
-          mid_pts[i] = Vor_vertex_on_edge(gp0.index, gp1.index);
-        }
+          mid_pts[i] = Vor_vertex_on_edge(triangle[i], triangle[(i+1)%3]);
 
         // compute roughly the center point
         const Grid_point& v = compute_precise_Voronoi_vertex(triangle);
@@ -4063,7 +4062,8 @@ CGAL_expensive_assertion_code(
     std::cout << "optimize seeds" << std::endl;
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
-      CGAL_assertion(points[i].state == KNOWN);
+      if(points[i].state != KNOWN)
+        std::cout << "Warning: point " << i << " is not KNOWN at Opti" << std::endl;
 
     FT sq_bbox_diag_l = sq_bbox_diagonal_length(base_mesh_bbox);
     bool is_optimized = false;
@@ -4111,7 +4111,6 @@ CGAL_expensive_assertion_code(
         break;
     }
     while(!is_optimized);
-
   }
 
   // output stuff --------------------------------------------------------------
@@ -4805,9 +4804,7 @@ bool Grid_point::compute_closest_seed(const std::size_t anc_id,
   boost::array<std::size_t, k+1> ancestor_path;
   for(int i=0; i<k+1; ++i)
     ancestor_path[i] = -1;
-
   ancestor_path[0] = this->index;
-
   CGAL_assertion(ancestor_path[0] != static_cast<std::size_t>(-1));
 
   std::size_t n_curr_ancestor = anc_id;
@@ -5027,7 +5024,7 @@ void Grid_point::reset()
   distance_to_closest_seed = FT_inf;
   closest_seed_id = -1;
   ancestor = -1;
-  depth = 0;
+  depth = -1;
   children.clear();
   is_Voronoi_vertex = false;
   ancestor_path_length = 0;
@@ -5064,7 +5061,7 @@ Grid_point::Grid_point()
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(0),
+    depth(-1),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
@@ -5087,7 +5084,7 @@ Grid_point::Grid_point(Base_mesh* bm_,
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(0),
+    depth(-1),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
