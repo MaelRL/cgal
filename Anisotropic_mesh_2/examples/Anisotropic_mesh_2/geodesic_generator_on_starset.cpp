@@ -43,7 +43,11 @@
 // #define COMPUTE_PRECISE_VOR_VERTICES
 // #define USE_FULL_REBUILDS
 #define FILTER_SEEDS_OUTSIDE_GRID
-#define verbose 6
+#define verbose 2
+
+//#define COMPUTE_GEODESIC
+#define COMPUTE_REAL_GEODESICS
+#define OVERWRITE_SEED_WITH_CANVAS_POINT
 
 namespace CGAL
 {
@@ -71,7 +75,7 @@ typedef boost::array<std::size_t, 3>                          Tri;
 typedef Eigen::Matrix<double, 2, 1>                           Vector2d;
 
 typedef K::Segment_2                                          Segment;
-typedef K::Vector_2                                           Vector;
+typedef K::Vector_2                                           Vector_2;
 typedef K::Triangle_2                                         Triangle_2;
 typedef K::Segment_3                                          Segment_3;
 typedef K::Triangle_3                                         Triangle_3;
@@ -1034,6 +1038,1075 @@ public:
 
     std::cout << "End of spread_distances. time: ";
     std::cout << ( std::clock() - s_start ) / (double) CLOCKS_PER_SEC << std::endl;
+  }
+
+  void spread_distances_from_one_seed(const std::size_t seed_id,
+                                      std::map<std::size_t,
+                                               boost::unordered_set<std::size_t> > neighbors,
+                                      std::vector<std::deque<std::pair<std::size_t, FT> > >& geodesics,
+                                      std::vector<Canvas_point>& canvas_point_memory,
+                                      std::map<std::pair<std::size_t, std::size_t>,
+                                               FT>& geodesic_lengths)
+  {
+    // Spread distances from the seed_id, until it has reached its neighboring seeds
+    CGAL_precondition(trial_points.empty());
+
+    boost::unordered_set<std::size_t>& seeds_to_reach = neighbors[seed_id];
+    std::cout << "neighbors to reach : ";
+    typename boost::unordered_set<std::size_t>::iterator it = seeds_to_reach.begin();
+    typename boost::unordered_set<std::size_t>::iterator end = seeds_to_reach.end();
+    for(; it!=end; ++it)
+      std::cout << *it << " ";
+    std::cout << std::endl;
+
+    // (really) uglily for now, restart from the seed by searching the previous seed holder...
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      Canvas_point& cp = points[i];
+
+      if(static_cast<std::size_t>(cp.is_seed_holder) == seed_id)
+      {
+        CGAL_assertion(cp.closest_seed_id == seed_id);
+        CGAL_assertion(cp.ancestor == static_cast<std::size_t>(-1));
+        CGAL_assertion(cp.depth == 0);
+
+        cp.state = TRIAL;
+        trial_points.push_back(cp.index);
+        std::push_heap(trial_points.begin(), trial_points.end(),
+                       Canvas_point_comparer<Self>(this));
+        break;
+      }
+    }
+
+    std::size_t id = -1;
+    bool is_t_empty = trial_points.empty();
+    CGAL_precondition(!is_t_empty);
+
+    FT max_distance_to_neighboring_seed = -1e30;
+    known_count = 0;
+    while(!is_t_empty)
+    {
+      if(known_count%10000 == 0)
+        print_states();
+
+#if (verbose > 10)
+      std::cout << "Trial queue size : " << trial_points.size() << std::endl;
+#endif
+
+#if (verbose > 40)
+      std::cout << "trial heap: " << std::endl;
+      for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
+           it != trial_points.end(); ++it)
+        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
+      std::cout << std::endl;
+#endif
+
+      if(!get_next_trial_point(id))
+        break;
+
+      Canvas_point& cp = points[id];
+
+#if (verbose > 10)
+      std::cout << "-------------------------------------------------------" << std::endl;
+      std::cout << "picked n° " << cp.index << " (" << cp.point.x() << ", " << cp.point.y() << ") ";
+      std::cout << "at distance : " << cp.distance_to_closest_seed << " from the seed "
+                << cp.closest_seed_id << " ancestor : " << cp.ancestor << std::endl;
+#endif
+
+      // Check if we have reached one of the required seeds
+      if(cp.is_seed_holder >= 0 && // really ugly, fixme (see comment at member def)
+         seeds_to_reach.find(cp.is_seed_holder) != seeds_to_reach.end() )
+      {
+        std::cout << "found the seed " << cp.is_seed_holder;
+        std::cout << " at " << cp.index << " (" << cp.point << ") " << std::endl;
+
+        // cp is the seed holder of another seed, but now it's distance field
+        // is the distance to seed_id
+        max_distance_to_neighboring_seed = cp.distance_to_closest_seed;
+
+        // That's the center of a Voronoi cell (no ancestor)
+        std::size_t reached_seed_id = cp.is_seed_holder;
+        CGAL_assertion(cp.closest_seed_id == seed_id);
+
+        // Geodesic are symmetrical, no need to compute it both ways.
+        // This also dodges the first point of the trial queue (which will be the
+        // seed_holder for the seed 'seed_id' and we don't care about it
+        if(reached_seed_id < seed_id)
+          continue;
+
+        std::pair<std::size_t, std::size_t> ids = std::make_pair(seed_id, cp.is_seed_holder);
+
+        boost::unordered_set<std::size_t>::iterator sit =
+                                            seeds_to_reach.find(reached_seed_id);
+        if(sit != seeds_to_reach.end())
+        {
+          // the seed that we have reached is part of the neighbors we want to reach
+#ifdef COMPUTE_GEODESIC
+          extract_geodesic(cp, geodesics);
+#endif
+          seeds_to_reach.erase(sit);
+        }
+      }
+
+      // only spread as little as possible
+#ifdef COMPUTE_REAL_GEODESICS
+      // alpha is a buffer so the gradient is well defined near all the seeds
+      FT alpha = 1.2;
+      if(seeds_to_reach.empty() &&
+         cp.distance_to_closest_seed > alpha * max_distance_to_neighboring_seed)
+        break;
+#else
+      if(seeds_to_reach.empty())
+         break;
+#endif
+
+      cp.state = KNOWN;
+      known_count++; // tmp --> use change_state()
+
+      // Change the distance_to_closest_seed of adjacent points to allow
+      // for seed_id's cell to spread
+      Star_handle star = ss[id]; // the star corresponding to cp
+      Vertex_handle_handle vit = star->finite_adjacent_vertices_begin();
+      Vertex_handle_handle vend = star->finite_adjacent_vertices_end();
+      for(; vit!=vend; ++vit)
+      {
+        Vertex_handle vh = *vit;
+
+        if(is_a_corner_vertex(vh))
+          continue;
+
+        Canvas_point& cq = points[vh->info()];
+
+        if(cq.state == FAR)
+        {
+          canvas_point_memory.push_back(cq);
+          cq.distance_to_closest_seed = FT_inf;
+        }
+      }
+
+      cp.update_neighbors_distances(trial_points);
+
+      // always rebuild the priority queue
+      std::make_heap(trial_points.begin(), trial_points.end(),
+                     Canvas_point_comparer<Self>(this));
+      is_t_empty = trial_points.empty();
+    }
+
+    std::cout << "reached all the seeds in " << known_count << " points" << std::endl;
+
+    // make sure we've reached all the neighboring seeds
+    CGAL_postcondition(seeds_to_reach.empty());
+  }
+
+  void add_to_neighboring_map(const Edge& e,
+                              std::map<std::size_t,
+                                       boost::unordered_set<std::size_t> >& m)
+  {
+    typedef std::map<std::size_t, boost::unordered_set<std::size_t> >  Map;
+
+    std::size_t min = e[0], max = e[1];
+
+    if(e[0] < 0 || e[0] >= seeds.size() || e[1] < 0 || e[1] >= seeds.size())
+    {
+      std::cout << "Warning: trying to add weird stuff in the neighboring map: "
+                << e[0] << " " << e[1] << std::endl;
+      return;
+    }
+
+    CGAL_precondition(min != max);
+    if(min > max)
+    {
+      min = e[1];
+      max = e[0];
+    }
+    CGAL_postcondition(min < max);
+
+    std::pair<typename Map::iterator, bool> is_insert_successful;
+
+    boost::unordered_set<std::size_t> s;
+    s.insert(max);
+
+    is_insert_successful = m.insert(std::make_pair(min, s));
+    if(!is_insert_successful.second)
+      (is_insert_successful.first)->second.insert(max);
+  }
+
+  void build_neighboring_info(std::map<std::size_t,
+                                       boost::unordered_set<std::size_t> >& neighbors)
+  {
+    boost::unordered_set<Edge>::iterator it = dual_edges.begin();
+    boost::unordered_set<Edge>::iterator end = dual_edges.end();
+
+    for(; it!=end; ++it)
+    {
+      const Edge& e = *it;
+      add_to_neighboring_map(e, neighbors);
+    }
+  }
+
+  void rollback_points(const std::vector<Canvas_point>& cp_memory)
+  {
+    std::cout << "rollback" << std::endl;
+    for(std::size_t i=0, cpms=cp_memory.size(); i<cpms; ++i)
+    {
+      const Canvas_point& cp_m = cp_memory[i];
+      std::size_t id = cp_m.index;
+      CGAL_assertion(points[id].point == cp_m.point);
+      points[id] = cp_m;
+    }
+
+    trial_points.clear();
+  }
+
+  std::size_t ancestor_with_depth(const Canvas_point& cp)
+  {
+    std::size_t depth = cp.depth;
+
+    if(depth == 0)
+      return -1;
+
+    CGAL_precondition(depth > 0);
+    std::size_t anc = cp.ancestor;
+    --depth;
+
+    while(depth > 0)
+    {
+      CGAL_precondition(anc != static_cast<std::size_t>(-1));
+      anc = points[anc].ancestor;
+      --depth;
+    }
+
+    CGAL_postcondition(anc != static_cast<std::size_t>(-1));
+    return anc;
+  }
+
+  void extract_geodesic(const Canvas_point& cp,
+                        std::vector<std::deque<std::pair<std::size_t, FT> > >& geodesics)
+  {
+    std::deque<std::pair<std::size_t, FT> > geodesic_path;
+    FT total_length = cp.distance_to_closest_seed;
+    geodesic_path.push_front(std::make_pair(cp.index, 1.));
+    CGAL_assertion(total_length != 0.);
+    FT total_length_inv = 1./total_length;
+
+#define EXTRACT_WITH_DEPTH
+#ifdef EXTRACT_WITH_DEPTH
+    std::size_t anc = ancestor_with_depth(cp);
+#else
+    std::size_t anc = cp.ancestor;
+#endif
+    CGAL_precondition(anc != static_cast<std::size_t>(-1));
+
+    while(anc != static_cast<std::size_t>(-1))
+    {
+      FT t = points[anc].distance_to_closest_seed * total_length_inv;
+      if(t < 0) t = 0.;
+
+      if(t >= 1.)
+      {
+        t = 0.999999999;
+        std::cout << "t: " << t << std::endl;
+      }
+
+      CGAL_postcondition(t >= 0. && t < 1.);
+
+      geodesic_path.push_front(std::make_pair(anc, t));
+#ifdef EXTRACT_WITH_DEPTH
+      anc = ancestor_with_depth(points[anc]);
+#else
+      anc = points[anc].ancestor;
+#endif
+    }
+
+    std::size_t s1 = cp.closest_seed_id;
+    int s2 = cp.is_seed_holder;
+
+    CGAL_precondition(s2 >= 0);
+    CGAL_precondition(s1 < static_cast<std::size_t>(s2));
+
+    std::cout << "built geodesic of " << s1 << " " << s2 << std::endl;
+    geodesics.push_back(geodesic_path);
+  }
+
+  // real geodesics
+  void draw_gradient(const std::vector<Eigen::Vector2d>& vertex_gradients,
+                     const std::size_t seed_id)
+  {
+    std::ostringstream oss;
+    oss << "geodesics_gradient_" << seed_id << ".mesh";
+    std::ofstream out(oss.str().c_str());
+    std::size_t ps = points.size();
+    std::size_t vertex_counter = 1;
+
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+
+    out << "Vertices" << '\n';
+    out << 4 * ps << '\n';
+    for(std::size_t i=0; i<ps; ++i)
+    {
+      Vector_2 v(vertex_gradients[i](0), vertex_gradients[i](1));
+      Vector_2 v_orth(vertex_gradients[i](1), -vertex_gradients[i](0));
+
+      out << points[i].point - 0.0005 * v_orth << " " << vertex_counter++ << '\n';
+      out << points[i].point + 0.0005 * v_orth << " " << vertex_counter++ << '\n';
+
+      out << points[i].point << " " << vertex_counter++ << '\n';
+      out << points[i].point + 0.01 * v << " " << vertex_counter++ << '\n';
+    }
+
+    out << "Triangles" << '\n';
+    out << 2 *ps << '\n';
+
+    for(std::size_t i=0; i<ps; ++i)
+    {
+      out << 4*i+1 << " " << 4*i+2 << " " << 4*i+1 << " " << i << std::endl;
+      out << 4*i+3 << " " << 4*(i+1) << " " << 4*i+3 << " " << i << std::endl;
+    }
+
+    out << "End" << std::endl;
+  }
+
+  void trace_geodesic(const std::vector<Eigen::Vector2d>& vertex_gradients,
+                      std::map<std::pair<std::size_t, std::size_t>,
+                               std::deque<Point_2> >& real_geodesics,
+                      const std::size_t seed_id,
+                      const std::size_t seed_to_reach,
+                      const std::size_t starting_id)
+  {
+    std::cout << "tracing (gradient) geodesic: " << seed_id << " "
+                                             << seed_to_reach << std::endl;
+
+    // tracing the geodesic from starting_id to seed_id
+    CGAL_precondition(starting_id < points.size());
+
+    std::pair<std::size_t, std::size_t> geo_id = std::make_pair(seed_id,
+                                                                seed_to_reach);
+    FT tau = 0.0001; // gradient step
+
+//    FT dist_at_seed_to_reach = points[starting_id].distance_to_seed;
+
+    bool is_seed_reached = false;
+    std::size_t iterations = 0.;
+    Point_2 current_point = points[starting_id].point;
+
+    std::deque<Point_2> geodesic;
+    geodesic.push_front(current_point);
+
+    Eigen::Vector2d grad_at_current_point = Eigen::Vector2d::Zero();
+
+    while(!is_seed_reached)
+    {
+      // find all faces that contain the point
+      Segment_3 query(Point_3(current_point.x(), current_point.y(), -1.),
+                      Point_3(current_point.x(), current_point.y(), 1.));
+      std::list<Primitive_Id> intersections;
+      tree.all_intersected_primitives(query, std::back_inserter(intersections));
+
+//      std::cout << "current point: " << current_point << std::endl;
+      if(intersections.empty())
+      {
+        std::cout << "Warning: no intersection in trace geodesic... ?" << std::endl;
+        return;
+      }
+
+      std::list<Primitive_Id>::const_iterator it = intersections.begin(),
+                                              end = intersections.end();
+      for(; it!=end; ++it)
+      {
+        const typename Star_set::Face_handle fh = *it;
+
+        std::size_t p_id = fh->vertex(0)->info();
+        std::size_t q_id = fh->vertex(1)->info();
+        std::size_t r_id = fh->vertex(2)->info();
+        Point_2 p = points[fh->vertex(0)->info()].point;
+        Point_2 q = points[fh->vertex(1)->info()].point;
+        Point_2 r = points[fh->vertex(2)->info()].point;
+
+        const Triangle_2 tr_2(p, q, r);
+
+        if(tr_2.bounded_side(current_point) != CGAL::ON_UNBOUNDED_SIDE)
+        {
+          // compute the bary weights in the face
+          Eigen::Vector2d v1, v2, v3;
+          v1(0) = q.x() - p.x();
+          v1(1) = q.y() - p.y();
+          v2(0) = r.x() - p.x();
+          v2(1) = r.y() - p.y();
+
+          FT lambda_p, lambda_q, lambda_r;
+          v3(0) = current_point.x() - p.x();
+          v3(1) = current_point.y() - p.y();
+
+          FT d11 = v1.dot(v1);
+          FT d12 = v1.dot(v2);
+          FT d22 = v2.dot(v2);
+          FT d31 = v3.dot(v1);
+          FT d32 = v3.dot(v2);
+          FT den = 1. / (d11 * d22 - d12 * d12);
+          lambda_q = (d22 * d31 - d12 * d32) * den;
+          lambda_r = (d11 * d32 - d12 * d31) * den;
+          lambda_p = 1. - lambda_q - lambda_r;
+
+//          std::cout << "p: " << p << std::endl;
+//          std::cout << "q: " << q << std::endl;
+//          std::cout << "r: " << r << std::endl;
+//          std::cout << "lambdas: " << lambda_p << " " << lambda_q << " " << lambda_r << std::endl;
+
+          CGAL_postcondition(lambda_p >= 0);
+          CGAL_postcondition(lambda_q >= 0);
+          CGAL_postcondition(lambda_r >= 0);
+
+          FT x = lambda_p * p.x() + lambda_q * q.x() + lambda_r * r.x();
+          FT y = lambda_p * p.y() + lambda_q * q.y() + lambda_r * r.y();
+          if(std::abs(x - current_point.x()) > 1e-8 ||
+             std::abs(y - current_point.y()) > 1e-8)
+          {
+            std::cout << "Warning: problem in the barycentric coordinates" << '\n';
+            std::cout << current_point << " vs " << std::endl << x << " " << y << std::endl;
+          }
+
+          if(std::abs(vertex_gradients[p_id].norm() - 1.) > 1e-8 ||
+             std::abs(vertex_gradients[q_id].norm() - 1.) > 1e-8 ||
+             std::abs(vertex_gradients[r_id].norm() - 1.) > 1e-8)
+          {
+            std::cout << "Warning: problem in the normals" << '\n';
+            std::cout << vertex_gradients[p_id] << '\n';
+            std::cout << vertex_gradients[q_id] << '\n';
+            std::cout << vertex_gradients[r_id] << std::endl;
+          }
+
+          // get gradient & value at point p
+//          std::cout << "adding grad: " << (lambda_p * vertex_gradients[p_id] + lambda_q * vertex_gradients[q_id] + lambda_r * vertex_gradients[r_id]).transpose() << std::endl;
+
+          grad_at_current_point += lambda_p * vertex_gradients[p_id] +
+                                   lambda_q * vertex_gradients[q_id] +
+                                   lambda_r * vertex_gradients[r_id];
+
+//    std::cout << "closest point is: " << current_point << std::endl;
+//    std::cout << "grad: " << grad_at_current_point << std::endl;
+        }
+      }
+//      grad_at_current_point /= (intersections.size());
+
+      CGAL_postcondition(grad_at_current_point.norm() != 0);
+      grad_at_current_point.normalize();
+//      std::cout << "grad: " << grad_at_current_point.transpose() << " ";
+
+      // new point
+      Vector2d cur_p;
+      cur_p(0) = current_point.x();
+      cur_p(1) = current_point.y();
+
+      Vector2d new_p = cur_p - tau * grad_at_current_point;
+      current_point = Point_2(new_p(0), new_p(1));
+
+      geodesic.push_front(current_point);
+
+      FT d = CGAL::squared_distance(current_point, seeds[seed_id]);
+//      std::cout << "d: " << d << std::endl;
+
+      // following doesn't solve cycles
+      if(d < 1e-5) // hardcode fixme
+        break;
+
+      iterations++;
+      if(iterations > 1e5)
+      {
+        std::cout << "time to debug stuff -----------------------------" << std::endl;
+        break;
+      }
+    }
+
+    geodesic.push_front(seeds[seed_id]); // to have a nice connection
+
+    std::cout << "traced (gradient) geodesic: " << geo_id.first << " "
+                                                << geo_id.second << std::endl;
+    real_geodesics[geo_id] = geodesic;
+  }
+
+  void compute_gradient_at_face(Face_handle fh,
+                                std::vector<Eigen::Vector2d>& vertex_gradients)
+  {
+    // compute the grad on facet f = (c,sec) and update each vertex with
+    // 1 / d(p_i, g) grad(f)
+
+    // could be made more efficient without a copy of ids and points... todo
+
+    // get vertices
+    boost::array<Point_2, 3> face_points;
+    boost::array<std::size_t, 3> face_ids;
+    for(std::size_t i=0; i<3; ++i)
+    {
+      face_ids[i] = fh->vertex(i)->info();
+      face_points[i] = points[face_ids[i]].point;
+    }
+
+    // there's probably prettier than going to 3D, but whatever...
+    boost::array<Eigen::Vector3d, 3> edges; // e01, e12, e20
+
+    for(std::size_t i=0; i<3; ++i)
+    {
+      edges[i](0) = face_points[(i+1)%3].x() - face_points[i].x();
+      edges[i](1) = face_points[(i+1)%3].y() - face_points[i].y();
+      edges[i](2) = 0;
+    }
+
+    // compute normal
+    Eigen::Vector3d n = edges[0].cross(-edges[2]);
+    n.normalize();
+
+    // compute area of the triangle
+    typename K::Compute_area_2 o;
+    FT A = std::abs(o(face_points[0], face_points[1], face_points[2]));
+
+    // compute the gradient
+    Eigen::Vector2d grad = Eigen::Vector2d::Zero();
+
+    for(std::size_t i=0; i<3; ++i)
+    {
+      // edge i is e_{i,(i+1)%3}
+      Eigen::Vector3d cp = n.cross(edges[i]);
+
+      // value at the opposite vertex (i+2)%3
+      FT val = points[face_ids[(i+2)%3]].distance_to_closest_seed;
+      grad(0) += val * cp(0);
+      grad(1) += val * cp(1);
+    }
+    grad *= 0.5 / A;
+
+    // center of the triangle
+    FT third = 1. / 3.;
+    Point_2 bg = CGAL::barycenter(face_points[0], third,
+                                  face_points[1], third,
+                                  face_points[2], third);
+
+    // add it to the vertex grad parts at each vertex
+    typename K::Compute_squared_distance_2 sqd;
+    for(std::size_t i=0; i<3; ++i)
+    {
+      FT d = sqd(bg, face_points[i]);
+      CGAL_assertion(d != 0.);
+
+      std::size_t id = face_ids[i];
+      vertex_gradients[id] += grad / A;
+    }
+  }
+
+  void trace_geodesic_with_gradient(
+          std::size_t seed_id,
+          std::map<std::pair<std::size_t, std::size_t>,
+                   std::deque<Point_2> >& real_geodesics,
+          std::map<std::size_t/*seed_id*/,
+                   boost::unordered_set<std::size_t>/*neighbor ids*/> neighbors)
+  {
+    std::cout << "tracing (gradient) geodesics from " << seed_id << std::endl;
+
+    std::size_t v_n = points.size();
+
+    // compute gradient at all triangles/vertices of the canvas
+    std::vector<Eigen::Vector2d> vertex_gradients(v_n, Eigen::Vector2d::Zero());
+
+    for(std::size_t i=0, sss=ss.size(); i<sss; ++i)
+    {
+      Star_handle star = ss[i];
+      Face_handle_handle fit = star->finite_incident_faces_begin();
+      Face_handle_handle fend = star->finite_incident_faces_end();
+      for(; fit!=fend; ++fit)
+      {
+        Face_handle fh = *fit;
+        if(is_face_outside_domain(star, fh))
+          continue;
+
+        compute_gradient_at_face(fh, vertex_gradients);
+      }
+    }
+
+    // normalize gradients
+    for(std::size_t i=0; i<v_n; ++i)
+      vertex_gradients[i].normalize();
+
+    std::cout << "draw gradient at seed_id: " << seed_id << std::endl;
+//    draw_gradient(vertex_gradients, seed_id);
+
+    // trace geodesic
+    const boost::unordered_set<std::size_t>& seeds_to_reach = neighbors[seed_id];
+    std::cout << seeds_to_reach.size() << " seeds to reach (gradient)" << std::endl;
+
+    typename boost::unordered_set<std::size_t>::iterator it = seeds_to_reach.begin();
+    typename boost::unordered_set<std::size_t>::iterator end = seeds_to_reach.end();
+    for(; it!=end; ++it)
+    {
+      std::size_t seed_to_reach = *it;
+
+      if(seed_to_reach < seed_id)
+        continue;
+
+      // obviously really ugly and expensive
+      std::size_t starting_id = -1;
+      for(std::size_t i=0, ps=points.size(); i<ps; ++i)
+      {
+        if(points[i].is_seed_holder == seed_to_reach)
+        {
+          starting_id = i;
+          break;
+        }
+      }
+
+      CGAL_postcondition(starting_id != static_cast<std::size_t>(-1));
+
+      std::cout << "trying to reach the seed at : " << seeds[seed_id];
+      std::cout << " from seed at " << seeds[seed_to_reach] << std::endl;
+
+      trace_geodesic(vertex_gradients, real_geodesics,
+                     seed_id, seed_to_reach,
+                     starting_id);
+    }
+  }
+
+  void output_geodesic_lengths(const typename std::map<std::pair<std::size_t, std::size_t>,
+                                                        FT>& geo_lengths)
+  {
+    std::vector<FT> values;
+
+    typename std::map<std::pair<std::size_t, std::size_t>,
+                      FT>::const_iterator it = geo_lengths.begin();
+    typename std::map<std::pair<std::size_t, std::size_t>,
+                      FT>::const_iterator end = geo_lengths.end();
+
+    for(; it!=end; ++it)
+      values.push_back(it->second);
+
+    output_histogram(values, str_base_mesh + "_geodesic_lengths.txt");
+  }
+
+  void output_geodesics(const std::vector<std::deque<std::pair<std::size_t,
+                                                     FT> > >& geodesics,
+                        const std::string str_base)
+  {
+    if(geodesics.empty())
+    {
+      std::cout << "no geodesic to output" << std::endl;
+      return;
+    }
+
+    std::vector<bool> is_used(points.size(), false);
+#define GEO_FILTER_UNUSED_POINTS
+#ifdef GEO_FILTER_UNUSED_POINTS
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+    {
+      const std::deque<std::pair<std::size_t, FT> >& geo_path = geodesics[i];
+      std::size_t geo_path_size_m1 = geo_path.size()-1;
+      for(std::size_t j=0; j<geo_path_size_m1; ++j)
+      {
+        const std::pair<std::size_t, FT>& p = geo_path[j];
+        const std::pair<std::size_t, FT>& pp1 = geo_path[j+1];
+
+        is_used[p.first] = true;
+        is_used[pp1.first] = true;
+      }
+    }
+
+    std::vector<std::size_t> renumbering(points.size(), -1);
+    std::size_t n=0;
+    for(std::size_t i=0; i<points.size(); ++i)
+    {
+      if(is_used[i])
+        renumbering[i] = n++;
+    }
+#endif
+
+    std::ofstream out((str_base + "_geodesics.mesh").c_str());
+
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+
+    out << "Vertices" << '\n';
+    out << points.size() << '\n';
+    for(std::size_t i=0; i<points.size(); ++i)
+      if(is_used[i])
+        out << points[i].point << " " << i+1 << '\n';
+
+    std::size_t edges_n = 0.;
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+      edges_n += geodesics[i].size() - 1;
+
+    out << "Edges" << '\n';
+    out << edges_n << '\n';
+    for(std::size_t i=0; i<geodesics.size(); ++i)
+    {
+      const std::deque<std::pair<std::size_t, FT> >& geo_path = geodesics[i];
+      std::size_t geo_path_size_m1 = geo_path.size()-1;
+      for(std::size_t j=0; j<geo_path_size_m1; ++j)
+      {
+        const std::pair<std::size_t, FT>& p = geo_path[j];
+        const std::pair<std::size_t, FT>& pp1 = geo_path[j+1];
+
+        // +1 due to medit
+        out << renumbering[p.first] + 1 << " "
+            << renumbering[pp1.first] + 1 << " " << i << std::endl;
+      }
+    }
+
+    out << "End" << std::endl;
+  }
+
+  void output_real_geodesics_map(const std::map<std::pair<std::size_t, std::size_t>,
+                                                std::deque<Point_2> >& real_geodesics,
+                                 const std::string str_base)
+  {
+    if(real_geodesics.empty())
+    {
+      std::cout << "no (gradient) geodesic map to output" << std::endl;
+      return;
+    }
+
+    typedef typename std::map<std::pair<std::size_t, std::size_t>,
+                              std::deque<Point_2> >               Geo_map;
+    typedef typename Geo_map::const_iterator                      Geo_map_it;
+    typedef typename std::map<Point_2, std::size_t>               Numbering_map;
+    typedef typename Numbering_map::iterator                      Nm_it;
+
+
+    std::ofstream out((str_base + "_real_geodesics_map.txt").c_str());
+
+    out << real_geodesics.size() << std::endl;
+
+    Geo_map_it gmit = real_geodesics.begin();
+    Geo_map_it gmend = real_geodesics.end();
+    for(; gmit!=gmend; ++gmit)
+    {
+      const std::pair<std::size_t, std::size_t>& ids = gmit->first;
+      const std::deque<Point_2>& geo = gmit->second;
+
+      out << ids.first << " " << ids.second << " " << geo.size() << std::endl;
+      for(std::size_t i=0; i<geo.size(); ++i)
+        out << geo[i] << '\n';
+
+      out << '\n';
+    }
+    out << std::endl;
+  }
+
+  void output_real_geodesics(const std::map<std::pair<std::size_t, std::size_t>,
+                                            std::deque<Point_2> >& real_geodesics,
+                             const std::string str_base)
+  {
+    if(real_geodesics.empty())
+    {
+      std::cout << "no (gradient) geodesic to output" << std::endl;
+      return;
+    }
+
+    std::ofstream out((str_base + "_real_geodesics.mesh").c_str());
+
+    typedef typename std::map<std::pair<std::size_t, std::size_t>,
+                              std::deque<Point_2> >               Geo_map;
+    typedef typename Geo_map::const_iterator                      Geo_map_it;
+    typedef typename std::map<Point_2, std::size_t>               Numbering_map;
+    typedef typename Numbering_map::iterator                      Nm_it;
+
+    Numbering_map vertex_numbering_map;
+    std::size_t n = 0;
+
+    std::ostringstream out_v, out_t;
+    std::size_t nt = 0;
+
+    Geo_map_it gmit = real_geodesics.begin();
+    Geo_map_it gmend = real_geodesics.end();
+    for(; gmit!=gmend; ++gmit)
+    {
+      const std::deque<Point_2>& geo = gmit->second;
+      for(std::size_t i=0; i<geo.size(); ++i)
+      {
+        const Point_2& p = geo[i];
+        std::pair<Nm_it, bool> is_insert_successful =
+            vertex_numbering_map.insert(std::make_pair(p,0));
+
+        if(is_insert_successful.second)
+        {
+          (is_insert_successful.first)->second = ++n; // ++ first for medit
+           out_v << p << " " << n << '\n';
+        }
+
+
+        // draw the edge with a flat triangle
+        if(i > 0)
+        {
+          std::size_t prev = vertex_numbering_map[geo[i-1]];
+          out_t << prev << " " << n << " " << prev << " " << "1" << '\n';
+          nt++;
+        }
+      }
+    }
+
+    out << "MeshVersionFormatted 1" << '\n';
+    out << "Dimension 2" << '\n';
+
+    out << "Vertices" << '\n';
+    out << vertex_numbering_map.size() << '\n';
+    out << out_v.str().c_str();
+
+    out << "Triangles" << '\n';
+    out << nt << '\n';
+    out << out_t.str().c_str();
+
+    out << "End" << std::endl;
+  }
+
+  void compute_geodesics(const std::string str_base)
+  {
+    std::cout << "computing geodesics" << std::endl;
+
+    // For each seed, we must spread to the nearest neighbors to grab the geodesic
+    // between both seeds
+    CGAL_precondition(!dual_edges.empty());
+
+    std::map<std::size_t/*seed_id*/,
+             boost::unordered_set<std::size_t>/*neighbor ids*/> neighbors;
+    build_neighboring_info(neighbors);
+
+    std::cout << "built neighboring info : " << neighbors.size() << std::endl;
+
+    // fixme change geodesics to a map too...
+    std::vector<std::deque<std::pair<std::size_t/*id*/,FT/*time*/> > > geodesics;
+    std::map<std::pair<std::size_t, std::size_t>, std::deque<Point_2> > real_geodesics;
+
+    std::map<std::pair<std::size_t, std::size_t>, FT> geodesic_lengths;
+
+    for(std::size_t seed_id=0, ss=seeds.size(); seed_id<ss; ++seed_id)
+    {
+      std::cout << "computing geodesics to : " << seed_id << std::endl;
+
+      // below is kind of ugly... but it's clearer than switching everything to
+      // 'FAR' earlier and then having the memory overwrite 'KNOWN' with 'FAR'
+      // every loop iteration
+      for(std::size_t i=0, ptss=points.size(); i<ptss; ++i)
+        points[i].state = FAR;
+
+      // since we're spreading from a seed over the other cells, we must keep
+      // the previous colors in memory
+      std::vector<Canvas_point> canvas_point_memory;
+
+      spread_distances_from_one_seed(seed_id, neighbors, geodesics,
+                                     canvas_point_memory, geodesic_lengths);
+
+#ifdef COMPUTE_REAL_GEODESICS
+      trace_geodesic_with_gradient(seed_id, real_geodesics, neighbors);
+#endif
+
+      rollback_points(canvas_point_memory); // reset the points we have overwritten
+    }
+
+    output_geodesics(geodesics, str_base);
+    output_real_geodesics(real_geodesics, str_base);
+    output_real_geodesics_map(real_geodesics, str_base);
+    output_geodesic_lengths(geodesic_lengths);
+    compute_Riemannian_angles(real_geodesics);
+  }
+
+  FT compute_Riemannian_angle(
+      std::size_t origin,
+      std::size_t extr_id_1,
+      std::size_t extr_id_2,
+      std::map<std::pair<std::size_t, std::size_t>,
+               std::deque<Point_2> >& real_geodesics)
+  {
+    typedef typename std::map<std::pair<std::size_t, std::size_t>,
+                              std::deque<Point_2> >                   Geo_map;
+    typedef typename std::deque<Point_2>                              Geodesic;
+
+    // computes the angle between the tangents of the geodesics
+    // ori -- extr_1 and ori -- extr_2
+
+    std::cout << "orign: " << origin << std::endl;
+    std::cout << "t1: " << extr_id_1 << std::endl;
+    std::cout << "t2: " << extr_id_2 << std::endl;
+
+    bool is_geo_inverted_1 = origin > extr_id_1;
+    bool is_geo_inverted_2 = origin > extr_id_2;
+
+    const Geodesic& g1 = is_geo_inverted_1 ? real_geodesics[std::make_pair(extr_id_1, origin)]
+                                           : real_geodesics[std::make_pair(origin, extr_id_1)];
+
+    const Geodesic& g2 = is_geo_inverted_2 ? real_geodesics[std::make_pair(extr_id_2, origin)]
+                                           : real_geodesics[std::make_pair(origin, extr_id_2)];
+
+    std::size_t g1s = g1.size();
+    std::size_t g2s = g2.size();
+
+    CGAL_precondition(!g1.empty() && !g2.empty());
+
+    // the extremities of the two tangent vectors
+    Point_2 origin_1 = is_geo_inverted_1 ? g1.back() : g1.front();
+    Point_2 origin_2 = is_geo_inverted_2 ? g2.back() : g2.front();
+
+    // origins should be roughly the same
+    if(CGAL::squared_distance(origin_1, origin_2) > 1e-5)
+    {
+      std::cout << "Warning: origins too far apart" << std::endl;
+      std::cout << origin_1 << std::endl << origin_2 << std::endl;
+      std::cout << "inverted: " << is_geo_inverted_1 << " " << is_geo_inverted_2 << std::endl;
+      exit(0);
+    }
+
+    // rather than simply take and g[1] or g[size-1 -1], we might want to
+    // take something a bit farther to average the direction of the geodesic
+    // over the last few iterations of the gradient descent method
+    std::size_t averaging_step = 1;
+
+    CGAL_precondition(g1.size() > averaging_step+1 &&
+                      g2.size() > averaging_step+1);
+
+    Point_2 tangent_1 = is_geo_inverted_1 ? g1[g1s - averaging_step]
+                                          : g1[averaging_step];
+    Point_2 tangent_2 = is_geo_inverted_2 ? g2[g2s - averaging_step]
+                                          : g2[averaging_step];
+
+    if(tangent_1 == tangent_2)
+    {
+      std::cout << "Warning: degenerate case with equal tangent segments" << std::endl;
+    }
+
+    // compute the angle and make sure it's within 0 pi
+    const Metric& m = mf->compute_metric(origin_1);
+    Point_2 t_o1p = m.transform(origin_1);
+    Point_2 t_o2p = m.transform(origin_2);
+    Point_2 t_t1p = m.transform(tangent_1);
+    Point_2 t_t2p = m.transform(tangent_2);
+
+    Vector_2 v1 = t_t1p - t_o1p;
+    Vector_2 v2 = t_t2p - t_o2p;
+
+    FT angle_cos = v1 * v2 / CGAL::sqrt(v1*v1) / CGAL::sqrt(v2 * v2);
+    FT angle = std::acos(angle_cos);
+
+    // make sure it's within 0 pi
+    if(angle < 0)
+      angle += CGAL_PI;
+
+    std::cout << "angle " << angle << std::endl;
+    CGAL_assertion(angle >= 0 && angle <= CGAL_PI);
+
+     return angle;
+  }
+
+  // histograms
+  void output_histogram(const std::vector<int>& histogram,
+                        FT min, FT max,
+                        std::string filename)
+  {
+    std::cout << "output: " << filename << std::endl;
+    std::ofstream out(filename.c_str());
+    std::size_t histo_n = histogram.size();
+    std::cout << "histo_n: " << histo_n << std::endl;
+    for(std::size_t i=0; i<histo_n; ++i)
+    {
+      FT val = min + (max-min)*((FT) i)/((FT) histo_n);
+      out << i << "," << val << "," << histogram[i] << '\n';
+    }
+    out << std::endl;
+  }
+
+  void output_histogram(std::vector<FT>& values,
+                        std::string filename)
+  {
+    FT min_value = *(std::min_element(values.begin(), values.end()));
+    FT max_value = *(std::max_element(values.begin(), values.end()));
+
+    std::cout << "Outputing values: " << values.size() << " " << min_value << " " << max_value << std::endl;
+
+    int histogram_size = 1000;
+    std::vector<int> histogram(histogram_size, 0);
+    FT limit_val = histogram_size - 1.;
+    FT step_size = (max_value - min_value) / (FT) histogram_size;
+
+    for(std::size_t i=0; i<values.size(); ++i)
+      histogram[(std::min)(limit_val, std::floor((values[i]-min_value)/step_size))]++;
+
+    output_histogram(histogram, min_value, max_value, filename);
+  }
+
+  void build_external_real_geodesics(std::map<std::pair<std::size_t, std::size_t>,
+                                     std::deque<Point_2> >& real_geodesics)
+  {
+    CGAL_precondition(real_geodesics.empty());
+
+    std::ifstream in("shock_real_geodesics_map.mesh");
+
+    std::size_t geo_map_s, id1, id2, geo_size;
+
+    in >> geo_map_s; // number of geodesics
+
+    for(std::size_t i=0; i<geo_map_s; ++i)
+    {
+      in >> id1 >> id2 >> geo_size;
+
+      CGAL_precondition(id1 < id2);
+      std::deque<Point_2> geodesic;
+      std::pair<std::size_t, std::size_t> ids = std::make_pair(id1, id2);
+
+      for(std::size_t j=0; j<geo_size; ++j)
+      {
+        Point_2 p;
+        in >> p;
+        geodesic.push_back(p);
+      }
+
+      real_geodesics[ids] = geodesic;
+    }
+
+    CGAL_postcondition(real_geodesics.size() == geo_map_s);
+  }
+
+  void compute_Riemannian_angles(std::map<std::pair<std::size_t, std::size_t>,
+                                          std::deque<Point_2> >& real_geodesics)
+  {
+    std::cout << "computing Riemannian angles" << std::endl;
+
+    // Evaluate the angles of the Riemannian simplices
+
+    // The angles are computed at the vertex in the metric of the vertex
+    // and are defined as the angle between the tangent vectors of the
+    // geodesics
+
+    if(real_geodesics.empty())
+    {
+      build_external_real_geodesics(real_geodesics);
+    }
+
+    // loop all the Riemannian triangles
+    std::vector<FT> values;
+    for(boost::unordered_set<Tri>::iterator it = dual_triangles.begin();
+                                            it != dual_triangles.end(); ++it)
+
+    {
+      const Tri& tr = *it;
+      CGAL_assertion(tr.size() == 3);
+
+      for(std::size_t i=0; i<tr.size(); ++i)
+      {
+        std::size_t orig = tr[i];
+
+        std::size_t dest_1 = tr[(i+1)%3];
+        std::size_t dest_2 = tr[(i+2)%3];
+
+        if(orig < 0 || orig >= seeds.size() ||
+           dest_1 < 0 || dest_1 >= seeds.size() ||
+           dest_2 < 0 || dest_2 >= seeds.size() )
+        {
+          std::cout << "Warning: tried to compute the angles in a weird triangle: "
+                    << orig << " " << dest_1 << " " << dest_2 << std::endl;
+          continue;
+        }
+
+        std::cout << "in triangle: " << tr[0] << " " << tr[1] << " " << tr[2] << std::endl;
+
+        FT angle = compute_Riemannian_angle(orig, dest_1, dest_2, real_geodesics);
+        values.push_back(angle);
+      }
+    }
+    output_histogram(values, "histogram_riemannian_face_angles.cvs");
   }
 
   bool debug()
