@@ -531,6 +531,7 @@ private:
       }
     }
 
+#ifndef ANISO_NO_CONSISTENCY
     // consistency 5
     if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
        !this->m_starset.is_consistent(c))
@@ -553,6 +554,7 @@ private:
         }
       }
     }
+#endif
   }
 
 public:

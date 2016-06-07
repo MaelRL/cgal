@@ -1173,7 +1173,6 @@ void trace_geodesic_with_gradient(Canvas& canvas,
     }
 
     CGAL_postcondition(starting_id != static_cast<std::size_t>(-1));
-    CGAL_postcondition(canvas.get_point(starting_id).closest_seed_id() == start_seed_id);
     CGAL_postcondition(canvas.get_point(starting_id).ancestor() == static_cast<std::size_t>(-1));
 
     std::cout << "trying to reach the seed at : " << canvas.get_point(seed_id).point();

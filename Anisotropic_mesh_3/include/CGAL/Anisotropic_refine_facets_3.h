@@ -603,7 +603,7 @@ private:
     }
 #endif
 
-#ifdef ANISO_USE_CONSISTENCY
+#ifndef ANISO_NO_CONSISTENCY
     // consistency : 6
     if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
        !this->m_starset.is_consistent(*fi))

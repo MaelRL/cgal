@@ -30,14 +30,14 @@
 #include <boost/tuple/tuple.hpp>
 #include <boost/unordered_map.hpp>
 
-#include <iostream>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <list>
 #include <map>
-#include <vector>
 #include <set>
 #include <utility>
+#include <vector>
 
 #define ANISO_USE_RECIPROCAL_NEIGHBORS
 // #define COMPUTE_PRECISE_VOR_VERTICES
@@ -2298,7 +2298,10 @@ public:
       const Canvas_point& cp = points[i];
       out << cp.point << " " << i+1 << '\n';
 
-      out_bb << cp.distance_to_closest_seed << '\n';
+      if(cp.distance_to_closest_seed == FT_inf)
+        out_bb << -1. << '\n';
+      else
+        out_bb << cp.distance_to_closest_seed << '\n';
 //      out_bb << cp.closest_seed_id << '\n';
 //      out_bb << (cp.is_Voronoi_vertex?"1":"0") << '\n';
     }
@@ -2851,9 +2854,12 @@ public:
       locate_and_initialize_seeds();
       spread_distances(true/*use_dual_shenanigans*/);
 
-      std::ostringstream opti_out;
-      opti_out << "optimized_" << str_base_mesh << "_starset_" << counter << std::ends;
-      output_canvas_data_and_dual(opti_out.str().c_str());
+      if(counter%1 == 0)
+      {
+        std::ostringstream opti_out;
+        opti_out << "optimized_" << str_base_mesh << "_starset_" << counter << std::ends;
+        output_canvas_data_and_dual(opti_out.str().c_str());
+      }
 
       is_optimized = (++counter > max_opti_n); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
       if(cumulated_displacement == 0.0)
@@ -3687,6 +3693,8 @@ int main(int, char**)
     bm.output_canvas_data_and_dual("optimized_" + str_base_mesh + "_starset");
   }
 
+  ignore_children = true;
+  bm.compute_geodesics(str_base_mesh);
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "duration: " << duration << std::endl;

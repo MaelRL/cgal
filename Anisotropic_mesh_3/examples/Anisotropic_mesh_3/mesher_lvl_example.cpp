@@ -1,3 +1,5 @@
+// #define ANISO_NO_CONSISTENCY
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_3.h>

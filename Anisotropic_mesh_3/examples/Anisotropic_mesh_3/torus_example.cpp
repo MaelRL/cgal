@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
   mesher.refine_mesh();
 
-  output_medit(starset, "torus_example.mesh");
+  output_surface_medit(starset, "torus_example.mesh");
   std::string file = output_filename(R, r);
   output_surface_off(starset, file.c_str());
 
