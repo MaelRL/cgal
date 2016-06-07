@@ -778,6 +778,11 @@ public:
     trial_points.push_back(cp.index);
     std::push_heap(trial_points.begin(), trial_points.end(),
                    Canvas_point_comparer<Self>(this));
+
+#ifdef OVERWRITE_SEED_WITH_CANVAS_POINT
+    seeds[seed_id] = cp.point;
+    cp.distance_to_closest_seed = 0;
+#endif
   }
 
   void find_and_initialize_closest_vertex(const Point_2& s,
@@ -816,14 +821,17 @@ public:
     if(intersections.empty())
     {
       std::cout << "the locate-ray didn't encounter any star..." << std::endl;
+
       // switch to something expensive... take the closest point...
       find_and_initialize_closest_vertex(s, seed_id);
       found = true;
     }
 
-    if(intersections.size() > 1)
-      std::cout << "more than one intersection in the locate" << std::endl;
+//    if(intersections.size() > 1)
+//      std::cout << "more than one intersection in the locate" << std::endl;
 
+    std::size_t closest_canvas_point_id = -1;
+    FT distance_to_closest_canvas_point = 1e30;
     std::list<Primitive_Id>::const_iterator it = intersections.begin(),
                                             end = intersections.end();
     for(; it!=end; ++it)
@@ -833,8 +841,7 @@ public:
                             points[fh->vertex(1)->info()].point,
                             points[fh->vertex(2)->info()].point);
 
-      if(K().has_on_bounded_side_2_object()(tr_2, s) ||
-         K().has_on_boundary_2_object()(tr_2, s))
+      if(tr_2.bounded_side(s) != CGAL::ON_UNBOUNDED_SIDE)
       {
         found = true;
 #if (verbose > 5)
@@ -863,11 +870,18 @@ public:
           v(1) = s.y() - cp.point.y();
           v = f * v;
           FT d = v.norm(); // d = std::sqrt(v^t * M * v) = (f*v).norm()
-          initialize_canvas_point(cp.index, d, seed_id);
+
+          if(d < distance_to_closest_canvas_point)
+          {
+            closest_canvas_point_id = cp.index;
+            distance_to_closest_canvas_point = d;
+          }
         }
-        break; // no need to check the other primitives
       }
     }
+
+    Canvas_point& cp = points[closest_canvas_point_id];
+    initialize_canvas_point(cp.index, distance_to_closest_canvas_point, seed_id);
     CGAL_assertion(found);
   }
 
