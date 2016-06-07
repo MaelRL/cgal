@@ -1689,7 +1689,7 @@ struct Base_mesh
     CGAL_precondition(gp);
     std::size_t depth = gp->depth;
 
-    if(depth == -1)
+    if(depth == 0)
       return -1;
 
     CGAL_precondition(depth > 0);
@@ -1808,7 +1808,7 @@ struct Base_mesh
       {
         CGAL_assertion(gp.closest_seed_id == seed_id);
         CGAL_assertion(gp.ancestor == static_cast<std::size_t>(-1));
-        CGAL_assertion(gp.depth == -1);
+        CGAL_assertion(gp.depth == 0);
 
         gp.state = TRIAL;
         trial_points.push_back(&gp);
@@ -5024,7 +5024,7 @@ void Grid_point::reset()
   distance_to_closest_seed = FT_inf;
   closest_seed_id = -1;
   ancestor = -1;
-  depth = -1;
+  depth = 0;
   children.clear();
   is_Voronoi_vertex = false;
   ancestor_path_length = 0;
@@ -5061,7 +5061,7 @@ Grid_point::Grid_point()
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
@@ -5084,7 +5084,7 @@ Grid_point::Grid_point(Base_mesh* bm_,
     distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)

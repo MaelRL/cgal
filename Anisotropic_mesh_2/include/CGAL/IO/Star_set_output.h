@@ -30,6 +30,79 @@ compute_distortion_t(const Starset& stars,
   return distortion;
 }
 
+void mesh_to_dump(const char* filename)
+{
+  std::cout << "mesh to dump on file : " << filename << std::endl;
+
+  std::string input_filename = filename;
+  std::string stem = input_filename.substr(0, input_filename.find_last_of('.')); ;
+  std::string extension = input_filename.substr(input_filename.find_last_of('.'));
+
+  if(extension != ".mesh")
+  {
+    std::cout << "must be a .mesh in input" << std::endl;
+    return;
+  }
+
+  std::ifstream in(input_filename.c_str());
+  std::ofstream out((stem + ".dump").c_str());
+
+  if(!in)
+    std::cout << "couldn't open the file" << std::endl;
+
+  std::string useless_str;
+  int useless_int, nv, nt;
+
+  in >> useless_str >> useless_int; // MeshVersionFormatted 1
+  in >> useless_str >> useless_int; // Dimension 2
+  CGAL_assertion(useless_int == 2);
+
+  in >> useless_str >> nv; // Vertices
+  std::cout << nv << " vertices" << std::endl;
+
+  out << nv << std::endl;
+  for(std::size_t i=0; i<nv; ++i)
+  {
+    double x, y;
+    in >> x >> y >> useless_int;
+    out << x << " " << y << '\n';
+  }
+
+  in >> useless_str >> nt;
+  std::cout << nt << " triangles" << std::endl;
+
+  std::vector<boost::unordered_set<std::size_t> > neighborhoods(nv);
+  for(std::size_t i=0; i<nt; ++i)
+  {
+    std::size_t t1, t2, t3;
+    in >> t1 >> t2 >> t3 >> useless_int;
+    --t1; --t2; --t3; // thanks, medit
+
+    neighborhoods[t1].insert(t2);
+    neighborhoods[t1].insert(t3);
+
+    neighborhoods[t2].insert(t1);
+    neighborhoods[t2].insert(t3);
+
+    neighborhoods[t3].insert(t1);
+    neighborhoods[t3].insert(t2);
+  }
+
+  for(std::size_t i=0; i<nv; ++i)
+  {
+    const boost::unordered_set<std::size_t>& neighborhood = neighborhoods[i];
+    out << neighborhood.size() << " ";
+    boost::unordered_set<std::size_t>::const_iterator it = neighborhood.begin();
+    boost::unordered_set<std::size_t>::const_iterator end = neighborhood.end();
+    for(; it!=end; ++it)
+    {
+      out << *it << " ";
+    }
+    out << '\n';
+  }
+  out << std::endl;
+}
+
 template<typename Starset>
 void dump(const Starset& stars,
           std::ofstream& fx)

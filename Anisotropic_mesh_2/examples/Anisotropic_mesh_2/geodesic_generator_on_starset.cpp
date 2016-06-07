@@ -152,14 +152,17 @@ void generate_starset(Star_set& ss)
 
   std::ofstream out("geo_starset.mesh");
   output_medit(ss, out, false/*consistent_only*/);
-  std::ofstream out_dump("dump.mesh"); // useful to quickly recreate a starset
+
+  // useful to quickly recreate a starset
+  std::ofstream out_dump((str_base_mesh + "_starset.dump").c_str());
   dump(ss, out_dump);
 }
 
-void read_dump(Star_set& ss)
+void read_dump(Star_set& ss,
+               std::string filename)
 {
   std::cout << "Reading dump..." << std::endl;
-  std::ifstream in("dump.mesh");
+  std::ifstream in(filename.c_str());
   ss.clear();
 
   std::size_t stars_n, v_n, id;
@@ -193,9 +196,10 @@ void read_dump(Star_set& ss)
   std::cout << ss.size() << " stars from dump" << std::endl;
 }
 
-void refine_starset(Star_set& ss)
+void read_dump(Star_set& ss)
 {
-
+  std::string filename = str_base_mesh + "_starset.dump";
+  return read_dump(ss, filename);
 }
 
 // the functions below aren't very pretty
@@ -2388,7 +2392,7 @@ void Canvas_point::reset()
   is_seed_holder = -1;
   closest_seed_id = -1;
   ancestor = -1;
-  depth = -1;
+  depth = 0;
   children.clear();
   is_Voronoi_vertex = false;
   ancestor_path_length = 0;
@@ -2426,7 +2430,7 @@ Canvas_point::Canvas_point()
     is_seed_holder(-1),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
@@ -2449,7 +2453,7 @@ Canvas_point::Canvas_point(Base_mesh * bm_,
     is_seed_holder(-1),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)
@@ -2476,7 +2480,7 @@ Canvas_point::Canvas_point(Base_mesh * bm_,
     is_seed_holder(-1),
     closest_seed_id(-1),
     ancestor(-1),
-    depth(-1),
+    depth(0),
     children(),
     is_Voronoi_vertex(false),
     ancestor_path_length(0)

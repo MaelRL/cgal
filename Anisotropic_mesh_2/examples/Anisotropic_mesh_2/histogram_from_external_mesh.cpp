@@ -163,7 +163,7 @@ void output_histogram(const std::vector<int>& histogram,
   for(std::size_t i=0; i<histo_n; ++i)
   {
     FT val = min + (max-min)*((FT) i)/((FT) histo_n);
-    out << i << "," << val << "," << histogram[i] << std::endl;
+    out << val << "," << histogram[i] << std::endl;
   }
 }
 
@@ -179,7 +179,7 @@ void output_histogram(std::vector<FT>& values,
 #endif
   std::cout << "Outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
 
-  int histogram_size = 1000;
+  int histogram_size = 100;
   std::vector<int> histogram(histogram_size, 0);
   FT limit_val = histogram_size - 1.;
   FT step_size = (max_value - min_value) / (FT) histogram_size;
@@ -232,7 +232,7 @@ void face_distortion_histogram(const std::vector<Point_2>& points,
       max_dists[ns[j]] = (std::max)((std::max)(max_dists[ns[j]], d1), d2);
     }
   }
-  output_histogram(values, "histogram_face_distortion_external.cvs");
+  output_histogram(values, "histogram_face_distortion_external.csv");
 
   out_bb << "2 1 " << points.size() << " 2" << std::endl;
   for(std::size_t i=0; i<max_dists.size(); ++i)
@@ -305,7 +305,7 @@ void face_quality_histogram(const std::vector<Point_2>& points,
       min_quals[face_n] = (std::min)(min_quals[face_n], q);
     }
   }
-  output_histogram(values, "histogram_face_quality_external.cvs");
+  output_histogram(values, "histogram_face_quality_external.csv");
 
   out_bb << "2 1 " << faces.size() << " 1" << std::endl;
   for(std::size_t i=0; i<min_quals.size(); ++i)
@@ -370,7 +370,7 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
 #endif
     }
   }
-  output_histogram(values, "histogram_face_edge_length_external.cvs");
+  output_histogram(values, "histogram_face_edge_length_external.csv");
 
   out_bb << "2 1 " << points.size() << " 2" << std::endl;
   for(std::size_t i=0; i<max_edge_r.size(); ++i)
@@ -387,12 +387,19 @@ void face_angle_histogram(const std::vector<Point_2>& points,
 
   std::cout << "face edge external histo with size: " << faces.size() << std::endl;
 
+  std::ofstream out_bb((filename_core + "_angles.bb").c_str());
+  std::vector<FT> worst_face_angles(faces.size()/3);
+
   std::vector<FT> values;
 
   for(std::size_t i=0; i<faces.size();)
   {
     std::vector<int> ns(3);
     std::vector<Point_2> ps(3);
+
+    FT worst_angle = 1e30;
+    std::size_t entry = i/3;
+//    std::cout << "e: " << entry << std::endl;
 
     for(int j=0; j<3; ++j)
     {
@@ -421,19 +428,25 @@ void face_angle_histogram(const std::vector<Point_2>& points,
       if(angle < 0)
         angle += CGAL_PI;
 
-      std::cout << v1 << " " << v2 << std::endl;
-
-      std::cout << "angle: " << angle << std::endl;
-
+//      std::cout << v1 << " " << v2 << std::endl;
+//      std::cout << "angle: " << angle << std::endl;
 
       CGAL_assertion(angle >=0 && angle <= CGAL_PI);
+      worst_angle = (std::min)(worst_angle, (std::min)(angle, CGAL_PI - angle));
 
       values.push_back(angle);
     }
-  }
-  std::cout << "n of values: " << values.size() << std::endl;
 
-  output_histogram(values, "histogram_face_angles_external.cvs");
+//    std::cout << "worst angle: " << worst_angle << std::endl;
+    worst_face_angles[entry] = worst_angle;
+  }
+
+  std::cout << "n of values: " << values.size() << std::endl;
+  output_histogram(values, "histogram_face_angles_external.csv");
+
+  out_bb << "2 1 " << faces.size()/3 << " 1" << std::endl;
+  for(std::size_t i=0; i<faces.size(); ++i)
+    out_bb << worst_face_angles[i] << std::endl;
 }
 
 int main(int, char**)
