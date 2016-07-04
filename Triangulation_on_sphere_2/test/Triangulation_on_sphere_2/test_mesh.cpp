@@ -223,7 +223,7 @@ void test5(){
 	CDTS cdt;
 	
 	std::vector<Point> lst_pt;
-	char* filename = "/Users/cwerner/CGAL-git/Triangulation_on_sphere_2/test/data/norway.poly";
+	char* filename = "data/norway.poly";
 	read_points(filename,
 				std::back_inserter(lst_pt));	
 	
