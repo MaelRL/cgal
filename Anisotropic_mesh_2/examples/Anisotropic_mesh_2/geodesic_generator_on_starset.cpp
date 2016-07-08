@@ -98,27 +98,42 @@ typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 //typedefCGAL::Anisotropic_mesh_2::External_metric_field<K>* MF;
 MF mf;
 
-// using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 50;
-static const int k = 8; // depth of the ancestor edge
-
-// the metric field and the seeds
-std::vector<Point_2> seeds;
-std::vector<Metric> seeds_m;
+//geometry
+FT a = 2.1; // half the side (x)
+FT b = 2.1; // half the side (y)
+Point_2 center(0., 0.);
+Rectangle_domain<K> pdomain(a, b, center);
 
 // seeds
-const std::string str_seeds = "swirl_input";
+
+enum Seed_status
+{
+  IN_DOMAIN = 0,
+  ON_CONSTRAINT,
+  ON_CORNER
+};
+
+FT sa = 2.; // seeds bbox
+FT sb = 2.;
+std::size_t vertices_nv = 1e10;
+bool are_constraints_discretized = false;
+
+std::vector<Point_2> seeds;
+std::vector<Metric> seeds_m;
+std::vector<Seed_status> seeds_s;
+const std::string str_seeds = "swirl_input_13641";
 
 // base mesh
 const std::string str_base_mesh = "swirl";
 CGAL::Bbox_2 base_mesh_bbox;
 
 // refinement
-int n_refine = 0;
+int n_refine = 1359;
 std::size_t min_ancestor_path_length = 5;
+static const int k = 8; // depth of the ancestor edge
 
 // optimization
-int max_opti_n = 10;
+int max_opti_n = 0;
 int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
 
 //debug & info
@@ -133,14 +148,8 @@ Path_map computed_paths;
 // Need to define our own refinement criterion based on metric shenanigans
 bool ignore_children = false;
 
-//geometry
-FT a = 2; // half the side (x)
-FT b = 2; // half the side (y)
-Point_2 center(0., 0.);
-Rectangle_domain<K> pdomain(a, b, center);
-
 //face criteria
-FT f_r0 = 0.1; // since geodesic takes r0=1, we need r_0 << 1 here (0.1-ish ?)
+FT f_r0 = .1; // since geodesic takes r0=1, we need r_0 << 1 here (0.1-ish ?)
 FT f_rho0 = 3.0;
 
 //misc
@@ -457,6 +466,37 @@ FT compute_quality(const Tri& tr)
 // Geodesic classes
 // -----------------------------------------------------------------------------
 
+struct Voronoi_constraint
+{
+  Point_2 p1, p2;
+  Vector2d dir;
+  FT sq_length; // squared but it doesn't matter, only used for comparison
+
+  Voronoi_constraint() { }
+  Voronoi_constraint(const Point_2& p1_, const Point_2& p2_)
+    :
+      p1(p1_),
+      p2(p2_),
+      dir()
+  {
+    sq_length = CGAL::squared_distance(p1, p2);
+    dir(0) = p2.x() - p1.x();
+    dir(1) = p2.y() - p1.y();
+    dir /= dir.norm();
+  }
+
+  bool has_point(const Point_2& p) const
+  {
+    typename K::Collinear_are_ordered_along_line_2  collinear_are_ordered_along_line;
+    typename K::Orientation_2                       orientation;
+
+    typename K::Orientation o = orientation(p1, p, p2);
+
+    return (o == COLLINEAR &&
+            collinear_are_ordered_along_line(p1, p, p2));
+  }
+};
+
 enum FMM_state
 {
   KNOWN = 0,
@@ -546,70 +586,6 @@ struct Canvas_point_comparer
 
   Canvas_point_comparer(BM const * const bm_) : bm(bm_) { }
 };
-
-int insert_new_seed(const FT x, const FT y)
-{
-#ifdef FILTER_SEEDS_OUTSIDE_GRID
-    if(x < base_mesh_bbox.xmin() || x > base_mesh_bbox.xmax() ||
-       y < base_mesh_bbox.ymin() || y > base_mesh_bbox.ymax())
-    {
-#if (verbose > 1)
-      std::cout << "filtered : " << x << " " << y << std::endl;
-#endif
-      return seeds.size();
-    }
-#endif
-#if (verbose > 0)
-  std::cout << "added new seed: " << x << " " << y;
-  std::cout << " (" << seeds.size() << ")" << std::endl;
-#endif
-  seeds.push_back(Point_2(x, y));
-  seeds_m.push_back(mf->compute_metric(seeds.back()));
-  return seeds.size();
-}
-
-int build_seeds()
-{
-  std::cout << "build seeds" << std::endl;
-
-  std::ifstream in((str_seeds + ".mesh").c_str());
-
-  if(!in)
-    std::cout << "couldn't open seed file" << std::endl;
-
-  std::string word;
-  std::size_t useless, nv, dim;
-  FT r_x, r_y;
-
-  in >> word >> useless; // MeshVersionFormatted i
-  in >> word >> dim; // Dimension d
-  in >> word >> nv;
-  std::cout << "seeds nv: " << nv << std::endl;
-  CGAL_assertion(dim == 2);
-
-  std::size_t min_nv = (std::min)(nv, vertices_nv);
-
-  seeds.reserve(min_nv);
-  seeds_m.reserve(min_nv);
-
-  for(std::size_t i=0; i<nv; ++i)
-  {
-    in >> r_x >> r_y >> useless;
-    insert_new_seed(r_x, r_y);
-
-//    insert_new_seed(center.x()-a, center.x()-b);
-//    insert_new_seed(center.x()+a, center.x()-b);
-//    insert_new_seed(center.x()-a, center.x()+b);
-//    insert_new_seed(center.x()+a, center.x()+b);
-
-    if(seeds.size() >= vertices_nv)
-      break;
-  }
-#if (verbose > 0)
-  std::cout << "seeds: " << seeds.size() << std::endl;
-#endif
-  return seeds.size();
-}
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const boost::tuple<Simplex, std::size_t, FT>& pqe)
@@ -711,6 +687,9 @@ public:
   mutable boost::unordered_set<Edge> dual_edges;
   mutable boost::unordered_set<Tri> dual_triangles;
 
+  // Constraint
+  std::vector<Voronoi_constraint> Vor_cons;
+
   // Refinement
   PQ size_queue;
   PQ distortion_queue;
@@ -727,11 +706,187 @@ public:
   {
     std::cout << "known: " << known_count;
     std::cout << " trial: " << trial_count;
-    std::cout << " far: " << far_count << std::endl;
+    std::cout << " far: " << far_count;
+    std::cout << " (trial: " << trial_points.size() << ",";
+    std::cout << " seeds: " << seeds.size() << ")" << std::endl;
+  }
+
+  std::size_t add_corner_to_corners_map(const Point_2& p,
+                                        std::map<Point_2, std::size_t>& corners)
+  {
+    // check if the corner exists
+    typedef typename std::map<Point_2, std::size_t>::iterator Map_it;
+    std::pair<Map_it, bool> is_insert_successful =
+                                          corners.insert(std::make_pair(p, 0));
+
+    if(is_insert_successful.second) // didn't exist in the corners map
+      is_insert_successful.first->second = insert_new_seed(p.x(), p.y(), ON_CORNER);
+
+    return is_insert_successful.first->second;
+  }
+
+  void discretize_constraint(const Voronoi_constraint& c,
+                             std::map<Point_2, std::size_t>& corners)
+  {
+    FT sq_dist_from_p1 = 0.;
+    std::size_t seeds_n_before_discretization = seeds.size();
+
+    Point_2 current_point = c.p1;
+    add_corner_to_corners_map(c.p1, corners);
+
+    while(true)
+    {
+      // not the most efficient to compute so many metrics...
+      const Metric& m = mf->compute_metric(current_point);
+
+      Vector2d transf_dir = m.get_transformation() * c.dir;
+      FT nm1 = 1. / transf_dir.norm();
+
+      FT new_x = current_point.x() + c.dir(0) * nm1;
+      FT new_y = current_point.y() + c.dir(1) * nm1;
+      current_point = Point_2(new_x, new_y);
+      sq_dist_from_p1 = CGAL::squared_distance(c.p1, current_point);
+
+      if(sq_dist_from_p1 >= c.sq_length)
+        break;
+
+      insert_new_seed(new_x, new_y, ON_CONSTRAINT);
+    }
+
+    add_corner_to_corners_map(c.p2, corners);
+
+    std::cout << "Constraint: " << c.p1 << " || " << c.p2 << std::endl;
+    std::cout << "added: " << seeds.size() - seeds_n_before_discretization << std::endl;
+  }
+
+  void discretize_constraints()
+  {
+    // hardcoded constraints for now : a square that is the bbox of the seeds
+    Point_2 p1(center.x() - sa, center.y() - sb);
+    Point_2 p2(center.x() + sa, center.y() - sb);
+    Point_2 p3(center.x() + sa, center.y() + sb);
+    Point_2 p4(center.x() - sa, center.y() + sb);
+    Voronoi_constraint c1(p1, p2);
+    Voronoi_constraint c2(p2, p3);
+    Voronoi_constraint c3(p3, p4);
+    Voronoi_constraint c4(p4, p1);
+    Vor_cons.push_back(c1);
+    Vor_cons.push_back(c2);
+    Vor_cons.push_back(c3);
+    Vor_cons.push_back(c4);
+
+    std::map<Point_2, std::size_t> corners; // point to seed id
+
+    discretize_constraint(c1, corners);
+    discretize_constraint(c2, corners);
+    discretize_constraint(c3, corners);
+    discretize_constraint(c4, corners);
+  }
+
+  Seed_status determine_seed_status(const FT x, const FT y)
+  {
+    std::size_t vcs = Vor_cons.size();
+    std::size_t contained_by_n = 0.;
+    for(std::size_t i=0; i<vcs; ++i)
+    {
+      const Voronoi_constraint& vc = Vor_cons[i];
+      if(vc.has_point(Point_2(x, y)))
+        contained_by_n++;
+      // could put a break if 2+ I guess...
+    }
+
+    if(contained_by_n >= 2)
+      return ON_CORNER;
+    else if(contained_by_n >= 1)
+      return ON_CONSTRAINT;
+    else
+      return IN_DOMAIN;
+  }
+
+  std::size_t insert_new_seed(const FT x, const FT y,
+                              const Seed_status s = IN_DOMAIN)
+  {
+  #ifdef FILTER_SEEDS_OUTSIDE_GRID
+      if(x < center.x() - sa || x > center.x() + sa ||
+         y < center.y() - sb || y > center.y() + sb)
+      {
+  #if (verbose > 1)
+        std::cout << "filtered : " << x << " " << y << std::endl;
+  #endif
+        return seeds.size();
+      }
+  #endif
+  #if (verbose > 0)
+    std::cout << "added new seed: " << x << " " << y;
+    std::cout << " (" << seeds.size() << ")";
+    std::cout << " with status: " << s << std::endl;
+  #endif
+    seeds.push_back(Point_2(x, y));
+    seeds_m.push_back(mf->compute_metric(seeds.back()));
+    seeds_s.push_back(s);
+    return seeds.size();
+  }
+
+  int build_seeds()
+  {
+    std::cout << "build seeds" << std::endl;
+
+    // don't want to count constraint seeds as 'real' seeds
+    std::size_t constraint_seeds_n = seeds.size();
+
+    std::ifstream in((str_seeds + ".mesh").c_str());
+
+    if(!in)
+    {
+      std::cout << "couldn't open seed file" << std::endl;
+      exit(0);
+    }
+
+    std::string word;
+    std::size_t useless, nv, dim;
+    FT r_x, r_y;
+
+    in >> word >> useless; // MeshVersionFormatted i
+    in >> word >> dim; // Dimension d
+    in >> word >> nv;
+    std::cout << "seeds nv: " << nv << std::endl;
+    CGAL_assertion(dim == 2);
+
+    std::size_t min_nv = (std::min)(nv, vertices_nv);
+
+    seeds.reserve(min_nv);
+    seeds_m.reserve(min_nv);
+
+    for(std::size_t i=0; i<nv; ++i)
+    {
+      in >> r_x >> r_y >> useless;
+
+      Seed_status s = determine_seed_status(r_x, r_y);
+      insert_new_seed(r_x, r_y, s);
+
+      if(seeds.size() - constraint_seeds_n >= vertices_nv)
+        break;
+    }
+  #if (verbose > 0)
+    std::cout << "seeds: " << seeds.size() << std::endl;
+  #endif
+    return seeds.size();
+  }
+
+  void initialize_seeds()
+  {
+    // initialize constraints first
+    if(are_constraints_discretized)
+      discretize_constraints();
+
+    vertices_nv = build_seeds();
+    CGAL_assertion(vertices_nv > 0 && "No seed in domain..." );
   }
 
   void initialize_from_starset()
   {
+    std::cout << "ini bm from ss " << std::endl;
+
     base_mesh_bbox = CGAL::Bbox_2();
 
     // build the points from the starset
@@ -1037,12 +1192,14 @@ public:
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 40)
+#if (verbose > 30)
       std::cout << "trial heap: " << std::endl;
+#if (verbose > 40)
       for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
         std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
       std::cout << std::endl;
+#endif
 #endif
 
       if(!get_next_trial_point(id))
@@ -1130,14 +1287,12 @@ public:
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 30)
-      std::cout << "trial heap: " << std::endl;
 #if (verbose > 40)
+      std::cout << "trial heap: " << std::endl;
       for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
         std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
       std::cout << std::endl;
-#endif
 #endif
 
       if(!get_next_trial_point(id))
@@ -2747,6 +2902,63 @@ public:
     points.erase(it, points.end());
   }
 
+  void set_centroid(const std::size_t seed_id, const Point_2& c,
+                    std::vector<Point_2>& centroids)
+  {
+    Seed_status s = seeds_s[seed_id];
+    const Point_2& old_centroid = seeds[seed_id];
+
+    if(s == IN_DOMAIN)
+      centroids[seed_id] = c;
+    else if(s == ON_CONSTRAINT)
+    {
+      std::size_t vcs = Vor_cons.size();
+      bool found = false;
+      for(std::size_t i=0; i<vcs; ++i)
+      {
+        const Voronoi_constraint& vc = Vor_cons[i];
+        if(!vc.has_point(old_centroid))
+          continue;
+
+        found = true;
+
+        Vector2d old_new;
+        old_new(0) = c.x() - old_centroid.x();
+        old_new(1) = c.y() - old_centroid.y();
+
+        const Vector2d& dir = vc.dir;
+        FT sp = old_new.dot(dir);
+
+        FT new_x = old_centroid.x() + sp * dir(0);
+        FT new_y = old_centroid.y() + sp * dir(1);
+
+//        std::cout << "old seed: " << old_centroid << std::endl;
+//        std::cout << "constraint: " << vc.p1 << " -- " << vc.p2
+//                  << " has: " << old_centroid << std::endl;
+//        std::cout << "old->new: " << old_new.transpose() << std::endl;
+//        std::cout << "scalar prod: " << sp << std::endl;
+//        std::cout << "dir: " << dir.transpose() << std::endl;
+//        std::cout << "new centroid: " << new_x << " " << new_y << std::endl;
+
+        CGAL_postcondition(vc.has_point(Point_2(new_x, new_y)));
+
+        centroids[seed_id] = Point_2(new_x, new_y);
+        return;
+      }
+
+      if(!found)
+      {
+        std::cout << "ON_CONSTRAINT status but on no actual constraint..." << '\n';
+        std::cout << seed_id << " at " << old_centroid << std::endl;
+        exit(0);
+      }
+    }
+    else // if (s == ON_CORNER)
+    {
+      centroids[seed_id] = seeds[seed_id]; // don't move corners atm.
+    }
+  }
+
   void compute_all_centroids(std::vector<Point_2>& centroids)
   {
     // compute the centroid through the sum c = sum_i (ci*area_i) / sum_i (area_i)
@@ -2784,12 +2996,19 @@ public:
 
     for(std::size_t i=0; i<seeds_n; ++i)
     {
-      CGAL_precondition(total_areas[i] != 0.);
+      if(total_areas[i] == 0.)
+      {
+        std::cout << "Warning: Starset has not vertex of color: " << i << std::endl;
+        centroids[i] = seeds[i];
+        continue;
+      }
+
       FT d = 1. / total_areas[i];
       FT x = xs[i] * d;
       FT y = ys[i] * d;
       Point_2 c(x, y);
-      centroids[i] = c;
+
+      set_centroid(i, c, centroids);
     }
   }
 
@@ -3074,6 +3293,7 @@ public:
       trial_points(),
       dual_edges(),
       dual_triangles(),
+      Vor_cons(),
       size_queue(this),
       distortion_queue(this),
       intersection_queue(this),
@@ -3627,12 +3847,6 @@ Canvas_point::Canvas_point(const Canvas_point& cp)
     ancestor_path_length(cp.ancestor_path_length)
 { }
 
-void initialize_seeds()
-{
-  vertices_nv = build_seeds();
-  CGAL_assertion(vertices_nv > 0 && "No seed in domain..." );
-}
-
 struct Point_extracter
     : public std::unary_function<Canvas_point, Point_2>
 {
@@ -3680,7 +3894,7 @@ int main(int, char**)
 //  draw_metric_field(mf, bm);
 //  exit(0);
 
-  initialize_seeds();
+  bm.initialize_seeds();
   bm.locate_and_initialize_seeds();
   bm.spread_distances(true/*use_dual_shenanigans*/);
 
@@ -3724,7 +3938,7 @@ int main(int, char**)
   }
 
   ignore_children = true;
-  bm.compute_geodesics(str_base_mesh);
+//  bm.compute_geodesics(str_base_mesh);
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "duration: " << duration << std::endl;
