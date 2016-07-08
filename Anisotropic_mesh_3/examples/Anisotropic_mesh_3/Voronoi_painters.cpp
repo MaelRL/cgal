@@ -389,7 +389,7 @@ void full_grid()
   {
     for(std::size_t j=0; j<(n-1); ++j)
     {
-      for(std::size_t j=0; j<(n-1); ++j)
+      for(std::size_t k=0; k<(n-1); ++k)
       {
         // define the cube 01234567
 
@@ -889,7 +889,7 @@ void adapted_grid(const bool refine,
     insert_simplex_if_colored(q.ids[2], q.ids[5], q.ids[6], q.ids[7], local_values, local_points);
   }
 
-  std::cout << "End of simplices computation for thread " << thread_ID << std::endl;
+//  std::cout << "End of simplices computation for thread " << thread_ID << std::endl;
 #endif
 
   // OUTPUT all the regions to a single file. From now on, it's more or less
@@ -898,7 +898,7 @@ void adapted_grid(const bool refine,
   {
 #pragma omp critical
 {
-    std::cout << "adding " << local_values.size() << " from thread " << thread_ID << std::endl;
+//    std::cout << "adding " << local_values.size() << " from thread " << thread_ID << std::endl;
     grid_nv += local_values.size();
     grid_ntet += 5*local_final_cubes.size();
 }

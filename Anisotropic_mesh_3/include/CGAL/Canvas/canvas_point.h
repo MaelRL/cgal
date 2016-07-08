@@ -30,7 +30,7 @@ public:
 
   typedef boost::unordered_set<std::size_t>                 Point_set;
 
-protected:
+public:
   Canvas* m_canvas;
 
   Point_3 m_point;

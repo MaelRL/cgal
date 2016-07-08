@@ -319,6 +319,58 @@ public:
     }
   }
 
+/*
+  void initialize_vertices_normals()
+  {
+    // todo not very efficient since we compute the normal three times per face
+    // If you need vertex normals again, remove that stuff and copy what was
+    // done for edges...
+
+    Finite_vertices_iterator vit = m_c3t3.triangulation().finite_vertices_begin();
+    Finite_vertices_iterator vend = m_c3t3.triangulation().finite_vertices_end();
+    for(; vit!=vend; ++vit)
+    {
+      if(vit->in_dimension() > 2)
+        continue; // only consider vertices on the boundary of the complex
+
+      Canvas_point& cp = this->get_point(vit->info());
+      Vector3d cp_normal = Vector3d::Zero();
+
+      // the adjacent vertices have been ordered when building the cache
+      Vertex_handle_handle vhit = cp.adjacent_vertices_in_complex_begin();
+      Vertex_handle_handle vhend = cp.adjacent_vertices_in_complex_end();
+      for(; vhit!=vhend; ++vhit)
+      {
+        Vertex_handle_handle vhit_next = vhit;
+        if(vhit == --(cp.adjacent_vertices_in_complex_end()))
+          vhit_next = cp.adjacent_vertices_in_complex_begin();
+        else
+          std::advance(vhit_next, 1);
+
+        Vertex_handle vh = *vhit;
+        Vertex_handle vh_next = *vhit_next;
+
+        Vector3d v1, v2;
+        v1(0) = vh->point().x() - cp.point().x();
+        v1(1) = vh->point().y() - cp.point().y();
+        v1(2) = vh->point().z() - cp.point().z();
+
+        v2(0) = vh_next->point().x() - cp.point().x();
+        v2(1) = vh_next->point().y() - cp.point().y();
+        v2(2) = vh_next->point().z() - cp.point().z();
+
+        Vector3d local_normal = v1.cross(v2);
+        cp_normal += local_normal;
+      }
+
+      cp_normal = cp_normal / cp_normal.norm();
+
+      you'll have to redefine the normal in the point class
+      cp.m_normal = cp_normal;
+    }
+  }
+*/
+
   void initialize()
   {
 #if (VERBOSITY > 5)

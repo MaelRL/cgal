@@ -28,6 +28,11 @@ find_package(CGAL COMPONENTS)
 if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
 
+  # Find Boost
+  find_package(Boost COMPONENTS chrono timer)
+  include_directories(${Boost_INCLUDE_DIRS})
+  link_libraries(${Boost_LIBRARIES})
+
   include( CGAL_CreateSingleSourceCGALProgram )
 
   # Find OpenGL

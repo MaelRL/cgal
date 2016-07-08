@@ -1579,7 +1579,7 @@ struct Base_mesh
     std::cout << "End of spread_distances. time: ";
     std::cout << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
 
-    //print_profiler_info();
+    // print_profiler_info();
   }
 
   void debug()
@@ -2103,6 +2103,9 @@ struct Base_mesh
                             std::vector<Point_2>& control_points)
   {
     // todo simplify some notations maybe...
+    std::cout << "compute Bezier approximation of the geodesic between: ";
+    std::cout << points[geodesic.front().first].closest_seed_id << " and ";
+    std::cout << points[geodesic.back().first].closest_seed_id << std::endl;
 
     // Before computing the control points, we might want to split the geodesic
     // in small segments of n points to limit the degree of the interpolating
@@ -2264,6 +2267,21 @@ struct Base_mesh
 
       std::vector<Point_2> single_geodesic_control_points(geo_size);
       compute_Bezier_curve(geodesic, single_geodesic_control_points);
+
+      std::cout << "full geodesic :" << std::endl;
+      for(std::size_t j=0; j<geo_size; ++j)
+      {
+        const Point_2& p = points[geodesic[j].first].point;
+        std::cout << "{" << p.x() << ", " << p.y() << "}, " <<  std::endl;
+      }
+
+      std::cout << "full control points: " << std::endl;
+      for(std::size_t j=0; j<geo_size; ++j)
+      {
+        const Point_2& p = single_geodesic_control_points[j];
+        std::cout << "{" << p.x() << ", " << p.y() << "}, " <<  std::endl;
+      }
+
       control_points.push_back(single_geodesic_control_points);
     }
 
@@ -4448,7 +4466,8 @@ CGAL_expensive_assertion_code(
       const Tri& tr = *it;
       for(std::size_t i=0; i<tr.size(); ++i)
         out << tr[i] + 1 << " ";
-      out << is_triangle_intersected(tr, dual_edges) << '\n';
+//      out << is_triangle_intersected(tr, dual_edges) << '\n';
+      out << " 0" << '\n';
     }
     out << "End" << std::endl;
   }
@@ -4845,8 +4864,6 @@ bool Grid_point::compute_closest_seed(const std::size_t anc_id,
       Vector2d transformed_curr_edge = f*normalized_anc_edge;
 
       FT sp = curr_edge.dot(normalized_anc_edge);
-      FT l = transformed_curr_edge.norm(); // length of the normalized anc edge in the metric
-
       dist_to_ancestor += sp * l;
     }
     dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);
@@ -4950,6 +4967,10 @@ PQ_state Grid_point::update_neighbors_distances(std::vector<Grid_point*>& trial_
   for(; it!=end; ++it)
   {
     Grid_point& gp = bm->points[*it];
+
+#if (verbose > 12)
+    std::cout << "neighbor: " << *it << " has state: " << gp.state << std::endl;
+#endif
 
     if(gp.state == KNOWN)
       continue;

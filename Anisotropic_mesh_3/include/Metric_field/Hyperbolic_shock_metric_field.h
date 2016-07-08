@@ -30,8 +30,11 @@ public:
 
   virtual Metric compute_metric(const Point_3 &p) const
   {
+    double h = 0.05; // scaling factor
+
     FT x = p.x();
     FT y = p.y();
+
     FT tanhder = tanh((2.0 * x - sin(5.0 * y)) / delta);
     tanhder = (1.0 - tanhder * tanhder) / delta;
     FT x1 = 2. * tanhder + 3.0 * x * x + y * y;
@@ -46,7 +49,8 @@ public:
     Vector_3 v1 = (1./l1) * Vector_3(x1, y1, 0);
     Vector_3 v2 = (1./l2) * Vector_3(x2, y2, 0);
     Vector_3 v3(0, 0, 1.);
-    return Metric(v1, v2, v3, l1, l2, 1., this->epsilon);
+
+    return Metric(v1, v2, v3, l1 / h, l2 / h, 1. / h, this->epsilon);
   }
 
 //  virtual Metric compute_metric(const Point_3 &p) const

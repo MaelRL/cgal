@@ -1161,7 +1161,7 @@ void trace_geodesic_with_gradient(Canvas& canvas,
   {
     std::size_t start_seed_id = *it;
 
-    // obviously really ugly
+    // obviously really ugly and expensive
     std::size_t starting_id = -1;
     for(std::size_t i=0, cps=canvas.canvas_points.size(); i<cps; ++i)
     {

@@ -98,11 +98,142 @@ public:
   OutputIterator
   incident_facets_on_complex_boundary(OutputIterator facets) const
   {
-    return c3t3().triangulation().tds().incident_facets(m_v, facets, In_complex_filter(c3t3()));
+    return c3t3().triangulation().tds().incident_facets(m_v, facets,
+                                                        In_complex_filter(c3t3()));
   }
 
   void set_adjacent_vertices_on_complex_boundary() const
   {
+    // brute forcy...
+
+    CGAL_assertion(m_v != Vertex_handle());
+    CGAL_assertion(c3t3().triangulation().dimension() > 1);
+
+    // copy
+    update_facets_cache();
+    Facet_vector facets = m_incident_facets_cache;
+    CGAL_assertion(facets.size() > 2);
+
+    // decide the orientation from the first facet
+    const Facet& front = facets.front();
+    Cell_handle c = front.first;
+    std::size_t second = front.second;
+
+    if(!c3t3().is_in_complex(c))
+    {
+      Cell_handle c_mirror = c->neighbor(second);
+      second = c_mirror->index(c);
+      c = c_mirror;
+    }
+    CGAL_assertion(!c3t3().triangulation().is_infinite(c));
+
+    // get the two other vertices of the face
+    // todo: there might be something prettier here
+    Vertex_handle vh_a, vh_b;
+    for(std::size_t i=0; i<4; ++i)
+    {
+      if(i == second || c->vertex(i) == m_v)
+        continue;
+      if(vh_a == Vertex_handle())
+        vh_a = c->vertex(i);
+      else
+        vh_b = c->vertex(i);
+    }
+    CGAL_postcondition(vh_a != Vertex_handle() && vh_b != Vertex_handle());
+
+    Vertex_handle curr, last;
+    // Now look at the orientation of the tet (a, b, m_v, second)
+    CGAL::Orientation o = CGAL::orientation(vh_a->point().point(),
+                                            vh_b->point().point(),
+                                            m_v->point().point(),
+                                            c->vertex(second)->point().point());
+    if(o == CGAL::POSITIVE) // ((ab^ac),ad) > 0
+    {
+      // since we want the normal to point outside
+      curr = vh_a;
+      last = vh_b;
+    }
+    else
+    {
+      CGAL_assertion(o == CGAL::NEGATIVE); // ZERO case should not happen
+      curr = vh_b;
+      last = vh_a;
+    }
+
+/*
+    std::cout << "----------------------" << std::endl;
+    std::cout << "all available: " << m_v->info() << std::endl;
+    for(std::size_t i=0; i<facets.size(); ++i)
+    {
+      const Facet& f = facets[i];
+      const Cell_handle c = f.first;
+
+      for(int j=0; j<4; ++j)
+        std::cout << c->vertex(j)->info() << " ";
+
+      std::cout << "( " << f.second << " )" << std::endl;
+    }
+*/
+
+    facets.erase(facets.begin());
+    m_adjacent_vertices_cache.push_back(curr);
+
+    // ugly part
+    Vertex_handle prev_curr = curr;
+    while(!facets.empty())
+    {
+//      std::cout << "looking for " << curr->info() << std::endl;
+
+      typename Facet_vector::iterator it = facets.begin();
+      typename Facet_vector::iterator end = facets.end();
+      for(; it!=end; ++it)
+      {
+        c = it->first;
+        second = it->second;
+
+        // get the two other vertices
+        Vertex_handle v1, v2;
+        for(std::size_t i=0; i<4; ++i)
+        {
+          if(i == second || c->vertex(i) == m_v)
+            continue;
+          if(v1 == Vertex_handle())
+            v1 = c->vertex(i);
+          else
+            v2 = c->vertex(i);
+        }
+
+//        std::cout << "available: " << v1->info() << " and " << v2->info() << std::endl;
+
+        // look for curr
+        if(v1 == curr)
+        {
+          curr = v2;
+          facets.erase(it);
+          break;
+        }
+        else if(v2 == curr)
+        {
+          curr = v1;
+          facets.erase(it);
+          break;
+        }
+      }
+
+      CGAL_assertion(prev_curr != curr);
+
+      prev_curr = curr;
+      m_adjacent_vertices_cache.push_back(curr);
+    }
+
+    CGAL_assertion(m_adjacent_vertices_cache.back() == last);
+    CGAL_assertion(m_adjacent_vertices_cache.size() == m_incident_facets_cache.size());
+  }
+
+  void set_adjacent_vertices_on_complex_boundary_old() const
+  {
+    // doesn't work if the dihedral angles are too small or too large.
+
     // We're going to need to have them oriented to compute the relative angles
     // that are needed to flatten a path along the surface, so we might as well
     // do it here !
@@ -114,7 +245,7 @@ public:
 
     // Build a map<Vh, Vh> (each entry is one edge of the link)
     // and we order the vertices by walking the link (the map) at the end
-    boost::unordered_map<Vertex_handle, Vertex_handle> oriented_edges;
+    boost::unordered_multimap<Vertex_handle, Vertex_handle> oriented_edges;
 
     Facet_handle fit = incident_facets_in_complex_begin();
     Facet_handle end = incident_facets_in_complex_end();
@@ -132,21 +263,17 @@ public:
         second = c_mirror->index(c);
         c = c_mirror;
       }
+      CGAL_assertion(!c3t3().triangulation().is_infinite(c));
 
-      // find the position of the center of the star in the cell
-      std::size_t center_id = 0;
-      for(; center_id<4; ++center_id)
-      {
-        if(m_v == c->vertex(center_id))
-          break;
-      }
-
+      // get the two other vertices of the face
       // todo: there might be something prettier here
       Vertex_handle vh_a, vh_b;
       for(std::size_t i=0; i<4; ++i)
       {
-        if(i == second || i == center_id)
+        if(i == second || c->vertex(i) == m_v)
           continue;
+
+
         if(vh_a == Vertex_handle())
           vh_a = c->vertex(i);
         else
@@ -154,13 +281,16 @@ public:
       }
       CGAL_postcondition(vh_a != Vertex_handle() && vh_b != Vertex_handle());
 
-      // Now look at the orientation of the tet (a, b, center_id, second)
+      // Now look at the orientation of the tet (a, b, m_v, second)
       CGAL::Orientation o = CGAL::orientation(vh_a->point().point(),
                                               vh_b->point().point(),
                                               m_v->point().point(),
                                               c->vertex(second)->point().point());
       if(o == CGAL::POSITIVE) // ((ab^ac),ad) > 0
-        oriented_edges[vh_b] = vh_a; // since we want the normal to point outside !
+      {
+
+        oriented_edges[vh_b] = vh_a; // since we want the normal to point outside
+      }
       else
       {
         CGAL_assertion(o == CGAL::NEGATIVE); // ZERO case should not happen
@@ -170,7 +300,8 @@ public:
     CGAL_postcondition(nb_of_inc_facets == oriented_edges.size());
 
     // We can now put the (oriented) vertices in cache
-    typename boost::unordered_map<Vertex_handle, Vertex_handle>::iterator it = oriented_edges.begin();
+    typename boost::unordered_multimap<Vertex_handle, Vertex_handle>::iterator
+                                                    it = oriented_edges.begin();
     Vertex_handle init = it->first;
 
     while(true)
@@ -378,6 +509,7 @@ public:
     Vector3d rotated_edge_normal = rot_m * edge_normal;
     CGAL_postcondition((rotated_edge_normal.cross(unfolding_normal)).norm() < 1e-5 &&
                         rotated_edge_normal.dot(unfolding_normal) > 0);
+    // end debug
 
     // the metric if M = F^TF with F = V^T D V
     // the rotation is given by F_rot = (RV)^T D (RV), R being the rotation...
@@ -728,6 +860,7 @@ public:
         std::cout << "dist_to_anc: " << dist_to_ancestor << " sp: " << sp << " l: " << l << std::endl << std::endl;
 #endif
       }
+
       dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);
 
       // add ancestor edge length to the distance at that ancestor
@@ -763,7 +896,8 @@ public:
     std::cout << "distance with that anc: " << d << std::endl;
 #endif
 
-    if(d < this->distance_to_closest_seed())
+//    if(d < this->distance_to_closest_seed())
+    if(this->distance_to_closest_seed() - d > 1e-8) // to avoid useless updates
     {
 #if (VERBOSITY > 20)
       std::cout << "improving distance at " << Base::index() << " "

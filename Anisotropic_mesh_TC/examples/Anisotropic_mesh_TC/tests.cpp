@@ -1,3 +1,6 @@
+#define ANISO_COMPUTE_DUAL_FROM_TANGENT_PLANE
+#define ANISO_TC_DEBUG
+
 #include <CGAL/Epick_d.h>
 
 #include <CGAL/Metric_field.h>
@@ -12,8 +15,8 @@
 
 #include <fstream>
 
-const int d = 3;
-const int D = 9;
+const int d = 2;
+const int D = 5;
 
 using namespace CGAL::Anisotropic_mesh_TC;
 

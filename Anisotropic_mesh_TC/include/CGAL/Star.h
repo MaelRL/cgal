@@ -864,6 +864,128 @@ public:
     return false;
   }
 
+/* COMMENTED CODE DOES NOT WORK : it is pointless to compute the intersection
+ * of the dual with the tangent plane since we can't actually project it back
+ * in the global space afterwards. A possible hack is to project the intersection
+ * with the tangent plane on the paraboloid and then to use this as a global
+ * point but it's ugly.
+ *
+ * If you one day desire to use the function below anyway, you also need to
+ * recreate the metric_helper.hpp that wasn't commited and got lost (or just
+ * the logxexp matrix interpolation).
+
+  bool compute_dual_from_tangent_plane(const Full_cell_handle fch,
+                                       const std::vector<Star_handle>& all_stars)
+  {
+    std::cout << "compute dual from tangent plane" << std::endl;
+
+    //interpolation (if you change it here, change it in the new metric computation too!)
+    std::vector<std::pair<E_Matrix_d, FT> > metric_transfs;
+    for(std::size_t i=0; i<d()+1; ++i)
+    {
+      const E_Matrix_d& mi = all_stars[fch->vertex(i)->data()]->metric().get_mat();
+      std::cout << "mi : " << fch->vertex(i)->data() << std::endl << mi << std::endl;
+      metric_transfs.push_back(std::make_pair(mi, 1./(d()+1)));
+    }
+    E_Matrix_d m = logexp_interpolate<Kd, E_Matrix_d>(metric_transfs);
+
+    //compute the weighted circumcenter on the tangent plane
+    typename Traits::Power_center_d pc = m_traits->power_center_d_object();
+    typename Traits::Compute_coordinate_d coord = m_traits->compute_coordinate_d_object();
+    typename KD::Compute_coordinate_d coordD = KD().compute_coordinate_d_object();
+
+    std::vector<WPoint_d> pts;
+    for(int i=0; i<d()+1; ++i)
+      pts.push_back(fch->vertex(i)->point());
+
+    WPoint_d c = pc(pts.begin(), pts.end());
+
+    //solve linear system to get the ambiant space to find p in R^d
+    //we solve ((hat p).n_i) = c_i (finding a point in R^D whose coordinates on the tangent planes are c_i)
+    E_Matrix_d A = E_Matrix_d::Zero();
+    E_Vector_d B = E_Vector_d::Zero();
+
+    //fill A & B
+    std::cout << "fill A&B: " << std::endl;
+    for(std::size_t i=0; i<d(); ++i)
+    {
+      for(std::size_t j=0; j<d(); ++j) // filling A(i,j) and B(i)
+      {
+        for(std::size_t k=0; k<d(); ++k) // the M*p coefficients of hat p are in A
+          A(i,j) += m(k,j)*m_tsb[i][k];
+
+        B(i) = coord(c, i);
+        int pos = d();
+        for(std::size_t k=0; k<d();++k) // the Q coefficients of hat p are removed from B
+        {
+          for(std::size_t l=k; l<d(); ++l)
+          {
+            if(k==l)
+              B(i) += 0.5*m(k,k)*m_tsb[i][pos++];
+            else
+              B(i) += m(k,l)*m_tsb[i][pos++];
+          }
+        }
+      }
+
+      for(std::size_t j=0; j<D(); ++j)
+        B(i) += coordD(m_center_Q, j) * m_tsb[i][j];
+    }
+
+    E_Vector_d x = A.colPivHouseholderQr().solve(B);
+
+#ifdef ANISO_TC_DEBUG
+    typename Traits::Power_distance_d pd = m_traits->power_distance_d_object();
+
+    std::cout << "interpolated metric is : " << std::endl << m << std::endl;
+    std::cout << "computed c " << coord(c,0) << " " << coord(c,1) << " " << c.weight() << std::endl;
+    std::cout << "distance check for c: ";
+    for(std::size_t i=0; i<d()+1; ++i)
+      std::cout << pd(c, fch->vertex(i)->point()) << " ";
+    std::cout << std::endl << "x: " << x.transpose() << std::endl;
+
+    E_Vector_d tilde_p = m * x;
+    E_Vector_D hat_p;
+    for(std::size_t i=0; i<d(); ++i)
+      hat_p(i) = tilde_p(i);
+
+    int ind = d();
+    for(std::size_t i=0; i<d(); ++i)
+    {
+      for(std::size_t j=i; j<d(); ++j)
+      {
+        if(j==i)
+          hat_p(ind++) = -0.5*m(i,i);
+        else
+          hat_p(ind++) = -m(i,j);
+      }
+    }
+    FT n = hat_p.norm();
+    FT w = n * n - x.transpose() * tilde_p;
+    WPoint_D x_to_S = KD().construct_weighted_point_d_object()(
+                        KD().construct_point_d_object()(D(), hat_p.data(), hat_p.data() + D()),
+                        w);
+
+    std::cout << "computed x_to_S check at: " << hat_p.transpose() << " " << w << std::endl;
+    std::cout << "one of the following has to be equal to c: " << std::endl;
+    for(std::size_t i=0; i<d()+1; ++i)
+    {
+      std::cout << fch->vertex(i)->data() << " || ";
+      for(std::size_t j=0; j<d(); ++j)
+        std::cout << coord(all_stars[fch->vertex(i)->data()]->to_T(x_to_S), j) << " ";
+      std::cout << std::endl;
+      std::cout << "local coordinates of fch in the star above : ";
+      for(std::size_t j=0; j<d(); ++j)
+        std::cout << coord(fch->vertex(i)->point(),j) << " ";
+      std::cout << fch->vertex(i)->point().weight() << std::endl;
+    }
+#endif
+
+    fch->data().first = Kd().construct_point_d_object()(d(),x.data(), x.data()+d());
+    fch->data().second = true;
+    return true;
+  }
+*/
 
   bool is_inside(const Point_d& p) // fixme this should check if we're in the domain
   {

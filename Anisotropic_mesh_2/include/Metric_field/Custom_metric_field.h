@@ -39,9 +39,10 @@ public:
     FT lambda_1 = 1./(l*l);
     FT lambda_2 = 1.;
 
-    // scale a bit the eigenvalues... multiply by x^2 divides the length by x
-    lambda_1 = lambda_1*100;
-    lambda_2 = lambda_2*100;
+    // scale a bit the eigenvalues... multiplying the evs by s^2 divides the length by s
+    FT s = 100;
+    lambda_1 = lambda_1 * s;
+    lambda_2 = lambda_2 * s;
 
     f1 /= l;
     f2 /= l;
@@ -92,8 +93,8 @@ public:
 //    1./(std::pow((r*r+1), 3));
     FT e2 = 1.;
 
-    // some scaling
-    double s = 2500;
+    // some scaling, multiplying the evs by s^2 divides the length by s
+    double s = 10000;
     e1 *= s;
     e2 *= s;
 
@@ -111,7 +112,7 @@ public:
     FT y = p.y();
 
     FT delta = 0.01;
-    FT lambda = 100000;//2*(1-CGAL::sqrt(1-delta*delta));
+    FT lambda = 100000; //2*(1-CGAL::sqrt(1-delta*delta));
 
     FT l_x = delta / 10.;
     FT l_y = 0.25;
@@ -164,7 +165,7 @@ public:
     if(p == CGAL::ORIGIN)
       return Metric();
 
-    FT h = 0.05;
+    FT h = 0.05; // 0.05 is the dense(st) one that uses a 5m grid [0.08 for starset]
     FT phi = 1.;
 
     FT x = p.x();
@@ -188,7 +189,7 @@ public:
   Metric hyperbolic_shock(const Point_2 &p,
                           const FT delta = 0.6) const
   {
-    FT h = 0.1; // 0.05
+    FT h = 0.05; // 0.0005 for the 2m ish (iso) canvas
 
     FT x = p.x();
     FT y = p.y();

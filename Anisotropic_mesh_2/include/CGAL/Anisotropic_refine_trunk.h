@@ -13,6 +13,12 @@
 
 #include <CGAL/IO/Star_set_output.h>
 
+#include <omp.h>
+
+#include <deque>
+#include <set>
+#include <vector>
+
 namespace CGAL
 {
 namespace Anisotropic_mesh_2
@@ -344,6 +350,7 @@ public:
   typedef std::vector<Star_handle>                                 Star_vector;
   typedef typename Star_vector::iterator                           Star_iterator;
   typedef std::set<Star_handle>                                    Star_set;
+  typedef std::deque<Star_handle>                                  Star_deque;
   typedef typename Star::Index                                     Index;
   typedef std::set<Index>                                          Index_set;
   typedef typename Star::Point_2                                   Point_2;

@@ -51,7 +51,7 @@ void mesh_to_dump(const char* filename)
     std::cout << "couldn't open the file" << std::endl;
 
   std::string useless_str;
-  int useless_int, nv, nt;
+  std::size_t useless_int, nv, nt;
 
   in >> useless_str >> useless_int; // MeshVersionFormatted 1
   in >> useless_str >> useless_int; // Dimension 2

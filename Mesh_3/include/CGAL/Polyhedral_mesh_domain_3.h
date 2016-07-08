@@ -161,6 +161,8 @@ class Polyhedral_mesh_domain_3
     IGT_,Use_exact_intersection_construction_tag>::type IGT;
 
 public:
+  typedef Polyhedron Polyhedron_type;
+
   /// Geometric object types
   typedef typename IGT::Point_3    Point_3;
   typedef typename IGT::Segment_3  Segment_3;

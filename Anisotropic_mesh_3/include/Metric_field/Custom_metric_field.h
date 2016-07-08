@@ -73,20 +73,36 @@ public:
 
   Metric yang_liu_cube_shock(const Point_3& p) const
   {
-    //Yang Liu 3D Metric on a [1,11]^3 cube
-    double x = p.x();
-    double y = p.y();
-    double z = p.z();
+    double h = 0.25; // 0.3 for the 1.5m canvas
+
+    //Yang Liu 3D Metric
+    double x = p.x() + 0.1; // tmp to avoid the origin...
+    double y = p.y() + 0.1;
+    double z = p.z() + 0.1;
 
     double r = std::sqrt(x*x + y*y + z*z);
+
+//    std::cout << "r: " << r << std::endl;
+
+    if(r<0.1)
+      return this->build_metric(Vector_3(1.,0.,0.),
+                                Vector_3(0.,1.,0.),
+                                Vector_3(0.,0.,1.),
+                                1./h, 1./h, 1./h);
 
     x /= r;
     y /= r;
     z /= r;
 
-    double h1 = 0.025 + (1-std::exp(-0.01 * std::abs(r*r-49)));
+    double lambda = std::exp(-0.5 * std::abs(r*r-5.));
+//    double h1 = 0.025 + (1-lambda);
+    double h1 = 0.1 + (1-lambda);
     double h2 = 1.;
     double h3 = 1.;
+
+//    std::cout << "h1: " << h1 << std::endl;
+
+    CGAL_assertion(std::abs(y) > 1e-15);
 
     double v2y = -y*z / std::sqrt((x*x + y*y + z*z)*(x*x + y*y));
     double v2x = x*v2y/y;
@@ -102,7 +118,9 @@ public:
 
   virtual Metric compute_metric(const Point_3 &p) const
   {
-    return yang_liu(p);
+    return yang_liu_cube_shock(p);
+    return yang_liu_cube_shock_1D(p);
+    return yang_liu_sphere_sin(p);
 
     FT denom = std::sqrt(9.); // = ratio at x=+/-1
     double h = 1.0;

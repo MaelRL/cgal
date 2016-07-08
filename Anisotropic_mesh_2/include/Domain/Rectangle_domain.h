@@ -23,8 +23,8 @@ public:
   typedef CGAL::Oriented_side           Oriented_side;
 
 public:
-  FT hside_x; //half side length along Ox
-  FT hside_y; //half side length along Oy
+  FT hside_x; // half side length along Ox
+  FT hside_y; // half side length along Oy
   FT hside;
   Point_2 center;
 

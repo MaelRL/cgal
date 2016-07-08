@@ -121,7 +121,8 @@ public:
     fill_refinement_queue();
     Mesher_lvl::is_active() = true;
 
-/*
+#ifdef ANISO_DEBUG_REFINEMENT_PP
+
     Star_iterator sit = this->m_starset.begin();
     Star_iterator sitend = this->m_starset.end();
     for(; sit!=sitend; ++sit)
@@ -130,7 +131,7 @@ public:
       star->print_vertices();
       star->print_faces();
     }
-*/
+#endif
 
     std::ofstream out("initial.mesh");
     output_medit(this->m_starset, out);
@@ -138,6 +139,7 @@ public:
 
   bool is_algorithm_done_()
   {
+#ifdef ANISO_EXPENSIVE_REFINE_QUEUE_CHECKS
     if(m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end))
     {
       std::cout << "it says it's empty" << std::endl;
@@ -153,8 +155,9 @@ public:
         return false;
       }
     }
-
+#else
     return m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end);
+#endif
   }
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_2& steiner_point)
@@ -362,14 +365,14 @@ private:
                   bool force_push = false, bool check_if_in = false)
   {
     //TODO (?) A possibility might be to check whether the face already exists
-    //in the queue (regardless of the queue/value/star). If this is the case, then we move on
-    //to the next face.
+    // in the queue (regardless of the queue/value/star). If this is the case,
+    // then we move on to the next face.
 
-    //What is done atm is to update the queue IF HIGHER PRIO (new queue_type < old queue_type or
-    // new_value > old_value).
+    // What is done atm is to update the queue IF HIGHER PRIO
+    // (new queue_type < old queue_type or new_value > old_value).
 
-    //Benefits would be the cost of checking the criteria + update cost but the queues would
-    //not have the exact correct priority order they should have.
+    // Benefits would be the cost of checking the criteria + update cost
+    // but the queues would not have the exact correct priority order they should have.
 
 
 #ifdef ANISO_DEBUG_REFINEMENT_PP
@@ -533,7 +536,7 @@ public:
     // queue).
     fill_from_unmodified_stars();
 
-#if 0
+#if ANISO_DEBUG_REFINEMENT_PP
     std::cout << "Enter fill f_ref_queue debug. Filling with all stars" << std::endl;
     fill_refinement_queue();
     m_refine_queue.print();

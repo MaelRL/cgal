@@ -45,9 +45,9 @@
 #define FILTER_SEEDS_OUTSIDE_GRID
 #define verbose 2
 
-//#define COMPUTE_GEODESIC
+// #define COMPUTE_GEODESIC
 #define COMPUTE_REAL_GEODESICS
-#define OVERWRITE_SEED_WITH_CANVAS_POINT
+// #define OVERWRITE_SEED_WITH_CANVAS_POINT // use that for easier geodesic drawing
 
 namespace CGAL
 {
@@ -85,6 +85,9 @@ typedef KExact::Segment_2                                     ESegment;
 typedef KExact::Triangle_2                                    ETriangle;
 typedef CGAL::Cartesian_converter<K, KExact>                  To_exact;
 typedef CGAL::Cartesian_converter<KExact, K>                  Back_from_exact;
+
+// using a lot of global variables, it's ugly
+// but passing them by function is tedious
 
 const FT FT_inf = std::numeric_limits<FT>::infinity();
 To_exact to_exact;
@@ -147,6 +150,9 @@ FT delta = 0.3;
 int max_times_to_try = 60;
 int nb = 20; // nb_initial_points
 
+// max number of stars
+std::size_t max_stars_n = -1;
+
 Criteria_base<K> criteria(f_r0, f_rho0, gamma, beta, delta, nb, max_times_to_try);
 
 void generate_starset(Star_set& ss)
@@ -173,6 +179,8 @@ void read_dump(Star_set& ss,
   FT x, y;
 
   in >> stars_n;
+
+  stars_n = (std::min)(max_stars_n, stars_n);
 
   for(std::size_t i=0; i<stars_n; ++i)
   {
@@ -342,7 +350,7 @@ bool is_triangle_intersected(const Tri& tri,
 
 #pragma omp parallel shared(is_intersected, edges, p0, p1, p2)
   {
-    for(boost::unordered_set<Edge>::const_iterator it = edges.begin();
+    for(boost::unordered_set<Edge>::const_iterator it=edges.begin();
                                                    it!=edges.end(); ++it)
     {
 #pragma omp single nowait // hack to parallelize the std::set loop
@@ -763,15 +771,17 @@ public:
     Canvas_point& cp = points[id];
     if(cp.closest_seed_id != static_cast<std::size_t>(-1))
     {
-      std::cout << "WARNING: a new seed is overwriting the closest seed id at ";
-      std::cout << cp.index << ". Previous index is: " << cp.closest_seed_id;
-      std::cout << " (" << seeds.size() << " seeds)" << std::endl;
-    }
+      std::cout << "WARNING: a new seed (" << seed_id << ") is overwriting the closest seed id at ";
+      std::cout << cp.index << ". Previous closest seed is: " << cp.closest_seed_id;
+      std::cout << " (at: " << seeds[cp.closest_seed_id] << ")" << std::endl;
+   }
 
     if(cp.state == TRIAL)
     {
-      // it's already a trial point, we can't accept two seeds for one canvas pt
-      CGAL_assertion(false && "the canvas is not dense enough for the input...");
+      // it's already a trial point, we can't accept two seeds for one canvas point
+      std::cout << "Warning: the canvas is not dense enough for the input..."
+                << " Ignoring seed: " << seed_id << " : " << seeds[seed_id] << std::endl;
+      return;
     }
 
     cp.initialize_from_point(dist, seed_id);
@@ -821,10 +831,13 @@ public:
     if(intersections.empty())
     {
       std::cout << "the locate-ray didn't encounter any star..." << std::endl;
+      std::cout << "bbox: " << base_mesh_bbox << std::endl;
+      std::cout << "seed: " << seeds[seed_id] << std::endl;
 
       // switch to something expensive... take the closest point...
       find_and_initialize_closest_vertex(s, seed_id);
       found = true;
+      return;
     }
 
 //    if(intersections.size() > 1)
@@ -890,6 +903,8 @@ public:
     tree.clear();
 
     // create an aabb tree of triangles to fasten it
+    std::size_t filtered_stars_n = 0.;
+
     for(std::size_t i=0, sss=ss.size(); i<sss; ++i)
     {
       Star_handle star = ss[i];
@@ -901,7 +916,10 @@ public:
         typename Star_set::Face_handle fh = *fhit;
 
         if(is_face_outside_domain(star, fh))
+        {
+          filtered_stars_n++;
           continue;
+        }
 
         const Point_2& p0 = points[fh->vertex(0)->info()].point;
         const Point_2& p1 = points[fh->vertex(1)->info()].point;
@@ -917,6 +935,11 @@ public:
     }
 
     std::cout << "built aabb tree w/ " << tree.size() << " entries" << std::endl;
+    std::cout << filtered_stars_n << " filtered stars" << std::endl;
+
+    // if the assertion below crashes, you probably forgot to change the domain
+    // and thus the faces get filtered...
+    CGAL_postcondition(tree.size() > ss.size());
   }
 
   void locate_and_initialize_seeds()
@@ -1107,12 +1130,14 @@ public:
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 40)
+#if (verbose > 30)
       std::cout << "trial heap: " << std::endl;
+#if (verbose > 40)
       for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
         std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
       std::cout << std::endl;
+#endif
 #endif
 
       if(!get_next_trial_point(id))
@@ -1147,8 +1172,6 @@ public:
         // seed_holder for the seed 'seed_id' and we don't care about it
         if(reached_seed_id < seed_id)
           continue;
-
-        std::pair<std::size_t, std::size_t> ids = std::make_pair(seed_id, cp.is_seed_holder);
 
         boost::unordered_set<std::size_t>::iterator sit =
                                             seeds_to_reach.find(reached_seed_id);
@@ -1778,9 +1801,6 @@ public:
     typedef typename std::map<std::pair<std::size_t, std::size_t>,
                               std::deque<Point_2> >               Geo_map;
     typedef typename Geo_map::const_iterator                      Geo_map_it;
-    typedef typename std::map<Point_2, std::size_t>               Numbering_map;
-    typedef typename Numbering_map::iterator                      Nm_it;
-
 
     std::ofstream out((str_base + "_real_geodesics_map.txt").c_str());
 
@@ -1926,8 +1946,6 @@ public:
       std::map<std::pair<std::size_t, std::size_t>,
                std::deque<Point_2> >& real_geodesics)
   {
-    typedef typename std::map<std::pair<std::size_t, std::size_t>,
-                              std::deque<Point_2> >                   Geo_map;
     typedef typename std::deque<Point_2>                              Geodesic;
 
     // computes the angle between the tangents of the geodesics
@@ -2225,21 +2243,31 @@ public:
     far_count = points.size();
   }
 
-  void refine_seeds(const Point_2 new_seed)
+  bool refine_seeds(const Point_2& new_seed)
   {
+    std::size_t prev_amount_of_seeds = seeds.size();
     vertices_nv = insert_new_seed(new_seed.x(), new_seed.y());
+
+    if(prev_amount_of_seeds == vertices_nv)
+    {
+      std::cout << "Warning: Insertion failed in refine_seeds()" << std::endl;
+      return false;
+    }
 
 #ifdef USE_FULL_REBUILDS
     reset();
     locate_and_initialize_seeds();
 #else
-    refresh_canvas_point_states(); // we can't spread from the new seed if all states are 'KNOWN'
+    // we can't spread from the new seed if all states are 'KNOWN'
+    refresh_canvas_point_states();
     locate_and_initialize(new_seed, seeds.size()-1);
 #endif
 
     clear_dual();
     spread_distances(false/*use_dual_shenanigans*/);
     compute_dual();
+
+    return true;
   }
 
   bool refine_seeds_with_self_computed_ref_point()
@@ -2268,18 +2296,17 @@ public:
       best_entry = *(quality_queue.begin());
     else
     {
-      std::cout << "Couldn't find a ref point, need more initial points (or we are done)" << std::endl;
+      std::cout << "Empty refinement queues" << std::endl;
       return false;
     }
 
     Point_2 ref_point = points[best_entry.get<1>()].point;
 
-    std::cout << "naturally we picked : " << best_entry.get<1>() << "[ ";
-    std::cout << ref_point << " ]" << std::endl;
-    std::cout << "second was: " << best_entry.get<2>() << std::endl;
+    std::cout << "REF: Picked : " << best_entry.get<1>() << "[ ";
+    std::cout << ref_point << " ]";
+    std::cout << " second: " << best_entry.get<2>() << std::endl;
 
-    refine_seeds(ref_point);
-    return true;
+    return refine_seeds(ref_point);
   }
 
   void output_canvas(const std::string str_base) const
@@ -2776,13 +2803,12 @@ public:
 
     seeds[seed_id] = new_seed;
     seeds_m[seed_id] = mf->compute_metric(new_seed);
-    std::cout << "centroid with canvas triangles " << new_seed << std::endl;
 
     // squared displacement between the old and the new seed
     K::Compute_squared_distance_2 sqd = K().compute_squared_distance_2_object();
     FT displacement = sqd(old_seed, new_seed);
-    std::cout << "seed: " << seed_id << " ";
-    std::cout << old_seed << " " << new_seed << std::endl;
+    std::cout << "seed n: " << seed_id << " ----- ";
+    std::cout << "old/new: " << old_seed << " || " << new_seed << " ";
     std::cout << " displacement: " << displacement << std::endl;
 
     return displacement;
@@ -2861,7 +2887,7 @@ public:
         output_canvas_data_and_dual(opti_out.str().c_str());
       }
 
-      is_optimized = (++counter > max_opti_n); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
+      is_optimized = (++counter >= max_opti_n); // (cumulated_displacement < sq_bbox_diag_l * 1e-5);
       if(cumulated_displacement == 0.0)
         break;
     }
@@ -2904,8 +2930,9 @@ public:
 
     // test against criteria should be moved somewhere else
     // than during the dual computations todo
-    if(dual_simplex.size() == 3 ||
-       (dual_simplex.size() == 2 && cp.is_on_domain_border))
+    if(dual_simplex.size() == 3
+       || (dual_simplex.size() == 2 && cp.is_on_domain_border)
+       )
       test_simplex(cp, dual_simplex);
 
     add_simplex_to_triangulation(dual_simplex);
@@ -3481,8 +3508,8 @@ void Canvas_point::reset()
     bm->points[*cit].ancestor = -1;
 
   state = FAR;
-  distance_to_closest_seed = FT_inf;
   is_seed_holder = -1;
+  distance_to_closest_seed = FT_inf;
   closest_seed_id = -1;
   ancestor = -1;
   depth = 0;
@@ -3497,8 +3524,8 @@ void Canvas_point::initialize_from_point(const FT d,
   reset();
 
   closest_seed_id = seed_id;
-  distance_to_closest_seed = d;
   is_seed_holder = seed_id;
+  distance_to_closest_seed = d;
   state = TRIAL;
   ancestor = -1;
 }
@@ -3519,8 +3546,8 @@ Canvas_point::Canvas_point()
     reciprocal_neighbors(),
 #endif
     state(FAR),
-    distance_to_closest_seed(FT_inf),
     is_seed_holder(-1),
+    distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
     depth(0),
@@ -3542,8 +3569,8 @@ Canvas_point::Canvas_point(Base_mesh * bm_,
     reciprocal_neighbors(),
 #endif
     state(FAR),
-    distance_to_closest_seed(FT_inf),
     is_seed_holder(-1),
+    distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
     depth(0),
@@ -3569,8 +3596,8 @@ Canvas_point::Canvas_point(Base_mesh * bm_,
     reciprocal_neighbors(),
 #endif
     state(FAR),
-    distance_to_closest_seed(FT_inf),
     is_seed_holder(-1),
+    distance_to_closest_seed(FT_inf),
     closest_seed_id(-1),
     ancestor(-1),
     depth(0),
@@ -3590,8 +3617,8 @@ Canvas_point::Canvas_point(const Canvas_point& cp)
     reciprocal_neighbors(cp.reciprocal_neighbors),
 #endif
     state(cp.state),
-    distance_to_closest_seed(cp.distance_to_closest_seed),
     is_seed_holder(cp.is_seed_holder),
+    distance_to_closest_seed(cp.distance_to_closest_seed),
     closest_seed_id(cp.closest_seed_id),
     ancestor(cp.ancestor),
     depth(cp.depth),
@@ -3648,6 +3675,7 @@ int main(int, char**)
   std::cout << "Generated starset: " << duration << std::endl;
 
   Base_mesh bm(starset);
+  bm.output_canvas("base_starset");
 
 //  draw_metric_field(mf, bm);
 //  exit(0);
@@ -3666,11 +3694,13 @@ int main(int, char**)
       // of paint laying on the canvas...
       bool successful_insert = bm.refine_seeds_with_self_computed_ref_point();
 
-      if(i%100 == 0)
+      if(i%10 == 0)
       {
         std::ostringstream out;
         out << "ref_" << seeds.size();
-        bm.output_canvas_data_and_dual(out.str());
+        bm.output_straight_dual(out.str());
+        if(i%100 == 0)
+          bm.output_canvas(out.str());
       }
 
       if(!successful_insert)

@@ -10,6 +10,9 @@
 
 #include <CGAL/IO/Star_set_output.h>
 
+#include <boost/timer/timer.hpp>
+#include <cmath>
+
 using namespace CGAL::Anisotropic_mesh_2;
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
@@ -21,6 +24,7 @@ typedef typename Star::Point_2                               Point_2;
 int main(int argc, char** argv)
 {
 //  std::freopen("log.txt", "w", stdout);
+  boost::timer::auto_cpu_timer t;
 
   std::streambuf * old = std::cout.rdbuf();
   //std::cout.rdbuf(0);

@@ -1158,7 +1158,7 @@ struct Geo_grid
     std::cerr << ( std::clock() - start ) / (double) CLOCKS_PER_SEC << std::endl;
 
     determine_ancestors();
-    debug();
+    //debug();
   }
 
   void debug()

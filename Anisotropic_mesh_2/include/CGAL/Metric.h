@@ -24,7 +24,7 @@ public:
   typedef typename K::Point_2                 Point_2;
   typedef typename K::Vector_2                Vector_2;
 
-private:
+public:
   Eigen::Matrix2d eigen_transformation, eigen_inverse_transformation;
   Eigen::Matrix2d full_matrix;
   mutable FT e_max, e_min;
@@ -276,6 +276,17 @@ public:
     else
       construct(axis_y, axis_x, vpy, vpx, epsilon);
   }
+
+  Metric_base(const Metric_base& m_)
+    :
+      eigen_transformation(m_.eigen_transformation),
+      eigen_inverse_transformation(m_.eigen_inverse_transformation),
+      full_matrix(m_.full_matrix),
+      e_max(m_.e_max),
+      e_min(m_.e_min),
+      v_max(m_.v_max),
+      v_min(m_.v_min)
+  { }
 
   ~Metric_base() { }
 };

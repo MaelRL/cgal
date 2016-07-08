@@ -97,9 +97,10 @@ int main(int, char**)
                                       max_times_to_try);
 
   //----------- pick a domain! ----------
-//  Constrain_surface_3_ellipse<K>* pdomain = new Constrain_surface_3_ellipse<K>(a, b, c);
-  Constrain_surface_3_free_cube<K>* pdomain = new Constrain_surface_3_free_cube<K>(0., 0., 0.,
-                                                                                   3., 3., 3.);
+//  Constrain_surface_3_ellipse<K>* pdomain =
+//      new Constrain_surface_3_ellipse<K>(a, b, c);
+  Constrain_surface_3_free_cube<K>* pdomain =
+      new Constrain_surface_3_free_cube<K>(0., 0., 0., 3., 3., 3.);
 //  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>("../../data/Anisotropy_CMP/3DSurface/Fandisk.off");
 
   //----------- pick a metric field! ----
@@ -118,9 +119,11 @@ int main(int, char**)
 //  Anisotropic_tet_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
 
   ss_mesher.refine_mesh();
-  dump(starset);
-  std::ofstream out("starset.mesh");
-  output_medit(starset, out, false/*inconsistencies*/);
+  std::ofstream out_dump("dump.txt");
+  dump(starset, out_dump);
+
+  std::ofstream out("starset2.mesh");
+  output_medit(starset, out, false/*with inconsistencies*/);
 //  exit(0);
 
   // ---------------- aniso geo starts here -------------------------------
