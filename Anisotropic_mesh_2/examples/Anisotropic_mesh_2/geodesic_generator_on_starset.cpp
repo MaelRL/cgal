@@ -3139,6 +3139,19 @@ public:
     if(dual_simplex.size() <= 1)
       return;
 
+#ifdef FILTER_SEEDS_OUTSIDE_GRID
+    // filter if cp is outside the domain:
+    // can't add a point cp here that'll be later filtered at insertion!
+    if(cp.point.x() < center.x() - sa || cp.point.x() > center.x() + sa ||
+       cp.point.y() < center.y() - sb || cp.point.y() > center.y() + sb)
+    {
+#if (verbose > 10)
+      std::cout << "filtered potential cp: " << cp.point << std::endl;
+#endif
+      return;
+    }
+#endif
+
     std::size_t length = cp.ancestor_path_length;
     if(length < min_ancestor_path_length)
     {
@@ -3911,7 +3924,7 @@ int main(int, char**)
       if(i%10 == 0)
       {
         std::ostringstream out;
-        out << "ref_" << seeds.size();
+        out << str_base_mesh << "_ref_" << seeds.size();
         bm.output_straight_dual(out.str());
         if(i%100 == 0)
           bm.output_canvas(out.str());
