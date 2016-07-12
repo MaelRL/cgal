@@ -8,7 +8,7 @@
 
 #include <CGAL/Anisotropic_mesher_3.h>
 #include <CGAL/Starset.h>
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
 

@@ -5,7 +5,7 @@
 #include <Metric_field/Euclidean_metric_field.h>
 #include <CGAL/Constrain_surface_3_polyhedral.h>
 
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_3.h>

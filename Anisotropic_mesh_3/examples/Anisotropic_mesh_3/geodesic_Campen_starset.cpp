@@ -5,6 +5,9 @@
 #define ANISO_NO_CONSISTENCY
 
 #include <CGAL/Stretched_Delaunay_3.h>
+#include <CGAL/Starset.h>
+#include <CGAL/IO/Star_set_IO.h>
+#include <CGAL/helpers/starset_merger.h>
 
 #include <CGAL/Anisotropic_mesher_3.h>
 #include <CGAL/Anisotropic_surface_mesher_3.h>
@@ -117,6 +120,11 @@ int main(int, char**)
   Anisotropic_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
 //  Anisotropic_surface_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
 //  Anisotropic_tet_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+
+  //------------ or simply read a dump!-------------
+  // read_dump(starset, "dump.txt");
+  merge_8_small_cubes(starset);
+  exit(0);
 
   ss_mesher.refine_mesh();
   std::ofstream out_dump("dump.txt");

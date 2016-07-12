@@ -11,7 +11,7 @@
 #include <CGAL/Anisotropic_refine_facets_3.h>
 #include <CGAL/Anisotropic_mesher_visitor.h>
 
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 #include <CGAL/aabb_tree/aabb_tree_bbox.h>
 #include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>

@@ -1,5 +1,5 @@
-#ifndef CGAL_ANISOTROPIC_MESH_3_STAR_SET_OUTPUT_H
-#define CGAL_ANISOTROPIC_MESH_3_STAR_SET_OUTPUT_H
+#ifndef CGAL_ANISOTROPIC_MESH_3_STAR_SET_IO_H
+#define CGAL_ANISOTROPIC_MESH_3_STAR_SET_IO_H
 
 #include <CGAL/helpers/combinatorics_helper.h>
 
@@ -57,6 +57,49 @@ void dump(const Starset& stars,
     fx << '\n';
   }
   fx << std::endl;
+}
+
+template<typename Starset>
+void read_dump(Starset& ss,
+               std::string filename)
+{
+  std::cout << "Reading dump..." << std::endl;
+  std::ifstream in(filename.c_str());
+  ss.clear();
+
+  std::size_t stars_n, v_n, id;
+  typename Starset::FT x, y, z;
+
+  in >> stars_n;
+
+  for(std::size_t i=0; i<stars_n; ++i)
+  {
+    in >> x >> y >> z;
+    typename Starset::Point_3 p(x, y, z);
+
+    const typename Starset::Criteria * c = ss.criteria();
+    const typename Starset::Constrain_surface * d = ss.constrain_surface();
+
+    typename Starset::Star_handle star = new typename Starset::Star(c, d);
+    const typename Starset::Metric& m_p = ss.metric_field()->compute_metric(p);
+    star->reset(p, i, m_p);
+    ss.push_back(star);
+  }
+
+  for(std::size_t i=0; i<stars_n; ++i)
+  {
+    in >> v_n;
+    typename Starset::Star_handle star_i = ss[i];
+    for(std::size_t j=0; j<v_n; ++j)
+    {
+      in >> id;
+      typename Starset::Star_handle star_j = ss[id];
+      star_i->insert_to_star(star_j->center_point(), id, false);
+    }
+    std::cout << "built star: " << i << std::endl;
+  }
+
+  std::cout << ss.size() << " stars from dump" << std::endl;
 }
 
 template<typename Starset>
@@ -645,4 +688,4 @@ void output_surface_voronoi(const Starset &stars,
 }  // Anisotropic_mesh_3
 }  // CGAL
 
-#endif
+#endif // CGAL_ANISOTROPIC_MESH_3_STAR_SET_IO_H

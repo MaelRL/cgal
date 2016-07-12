@@ -15,7 +15,7 @@
 
 #include <CGAL/kd_tree/Kd_tree_for_star_set.h>
 
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 namespace CGAL
 {

@@ -20,7 +20,7 @@
 
 #include <CGAL/Constrain_surface_3_polyhedral.h>
 
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 using namespace CGAL::Anisotropic_mesh_3;
 
@@ -76,13 +76,16 @@ int main(int argc, char** argv)
   timer.start();
 
   //----------- pick a domain! ----------
-//  Constrain_surface_3_ellipse<K>* pdomain = new Constrain_surface_3_ellipse<K>(a, b, c);
-  Constrain_surface_3_free_cube<K>* pdomain = new Constrain_surface_3_free_cube<K>(0., 0., 0., 1., 1., 1.);
-//  Constrain_surface_3_polyhedral<K>* pdomain = new Constrain_surface_3_polyhedral<K>("../../data/Anisotropy_CMP/3DSurface/Fandisk.off");
+//  Constrain_surface_3_ellipse<K>* pdomain =
+//      new Constrain_surface_3_ellipse<K>(a, b, c);
+//  Constrain_surface_3_free_cube<K>* pdomain =
+//      new Constrain_surface_3_free_cube<K>(0., 0., 0., 3., 3., 3.);
+  Constrain_surface_3_polyhedral<K>* pdomain =
+      new Constrain_surface_3_polyhedral<K>("/home/mrouxell/Data/OFF/fandisk.off");
 
   //----------- pick a metric field! ----
-//  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
-  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
+  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
 //  External_metric_field<K>* metric_field = new External_metric_field<K>(*pdomain, "../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/global_smooth/modified_fandisk_metric.txt");
 //  Implicit_curvature_metric_field<K>* metric_field = new Implicit_curvature_metric_field<K>(*pdomain);
 //  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6);
@@ -99,7 +102,7 @@ int main(int argc, char** argv)
 //  mesher.resume_from_mesh_file("../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh");
 //  mesher.resume_from_mesh_file("/home/mrouxell/Downloads/review/AnisoMeshData/VOLUME/fig14_sine.mesh");
 //  mesher.resume_from_mesh_file("resumed_in.mesh");
-  mesher.resume_from_dump_file("dump_wip.txt");
+//  mesher.resume_from_dump_file("dump_wip.txt");
 
   double elapsed_time = mesher.refine_mesh();
 
@@ -107,10 +110,10 @@ int main(int argc, char** argv)
   std::cout << "elapsed time: " << elapsed_time << std::endl;
 //  mesher.report();
 
-  std::ofstream out("bambimboum.mesh");
+  std::ofstream out("test.mesh");
   output_medit(starset, out, false);
-  std::ofstream out_facet("bambimboum_surf.mesh");
-  output_surface_medit(starset, out_facet);
+//  std::ofstream out_facet("bambimboum_surf.mesh");
+//  output_surface_medit(starset, out_facet);
 
   delete metric_field;
   delete pdomain;

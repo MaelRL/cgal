@@ -3,7 +3,7 @@
 #include <CGAL/gl.h>
 #include <CGAL/Mesh_3/dihedral_angle_3.h>
 #include <CGAL/gl_draw/Starset_display.h>
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 #include <CGAL_demo/Scene_item_with_display_list.h>
 #include <CGAL_demo/Scene_interface.h>
@@ -33,7 +33,7 @@ namespace
       c = c.darker(dv);
 #undef darker
     }
-    
+
     ::glColor4f(c.red()/255.0, c.green()/255.0, c.blue()/255.0, c.alpha()/255.0);
   }
 }
@@ -43,7 +43,7 @@ namespace
 //create_histogram(const C3t3& c3t3, double& min_value, double& max_value);
 
 
-double complex_diag(const Scene_item* item) 
+double complex_diag(const Scene_item* item)
 {
   const Scene_item::Bbox& bbox = item->bbox();
   const double& xdelta = bbox.xmax-bbox.xmin;
@@ -56,7 +56,7 @@ double complex_diag(const Scene_item* item)
 }
 
 
-struct Scene_starset3_item_priv 
+struct Scene_starset3_item_priv
 {
   Starset_with_info m_starset;
   QVector<QColor> colors;
@@ -109,8 +109,8 @@ Scene_starset3_item::~Scene_starset3_item()
 const Starset_with_info& Scene_starset3_item::star_set() const { return d->m_starset; }
 Starset_with_info& Scene_starset3_item::star_set() { return d->m_starset; }
 
-Kernel::Plane_3 
-Scene_starset3_item::plane() const 
+Kernel::Plane_3
+Scene_starset3_item::plane() const
 {
   const qglviewer::Vec& pos = frame->position();
   const qglviewer::Vec& n =
@@ -118,12 +118,12 @@ Scene_starset3_item::plane() const
   return Kernel::Plane_3(n[0], n[1],  n[2], - n * pos);
 }
 
-Scene_item::Bbox 
+Scene_item::Bbox
 Scene_starset3_item::bbox() const
 {
   if(star_set().empty())
     return Bbox();
-  else 
+  else
   {
     bool initialized = false;
     CGAL::Bbox_3 result;
@@ -150,8 +150,8 @@ void Scene_starset3_item::save(std::ofstream& out) const
   output_medit((const_cast< Scene_starset3_item* >(this))->star_set(), out, true);
 }
 
-QString 
-Scene_starset3_item::toolTip() const 
+QString
+Scene_starset3_item::toolTip() const
 {
   return tr("<p>3D cell star set: <br />"
             "<b>%6</b></p>"
@@ -169,7 +169,7 @@ Scene_starset3_item::toolTip() const
 }
 
 void
-Scene_starset3_item::direct_draw() const 
+Scene_starset3_item::direct_draw() const
 {
   ::glPushMatrix();
   ::glMultMatrixd(frame->matrix());
@@ -291,7 +291,7 @@ Scene_starset3_item::starset_changed()
   // Update colors
   // Fill indices map and get max subdomain value
   indices_.clear();
-  
+
   std::size_t max = d->m_starset.size();
 /*  for(C3t3::Cells_in_complex_iterator cit = this->c3t3().cells_in_complex_begin(),
       end = this->c3t3().cells_in_complex_end() ; cit != end; ++cit)
@@ -302,7 +302,7 @@ Scene_starset3_item::starset_changed()
   */
   d->colors.resize((int)(max+1));
   compute_color_map(color_);
-  
+
   // Rebuild histogram
   //build_histogram();
   this->changed();

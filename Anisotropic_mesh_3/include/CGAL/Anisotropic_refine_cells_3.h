@@ -445,9 +445,10 @@ private:
   {
     //note : distortion is now used only to speed-up pick_valid
     // over distortion 1
-/*
-    if(0 && is_criterion_tested(m_refine_queue.over_distortion_queue) &&
-        && this->m_criteria->distortion > 0.)
+
+#ifndef ANISO_NO_DISTORTION_REFINEMENT
+    if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
+       this->m_criteria->distortion > 0.)
     {
       FT over_distortion = this->m_starset.compute_distortion(c) - this->m_criteria->distortion;
       if(over_distortion > 0.)
@@ -464,7 +465,7 @@ private:
         return;
       }
     }
-*/
+#endif
 
     // too big 2
     if(is_criterion_tested(m_refine_queue.over_circumradius_queue) &&
@@ -676,8 +677,8 @@ private:
       m_pick_valid_failed++;
 
 #ifdef ANISO_VERBOSE
-    if((!success && m_pick_valid_failed % 100 == 0 && m_pick_valid_failed > 0) ||
-       (success && m_pick_valid_succeeded % 100 == 0 && m_pick_valid_succeeded > 0))
+    if((!success && m_pick_valid_failed % 1 == 0 && m_pick_valid_failed > 0) ||
+       (success && m_pick_valid_succeeded % 1 == 0 && m_pick_valid_succeeded > 0))
     {
       std::cout << "Cpick_valid : ";
       std::cout << m_pick_valid_succeeded << " success and ";

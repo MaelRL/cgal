@@ -396,7 +396,10 @@ public:
     std::cout << "Loading polyhedron..." << std::endl;
     std::ifstream input(filename);
     if(!input)
-      std::cout << "\nWarning : file does not exist" << std::endl;
+    {
+      std::cout << "\n Input file does not exist" << std::endl;
+      exit(0);
+    }
     Polyhedron p;
     input >> p;
     set_domain_and_polyhedron(p);

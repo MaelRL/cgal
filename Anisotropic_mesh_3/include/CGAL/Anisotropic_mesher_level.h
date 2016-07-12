@@ -1,7 +1,7 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_MESHER_LEVEL_H
 #define CGAL_ANISOTROPIC_MESH_3_MESHER_LEVEL_H
 
-#include <CGAL/IO/Star_set_output.h>
+#include <CGAL/IO/Star_set_IO.h>
 
 namespace CGAL
 {
