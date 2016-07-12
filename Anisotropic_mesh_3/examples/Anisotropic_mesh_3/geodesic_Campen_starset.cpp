@@ -3,6 +3,7 @@
 
 // the canvas used is a starset
 #define ANISO_NO_CONSISTENCY
+#define ANISO_OUTPUT_WIP
 
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Starset.h>

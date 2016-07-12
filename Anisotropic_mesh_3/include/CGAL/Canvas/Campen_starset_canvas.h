@@ -125,9 +125,9 @@ public:
     // read and create the starset
 #if 1//def STARSET_FROM_DUMP
     read_dump();
-#elif
+#else
     std::ifstream in((this->canvas_str + ".mesh").c_str());
-    build_starset(in);
+    build_starset<Star_set>(in);
 #endif
 
     // build the canvas points

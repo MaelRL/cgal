@@ -1,6 +1,8 @@
 #ifndef STARSET_MERGER_H
 #define STARSET_MERGER_H
 
+#define BUILD_BOUNDARIES_INDEPENDENTLY
+
 #include <CGAL/Starset.h>
 #include <CGAL/IO/Star_set_IO.h>
 
@@ -70,7 +72,7 @@ void merge_8_small_cubes(Starset& ss)
 #ifdef BUILD_BOUNDARIES_INDEPENDENTLY
       if((x >= center.x()-eps && x <= center.x()+eps) ||
          (y >= center.y()-eps && y <= center.y()+eps) ||
-         (z >= center.z()-eps && z <= center.z()eps))
+         (z >= center.z()-eps && z <= center.z()+eps))
       {
         // need to say that there's no global id currently assigned
         // to the local element (i, j)
@@ -128,13 +130,19 @@ void merge_8_small_cubes(Starset& ss)
       std::size_t loc_c_id = j; // c because Center of star
       std::size_t glob_c_id = cor_vectors[i][loc_c_id];
 
+      c_in >> v_n;
+
 #ifdef BUILD_BOUNDARIES_INDEPENDENTLY
       // a point whose star has not been built yet
-      if(glob_c_id == -1)
+
+      if(glob_c_id == static_cast<std::size_t>(-1))
+      {
+        for(std::size_t k=0; k<v_n; ++k)
+          c_in >> neigh_id; // don't care about them but still gotta read the entries
         continue;
+      }
 #endif
 
-      c_in >> v_n;
       typename Starset::Star_handle star_j = ss[glob_c_id];
       for(std::size_t k=0; k<v_n; ++k)
       {
@@ -155,7 +163,7 @@ void merge_8_small_cubes(Starset& ss)
   // it's time to build boundaries!
   // points that have not been included in the starset have id -1 in the
   // correspondence map.
-  std::cout << stars_to_fully_build_count << " stars to fully built" << st::endl;
+  std::cout << stars_to_fully_build_count << " stars to fully build" << std::endl;
 
   for(std::size_t i=0; i<8; ++i)
   {
@@ -163,6 +171,8 @@ void merge_8_small_cubes(Starset& ss)
     in << base_location << i+1 << "_dump.txt";
     std::ifstream c_in(in.str().c_str());
     CGAL_precondition(c_in);
+
+    std::size_t loc_stars_n;
     c_in >> loc_stars_n;
 
     for(std::size_t j=0; j<loc_stars_n; ++j)
@@ -179,15 +189,25 @@ void merge_8_small_cubes(Starset& ss)
       typename Starset::Star_handle star = new typename Starset::Star(ss.criteria(),
                                                                       ss.constrain_surface());
       star->reset(p, curr_glob_id++, ss.metric_field()->compute_metric(p));
+      std::cout << "Created star: " << star->index_in_star_set() << " at " << p << std::endl;
 
       // fun times, insert ALL the existing stars in that new one...
-      for(std::size_t k=0 k<ss.size(); ++k)
+      for(std::size_t k=0; k<ss.size(); ++k)
       {
         typename Starset::Star_handle star_k = ss[k];
         star->insert_to_star(star_k->center_point(), k, false /*no conflict check*/);
+
+        // trying to filter a bit that mess
+        FT d = CGAL::squared_distance(p, star_k->center_point());
+        if(d > (4*eps*eps))
+          continue;
+
+        if(k%10000)
+          std::cout << "at: " << k << std::endl;
       }
-      star_j->clean();
-      ss.push_back(star_j);
+      star->clean();
+      ss.push_back(star);
+      std::cout << "Built star: " << star->index_in_star_set() << std::endl;
     }
   }
 #endif
@@ -195,6 +215,9 @@ void merge_8_small_cubes(Starset& ss)
   // just to make sure :
   std::ofstream out("merged.mesh");
   output_medit(ss, out, false/*don't filter inconsistencies*/);
+
+  std::ofstream out_d("dump.txt");
+  dump(ss, out_d);
 }
 
 

@@ -1,4 +1,5 @@
 // #define ANISO_NO_CONSISTENCY
+#define ANISO_OUTPUT_WIP
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Starset.h>
