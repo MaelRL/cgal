@@ -6,7 +6,12 @@
 
 #include <CGAL/Timer.h>
 
-#include <CGAL/Cell_refine_queue.h>
+#ifdef NAIVE_CELL_QUEUES
+  #include <CGAL/Cell_refine_queue_naive.h>
+#else
+  #include <CGAL/Cell_refine_queue.h>
+#endif
+
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_level.h>
 #include <CGAL/Anisotropic_refine_trunk.h>
@@ -75,7 +80,9 @@ public:
 
   typedef CGAL::Anisotropic_mesh_3::Cell_refine_queue<K>          Refine_queue;
   typedef typename Refine_queue::Rcell                            Refine_cell;
+#ifndef NAIVE_CELL_QUEUES
   typedef typename Refine_queue::Rcell_set_iterator               Rcell_set_iterator;
+#endif
 
 private:
   Refine_queue& m_refine_queue;
@@ -151,7 +158,11 @@ public:
   {
     boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
 
+#ifdef NAIVE_CELL_QUEUES
+    Refine_cell const * bad_cell;
+#else
     Rcell_set_iterator bad_cell;
+#endif
     bool need_picking_valid;
     Cell_handle c;
 
@@ -171,6 +182,7 @@ public:
     Index ind_v3 = v3->info();
     std::cout << "Trying to refine : " << ind_v0 << " " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
     std::cout << "Bad_cell belongs to: " << bad_cell->star->index_in_star_set() << " npv: " << need_picking_valid << std::endl;
+    std::cout << "Queue type: " << bad_cell->queue_type << " and value " << bad_cell->value << std::endl;
     std::cout << "\tp"<< v0->info() <<" : " << bad_cell->star->metric().inverse_transform(v0->point()) << std::endl;
     std::cout << "\tp"<< v1->info() <<" : " << bad_cell->star->metric().inverse_transform(v1->point()) << std::endl;
     std::cout << "\tp"<< v2->info() <<" : " << bad_cell->star->metric().inverse_transform(v2->point()) << std::endl;
@@ -205,7 +217,8 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (successful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(0 && rp_status == PICK_VALID_FAILED &&
+#ifdef ANISO_REJECT_FAILED_PV
+    if(rp_status == PICK_VALID_FAILED &&
        bad_cell->value != m_refine_queue.queue_min_value(bad_cell->queue_type) && //nothing to push if already last
        !bad_cell->prev_rejection) // if cell has not already been rejected
     {
@@ -216,6 +229,7 @@ public:
       timer_npv.stop();
       return get_refinement_point_for_next_element_(steiner_point);
     }
+#endif
 
     //We already know the conflict zones if it's a suitable point from pick_valid, but we need
     //to compute them for the other cases (won't cost anything if it's already known).
@@ -407,7 +421,11 @@ private:
                             Cell_handle& cell,
                             bool& need_picking_valid)
   {
+#ifdef NAIVE_CELL_QUEUES
+    Refine_cell const * rcsit;
+#else
     Rcell_set_iterator rcsit;
+#endif
     if(!m_refine_queue.top(rcsit, m_queue_ids_start, m_queue_ids_end))
     {
       std::cout << "empty queue at cell pop time...?" << std::endl; //shouldn't happen
@@ -427,9 +445,14 @@ private:
     return true;
   }
 
+#ifdef NAIVE_CELL_QUEUES
+  bool next_refine_cell(Refine_cell const *& refine_cell,
+#else
   bool next_refine_cell(Rcell_set_iterator& refine_cell,
+#endif
                         Cell_handle& cell,
                         bool& need_picking_valid)
+  
   {
     while(true)
     {
@@ -481,14 +504,18 @@ private:
       FT over_distortion = this->m_starset.compute_distortion(c) - this->m_criteria->distortion;
       if(over_distortion > 0.)
       {
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_distortion, 1))
+#endif
         {
           m_refine_queue.push(star, c, over_distortion, 1, force_push);
+#ifndef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
             std::cout << "not already in 1" << std::endl;
           }
+#endif
         }
         return;
       }
@@ -503,9 +530,12 @@ private:
       if(over_circumradius > 0)
       {
         //std::cout << "over circum : " <<  over_circumradius << std::endl;
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_circumradius, 2))
+#endif
         {
           m_refine_queue.push(star, c, over_circumradius, 2, force_push);
+#ifndef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
@@ -515,6 +545,7 @@ private:
             std::cout << " " << c->vertex(2)->info() << " " << c->vertex(3)->info();
             std::cout << " " << over_circumradius << std::endl;
           }
+#endif
         }
         return;
       }
@@ -527,14 +558,18 @@ private:
       FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(c);
       if(over_radius_edge_ratio > 0)
       {
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_radius_edge_ratio, 3))
+#endif
         {
           m_refine_queue.push(star, c, over_radius_edge_ratio, 3, force_push);
+#ifdef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
             std::cout << "not already in 3" << std::endl;
           }
+#endif
         }
         return;
       }
@@ -547,14 +582,18 @@ private:
       FT over_sliverity = star->compute_sliverity_overflow(c);
       if(over_sliverity > 0)
       {
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_sliverity, 4))
+#endif
         {
           m_refine_queue.push(star, c, over_sliverity, 4, force_push);
+#ifndef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
             std::cout << "not already in 4" << std::endl;
           }
+#endif
         }
         return;
       }
@@ -566,9 +605,12 @@ private:
        !this->m_starset.is_consistent(c))
     {
       FT vol = star->compute_volume(c);
+#ifndef NAIVE_CELL_QUEUES
       if(!check_if_in || !m_refine_queue.is_cell_in(star, c, vol, 5))
+#endif
       {
         m_refine_queue.push(star, c, vol, 5, force_push);
+#ifdef NAIVE_CELL_QUEUES
         if(check_if_in)
         {
           m_leak_counter++;
@@ -581,6 +623,7 @@ private:
           std::cout << c->vertex(3)->info();
           std::cout << " " << star->compute_volume(c) << std::endl;
         }
+#endif
       }
     }
 #endif
