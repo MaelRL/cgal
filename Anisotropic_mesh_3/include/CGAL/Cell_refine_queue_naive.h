@@ -73,10 +73,7 @@ public:
   bool operator() (const Refine_cell<K, KExact>& left,
                    const Refine_cell<K, KExact>& right) const
   {
-    return std::lexicographical_compare(left.cell.vertices().begin(),
-                                        left.cell.vertices().end(),
-                                        right.cell.vertices().begin(),
-                                        right.cell.vertices().end());
+    return left.value < right.value;
   }
 };
 
