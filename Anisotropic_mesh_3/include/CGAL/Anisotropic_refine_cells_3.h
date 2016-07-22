@@ -80,6 +80,7 @@ private:
   const int m_queue_ids_start;
   const int m_queue_ids_end;
 
+  mutable int m_added_by_distortion;
   mutable int m_pick_valid_points_tried;
   int m_pick_valid_succeeded;
   int m_pick_valid_failed;
@@ -137,6 +138,8 @@ public:
 
   bool is_algorithm_done_()
   {
+    if(m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end))
+      report();
     return m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end);
   }
 
@@ -370,6 +373,7 @@ public:
     std::cout << "cell pv: " << timer_pv.time() << " " << timer_pv.intervals() << std::endl;
     std::cout << "cell npv: " << timer_npv.time() << " " << timer_npv.intervals() << std::endl;
     std::cout << "cell leaking: " << m_leak_counter << std::endl;
+    std::cout << "added by distortion " << m_added_by_distortion << std::endl;
   }
 
 private:
@@ -432,6 +436,12 @@ private:
           m_refine_queue.pop(m_queue_ids_start, m_queue_ids_end);
           continue;
         }
+
+        if(m_refine_queue.empty(0,0) && !m_refine_queue.empty(1,1)) // hackish to say "we're refining for the distortion"
+        {
+          m_added_by_distortion++;
+        }
+
         need_picking_valid = m_refine_queue.need_picking_valid(refine_cell->queue_type);
         return true;
       }
@@ -833,6 +843,7 @@ public:
     m_refine_queue(refine_queue_),
     m_queue_ids_start(queue_ids_start_),
     m_queue_ids_end(queue_ids_end_),
+    m_added_by_distortion(0),
     m_pick_valid_points_tried(0),
     m_pick_valid_succeeded(0),
     m_pick_valid_failed(0),
