@@ -39,20 +39,20 @@ public:
 
   Metric yang_liu_cube_shock_1D(const Point_3& p) const
   {
-    double h = 0.1;
+    double h = 1.0;
 
     double x = p.x();
     double y = p.y();
     double z = p.z();
 
     double lambda_1 = std::exp(-std::abs(x - 0.6));
-    double h1 = 0.0025 + (1 - lambda_1);
+    double h1 = 0.1 + (1 - lambda_1);
 
-    double lambda_2 = std::exp(-std::abs(y - 0.6));
-    double h2 = 0.0025 + (1 - lambda_2);
+    double lambda_2 = std::exp(-std::abs(y - 0.7));
+    double h2 = 0.3 + (1 - lambda_2);
 
-    double lambda_3 = std::exp(-std::abs(z - 0.6));
-    double h3 = 0.0025 + (1 - lambda_3);
+    double lambda_3 = std::exp(-std::abs(z - 0.2));
+    double h3 = 0.05 + (1 - lambda_3);
 
     Vector_3 v1(1.,0.,0.);
     Vector_3 v2(0.,1.,0.);
