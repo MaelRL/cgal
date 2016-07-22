@@ -43,10 +43,12 @@ int main(int argc, char** argv)
 
   int n = 1;
 
-//geometry
-  FT a = (argc > n) ? atof(argv[n++]) : 1.;
-  FT b = (argc > n) ? atof(argv[n++]) : 1.;
-  FT c = (argc > n) ? atof(argv[n++]) : 1.;
+//misc
+  FT gamma = (argc > n) ? atof(argv[n++]) : 1.2;
+  FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
+  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
+  int nb = (argc > n) ? atoi(argv[n++]) : 20;
+  FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
 
 //metric field
   FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
@@ -62,12 +64,10 @@ int main(int argc, char** argv)
   FT c_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
   FT sliverity = (argc > n) ? atof(argv[n++]) : 0.3;
 
-//misc
-  FT gamma = (argc > n) ? atof(argv[n++]) : 1.5;
-  FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
-  FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
-  int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
-  int nb = (argc > n) ? atoi(argv[n++]) : 20;
+//geometry
+  FT a = (argc > n) ? atof(argv[n++]) : 1.;
+  FT b = (argc > n) ? atof(argv[n++]) : 1.;
+  FT c = (argc > n) ? atof(argv[n++]) : 1.;
 
   Criteria_base<K>* criteria = new Criteria_base<K>(approx, f_r0, f_rho0,
                                                     c_r0, c_rho0, sliverity,
