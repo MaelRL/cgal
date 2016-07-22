@@ -6,13 +6,20 @@
 
 #include <CGAL/Timer.h>
 
-#include <CGAL/Cell_refine_queue.h>
+#ifdef NAIVE_CELL_QUEUES
+  #include <CGAL/Cell_refine_queue_naive.h>
+#else
+  #include <CGAL/Cell_refine_queue.h>
+#endif
+
 #include <CGAL/Stretched_Delaunay_3.h>
 #include <CGAL/Anisotropic_mesher_level.h>
 #include <CGAL/Anisotropic_refine_trunk.h>
 
 #include <CGAL/helpers/combinatorics_helper.h>
 #include <CGAL/helpers/histogram_helper.h>
+
+#include <boost/chrono.hpp>
 
 namespace CGAL
 {
@@ -73,7 +80,9 @@ public:
 
   typedef CGAL::Anisotropic_mesh_3::Cell_refine_queue<K>          Refine_queue;
   typedef typename Refine_queue::Rcell                            Refine_cell;
+#ifndef NAIVE_CELL_QUEUES
   typedef typename Refine_queue::Rcell_set_iterator               Rcell_set_iterator;
+#endif
 
 private:
   Refine_queue& m_refine_queue;
@@ -94,6 +103,11 @@ private:
 public:
   mutable CGAL::Timer timer_pv;
   mutable CGAL::Timer timer_npv;
+
+#define OUTPUT_BOOST_TIMERS
+#ifdef OUTPUT_BOOST_TIMERS
+  mutable std::ofstream btimers_out; // n of stars, time of fill ref queue, time of pick valid, time of insert
+#endif
 
 public:
   bool& is_active() { return Mesher_lvl::is_active(); }
@@ -145,7 +159,13 @@ public:
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_3& steiner_point)
   {
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
+#ifdef NAIVE_CELL_QUEUES
+    Refine_cell const * bad_cell;
+#else
     Rcell_set_iterator bad_cell;
+#endif
     bool need_picking_valid;
     Cell_handle c;
 
@@ -165,6 +185,7 @@ public:
     Index ind_v3 = v3->info();
     std::cout << "Trying to refine : " << ind_v0 << " " << ind_v1 << " " << ind_v2 << " " << ind_v3 << std::endl;
     std::cout << "Bad_cell belongs to: " << bad_cell->star->index_in_star_set() << " npv: " << need_picking_valid << std::endl;
+    std::cout << "Queue type: " << bad_cell->queue_type << " and value " << bad_cell->value << std::endl;
     std::cout << "\tp"<< v0->info() <<" : " << bad_cell->star->metric().inverse_transform(v0->point()) << std::endl;
     std::cout << "\tp"<< v1->info() <<" : " << bad_cell->star->metric().inverse_transform(v1->point()) << std::endl;
     std::cout << "\tp"<< v2->info() <<" : " << bad_cell->star->metric().inverse_transform(v2->point()) << std::endl;
@@ -182,6 +203,10 @@ public:
       need_picking_valid = false;
     }
 
+#ifdef OUTPUT_BOOST_TIMERS
+    btimers_out << this->number_of_stars() << " ";
+#endif
+
     // note: failure in pick_valid AND a conflicting circumcenter gives POINT_IN_CONFLICT status (trick#2 is not applied)
     Refinement_point_status rp_status = compute_steiner_point(bad_cell->star, c,
                                                               need_picking_valid, steiner_point);
@@ -195,7 +220,8 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (successful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(0 && rp_status == PICK_VALID_FAILED &&
+#ifdef ANISO_REJECT_FAILED_PV
+    if(rp_status == PICK_VALID_FAILED &&
        bad_cell->value != m_refine_queue.queue_min_value(bad_cell->queue_type) && //nothing to push if already last
        !bad_cell->prev_rejection) // if cell has not already been rejected
     {
@@ -206,6 +232,7 @@ public:
       timer_npv.stop();
       return get_refinement_point_for_next_element_(steiner_point);
     }
+#endif
 
     //We already know the conflict zones if it's a suitable point from pick_valid, but we need
     //to compute them for the other cases (won't cost anything if it's already known).
@@ -221,7 +248,7 @@ public:
       Cell_handle useless;
       std::cout << "check the last statment: ";
       std::cout << bad_cell->star->is_conflicted(Trunk::transform_to_star_point(steiner_point,
-                                                                                   bad_cell->star),
+                                                                                bad_cell->star),
                                                  useless) << std::endl;
       std::cout << "are bboxes doing silly stuff? ";
       std::cout << bad_cell->star->is_in_a_volume_delaunay_ball(Trunk::transform_to_star_point(steiner_point,
@@ -230,10 +257,14 @@ public:
       std::cout << "even after update? ";
       bad_cell->star->update_bbox();
       std::cout << bad_cell->star->is_conflicted(Trunk::transform_to_star_point(steiner_point,
-                                                                                   bad_cell->star),
+                                                                                bad_cell->star),
                                                  useless) << std::endl;
     }
 #endif
+
+    std::cout << "duration of get_next_ref: "
+              << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+              << " micro s\n";
 
     return SUITABLE_POINT;
   }
@@ -247,6 +278,8 @@ public:
 
   bool insert_(const Point_3& p)
   {
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
     Refine_cell bad_cell;
     bool need_picking_valid;
     Cell_handle c;
@@ -354,6 +387,15 @@ public:
       dump(this->m_starset, out_dump);
     }
 #endif
+
+#ifdef OUTPUT_BOOST_TIMERS
+    btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
+#else
+    std::cout << "duration of insert: "
+              << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+              << " micro s\n";
+#endif
+
     return true;
   }
 // end of CRTP functions
@@ -380,10 +422,14 @@ private:
 //Cell refinement queue functions
   //Most of that function body/parameters is debug; it could simply be f(i){queues[i]->pop();}
   bool next_refine_cell_pop(Refine_cell& refine_cell,
-                             Cell_handle& cell,
-                             bool& need_picking_valid)
+                            Cell_handle& cell,
+                            bool& need_picking_valid)
   {
+#ifdef NAIVE_CELL_QUEUES
+    Refine_cell const * rcsit;
+#else
     Rcell_set_iterator rcsit;
+#endif
     if(!m_refine_queue.top(rcsit, m_queue_ids_start, m_queue_ids_end))
     {
       std::cout << "empty queue at cell pop time...?" << std::endl; //shouldn't happen
@@ -403,9 +449,14 @@ private:
     return true;
   }
 
+#ifdef NAIVE_CELL_QUEUES
+  bool next_refine_cell(Refine_cell const *& refine_cell,
+#else
   bool next_refine_cell(Rcell_set_iterator& refine_cell,
+#endif
                         Cell_handle& cell,
                         bool& need_picking_valid)
+  
   {
     while(true)
     {
@@ -463,14 +514,18 @@ private:
       FT over_distortion = this->m_starset.compute_distortion(c) - this->m_criteria->distortion;
       if(over_distortion > 0.)
       {
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_distortion, 1))
+#endif
         {
           m_refine_queue.push(star, c, over_distortion, 1, force_push);
+#ifndef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
             std::cout << "not already in 1" << std::endl;
           }
+#endif
         }
         return;
       }
@@ -485,9 +540,12 @@ private:
       if(over_circumradius > 0)
       {
         //std::cout << "over circum : " <<  over_circumradius << std::endl;
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_circumradius, 2))
+#endif
         {
           m_refine_queue.push(star, c, over_circumradius, 2, force_push);
+#ifndef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
@@ -497,6 +555,7 @@ private:
             std::cout << " " << c->vertex(2)->info() << " " << c->vertex(3)->info();
             std::cout << " " << over_circumradius << std::endl;
           }
+#endif
         }
         return;
       }
@@ -509,14 +568,18 @@ private:
       FT over_radius_edge_ratio = star->compute_radius_edge_ratio_overflow(c);
       if(over_radius_edge_ratio > 0)
       {
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_radius_edge_ratio, 3))
+#endif
         {
           m_refine_queue.push(star, c, over_radius_edge_ratio, 3, force_push);
+#ifdef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
             std::cout << "not already in 3" << std::endl;
           }
+#endif
         }
         return;
       }
@@ -529,14 +592,18 @@ private:
       FT over_sliverity = star->compute_sliverity_overflow(c);
       if(over_sliverity > 0)
       {
+#ifndef NAIVE_CELL_QUEUES
         if(!check_if_in || !m_refine_queue.is_cell_in(star, c, over_sliverity, 4))
+#endif
         {
           m_refine_queue.push(star, c, over_sliverity, 4, force_push);
+#ifndef NAIVE_CELL_QUEUES
           if(check_if_in)
           {
             m_leak_counter++;
             std::cout << "not already in 4" << std::endl;
           }
+#endif
         }
         return;
       }
@@ -548,9 +615,12 @@ private:
        !this->m_starset.is_consistent(c))
     {
       FT vol = star->compute_volume(c);
+#ifndef NAIVE_CELL_QUEUES
       if(!check_if_in || !m_refine_queue.is_cell_in(star, c, vol, 5))
+#endif
       {
         m_refine_queue.push(star, c, vol, 5, force_push);
+#ifdef NAIVE_CELL_QUEUES
         if(check_if_in)
         {
           m_leak_counter++;
@@ -563,6 +633,7 @@ private:
           std::cout << c->vertex(3)->info();
           std::cout << " " << star->compute_volume(c) << std::endl;
         }
+#endif
       }
     }
 #endif
@@ -649,6 +720,8 @@ public:
 
   void fill_refinement_queue(Index pid)
   {
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
     fill_refinement_queue(this->m_stars_czones, pid);
     fill_from_unmodified_stars();
 
@@ -660,6 +733,14 @@ public:
 #endif
     std::cout << this->m_starset.size() << " ";
     m_refine_queue.print();
+
+#ifdef OUTPUT_BOOST_TIMERS
+    btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << '\n';
+#else
+    std::cout << "duration of fill ref queue: "
+              << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+              << " micro s\n";
+#endif
   }
 
   void fill_refinement_queue()
@@ -701,6 +782,8 @@ private:
                                      const Cell_handle& cell, //belongs to star and should be refined
                                      Point_3& p) const
   {
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
     timer_pv.start();
     TPoint_3 circumcenter = cell->circumcenter(*(star->traits()));
     TPoint_3 tp2 = cell->vertex(0)->point();
@@ -747,6 +830,14 @@ private:
       {
         timer_pv.stop();
         delete new_star;
+
+#ifdef OUTPUT_BOOST_TIMERS
+        btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
+#else
+        std::cout << "duration of pv (success): "
+                  << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+                  << " micro s\n";
+#endif
         return SUITABLE_POINT;
       }
 
@@ -763,6 +854,15 @@ private:
         }
 
         timer_pv.stop();
+
+#ifdef OUTPUT_BOOST_TIMERS
+        btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
+#else
+        std::cout << "duration of pv (failed): "
+                  << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+                  << " micro s\n";
+#endif
+
         return PICK_VALID_FAILED;
       }
 
@@ -804,8 +904,18 @@ private:
     }
     else
     {
+      boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
       vertex_without_picking_count++;
       steiner = compute_insert_or_snap_point(to_be_refined, c);
+
+#ifdef OUTPUT_BOOST_TIMERS
+      btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
+#else
+      std::cout << "duration of compute_insert_or_snap_point: "
+                << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+                << " micro s\n";
+#endif
 
       if(Mesher_lvl::is_point_in_conflict(steiner, true /*lower level queue insertion*/,
                                           false/*need_picking_valid*/))
@@ -854,8 +964,11 @@ public:
     vertex_without_picking_count(0),
     m_leak_counter(0),
     timer_pv(),
-    timer_npv()
-  { }
+    timer_npv(),
+    btimers_out("boost_timers.txt")
+  { 
+    btimers_out.precision(20);
+  }
 
 private:
   Anisotropic_refine_cells_3(const Self& src);
