@@ -11,6 +11,10 @@
 #include <CGAL/Anisotropic_mesher_level.h>
 #include <CGAL/Anisotropic_refine_trunk.h>
 
+#include <CGAL/Kd_tree_for_star_set.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
+
 #include <CGAL/helpers/combinatorics_helper.h>
 
 #include <CGAL/IO/Star_set_output.h>
@@ -62,6 +66,8 @@ public:
   typedef CGAL::Anisotropic_mesh_2::Metric_field<K>                Metric_field;
   typedef typename Metric_field::Metric                            Metric;
 
+  typedef CGAL::AABB_tree_bbox<K, Star>                            AABB_tree;
+  typedef CGAL::AABB_bbox_primitive<Star>                          AABB_primitive;
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
 
   typedef CGAL::Anisotropic_mesh_2::Conflict_zone<K>               Conflict_zone;
@@ -116,6 +122,7 @@ public:
       this->m_criteria->report();
 
       Trunk::initialize_stars();
+      Trunk::build_aabb_tree();
     }
 
     fill_refinement_queue();
@@ -914,6 +921,7 @@ public:
                               const Domain* pdomain_,
                               const Criteria* criteria_,
                               const Metric_field* metric_field_,
+                              AABB_tree& aabb_tree_,
                               Kd_tree& kd_tree_,
                               Stars_conflict_zones& m_stars_czones_,
                               Refine_queue& refine_queue_,
@@ -921,7 +929,7 @@ public:
                               int queue_ids_end_)
     :
       Mesher_lvl(previous),
-      Trunk(starset_, pdomain_, criteria_, metric_field_, kd_tree_, m_stars_czones_),
+      Trunk(starset_, pdomain_, criteria_, metric_field_, aabb_tree_, kd_tree_, m_stars_czones_),
       m_refine_queue(refine_queue_),
       m_queue_ids_start(queue_ids_start_),
       m_queue_ids_end(queue_ids_end_),

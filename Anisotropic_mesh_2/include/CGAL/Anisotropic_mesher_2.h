@@ -10,11 +10,15 @@
 #include <CGAL/Anisotropic_mesher_2_base.h>
 #include <CGAL/Anisotropic_refine_faces_2.h>
 #include <CGAL/Anisotropic_mesher_visitor.h>
+#include <CGAL/bbox.h>
+
+#include <CGAL/Kd_tree_for_star_set.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
 
 #include <CGAL/IO/Star_set_output.h>
 
 #include <CGAL/Timer.h>
-#include <CGAL/Bbox_2.h>
 #include <CGAL/iterator.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Cartesian_converter.h>
@@ -50,7 +54,7 @@ public:
   typedef Stretched_Delaunay_2<K, KExact>                   Star;
   typedef Star*                                             Star_handle;
 
-  typedef Domain_2<K>                            Domain;
+  typedef Domain_2<K>                                       Domain;
   typedef CGAL::Anisotropic_mesh_2::Metric_field<K>         Metric_field;
   typedef typename Metric_field::Metric                     Metric;
   typedef Criteria_base<K>                                  Criteria;
@@ -61,6 +65,7 @@ public:
   typedef CGAL::Anisotropic_mesh_2::Face_refine_queue<K>    Face_refine_queue;
 
   //Filters
+  typedef CGAL::AABB_tree_bbox<K, Star>                     AABB_tree;
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>        Kd_tree;
   typedef CGAL::Anisotropic_mesh_2::Stars_conflict_zones<K> Stars_conflict_zones;
 
@@ -85,6 +90,7 @@ private:
   Face_refine_queue m_face_refine_queue;
 
   // Filters
+  AABB_tree m_aabb_tree; // bboxes of stars
   Kd_tree m_kd_tree; // stars* centers for box queries
 
   mutable Stars_conflict_zones m_star_czones; //conflict zones for the stars in conflict
@@ -222,13 +228,14 @@ public:
       Base(),
       m_starset(starset_),
       m_face_refine_queue(),
+      m_aabb_tree(100/*insertion buffer size*/),
       m_kd_tree(m_starset.star_vector()),
       m_star_czones(m_starset),
       m_null_mesher(),
       m_face_mesher(m_null_mesher, m_starset, pdomain_, criteria_, metric_field_,
-                    m_kd_tree, m_star_czones, m_face_refine_queue, 0, 3),
+                    m_aabb_tree, m_kd_tree, m_star_czones, m_face_refine_queue, 0, 3),
       m_face_consistency_mesher(m_face_mesher, m_starset, pdomain_, criteria_,
-                                metric_field_, m_kd_tree, m_star_czones,
+                                metric_field_, m_aabb_tree, m_kd_tree, m_star_czones,
                                 m_face_refine_queue, 4, 5),
       m_null_visitor(),
       m_face_visitor(boost::assign::list_of((Trunk*) &m_face_consistency_mesher), m_null_visitor),

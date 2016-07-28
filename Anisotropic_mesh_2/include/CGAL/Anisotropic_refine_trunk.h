@@ -11,6 +11,10 @@
 #include <CGAL/Stretched_Delaunay_2.h>
 #include <CGAL/Starset.h>
 
+#include <CGAL/Kd_tree_for_star_set.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
+
 #include <CGAL/IO/Star_set_output.h>
 
 #include <omp.h>
@@ -354,6 +358,7 @@ public:
   typedef typename Star::Index                                     Index;
   typedef std::set<Index>                                          Index_set;
   typedef typename Star::Point_2                                   Point_2;
+  typedef typename Star::Point_3                                   Point_3;
   typedef typename Star::TPoint_2                                  TPoint_2;
   typedef std::set<Point_2>                                        Point_set;
   typedef typename Star::Vertex_handle                             Vertex_handle;
@@ -367,6 +372,9 @@ public:
 
   typedef CGAL::Anisotropic_mesh_2::Metric_field<K>                Metric_field;
   typedef typename Metric_field::Metric                            Metric;
+
+  typedef CGAL::AABB_tree_bbox<K, Star>                            AABB_tree;
+  typedef CGAL::AABB_bbox_primitive<Star>                          AABB_primitive;
 
   typedef CGAL::Kd_tree_for_star_set<K, Star_handle>               Kd_tree;
   typedef typename Kd_tree::Traits                                 Kd_traits;
@@ -392,6 +400,7 @@ protected:
   const Criteria* m_criteria;
   const Metric_field* m_metric_field;
 
+  AABB_tree& m_aabb_tree;
   Kd_tree& m_kd_tree;
 
   Stars_conflict_zones& m_stars_czones;
@@ -510,6 +519,18 @@ public:
   }
 
 public:
+  //aabb functions
+  void update_aabb_tree(Star_handle star) const
+  {
+    m_aabb_tree.update_primitive(AABB_primitive(star));
+  }
+
+  void build_aabb_tree()
+  {
+    std::cout << "build star set with " << m_starset.size() << " stars" << std::endl;
+    m_aabb_tree.rebuild(m_starset.begin(), m_starset.end());
+  }
+
   void update_bboxes() const
   {
     std::size_t i;
@@ -518,23 +539,50 @@ public:
     {
       Star_handle si = get_star(i);
       si->update_bbox();
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+      if(m_aabb_tree.m_insertion_buffer_size() == 1) // tree has just been rebuilt
+        si->bbox_needs_aabb_update() = false;
+      if(si->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+      {
+        si->bbox_needs_aabb_update() = false;
+        update_aabb_tree(si);
+      }
+#endif
     }
+
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    for(i = 0; i < N; i++)
+      if(get_star(i)->bbox_needs_aabb_update() && i<m_aabb_tree.size())
+        std::cout << "forgot some stars in the update" << std::endl;
+#endif
   }
 
   template<typename OutputIterator>
   void finite_stars_in_conflict(const Point_2& p,
                                 OutputIterator oit) const
   {
+    // computes the exact set of stars in conflict
+
     update_bboxes();
 
-    //exact set
-    for(std::size_t i = 0; i < number_of_stars(); i++)
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+  FT x = p.x(), y = p.y();
+  #ifdef LIFT_AABB_TREE
+    const Point_3 query(x, y, x);
+  #else
+    const Point_3 query(x, y, 0);
+  #endif
+    m_aabb_tree.all_intersected_primitives(query, oit);
+#else
+    const std::size_t ss = number_of_stars();
+    for(std::size_t i = 0; i<ss; i++)
     {
       Star_handle s = get_star(i);
       Face_handle fh;
       if(s->is_conflicted(transform_to_star_point(p, s), fh))
         *oit++ = s;
     }
+#endif
   }
 
   template<typename StarConstIterator>
@@ -567,6 +615,9 @@ public:
     Index id = static_cast<Index>(number_of_stars());
     remove_from_stars(id, m_starset.begin(), m_starset.end());
     m_kd_tree.remove_last();
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    m_aabb_tree.remove_last();
+#endif
   }
 
   void clean_stars()
@@ -615,39 +666,44 @@ public:
 // Conflict zones
   Index simulate_insert_to_stars(const Point_2& p) const
   {
-    CGAL::Timer t;
-    t.start();
-
-    Index this_id = static_cast<Index>(number_of_stars());
+    const Index this_id = static_cast<Index>(number_of_stars());
 
     // find conflicted stars
-    Star_set stars;
+    Star_deque stars;
     finite_stars_in_conflict(p, std::inserter(stars, stars.end()));
 
-    typename Star_set::iterator it = stars.begin();
-    typename Star_set::iterator iend = stars.end();
-    for(; it != iend; it++)
+//    bool abort = false;
+    std::size_t ds = stars.size();
+//#pragma omp parallel for shared (abort) // omp does not accelerate (on the contrary)
+    for(std::size_t i=0; i<ds; i++)
     {
-      Star_handle si = get_star(it);
-      int id = si->simulate_insert_to_star(p, this_id);
+//#pragma omp flush (abort) // make sure 'abort' is up to date
+//      if(!abort)
+//      {
+        Star_handle si = get_star(stars[i]);
+        const int id = si->simulate_insert_to_star(p, this_id);
 
-      if(id == -1) // no conflict
-        continue;
-      else if(id < static_cast<int>(this_id)) // already in star set
-      {
-        std::cout << "Warning in simulate_insert_to_stars" << std::endl;
-        return id;
-      }
-      else // to be inserted, standard configuration
-      {
-        //add them to the map of stars in conflict (conflict zones are not computed yet)
-        m_stars_czones.conflict_zone(si->index_in_star_set());
-      }
+        if(id == -1) // no conflict
+          continue;
+        else if(id < static_cast<int>(this_id)) // already in star set
+        {
+//#pragma omp critical
+{
+          std::cout << "Warning in simulate_insert_to_stars" << std::endl;
+//          abort = true;
+          return id;
+}
+        }
+        else // to be inserted, standard configuration
+        {
+//#pragma omp critical
+{
+            //add them to the map of stars in conflict (conflict zones are not computed yet)
+            m_stars_czones.conflict_zone(si->index_in_star_set());
+}
+        }
+//      }
     }
-
-    //std::cerr << s_in_conflict << std::endl;
-    t.stop();
-    //std::cout << "simulate: " << t.time() << std::endl;
 
     return this_id;
   }
@@ -971,6 +1027,9 @@ public:
 
     m_starset.push_back(star);
     m_kd_tree.insert(star->index_in_star_set());
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+    m_aabb_tree.insert(AABB_primitive(star));
+#endif
     return id;
   }
 
@@ -1068,7 +1127,19 @@ public:
     {
       in >> x >> y >> useless;
       Point_2 p(x,y);
-      insert(p, false /*no condition*/);
+      if(m_starset.size() < 10)
+      {
+        insert(p, false /*no condition*/);
+      }
+      else
+      {
+        if(m_starset.size() == 10)
+          build_aabb_tree();
+
+        compute_conflict_zones(p);
+        m_stars_czones.compute_elements_needing_check();
+        insert(p, true/*conditional*/);
+      }
     }
     clean_stars();
 
@@ -1104,6 +1175,7 @@ public:
                            const Domain* pConstrain_,
                            const Criteria* criteria_,
                            const Metric_field* metric_field_,
+                           AABB_tree& aabb_tree_,
                            Kd_tree& kd_tree_,
                            Stars_conflict_zones& stars_czones_)
   :
@@ -1111,6 +1183,7 @@ public:
     m_pdomain(pConstrain_),
     m_criteria(criteria_),
     m_metric_field(metric_field_),
+    m_aabb_tree(aabb_tree_),
     m_kd_tree(kd_tree_),
     m_stars_czones(stars_czones_)
   { }

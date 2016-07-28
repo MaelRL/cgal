@@ -9,6 +9,11 @@
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
 #include <CGAL/Random.h>
 
+#include <CGAL/Kd_tree_for_star_set.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
+#include <CGAL/aabb_tree/aniso_bbox_3.h>
+
 #include <CGAL/bbox.h>
 #include <CGAL/Metric.h>
 #include <CGAL/Criteria.h>
@@ -89,6 +94,7 @@ public:
   typedef Metric_base<K, KExact>                    Metric;
   typedef typename K::FT                            FT;
   typedef typename K::Point_2                       Point_2;
+  typedef typename K::Point_3                       Point_3;
   typedef typename K::Point_2                       TPoint_2; //Transformed_point_2
   typedef typename K::Vector_2                      Vector_2;
   typedef typename K::Line_2                        Line_2;
@@ -104,6 +110,7 @@ public:
   typedef ::CGAL::Anisotropic_mesh_2::Stretched_criteria<K, KExact> Stretched_criteria;
   typedef Criteria_base<K>                          Criteria;
   typedef CGAL::Bbox<K>                             Bbox;
+  typedef CGAL::Aniso_bbox_3<K>                     A_Bbox_3;
 
   typedef std::vector<Point_2>                      Point_vector;
   typedef std::vector<Vertex_handle>                Vertex_handle_vector;
@@ -135,7 +142,9 @@ private:
   mutable bool m_is_topological_disk;
   mutable bool m_is_valid_topo_disk;
   mutable Bbox m_bbox;
+  mutable A_Bbox_3 m_a_bbox_3;
   mutable bool m_is_valid_bbox;
+  mutable bool m_bbox_needs_aabb_update;
   mutable bool m_metric_needs_update;
 
   mutable bool is_cache_dirty;
@@ -189,6 +198,29 @@ public:
     update_bbox(verbose);
     return m_bbox;
   }
+
+// to abuse the AABB structure with a 2D star set
+  const A_Bbox_3& AABB_bbox(const bool verbose = false) const
+  {
+    update_bbox(verbose);
+    return m_a_bbox_3;
+  }
+
+  Point_3 AABB_center_point() const
+  {
+    FT x = center_point().x();
+    FT y = center_point().y();
+#ifdef LIFT_AABB_TREE
+    return Point_3(x, y, x);
+#else
+    return Point_3(x,y,0.);
+#endif
+  }
+
+  bool& bbox_needs_aabb_update(){ return m_bbox_needs_aabb_update; }
+  const bool& bbox_needs_aabb_update() const { return m_bbox_needs_aabb_update; }
+  bool& metric_needs_update(){ return m_metric_needs_update; }
+  const bool& metric_needs_update() const { return m_metric_needs_update; }
 
 public:
   bool has_vertex(const int i) const
@@ -518,10 +550,30 @@ public:
     m_is_topological_disk = true;
   }
 
+  void build_a_bbox_from_bbox() const
+  {
+    // the bbox used in the AABB tree.
+    // can try to lift the bboxes to see if it's better for the AABB tree...
+
+    FT xmin = m_bbox.xmin(), xmax = m_bbox.xmax(),
+       ymin = m_bbox.ymin(), ymax = m_bbox.ymax();
+
+#ifdef LIFT_AABB_TREE
+    m_a_bbox_3 = A_Bbox_3(xmin, ymin, xmin,
+                          xmax, ymax, xmax); // bboxes do not live in the same plane
+#else
+    m_a_bbox_3 = A_Bbox_3(xmin, ymin, -1., xmax, ymax, 1.); // all the bboxes have the same z coordinates
+#endif
+
+    return;
+  }
+
   void update_bbox(const bool verbose = false) const
   {
     if(m_is_valid_bbox)
       return;
+
+    Bbox_2 old_bbox = m_bbox;
 
     if(verbose)
       std::cout << "Update Bbox...";
@@ -530,6 +582,22 @@ public:
     m_bbox = this->compute_bbox();
 
     m_is_valid_bbox = true;
+
+#ifndef NO_USE_AABB_TREE_OF_BBOXES
+   //checking if the bbox has grown
+    if(m_bbox.xmin() < old_bbox.xmin() || m_bbox.xmax() > old_bbox.xmax() ||
+       m_bbox.ymin() < old_bbox.ymin() || m_bbox.ymax() > old_bbox.ymax())
+    {
+#ifdef DEBUG_UPDATE_AABB_TREE
+      std::cout << "growing bbox in star : " << index_in_star_set() << std::endl;
+      std::cout << m_bbox.xmin() << " " << m_bbox.xmax() << " " << m_bbox.ymin();
+      std::cout << " " << m_bbox.ymax() << std::endl;
+#endif
+      m_bbox_needs_aabb_update = true;
+   }
+#endif
+
+    build_a_bbox_from_bbox();
 
     if(verbose)
       std::cout << "done." << std::endl;
@@ -1051,6 +1119,7 @@ public:
       m_is_topological_disk(false),
       m_is_valid_topo_disk(false),
       m_is_valid_bbox(false),
+      m_bbox_needs_aabb_update(false),
       m_metric_needs_update(false),
       is_cache_dirty(true),
       finite_adjacent_vertices_cache(),
@@ -1059,6 +1128,7 @@ public:
   {
     m_center = Vertex_handle();
     m_bbox = m_pdomain->get_bbox(); // in M_euclidean
+    build_a_bbox_from_bbox();
     this->infinite_vertex()->info() = index_of_infinite_vertex;
   }
 
@@ -1076,6 +1146,7 @@ public:
       m_is_topological_disk(false),
       m_is_valid_topo_disk(false),
       m_is_valid_bbox(false),
+      m_bbox_needs_aabb_update(false),
       m_metric_needs_update(false),
       is_cache_dirty(true),
       finite_adjacent_vertices_cache(),
@@ -1085,6 +1156,7 @@ public:
     m_center = Base::insert(m_metric.transform(centerpoint));
     m_center->info() = index;
     m_bbox = m_pdomain->get_bbox(); // in M_euclidean
+    build_a_bbox_from_bbox();
     this->infinite_vertex()->info() = index_of_infinite_vertex;
   }
 

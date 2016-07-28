@@ -1,11 +1,12 @@
-#ifndef CGAL_BBOX_H
-#define CGAL_BBOX_H
+#ifndef CGAL_ANISO_2_BBOX_2_H
+#define CGAL_ANISO_2_BBOX_2_H
 
 #include <CGAL/Bbox_2.h>
 #include <CGAL/Iso_rectangle_2.h>
 
 namespace CGAL
 {
+
 template<typename K>
 class Bbox : public CGAL::Bbox_2
 {
@@ -47,6 +48,7 @@ public:
   }
 
 };  //end class Bounding_box
+
 } // end namespace CGAL
 
-#endif
+#endif // CGAL_ANISO_2_BBOX_2_H
