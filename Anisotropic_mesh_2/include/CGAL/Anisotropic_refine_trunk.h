@@ -361,7 +361,9 @@ public:
   typedef typename Star::Point_3                                   Point_3;
   typedef typename Star::TPoint_2                                  TPoint_2;
   typedef std::set<Point_2>                                        Point_set;
+  typedef typename Star::Edge                                      Edge;
   typedef typename Star::Vertex_handle                             Vertex_handle;
+  typedef typename Star::Face_handle_handle                        Face_handle_handle;
   typedef typename Star::Face                                      Face;
   typedef typename Star::Face_handle                               Face_handle;
   typedef typename Star::Vector_2                                  Vector_2;
@@ -627,11 +629,109 @@ public:
       get_star(i)->clean();
   }
 
+// Pick valid point validity checks for 3D (used by cell level
+// and facet level when the cell level is active)
+  void facets_created(Star_handle star,
+                     std::map<Facet_ijk, int>& facets) const
+  {
+    Face_handle_handle fit = star->finite_incident_faces_begin();
+    Face_handle_handle fiend = star->finite_incident_faces_end();
+    for(; fit != fiend; fit++)
+      add_to_map(Facet_ijk(*fit), facets);
+  }
+
+  // finite facets(i,j,k) which would be created by the insertion
+  // of 'p' in 'star' are added to 'facets'
+  void facets_created(const Point_2& p, // new point, not yet in the star set
+                      const int p_id,   // index of p in star set
+                      Star_handle star,
+                      std::map<Facet_ijk, int>& facets) const
+  {
+    Index center_id = star->index_in_star_set();
+    if(center_id == p_id)
+      return facets_created(star, facets);
+
+    // boundary facets of the conflict zone should already have been computed
+    if(this->m_stars_czones.status() != Stars_conflict_zones::CONFLICT_ZONES_ARE_KNOWN)
+      std::cout << "Zones should be known before entering facets_created..." << std::endl;
+    if(this->m_stars_czones.conflict_zones().find(center_id) == this->m_stars_czones.end())
+      std::cout << "Trying to compute facets_created for a star not in conflict" << std::endl;
+
+    const Conflict_zone& star_cz = this->m_stars_czones.conflict_zone(center_id);
+    const std::vector<Edge>& bedges = star_cz.boundary_edges();
+
+    typename std::vector<Edge>::const_iterator bit = bedges.begin();
+    typename std::vector<Edge>::const_iterator bend = bedges.end();
+    for( ; bit!=bend; bit++)
+    {
+      int id1 = bit->first->vertex((bit->second + 1)%3)->info();
+      int id2 = bit->first->vertex((bit->second + 2)%3)->info();
+      int sid = star->index_in_star_set();
+
+      if(id1 == star->infinite_vertex_index() ||
+         id2 == star->infinite_vertex_index())
+        continue;
+
+      if(id1 != sid && id2 != sid)
+        continue;
+
+      Point_2 c = compute_circumcenter(this->m_starset[id1]->center_point(),
+                                       this->m_starset[id2]->center_point(),
+                                       p, star);
+      if(is_inside_domain(c))
+        add_to_map(Facet_ijk(id1, id2, p_id), facets);
+    }
+  }
+
   bool check_consistency_and_sliverity(Star_handle to_be_refined,
                                        const Star_handle& new_star,
                                        FT sq_radius_bound) const
   {
-    // fixme
+
+    Point_2 p = new_star->center_point();
+    int p_index = new_star->index_in_star_set();
+
+    std::map<Facet_ijk, int> facets;
+    facets_created(new_star, facets);
+
+    typename Stars_conflict_zones::iterator czit = this->m_stars_czones.begin();
+    typename Stars_conflict_zones::iterator czend = this->m_stars_czones.end();
+    for(; czit!=czend; ++czit)
+    {
+      Index i = czit->first;
+      Star_handle si = get_star(i);
+      facets_created(p, p_index, si, facets);
+    }
+
+    typename std::map<Facet_ijk, int>::iterator itc;
+    for(itc = facets.begin(); itc != facets.end(); ++itc)
+    {
+      int nmax = number_of_stars();
+      int c0 = (*itc).first.vertex(0);
+      int c1 = (*itc).first.vertex(1);
+      int c2 = (*itc).first.vertex(2);
+      if((*itc).second != 3 ) // inconsistency
+      {
+        if((*itc).first.is_infinite())
+          return false;
+
+        TPoint_2 tp0, tp1, tp2;
+        TPoint_2 tp = this->transform_to_star_point(p, to_be_refined);
+        tp0 = (c0 == nmax) ? tp : this->transform_to_star_point(this->m_starset[c0]->center_point(),
+                                                                to_be_refined);
+        tp1 = (c1 == nmax) ? tp : this->transform_to_star_point(this->m_starset[c1]->center_point(),
+                                                                to_be_refined);
+        tp2 = (c2 == nmax) ? tp : this->transform_to_star_point(this->m_starset[c2]->center_point(),
+                                                                to_be_refined);
+
+        double sqr = to_be_refined->compute_squared_circumradius(tp0, tp1, tp2);
+        if(sqr < sq_radius_bound)
+        {
+          return false; // small inconsistency (radius) is forbidden.
+        }
+      }
+    }
+
     return true;
   }
 
