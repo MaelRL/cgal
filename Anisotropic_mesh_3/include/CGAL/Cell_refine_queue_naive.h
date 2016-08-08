@@ -165,7 +165,7 @@ public:
         cell = &(queues[i]->top());
 
         // std::cout << "found cell top at: " << i << std::endl;
-        // std::cout << "star: " << cell->star->index_in_star_set() << std::endl;
+        // std::cout << "star: " << cell->star->index_in_star_set() << " v: " << cell->value << std::endl;
         // std::cout << cell->cell[0] << " " << cell->cell[1] << " " << cell->cell[2] << " " << cell->cell[3] << std::endl;
 
         return true;

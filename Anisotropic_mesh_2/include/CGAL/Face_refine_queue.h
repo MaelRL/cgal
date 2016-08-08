@@ -231,8 +231,8 @@ private:
       rface_hint = (--rface_it)++;
 #endif
 
-    //In the general case, we don't know where the insertion will be. In the rejection case
-    //the insertion is done at the end.
+    //In the general case, we don't know where the insertion will be.
+    // In the rejection case, the insertion is done at the end.
     if(!prev_rejection || queues[queue_type]->size() <= 1)
       queue_hint = queues[queue_type]->end();
     else

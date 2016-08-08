@@ -3,6 +3,8 @@
 
 // the canvas used is a triangulation
 
+#define ANISO_GEO_FILTER_SEEDS_OUTSIDE_CANVAS_BBOX
+
 #include <CGAL/Canvas/canvas_config.h>
 #include <CGAL/Canvas/Campen_c3t3_canvas.h>
 #include <CGAL/Canvas/Campen_c3t3_point.h>

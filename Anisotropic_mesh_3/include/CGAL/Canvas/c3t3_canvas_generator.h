@@ -88,14 +88,24 @@ template<typename K, typename MF>
 void generate_canvas(const MF* mf)
 {
   typedef typename K::FT                                         FT;
-  typedef typename K::Point_3                                    Point_3;
+  typedef typename K::Point_3                                    Point;
 
-  typedef FT (Function)(const Point_3&);
-  typedef Implicit_mesh_domain_3<Function, K>                    Mesh_domain;
-  typedef Mesh_domain_with_polyline_features_3<Mesh_domain>      Mesh_domain_with_features;
+  typedef FT (Function)(const Point&);
+  typedef CGAL::Mesh_domain_with_polyline_features_3<
+                CGAL::Implicit_mesh_domain_3<Function,K> >       Mesh_domain;
 
-  typedef typename Mesh_triangulation_3<Mesh_domain>::type       Tr;
-  typedef Mesh_complex_3_in_triangulation_3<Tr>                  C3t3;
+#ifdef CGAL_CONCURRENT_MESH_3
+  typedef CGAL::Mesh_triangulation_3<Mesh_domain,
+                                     CGAL::Kernel_traits<Mesh_domain>::Kernel, // Same as sequential
+                                     CGAL::Parallel_tag                        // Tag to activate parallelism
+                                    >::type                      Tr;
+#else
+  typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type Tr;
+#endif
+
+typedef CGAL::Mesh_complex_3_in_triangulation_3<Tr,
+                                                typename Mesh_domain::Corner_index,
+                                                typename Mesh_domain::Curve_segment_index> C3t3;
 
   typedef Mesh_criteria_3<Tr>                                    Mesh_criteria;
   typedef typename Mesh_criteria::Edge_criteria                  Edge_criteria;
@@ -103,8 +113,7 @@ void generate_canvas(const MF* mf)
   typedef typename Mesh_criteria::Cell_criteria                  Cell_criteria;
 
   // Domain
-  Mesh_domain_with_features const * const domain =
-                         cube_domain_with_features<Mesh_domain_with_features>();
+  Mesh_domain const * const domain = cube_domain_with_features<Mesh_domain>();
 
   // Set mesh criteria
   Geo_sizing_field<Tr, MF> size(mf);

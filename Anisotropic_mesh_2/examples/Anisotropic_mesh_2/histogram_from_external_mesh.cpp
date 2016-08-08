@@ -378,9 +378,9 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
 }
 
 void face_angle_histogram(const std::vector<Point_2>& points,
-                                const std::vector<int>& faces,
-                                const std::vector<Metric>& metrics,
-                                const std::string filename_core)
+                          const std::vector<int>& faces,
+                          const std::vector<Metric>& metrics,
+                          const std::string filename_core)
 {
   if(faces.empty())
     return;
@@ -449,6 +449,90 @@ void face_angle_histogram(const std::vector<Point_2>& points,
     out_bb << worst_face_angles[i] << std::endl;
 }
 
+void PV_success_histogram()
+{
+  // putting it here because I'm going to lose it if it's somewhere else!
+  // input is a file with two columns: distortion and whether it succeeded or not
+
+  std::ifstream in("PV_success.txt");
+  CGAL_precondition(in);
+  std::vector<FT> values;
+
+  FT dist;
+  bool success;
+  FT n_tries;
+
+  while(in >> dist >> success >> n_tries)
+    values.push_back(dist);
+
+  FT min_value = *(std::min_element(values.begin(), values.end()));
+  FT max_value = *(std::max_element(values.begin(), values.end()));
+
+  std::cout << "Distortion entries: " << values.size() << " m/M: "
+            << min_value << " " << max_value << std::endl;
+
+  std::size_t vsize = 500;
+  std::vector<int> succeeded(vsize, 0);
+  std::vector<int> failed(vsize, 0);
+  std::vector<std::vector<FT> > average(vsize);
+
+  FT limit_val = vsize - 1.;
+  FT step_size = (max_value - min_value) / static_cast<FT>(vsize);
+
+  in.clear();                 // clear fail and eof bits
+  in.seekg(0, std::ios::beg); // back to the start!
+
+  while(in >> dist >> success >> n_tries)
+  {
+    std::size_t id = (std::min)(limit_val, std::floor((dist - min_value) / step_size));
+
+
+    if(success)
+    {
+      average[id].push_back(n_tries);
+      succeeded[id]++;
+    }
+    else
+      failed[id]++;
+  }
+
+  // if there were no success, set the number of tries to max
+  std::size_t max_n_tries = 1000;
+  std::cout << "hardcoded: " << max_n_tries << std::endl;
+  for(std::size_t i=0; i<vsize; ++i)
+  {
+    if(succeeded[i] == 0)
+    {
+      CGAL_assertion(average[i].empty());
+      average[i].push_back(max_n_tries);
+    }
+  }
+
+  std::ofstream out("PV_success.dat");
+  for(std::size_t i=0; i<vsize; ++i)
+  {
+    FT s = succeeded[i];
+    FT f = failed[i];
+    FT p = 0;
+
+    if(s+f==0)
+      p = 0;
+    else
+      p = s/(s+f);
+
+    p *= 100; // percentage
+
+    FT a = -1.;
+    if(average[i].empty())
+      a = 0.;
+    else
+      a = std::accumulate(average[i].begin(), average[i].end(), 0.0)/average[i].size(); 
+
+    out << min_value + step_size*i << " " << s + f << " " << p << " " << a << '\n';
+  }
+  out << std::endl;
+}
+
 int main(int, char**)
 {
 //  std::freopen("wut.txt", "w", stdout); //all output is written in "wut.txt"
@@ -476,7 +560,6 @@ int main(int, char**)
   face_angle_histogram(points, faces, metrics, filename_core);
 
   delete metric_field;
-
   return 0;
 }
 

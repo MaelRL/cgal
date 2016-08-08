@@ -206,6 +206,7 @@ public:
       std::cout << "trying to refine a degenerate (in the metric) face" << std::endl;
 #endif
 
+#ifdef SKIP_PICK_VALID_DISTORTION
     if(!this->m_criteria->max_times_to_try_in_picking_region || //skip pick_valid if the number of tries is set to 0
        (need_picking_valid &&
         this->m_starset.compute_distortion(fh) > this->m_criteria->distortion)) //pick_valid trick #1: skip pick_valid if the distortion is too high
@@ -213,13 +214,14 @@ public:
       m_pick_valid_skipped++;
       need_picking_valid = false;
     }
+#endif
 
     // note: failure in pick_valid AND a conflicting circumcenter gives POINT_IN_CONFLICT status (trick#2 is not applied)
     Refinement_point_status rp_status = compute_steiner_point(bad_face->star, fh,
                                                               need_picking_valid, steiner_point);
 
     if(need_picking_valid)
-      pick_valid_output(rp_status); //counts point_in_conflict as fail (not sure if should)
+      pick_valid_output(rp_status, fh); //counts point_in_conflict as fail (not sure if should)
 
     if(rp_status == POINT_IN_CONFLICT)
       return rp_status;
@@ -227,7 +229,8 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (successful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(0 && rp_status == PICK_VALID_FAILED &&
+#ifdef REJECT_FAILED_ELEMENTS
+    if(rp_status == PICK_VALID_FAILED &&
        bad_face->value != m_refine_queue.queue_min_value(bad_face->queue_type) && //nothing to do if already last
        !bad_face->prev_rejection) // only allow one rejection
     {
@@ -238,6 +241,7 @@ public:
       timer_npv.stop();
       return get_refinement_point_for_next_element_(steiner_point);
     }
+#endif
 
     // We already know the conflict zones if it's a suitable point from pick_valid,
     // but we need to compute them for the other cases (won't cost anything
@@ -392,7 +396,6 @@ private:
 
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
-
     if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
        this->m_criteria->distortion > 1.)
     {
@@ -460,8 +463,7 @@ private:
 
     // custom consistency : 4
 #ifdef ANISO_USE_CUSTOM_CONSISTENCY
-    if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
-//     !this->m_starset.is_vertex_consistent(fit))
+    if(is_criterion_tested(m_refine_queue.custom_inconsistent_queue) &&
        !this->m_starset.is_flip_consistent(fit))
     {
       FT vol = star->compute_volume(fit);
@@ -484,6 +486,7 @@ private:
     }
 #endif
 
+#ifndef ANISO_NO_CONSISTENCY
     // consistency : 5
     if(is_criterion_tested(m_refine_queue.inconsistent_queue) &&
        !this->m_starset.is_consistent(fit))
@@ -506,6 +509,7 @@ private:
         }
       }
     }
+#endif
   }
 
 public:
@@ -772,7 +776,8 @@ private:
       return is_valid_point_1D(p, sq_radius_bound, to_be_refined, new_star);
   }
 
-  void pick_valid_output(const Refinement_point_status rp_status)
+  void pick_valid_output(const Refinement_point_status rp_status,
+                         const Face_handle fh)
   {
     bool success = (rp_status == SUITABLE_POINT);
     if(success)
@@ -781,8 +786,7 @@ private:
       m_pick_valid_failed++;
 
 #ifdef ANISO_VERBOSE
-    if((!success && m_pick_valid_failed % 100 == 0 && m_pick_valid_failed > 0) ||
-       (success && m_pick_valid_succeeded % 100 == 0 && m_pick_valid_succeeded > 0))
+    if((m_pick_valid_failed + m_pick_valid_succeeded) % 1 == 0)
     {
       std::cout << "Fpick_valid : ";
       std::cout << m_pick_valid_succeeded << " success and ";

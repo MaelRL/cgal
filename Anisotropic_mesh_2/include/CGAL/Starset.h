@@ -97,6 +97,79 @@ public:
     return nbv;
   }
 
+  // flip consistency
+  bool is_flip_consistent(const Face_handle& fh,
+                          const bool verbose = false) const
+  {
+    if(is_consistent(fh, verbose))
+    {
+      return true;
+    }
+
+    // face is inconsistent.
+    // check if only 4 pts are involved in the inconsistency...
+
+    std::set<std::size_t> involved_stars;
+    involved_stars.insert(fh->vertex(0)->info());
+    involved_stars.insert(fh->vertex(1)->info());
+    involved_stars.insert(fh->vertex(2)->info());
+
+    bool stars_were_added = true;
+    while(stars_were_added)
+    {
+      stars_were_added = false;
+      std::set<std::size_t> involved_stars2 = involved_stars; // disgusting but whatever
+      std::size_t old_size = involved_stars.size();
+
+      // search for inconsistent simplices that contain a point in involved_stars
+      std::set<std::size_t>::iterator it = involved_stars2.begin();
+      for(; it!=involved_stars2.end(); ++it) //looping on 2, inserting in 1
+      {
+        Star_handle s = get_star(*it);
+        typename Star::Face_handle_handle fit = s->finite_incident_faces_begin();
+        typename Star::Face_handle_handle fend = s->finite_incident_faces_end();
+        for(; fit!=fend; ++fit)
+        {
+          Face_handle fh2 = *fit;
+          if(!is_consistent(fh2))
+          {
+            if(fh2->vertex(0)->info() != s->index_in_star_set())
+            {
+              involved_stars.insert(fh2->vertex(0)->info());
+
+              if(old_size != involved_stars.size()) // check that it didn't already exist in involved_stars
+                stars_were_added = true;
+            }
+
+            if(fh2->vertex(1)->info() != s->index_in_star_set())
+            {
+              involved_stars.insert(fh2->vertex(1)->info());
+
+              if(old_size != involved_stars.size())
+                stars_were_added = true;
+            }
+
+            if(fh2->vertex(2)->info() != s->index_in_star_set())
+            {
+              involved_stars.insert(fh2->vertex(2)->info());
+
+              if(old_size != involved_stars.size())
+                stars_were_added = true;
+            }
+          }
+        }
+      }
+
+      if(involved_stars.size() > 4)
+        return false;
+    }
+
+    if(involved_stars.size() == 4)
+      std::cout << "WUT WUT --------------------------------------------" << std::endl;
+
+    return involved_stars.size() == 4;
+  }
+
   //consistency
   //Face_handle
   bool is_consistent(const Face_handle& fh,

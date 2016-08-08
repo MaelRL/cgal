@@ -3,6 +3,14 @@
 
 // canvas is a starset
 #define ANISO_NO_CONSISTENCY
+#define ANISO_USE_RECIPROCAL_NEIGHBORS
+// #define COMPUTE_PRECISE_VOR_VERTICES
+// #define USE_FULL_REBUILDS
+#define FILTER_SEEDS_OUTSIDE_GRID
+
+// #define COMPUTE_GEODESIC
+#define COMPUTE_REAL_GEODESICS
+// #define OVERWRITE_SEED_WITH_CANVAS_POINT // use that for easier geodesic drawing
 
 #include <CGAL/Anisotropic_mesher_2.h>
 #include <CGAL/Starset.h>
@@ -39,15 +47,7 @@
 #include <utility>
 #include <vector>
 
-#define ANISO_USE_RECIPROCAL_NEIGHBORS
-// #define COMPUTE_PRECISE_VOR_VERTICES
-// #define USE_FULL_REBUILDS
-#define FILTER_SEEDS_OUTSIDE_GRID
-#define verbose 2
-
-// #define COMPUTE_GEODESIC
-#define COMPUTE_REAL_GEODESICS
-// #define OVERWRITE_SEED_WITH_CANVAS_POINT // use that for easier geodesic drawing
+#define VERBOSITY 6
 
 namespace CGAL
 {
@@ -810,13 +810,13 @@ public:
       if(x < center.x() - sa || x > center.x() + sa ||
          y < center.y() - sb || y > center.y() + sb)
       {
-  #if (verbose > 1)
+  #if (VERBOSITY > 1)
         std::cout << "filtered : " << x << " " << y << std::endl;
   #endif
         return seeds.size();
       }
   #endif
-  #if (verbose > 0)
+  #if (VERBOSITY > 0)
     std::cout << "added new seed: " << x << " " << y;
     std::cout << " (" << seeds.size() << ")";
     std::cout << " with status: " << s << std::endl;
@@ -867,7 +867,7 @@ public:
       if(seeds.size() - constraint_seeds_n >= vertices_nv)
         break;
     }
-  #if (verbose > 0)
+  #if (VERBOSITY > 0)
     std::cout << "seeds: " << seeds.size() << std::endl;
   #endif
     return seeds.size();
@@ -1012,7 +1012,7 @@ public:
       if(tr_2.bounded_side(s) != CGAL::ON_UNBOUNDED_SIDE)
       {
         found = true;
-#if (verbose > 5)
+#if (VERBOSITY > 5)
         std::size_t i0 = fh->vertex(0)->info();
         std::size_t i1 = fh->vertex(1)->info();
         std::size_t i2 = fh->vertex(2)->info();
@@ -1172,7 +1172,7 @@ public:
 
   void spread_distances(const bool use_dual_shenanigans)
   {
-#if (verbose > 5)
+#if (VERBOSITY > 5)
     std::cout << "main loop" << std::endl;
 #endif
     std::clock_t s_start = std::clock();
@@ -1188,13 +1188,13 @@ public:
       if(known_count%10000 == 0)
         print_states();
 
-#if (verbose > 10)
+#if (VERBOSITY > 10)
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 30)
+#if (VERBOSITY > 30)
       std::cout << "trial heap: " << std::endl;
-#if (verbose > 40)
+#if (VERBOSITY > 40)
       for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
         std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
@@ -1207,7 +1207,7 @@ public:
 
       Canvas_point& cp = points[id];
 
-#if (verbose > 10)
+#if (VERBOSITY > 10)
       std::cout << "-------------------------------------------------------" << std::endl;
       std::cout << "picked n° " << cp.index << " (" << cp.point << ") ";
       std::cout << "at distance : " << cp.distance_to_closest_seed << " from the seed "
@@ -1283,11 +1283,11 @@ public:
       if(known_count%10000 == 0)
         print_states();
 
-#if (verbose > 10)
+#if (VERBOSITY > 10)
       std::cout << "Trial queue size : " << trial_points.size() << std::endl;
 #endif
 
-#if (verbose > 40)
+#if (VERBOSITY > 40)
       std::cout << "trial heap: " << std::endl;
       for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
@@ -1300,7 +1300,7 @@ public:
 
       Canvas_point& cp = points[id];
 
-#if (verbose > 10)
+#if (VERBOSITY > 10)
       std::cout << "-------------------------------------------------------" << std::endl;
       std::cout << "picked n° " << cp.index << " (" << cp.point.x() << ", " << cp.point.y() << ") ";
       std::cout << "at distance : " << cp.distance_to_closest_seed << " from the seed "
@@ -2306,7 +2306,7 @@ public:
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
     {
-#if (verbose > 25)
+#if (VERBOSITY > 25)
       points[i].print_ancestors();
       points[i].print_children();
 #endif
@@ -2578,7 +2578,7 @@ public:
         return;
     }
 
-#if (verbose > 15)
+#if (VERBOSITY > 15)
     std::cout << "insert " << entry;
     std::cout << "queue id: " << i << std::endl;
 #endif
@@ -3145,7 +3145,7 @@ public:
     if(cp.point.x() < center.x() - sa || cp.point.x() > center.x() + sa ||
        cp.point.y() < center.y() - sb || cp.point.y() > center.y() + sb)
     {
-#if (verbose > 10)
+#if (VERBOSITY > 10)
       std::cout << "filtered potential cp: " << cp.point << std::endl;
 #endif
       return;
@@ -3203,7 +3203,7 @@ public:
     double duration;
     std::clock_t d_start = std::clock();
 
-#if (verbose > 5)
+#if (VERBOSITY > 5)
     std::cout << "dual computations" << std::endl;
 #endif
 
@@ -3262,7 +3262,7 @@ public:
     else
       std::cout << "dual already computed" << std::endl;
 
-#if (verbose > 5)
+#if (VERBOSITY > 5)
     std::cout << "captured: ";
     std::cout << seeds.size() << " points, ";
     std::cout << dual_edges.size() << " edges, ";
@@ -3474,7 +3474,7 @@ void Canvas_point::deal_with_descendants()
 bool Canvas_point::compute_closest_seed(const std::size_t n_anc,
                                       const bool overwrite)
 {
-#if (verbose > 20)
+#if (VERBOSITY > 20)
   std::cout << "closest seed at " << index << " from " << n_anc;
   std::cout << " (current d/a: " << distance_to_closest_seed << " " << ancestor;
   std::cout << " seed: " << closest_seed_id << ")" << std::endl;
@@ -3563,7 +3563,7 @@ bool Canvas_point::compute_closest_seed(const std::size_t n_anc,
 
   if(d < distance_to_closest_seed)
   {
-#if (verbose > 20)
+#if (VERBOSITY > 20)
     std::cout << "improving " << distance_to_closest_seed << " from " << ancestor
               << " (" << closest_seed_id << ")";
     std::cout << " to " << d << " from " << n_anc << " (" << anc.closest_seed_id
@@ -3629,7 +3629,7 @@ void Canvas_point::update_neighbor_distance(Canvas_point& cp,
                                           std::vector<std::size_t>& trial_pq,
                                           PQ_state& pqs_ret) const
 {
-#if (verbose > 12)
+#if (VERBOSITY > 12)
   std::cout << "neighbor: " << cp.index << " has state: " << cp.state << std::endl;
 #endif
 
@@ -3657,7 +3657,7 @@ void Canvas_point::update_neighbor_distance(Canvas_point& cp,
 PQ_state Canvas_point::update_neighbors_distances(std::vector<std::size_t>& trial_pq) const
 {
   // consider all the neighbors of a KNOWN point and compute their distance to 'this'
-#if (verbose > 10)
+#if (VERBOSITY > 10)
   std::cout << "update neighbors of " << index << std::endl;
 #endif
   CGAL_assertion(state == KNOWN);
@@ -3728,7 +3728,7 @@ FT Canvas_point::distortion_to_seed() const
 void Canvas_point::reset()
 {
   // this only resets 'color'-related fields
-#if (verbose > 30)
+#if (VERBOSITY > 30)
   std::cout << "reset() at " << index << std::endl;
 #endif
 

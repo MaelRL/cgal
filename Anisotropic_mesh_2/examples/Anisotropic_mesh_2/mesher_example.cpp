@@ -1,3 +1,11 @@
+// #define NO_USE_AABB_TREE_OF_BBOXES
+// #define LIFT_AABB_TREE
+#define ANISO_OUTPUT_WIP
+// #define SKIP_PICK_VALID_DISTORTION
+// #define REJECT_FAILED_ELEMENTS
+// #define ANISO_NO_CONSISTENCY
+// #define ANISO_USE_CUSTOM_CONSISTENCY
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Starset.h>
 #include <CGAL/Stretched_Delaunay_2.h>

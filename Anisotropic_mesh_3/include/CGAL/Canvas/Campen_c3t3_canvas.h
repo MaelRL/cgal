@@ -165,9 +165,17 @@ public:
 #endif
 
     // read and create the canvas points
-    std::ifstream is((this->canvas_str + ".mesh").c_str());
+    std::ifstream in((this->canvas_str + ".mesh").c_str());
+    if(!in)
+    { 
+      std::cerr << "couldn't read canvas input file : " << (this->canvas_str + ".mesh") << std::endl;
+      exit(0);
+    }
+    else
+      std::cout << "reading: " << (this->canvas_str + ".mesh") << std::endl;
+
     std::vector<bool> border_info_vec;
-    bool is_tr_well_built = CGAL::build_triangulation_from_file(is, m_tr, border_info_vec);
+    bool is_tr_well_built = CGAL::build_triangulation_from_file(in, m_tr, border_info_vec);
     CGAL_postcondition(is_tr_well_built);
     CGAL_postcondition(border_info_vec.size() == m_tr.number_of_vertices());
 

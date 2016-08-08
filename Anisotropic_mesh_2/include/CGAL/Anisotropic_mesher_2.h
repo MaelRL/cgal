@@ -143,7 +143,6 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
-#ifndef ANISO_NO_CONSISTENCY
     // ------------------------------------------------
     std::cout << "Start consistency surface scan...";
     m_face_consistency_mesher.initialize();
@@ -162,7 +161,6 @@ public:
       elapsed_time += timer.time();
       timer.stop(); timer.reset(); timer.start();
     }
-#endif
 
     // ------------------------------------------------
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
