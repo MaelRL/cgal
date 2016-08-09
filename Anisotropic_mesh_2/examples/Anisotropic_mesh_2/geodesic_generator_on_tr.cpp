@@ -93,7 +93,7 @@ Back_from_exact back_from_exact;
 const FT FT_inf = std::numeric_limits<FT>::infinity();
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 3911;
+std::size_t vertices_nv = 10;
 static const int k = 8; // depth of the ancestor edge
 
 // the metric field and the seeds
@@ -435,10 +435,11 @@ void generate_grid()
 
   CDT cdt;
 
-  Vertex_handle va = cdt.insert(Point(-5., -5.));
-  Vertex_handle vb = cdt.insert(Point(5., -5.));
-  Vertex_handle vc = cdt.insert(Point(5., 5.));
-  Vertex_handle vd = cdt.insert(Point(-5., 5.));
+  FT a = 5;
+  Vertex_handle va = cdt.insert(Point(-a, -a));
+  Vertex_handle vb = cdt.insert(Point(a, -a));
+  Vertex_handle vc = cdt.insert(Point(a, a));
+  Vertex_handle vd = cdt.insert(Point(-a, a));
 
   cdt.insert_constraint(va, vb);
   cdt.insert_constraint(vb, vc);

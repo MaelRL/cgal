@@ -136,7 +136,7 @@ public:
     {
       m_face_mesher.one_step(m_face_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
 
     std::cout << "Total refining surface time: " << timer.time() << "s" << std::endl;
@@ -155,12 +155,12 @@ public:
     {
       m_face_consistency_mesher.one_step(m_face_consistency_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
-
-      std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
-      elapsed_time += timer.time();
-      timer.stop(); timer.reset(); timer.start();
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
+
+    std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
+    elapsed_time += timer.time();
+    timer.stop(); timer.reset(); timer.start();
 
     // ------------------------------------------------
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
@@ -170,6 +170,7 @@ public:
     report();
     timer.stop();
     elapsed_time += timer.time();
+    time_out << std::endl;
     return elapsed_time;
   }
 

@@ -169,7 +169,7 @@ public:
   {
     // code for this function is not finished so if you're calling insert_in_stars
     // with conditional = true, you're going to miss out on something inconsistencies
-    std::cerr << "compute_elements_needing_check() call, see comment" << std::endl;
+//    std::cerr << "compute_elements_needing_check() call, see comment" << std::endl;
     return;
 
 //todo -----------------------

@@ -115,25 +115,25 @@ enum Seed_status
 
 FT sa = 2.; // seeds bbox
 FT sb = 2.;
-std::size_t vertices_nv = 1e10;
+std::size_t vertices_nv = 15000;
 bool are_constraints_discretized = false;
 
 std::vector<Point_2> seeds;
 std::vector<Metric> seeds_m;
 std::vector<Seed_status> seeds_s;
-const std::string str_seeds = "swirl_input_13641";
+const std::string str_seeds = "swirl_starset_15k_dual";
 
 // base mesh
 const std::string str_base_mesh = "swirl";
 CGAL::Bbox_2 base_mesh_bbox;
 
 // refinement
-int n_refine = 1359;
+int n_refine = 0;
 std::size_t min_ancestor_path_length = 5;
 static const int k = 8; // depth of the ancestor edge
 
 // optimization
-int max_opti_n = 0;
+int max_opti_n = 50;
 int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
 
 //debug & info
@@ -183,6 +183,12 @@ void read_dump(Star_set& ss,
   std::cout << "Reading dump..." << std::endl;
   std::ifstream in(filename.c_str());
   ss.clear();
+
+  if(!in)
+  {
+    std::cerr << "coudln't read dump" << std::endl;
+    exit(0);
+  }
 
   std::size_t stars_n, v_n, id;
   FT x, y;

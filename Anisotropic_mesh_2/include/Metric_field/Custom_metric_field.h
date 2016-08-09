@@ -94,7 +94,7 @@ public:
     FT e2 = 1.;
 
     // some scaling, multiplying the evs by s^2 divides the length by s
-    double s = 10000;
+    double s = 100;
     e1 *= s;
     e2 *= s;
 
@@ -189,7 +189,7 @@ public:
   Metric hyperbolic_shock(const Point_2 &p,
                           const FT delta = 0.6) const
   {
-    FT h = 0.05; // 0.0005 for the 2m ish (iso) canvas
+    FT h = 1.0; // 0.0005 for the 2m ish (iso) canvas
 
     FT x = p.x();
     FT y = p.y();
@@ -270,11 +270,11 @@ public:
     return this->build_metric(v1, v2, 1./(h*h1), 1./(h*h2));
   }
 
-  virtual Metric compute_metric(const Point_2 &p) const
+  virtual Metric compute_metric(const Point_2& p) const
   {
+    return hyperbolic_shock(p);
     return swirl(p);
     return phase_portrait(p);
-    return hyperbolic_shock(p);
     return yang_liu_cube_shock(p);
     return starred_shock(p);
     return radial_shock(p);
