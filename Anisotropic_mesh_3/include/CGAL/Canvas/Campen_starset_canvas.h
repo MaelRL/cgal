@@ -116,6 +116,15 @@ public:
     build_aabb_tree();
   }
 
+  void initialize_surface_caches()
+  {
+    for(std::size_t i=0, sss=m_ss->size(); i<sss; ++i)
+    {
+      Star_handle star = m_ss->get_star(i);
+      star->compute_adjacent_restricted_vertices();
+    }
+  }
+
   void initialize()
   {
 #if (VERBOSITY > 5)
@@ -144,6 +153,10 @@ public:
     Base::compute_canvas_bbox();
     this->seeds.initialize_seeds();
     Base::locate_seeds_on_canvas();
+
+#ifdef ANISO_GEO_USE_SURFACE_ONLY
+    initialize_surface_caches();
+#endif
 
 #if (VERBOSITY > 5)
     std::cout << "canvas initialized with " << this->seeds.size() << " seeds" << std::endl;
