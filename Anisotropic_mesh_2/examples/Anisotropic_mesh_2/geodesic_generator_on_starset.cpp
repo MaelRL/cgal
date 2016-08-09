@@ -215,10 +215,23 @@ void read_dump(Star_set& ss,
     for(std::size_t j=0; j<v_n; ++j)
     {
       in >> id;
+
+      if(id >= stars_n)
+        continue;
+
       Star_handle star_j = ss[id];
       star_i->insert_to_star(star_j->center_point(), id, false);
     }
-    std::cout << "built star: " << i << std::endl;
+
+    if(i >= 4 && (star_i->number_of_vertices() != v_n + 1 ||
+       (star_i->finite_adjacent_vertices_end() - star_i->finite_adjacent_vertices_begin() != v_n)))
+    {
+      std::cout << "WARNING: ";
+      std::cout << "star " << i << " has weird combinatorics after building : " << star_i->number_of_vertices() << " " << v_n + 1 << std::endl;
+      std::cout << (star_i->finite_adjacent_vertices_end() - star_i->finite_adjacent_vertices_begin()) << " finite adj vertices" << std::endl;
+    }
+
+//    std::cout << "built star: " << i << std::endl;
   }
   std::cout << ss.size() << " stars from dump" << std::endl;
 }
@@ -904,20 +917,25 @@ public:
       points.push_back(cp);
 
       base_mesh_bbox += points[i].point.bbox();
+    }
 
 #ifdef ANISO_USE_RECIPROCAL_NEIGHBORS
+    for(std::size_t i=0, sss=ss.size(); i<sss; ++i)
+    {
+      Star_handle star = ss[i];
+
       // build reciprocal adjacency
-      Vertex_handle_handle vit =  star->finite_adjacent_vertices_begin();
-      Vertex_handle_handle vend =  star->finite_adjacent_vertices_begin();
+      Vertex_handle_handle vit = star->finite_adjacent_vertices_begin();
+      Vertex_handle_handle vend = star->finite_adjacent_vertices_end();
       for(; vit!=vend; ++vit)
       {
         Vertex_handle vh = *vit;
-        Star_handle star_i = ss[vh->info()];
-        if(!star_i->has_vertex(i))
+        Star_handle neighboring_star = ss[vh->info()];
+        if(!neighboring_star->has_vertex(i))
           points[vh->info()].reciprocal_neighbors.push_back(i);
       }
-#endif
     }
+#endif
 
     std::cout << "bbox: " << base_mesh_bbox.xmin() << " " << base_mesh_bbox.xmax();
     std::cout << " " << base_mesh_bbox.ymin() << " " << base_mesh_bbox.ymax() << std::endl;
@@ -1173,6 +1191,7 @@ public:
     {
       points[i].closest_seed_id = -1;
       points[i].distance_to_closest_seed = 0;
+      points[i].state = KNOWN;
     }
   }
 
@@ -1201,9 +1220,9 @@ public:
 #if (VERBOSITY > 30)
       std::cout << "trial heap: " << std::endl;
 #if (VERBOSITY > 40)
-      for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
+      for (std::vector<std::size_t>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
-        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
+        std::cout << *it << " " << points[*it].distance_to_closest_seed << std::endl;
       std::cout << std::endl;
 #endif
 #endif
@@ -1295,9 +1314,9 @@ public:
 
 #if (VERBOSITY > 40)
       std::cout << "trial heap: " << std::endl;
-      for (std::vector<Canvas_point*>::iterator it = trial_points.begin();
+      for (std::vector<std::size_t>::iterator it = trial_points.begin();
            it != trial_points.end(); ++it)
-        std::cout << (*it)->index << " " << (*it)->distance_to_closest_seed << std::endl;
+        std::cout << *it << " " << points[*it].distance_to_closest_seed << std::endl;
       std::cout << std::endl;
 #endif
 
@@ -2820,7 +2839,12 @@ public:
                         std::vector<FT>& xs, std::vector<FT>& ys,
                         std::vector<FT>& total_areas)
   {
-    CGAL_precondition(seed_id < seeds.size());
+    if(seed_id >= seeds.size())
+    {
+      std::cout << "Centroid attributed to a region that doesn't exist..." << std::endl;
+      // probably the dump bug
+      return;
+    }
 
     Point_2 local_centroid = CGAL::centroid(p.point, q.point, r.point);
     FT area = triangle_area_in_metric(p, q, r);
@@ -2839,6 +2863,12 @@ public:
     triangle[0] = fh->vertex(0)->info();
     triangle[1] = fh->vertex(1)->info();
     triangle[2] = fh->vertex(2)->info();
+
+    if(triangle[0] < 4 || triangle[1] < 4 || triangle[2] < 4)
+    {
+      std::cout << "ignoring face incident to ss corner";
+      return;
+    }
 
     Simplex colors;
     for(int i=0; i<3; ++i)
@@ -2911,6 +2941,7 @@ public:
   void set_centroid(const std::size_t seed_id, const Point_2& c,
                     std::vector<Point_2>& centroids)
   {
+    CGAL_precondition(seed_id < seeds.size());
     Seed_status s = seeds_s[seed_id];
     const Point_2& old_centroid = seeds[seed_id];
 
@@ -3074,11 +3105,18 @@ public:
 
   void optimize_seeds()
   {
-    std::cout << "optimize seeds" << std::endl;
+    std::cout << "optimize seeds (number of seeds: "  << seeds.size() << ")" << std::endl;
 
     for(std::size_t i=0, ps=points.size(); i<ps; ++i)
-      if(points[i].state != KNOWN)
-        std::cout << "Warning: point " << i << " is not KNOWN at Opti" << std::endl;
+    {
+      if(points[i].state != KNOWN ||
+         points[i].closest_seed_id == static_cast<std::size_t>(-1))
+      {
+        std::cout << "Warning: point " << i << " before optimization" << std::endl;
+        std::cout << points[i].point << " State: " << points[i].state
+                  << " closest: " << points[i].closest_seed_id << std::endl;
+      }
+    }
 
     FT sq_bbox_diag_l = sq_bbox_diagonal_length(base_mesh_bbox);
     bool is_optimized = false;
@@ -3632,8 +3670,8 @@ bool Canvas_point::compute_closest_seed(const std::size_t n_anc,
 }
 
 void Canvas_point::update_neighbor_distance(Canvas_point& cp,
-                                          std::vector<std::size_t>& trial_pq,
-                                          PQ_state& pqs_ret) const
+                                            std::vector<std::size_t>& trial_pq,
+                                            PQ_state& pqs_ret) const
 {
 #if (VERBOSITY > 12)
   std::cout << "neighbor: " << cp.index << " has state: " << cp.state << std::endl;
@@ -3758,7 +3796,7 @@ void Canvas_point::reset()
 }
 
 void Canvas_point::initialize_from_point(const FT d,
-                                       const std::size_t seed_id)
+                                         const std::size_t seed_id)
 {
   reset();
 
