@@ -118,31 +118,30 @@ int main(int, char**)
   Star_set starset(pdomain, metric_field, criteria);
 
   //----------- pick a starset mesher! -----------
-  Anisotropic_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+//  Anisotropic_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
 //  Anisotropic_surface_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
-//  Anisotropic_tet_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+  Anisotropic_tet_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
 
   //------------ or simply read a dump!-------------
   // read_dump(starset, "dump.txt");
-  merge_8_small_cubes(starset);
-  exit(0);
+//  merge_8_small_cubes(starset);
 
-  ss_mesher.refine_mesh();
-  std::ofstream out_dump("dump.txt");
-  dump(starset, out_dump);
+//  ss_mesher.refine_mesh();
+//  std::ofstream out_dump("dump.txt");
+//  dump(starset, out_dump);
 
-  std::ofstream out("starset2.mesh");
-  output_medit(starset, out, false/*with inconsistencies*/);
+//  std::ofstream out("starset.mesh");
+//  output_medit(starset, out, false/*with inconsistencies*/);
 //  exit(0);
 
   // ---------------- aniso geo starts here -------------------------------
 
   // select the canvas
-  const std::string canvas_str = "starset";
+  const std::string canvas_str = "1D_starset";
 
   // select the input seeds
-  std::size_t max_seeds_n = 1;
-  const std::string seeds_str = "ref_807_primal.mesh";
+  std::size_t max_seeds_n = 5;
+  const std::string seeds_str = "input.mesh";
 
   Canvas canvas(canvas_str, seeds_str, max_seeds_n, &starset);
   canvas.initialize();
