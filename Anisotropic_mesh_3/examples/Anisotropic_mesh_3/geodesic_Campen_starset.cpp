@@ -118,9 +118,18 @@ int main(int, char**)
   Star_set starset(pdomain, metric_field, criteria);
 
   //----------- pick a starset mesher! -----------
-//  Anisotropic_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
-//  Anisotropic_surface_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
-  Anisotropic_tet_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+
+
+
+
+
+#ifdef ANISO_GEO_USE_SURFACE_ONLY
+  Anisotropic_surface_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+#else
+  Anisotropic_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+//  Anisotropic_tet_mesher_3<K> ss_mesher(starset, pdomain, criteria, metric_field);
+#endif
+
 
   //------------ or simply read a dump!-------------
   // read_dump(starset, "dump.txt");

@@ -139,6 +139,7 @@ private:
   mutable Cell_handle_vector incident_cells_cache;
   mutable Cell_handle_vector finite_incident_cells_cache;
   mutable Vertex_handle_vector finite_adjacent_vertices_cache;
+  mutable Vertex_handle_vector finite_adjacent_restricted_vertices_cache;
 
 public:
   mutable bool m_active; // used for removing points at the end of the process
@@ -476,6 +477,47 @@ public:
   {
     update_star_caches();
     return (restricted_facets_cache.size() > 0);
+  }
+
+  void compute_adjacent_restricted_vertices()
+  {
+    if(!is_boundary_star())
+      return;
+
+    finite_adjacent_restricted_vertices_cache.clear();
+
+    std::vector<Vertex_handle> tmp_vertices;
+
+    Facet_set_iterator it = restricted_facets_begin();
+    Facet_set_iterator end = restricted_facets_end();
+    for(; it!=end; ++it)
+    {
+      for(std::size_t i=1; i<4; ++i)
+      {
+        Vertex_handle vh = it->first->vertex((it->second + i)%4);
+        if(!vh->visited_for_vertex_extractor)
+        {
+          vh->visited_for_vertex_extractor = true;
+          finite_adjacent_restricted_vertices_cache.push_back(vh);
+          tmp_vertices.push_back(vh);
+        }
+      }
+    }
+
+    for(std::size_t i=0; i<tmp_vertices.size(); ++i)
+      tmp_vertices[i]->visited_for_vertex_extractor = false;
+
+  }
+
+  inline Vertex_handle_handle finite_adjacent_restricted_vertices_begin() const
+  {
+    // should put a boolean for safety...
+    return finite_adjacent_restricted_vertices_cache.begin();
+  }
+
+  inline Vertex_handle_handle finite_adjacent_restricted_vertices_end() const
+  {
+    return finite_adjacent_restricted_vertices_cache.end();
   }
 
 public:
@@ -2582,6 +2624,7 @@ public:
       incident_cells_cache(),
       finite_incident_cells_cache(),
       finite_adjacent_vertices_cache(),
+      finite_adjacent_restricted_vertices_cache(),
       m_active(true)
   {
     m_center = Vertex_handle();
@@ -2614,6 +2657,7 @@ public:
       incident_cells_cache(),
       finite_incident_cells_cache(),
       finite_adjacent_vertices_cache(),
+      finite_adjacent_restricted_vertices_cache(),
       m_active(true)
   {
     m_center = Base::insert(m_metric.transform(centerpoint));

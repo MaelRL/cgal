@@ -265,8 +265,13 @@ public:
     PQ_state pqs_ret = NOTHING_TO_DO;
 
     Star_handle star = m_ss->get_star(this->index());
+#ifdef ANISO_GEO_USE_SURFACE_ONLY
+    Vertex_handle_handle it = star->finite_adjacent_restricted_vertices_begin();
+    Vertex_handle_handle end = star->finite_adjacent_restricted_vertices_end();
+#else
     Vertex_handle_handle it = star->finite_adjacent_vertices_begin();
     Vertex_handle_handle end = star->finite_adjacent_vertices_end();
+#endif
     for(; it!=end; ++it)
     {
       Vertex_handle vh = *it;

@@ -1,17 +1,17 @@
 #ifndef CGAL_ANISOTROPIC_MESH_3_C3T3_CANVAS_GENERATOR_H
 #define CGAL_ANISOTROPIC_MESH_3_C3T3_CANVAS_GENERATOR_H
 
-#include <CGAL/Canvas/canvas_config.h>
-#include <CGAL/Canvas/canvas_triangulation_io.h>
-
-#include <CGAL/Metric.h>
-
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>
 #include <CGAL/Mesh_criteria_3.h>
 #include <CGAL/Implicit_mesh_domain_3.h>
 #include <CGAL/Mesh_domain_with_polyline_features_3.h>
 #include <CGAL/make_mesh_3.h>
+
+#include <CGAL/Canvas/canvas_config.h>
+#include <CGAL/Canvas/canvas_triangulation_io.h>
+
+#include <CGAL/Metric.h>
 
 #include <Domain/Mesh_3/surface_3_cube.h>
 
