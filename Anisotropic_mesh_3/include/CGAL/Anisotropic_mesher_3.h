@@ -163,7 +163,7 @@ public:
     {
       m_facet_mesher.one_step(m_facet_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
 
     std::cout << "Total refining surface time: " << timer.time() << "s" << std::endl;
@@ -186,7 +186,7 @@ public:
     {
       m_cell_mesher.one_step(m_cell_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
 
     std::cout << "Total refining volume time: " << timer.time() << "s" << std::endl;
@@ -206,7 +206,7 @@ public:
     {
       m_facet_consistency_mesher.one_step(m_facet_consistency_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
 
     std::cout << "Total refining consistency surface time: " << timer.time() << "s" << std::endl;
@@ -226,7 +226,7 @@ public:
     {
       m_cell_consistency_mesher.one_step(m_cell_consistency_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
 
     std::cout << "Total refining consistency volume time: " << timer.time() << "s" << std::endl;

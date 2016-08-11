@@ -127,7 +127,7 @@ public:
     {
       m_facet_mesher.one_step(m_facet_visitor);
       if(m_starset.size()%10 == 0)
-        time_out << m_starset.size() << " " << elapsed_time+timer.time() << std::endl;
+        time_out << m_starset.size() << " " << elapsed_time+timer.time() << '\n';
     }
 
     std::cout << "Total refining time: " << timer.time() << "s" << std::endl;
