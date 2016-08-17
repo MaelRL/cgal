@@ -47,7 +47,7 @@
 #include <utility>
 #include <vector>
 
-#define VERBOSITY 6
+#define VERBOSITY 2
 
 namespace CGAL
 {
@@ -778,7 +778,7 @@ public:
     std::cout << "added: " << seeds.size() - seeds_n_before_discretization << std::endl;
   }
 
-  void discretize_constraints()
+  void initialize_constraints()
   {
     // hardcoded constraints for now : a square that is the bbox of the seeds
     Point_2 p1(center.x() - sa, center.y() - sb);
@@ -793,13 +793,15 @@ public:
     Vor_cons.push_back(c2);
     Vor_cons.push_back(c3);
     Vor_cons.push_back(c4);
+  }
 
+  void discretize_constraints()
+  {
     std::map<Point_2, std::size_t> corners; // point to seed id
-
-    discretize_constraint(c1, corners);
-    discretize_constraint(c2, corners);
-    discretize_constraint(c3, corners);
-    discretize_constraint(c4, corners);
+    discretize_constraint(Vor_cons[0], corners);
+    discretize_constraint(Vor_cons[1], corners);
+    discretize_constraint(Vor_cons[2], corners);
+    discretize_constraint(Vor_cons[3], corners);
   }
 
   Seed_status determine_seed_status(const FT x, const FT y)
@@ -895,6 +897,7 @@ public:
   void initialize_seeds()
   {
     // initialize constraints first
+    initialize_constraints();
     if(are_constraints_discretized)
       discretize_constraints();
 
@@ -2947,8 +2950,12 @@ public:
 
     if(s == IN_DOMAIN)
       centroids[seed_id] = c;
-    else if(s == ON_CONSTRAINT)
+    else if(false && s == ON_CONSTRAINT)
     {
+      // not moving points on the constraint because I don't want seeds to be
+      // moved on top of one another since I haven't handled the removal
+      // of seeds from the seed set if they fall on the same canvas vertex
+
       std::size_t vcs = Vor_cons.size();
       bool found = false;
       for(std::size_t i=0; i<vcs; ++i)
@@ -2959,12 +2966,12 @@ public:
 
         found = true;
 
-        Vector2d old_new;
-        old_new(0) = c.x() - old_centroid.x();
-        old_new(1) = c.y() - old_centroid.y();
+        Vector2d old_to_new;
+        old_to_new(0) = c.x() - old_centroid.x();
+        old_to_new(1) = c.y() - old_centroid.y();
 
         const Vector2d& dir = vc.dir;
-        FT sp = old_new.dot(dir);
+        FT sp = old_to_new.dot(dir);
 
         FT new_x = old_centroid.x() + sp * dir(0);
         FT new_y = old_centroid.y() + sp * dir(1);
@@ -2972,12 +2979,17 @@ public:
 //        std::cout << "old seed: " << old_centroid << std::endl;
 //        std::cout << "constraint: " << vc.p1 << " -- " << vc.p2
 //                  << " has: " << old_centroid << std::endl;
-//        std::cout << "old->new: " << old_new.transpose() << std::endl;
+//        std::cout << "old->new: " << old_to_new.transpose() << std::endl;
 //        std::cout << "scalar prod: " << sp << std::endl;
 //        std::cout << "dir: " << dir.transpose() << std::endl;
 //        std::cout << "new centroid: " << new_x << " " << new_y << std::endl;
 
-        CGAL_postcondition(vc.has_point(Point_2(new_x, new_y)));
+        if(!vc.has_point(Point_2(new_x, new_y)))
+        {
+          std::cout << old_centroid.x() << " " << old_centroid.y() << " moved to " << new_x << " " << new_y;
+          std::cout << " (and away from the constraint...)" << std::endl;
+          exit(0);
+        }
 
         centroids[seed_id] = Point_2(new_x, new_y);
         return;
@@ -3035,7 +3047,7 @@ public:
     {
       if(total_areas[i] == 0.)
       {
-        std::cout << "Warning: Starset has not vertex of color: " << i << std::endl;
+        std::cout << "Warning: Starset has no vertex of color: " << i << std::endl;
         centroids[i] = seeds[i];
         continue;
       }
