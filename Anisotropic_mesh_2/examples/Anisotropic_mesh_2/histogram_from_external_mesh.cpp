@@ -94,17 +94,28 @@ void fetch_from_mesh(std::ifstream& in,
         int n1, n2, n3;
         in >> n1 >> n2 >> n3 >> useless;
 
-#if 0 // artificial filter
-        FT minv = 1, maxv = 1;
+#if 1 // artificial filter
+        FT min_dist = -1.0, max_dist = 1e30;
         Point_2 p(0,0,0);
-        if(CGAL::squared_distance(points[n1-1], p) > maxv ||
-           CGAL::squared_distance(points[n1-1], p) < minv ||
-           CGAL::squared_distance(points[n2-1], p) > maxv ||
-           CGAL::squared_distance(points[n2-1], p) < minv ||
-           CGAL::squared_distance(points[n3-1], p) > maxv ||
-           CGAL::squared_distance(points[n3-1], p) < minv)
+        if(CGAL::squared_distance(points[n1-1], p) > max_dist ||
+           CGAL::squared_distance(points[n1-1], p) < min_dist ||
+           CGAL::squared_distance(points[n2-1], p) > max_dist ||
+           CGAL::squared_distance(points[n2-1], p) < min_dist ||
+           CGAL::squared_distance(points[n3-1], p) > max_dist ||
+           CGAL::squared_distance(points[n3-1], p) < min_dist)
+          continue;
+
+        Point_2 p1 = points[n1-1];
+        Point_2 p2 = points[n2-1];
+        Point_2 p3 = points[n3-1];
+
+        FT border = 2;
+        if(std::abs(p1.x()) > border || std::abs(p1.y()) > border ||
+           std::abs(p2.x()) > border || std::abs(p2.y()) > border ||
+           std::abs(p3.x()) > border || std::abs(p3.y()) > border)
           continue;
 #endif
+
         facets.push_back(n1-1); facets.push_back(n2-1); facets.push_back(n3-1);
       }
     }
@@ -170,14 +181,18 @@ void output_histogram(const std::vector<int>& histogram,
 void output_histogram(std::vector<FT>& values,
                       const char* filename)
 {
-#if 0//def FORCE_MIN_MAX_VALUES
+#ifdef FORCE_MIN_MAX_VALUES
   FT min_value = 0.30512;
   FT max_value = 2.57682;
 #else
   FT min_value = *(std::min_element(values.begin(), values.end()));
   FT max_value = *(std::max_element(values.begin(), values.end()));
+  FT avg = std::accumulate( values.begin(), values.end(), 0.0) / values.size();
 #endif
-  std::cout << "Outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
+  std::cout << "Outputing: " << values.size() << " values." << std::endl;
+  std::cout << "min: " << min_value 
+            << " max: " << max_value
+            << " avg: " << avg << std::endl;
 
   int histogram_size = 100;
   std::vector<int> histogram(histogram_size, 0);
@@ -208,7 +223,7 @@ void face_distortion_histogram(const std::vector<Point_2>& points,
   if(faces.empty())
     return;
 
-  std::cout << "face distortion external histo with size: " << faces.size() << std::endl;
+  std::cout << "\n -- Distortion histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_distortion.bb").c_str());
   std::vector<FT> max_dists(points.size(), 1.);
@@ -278,7 +293,7 @@ void face_quality_histogram(const std::vector<Point_2>& points,
   if(faces.empty())
     return;
 
-  std::cout << "face quality external histo with size: " << faces.size() << std::endl;
+  std::cout << "\n -- Quality histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_quality.bb").c_str());
   std::vector<FT> min_quals(faces.size()/3, 1.);
@@ -291,11 +306,6 @@ void face_quality_histogram(const std::vector<Point_2>& points,
 
     for(int j=0; j<3; ++j)
       ns[j] = faces[i++];
-
-    if(points[ns[0]].x() > 2. || points[ns[0]].x() < -2. || points[ns[0]].y() > 2. || points[ns[0]].y() < -2. ||
-       points[ns[1]].x() > 2. || points[ns[1]].x() < -2. || points[ns[1]].y() > 2. || points[ns[1]].y() < -2. ||
-       points[ns[2]].x() > 2. || points[ns[2]].x() < -2. || points[ns[2]].y() > 2. || points[ns[2]].y() < -2.)
-      continue;
 
     for(int j=0; j<3; ++j)
     {
@@ -320,7 +330,7 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
   if(faces.empty())
     return;
 
-  std::cout << "face edge external histo with size: " << faces.size() << std::endl;
+  std::cout << "\n -- Edge length histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_edge_length.bb").c_str());
   std::vector<FT> max_edge_r(points.size(), 1.);
@@ -352,12 +362,9 @@ void face_edge_length_histogram(const std::vector<Point_2>& points,
       FT l1 = CGAL::sqrt(csd(tps[j], tps[(j+1)%3]));
       FT l2 = CGAL::sqrt(csd(tps[j], tps[(j+2)%3]));
 
-      FT r0 = 1.0;
-
-      if(l1<r0) l1 = r0/l1;
-      if(l2<r0) l2 = r0/l2;
-      if(l1>10) l1 = 10;
-      if(l2>10) l2 = 10;
+      // FT r0 = 1.0;
+      // if(l1<r0) l1 = r0/l1;
+      // if(l2<r0) l2 = r0/l2;
 
       values.push_back(l1);
       values.push_back(l2);
@@ -385,7 +392,7 @@ void face_angle_histogram(const std::vector<Point_2>& points,
   if(faces.empty())
     return;
 
-  std::cout << "face edge external histo with size: " << faces.size() << std::endl;
+  std::cout << "\n -- Angle histo with size: " << faces.size() << std::endl;
 
   std::ofstream out_bb((filename_core + "_angles.bb").c_str());
   std::vector<FT> worst_face_angles(faces.size()/3);
@@ -433,9 +440,12 @@ void face_angle_histogram(const std::vector<Point_2>& points,
 
       CGAL_assertion(angle >=0 && angle <= CGAL_PI);
       worst_angle = (std::min)(worst_angle, (std::min)(angle, CGAL_PI - angle));
-
-      values.push_back(angle);
     }
+
+    // convert to radius
+    worst_angle = worst_angle / CGAL_PI * 180.;
+
+    values.push_back(worst_angle);
 
 //    std::cout << "worst angle: " << worst_angle << std::endl;
     worst_face_angles[entry] = worst_angle;
@@ -545,7 +555,12 @@ int main(int, char**)
   //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
   Custom_metric_field* metric_field = new Custom_metric_field();
 
-  const std::string filename_core = "super_dense_base_mesh_tr_dual";
+//  const std::string filename_core = "optimized_swirl_starset_11_dual";
+//  const std::string filename_core = "swirl_starset_dual";
+//  const std::string filename_core = "ref_3911_dual";
+  const std::string filename_core =
+  "/home/mrouxell/anisomeshes/Thesis_Mael/results/swirl";
+
   // ------------ pick OFF or MESH ------
   const std::string mesh_filename = filename_core + ".mesh";
   fetch_mesh(mesh_filename, points, faces);

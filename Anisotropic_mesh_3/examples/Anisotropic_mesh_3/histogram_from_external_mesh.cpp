@@ -179,16 +179,20 @@ void output_histogram(const std::vector<int>& histogram,
 void output_histogram(const std::vector<FT>& values,
                       const char* filename)
 {
-#if 0//def FORCE_MIN_MAX_VALUES
+#ifdef FORCE_MIN_MAX_VALUES
   FT min_value = 0.30512;
   FT max_value = 2.57682;
 #else
   FT min_value = *(std::min_element(values.begin(), values.end()));
   FT max_value = *(std::max_element(values.begin(), values.end()));
+  FT avg = std::accumulate( values.begin(), values.end(), 0.0) / values.size();
 #endif
-  std::cout << "Outputing: " << values.size() << " " << min_value << " " << max_value << std::endl;
+  std::cout << "Outputing: " << values.size() << " values." << std::endl;
+  std::cout << "min: " << min_value 
+            << " max: " << max_value
+            << " avg: " << avg << std::endl;
 
-  int histogram_size = 1000;
+  int histogram_size = 100;
   std::vector<int> histogram(histogram_size, 0);
   FT limit_val = histogram_size - 1.;
   FT step_size = (max_value - min_value) / (FT) histogram_size;
@@ -215,7 +219,7 @@ void facet_distortion_histogram(const std::vector<Point_3>& points,
 {
   if(facets.empty())
     return;
-  std::cout << "facet distortion external histo with size: " << facets.size() << std::endl;
+  std::cout << "\n -- Facet distortion histo with size: " << facets.size() << std::endl;
 
   std::ofstream out_bb("max_distortion.bb");
   std::vector<FT> max_dists(points.size(), 1.);
@@ -246,13 +250,82 @@ void facet_distortion_histogram(const std::vector<Point_3>& points,
     out_bb << max_dists[i] << std::endl;
 }
 
+FT element_quality(const Metric& m,
+                   const Point_3& p1,
+                   const Point_3& p2,
+                   const Point_3& p3)
+{
+  TPoint_3 tp1 = m.transform(p1);
+  TPoint_3 tp2 = m.transform(p2);
+  TPoint_3 tp3 = m.transform(p3);
+
+  Star_traits star_traits;
+  typename Star_traits::Compute_squared_distance_3 sqd =
+      star_traits.compute_squared_distance_3_object();
+  FT alpha = 4.*std::sqrt(3.);
+  FT A = std::abs(K::Compute_area_3()(tp1, tp2, tp3));
+  FT sq_a = sqd(tp1, tp2);
+  FT sq_b = sqd(tp1, tp3);
+  FT sq_c = sqd(tp2, tp3);
+
+//Frey
+  //FT quality = alpha*A/(sq_a+sq_b+sq_c);
+
+//Zhong
+  FT a = CGAL::sqrt(sq_a);
+  FT b = CGAL::sqrt(sq_b);
+  FT c = CGAL::sqrt(sq_c);
+  FT h = (std::max)((std::max)(a,b),c);
+  FT p = a+b+c;
+  FT quality = alpha*A/(p*h);
+
+  return quality;
+}
+
+void facet_quality_histogram(const std::vector<Point_3>& points,
+                             const std::vector<int>& facets,
+                             const std::vector<Metric>& metrics)
+{
+  if(facets.empty())
+    return;
+
+  std::cout << "\n -- Facet Quality histo with size: " << facets.size() << std::endl;
+
+  std::ofstream out_bb("facet_quality.bb");
+  std::vector<FT> min_quals(facets.size()/3, 1.);
+  std::vector<FT> values;
+
+  for(std::size_t i=0; i<facets.size();)
+  {
+    int face_n = i/3;
+    std::vector<int> ns(3);
+
+    for(int j=0; j<3; ++j)
+      ns[j] = facets[i++];
+
+    for(int j=0; j<3; ++j)
+    {
+      const Metric& m = metrics[ns[j]];
+      FT q = element_quality(m, points[ns[0]], points[ns[1]], points[ns[2]]);
+      values.push_back(q);
+      min_quals[face_n] = (std::min)(min_quals[face_n], q);
+    }
+  }
+  output_histogram(values, "histogram_facet_quality_external.csv");
+
+  out_bb << "2 1 " << facets.size() << " 1" << std::endl;
+  for(std::size_t i=0; i<min_quals.size(); ++i)
+    out_bb << min_quals[i] << std::endl;
+}
+
+
 void facet_edge_length_histogram(const std::vector<Point_3>& points,
                                  const std::vector<int>& facets,
                                  const std::vector<Metric>& metrics)
 {
   if(facets.empty())
     return;
-  std::cout << "facet edge external histo with size: " << facets.size() << std::endl;
+  std::cout << "\n -- Edge length histo with size: " << facets.size() << std::endl;
 
   std::ofstream out_bb("max_edge_ratio.bb");
   std::vector<FT> max_edge_r(points.size(), 1.);
@@ -310,7 +383,7 @@ void facet_angle_histogram(const std::vector<Point_3>& points,
   if(facets.empty())
     return;
 
-  std::cout << "facet angle histo with size: " << facets.size() << std::endl;
+  std::cout << "\n --  Facet angle histo with size: " << facets.size() << std::endl;
 
   std::vector<FT> values;
 
@@ -318,6 +391,7 @@ void facet_angle_histogram(const std::vector<Point_3>& points,
   {
     std::vector<int> ns(3);
     std::vector<Point_3> ps(3);
+    FT worst_angle = 1e30;
 
     for(int j=0; j<3; ++j)
     {
@@ -346,12 +420,18 @@ void facet_angle_histogram(const std::vector<Point_3>& points,
       if(angle < 0)
         angle += CGAL_PI;
 
-      std::cout << "angle: " << angle << std::endl;
+      worst_angle = (std::min)(worst_angle, (std::min)(angle, CGAL_PI - angle));
+
+//      std::cout << "angle: " << angle << std::endl;
+
 
       CGAL_assertion(angle >=0 && angle <= CGAL_PI);
-
-      values.push_back(angle);
     }
+
+    // convert to radius
+    worst_angle = worst_angle / CGAL_PI * 180.;
+
+    values.push_back(worst_angle);
   }
   std::cout << "n of values: " << values.size() << std::endl;
 
@@ -364,7 +444,7 @@ void cell_distortion_histogram(const std::vector<Point_3>& points,
 {
   if(cells.empty())
     return;
-  std::cout << "cell distortion external histo with size: " << cells.size() << std::endl;
+  std::cout << "\n -- Cell distortion histo with size: " << cells.size() << std::endl;
 
   std::ofstream out_bb("max_distortion.bb");
   std::vector<FT> max_dists(points.size(), 1.);
@@ -403,7 +483,7 @@ void cell_edge_length_histogram(const std::vector<Point_3>& points,
 {
   if(cells.empty())
     return;
-  std::cout << "cell edge length external histo with size: " << cells.size() << std::endl;
+  std::cout << "\n -- Cell edge length histo with size: " << cells.size() << std::endl;
 
   std::ofstream out_bb("max_edge_ratio.bb");
   std::vector<FT> max_edge_r(points.size(), 1.);
@@ -467,7 +547,7 @@ void cell_edge_length_histogram_midpoint_metric(const std::vector<Point_3>& poin
 {
   if(cells.empty())
     return;
-  std::cout << "cell edge length external midpoint metric histo with size: " << cells.size() << std::endl;
+  std::cout << "\n --  Cell edge length midpoint metric histo with size: " << cells.size() << std::endl;
 
   std::vector<FT> values;
 
@@ -511,7 +591,7 @@ void cell_edge_length_histogram_simplex_metric(const std::vector<Point_3>& point
 {
   if(cells.empty())
     return;
-  std::cout << "cell edge length external midpoint metric histo with size: " << cells.size() << std::endl;
+  std::cout << "\n -- Cell edge length simplex metric histo with size: " << cells.size() << std::endl;
 
   std::vector<FT> values;
 
@@ -543,50 +623,144 @@ void cell_edge_length_histogram_simplex_metric(const std::vector<Point_3>& point
   output_histogram(values, "histogram_cell_edge_length_external_simplex_metric.cvs");
 }
 
+FT minimum_dihedral_angle(const Metric& metric,
+                          const Point_3& p0,
+                          const Point_3& p1,
+                          const Point_3& p2,
+                          const Point_3& p3)
+{
+  const Point_3& tp0 = metric.transform(p0);
+  const Point_3& tp1 = metric.transform(p1);
+  const Point_3& tp2 = metric.transform(p2);
+  const Point_3& tp3 = metric.transform(p3);
+
+  Star_traits star_traits;
+  typename Star_traits::Compute_squared_distance_3 sqd =
+      star_traits.compute_squared_distance_3_object();
+
+  typename Star_traits::Compute_determinant_3 determinant =
+      star_traits.compute_determinant_3_object();
+  typename Star_traits::Construct_cross_product_vector_3 cp =
+      star_traits.construct_cross_product_vector_3_object();
+  typename Star_traits::Compute_scalar_product_3 sp =
+      star_traits.compute_scalar_product_3_object();
+
+  Vector_3 v01 = tp1-tp0;
+  Vector_3 v02 = tp2-tp0;
+  Vector_3 v03 = tp3-tp0;
+  Vector_3 v12 = tp2-tp1;
+  Vector_3 v13 = tp3-tp1;
+  Vector_3 v23 = tp3-tp2;
+
+  Vector_3 v_01_02 = cp(v01,v02);
+  FT a_012 = v_01_02*v_01_02;
+
+  Vector_3 v_01_03 = cp(v01,v03);
+  FT a_013 = v_01_03*v_01_03;
+
+  Vector_3 v_12_13 = cp(v12,v13);
+  FT a_123 = v_12_13*v_12_13;
+
+  Vector_3 v_02_03 = cp(v02,v03);
+  FT a_023 = v_02_03*v_02_03;
+
+  FT min_quotient = sp(v01,v01) / (a_012 * a_013);
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v02,v02) / (a_012 * a_023));
+  min_quotient = (CGAL::min)(min_quotient,
+                             (v03*v03) / (a_013 * a_023));
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v12,v12) / (a_012 * a_123));
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v13,v13) / (a_013 * a_123));
+  min_quotient = (CGAL::min)(min_quotient,
+                             sp(v23,v23) / (a_023 * a_123));
+  min_quotient =  sqrt(min_quotient);
+
+  return CGAL::abs(std::asin(determinant(v01, v02, v03) * min_quotient)
+                   * FT(180) / FT(CGAL_PI));
+}
+
+template<typename Metric_field>
+void cell_dihedral_angle_histogram(const std::vector<Point_3>& points,
+                                   const std::vector<int>& cells,
+                                   const Metric_field* mf)
+{
+  if(cells.empty())
+    return;
+  std::cout << "\n -- Cell dihedral angle histo with size: " << cells.size() << std::endl;
+
+  std::vector<FT> values;
+
+  for(std::size_t i=0; i<cells.size();)
+  {
+    std::vector<int> ns(4);
+    std::vector<Point_3> ps(4);
+
+    FT smallest_dihedral_angle = 1e30;
+
+    for(int j=0; j<4; ++j)
+    {
+      ns[j] = cells[i++];
+      ps[j] = points[ns[j]];
+    }
+
+    for(int i=0; i<4; ++i)
+    {
+      Metric m = mf->compute_metric(ps[i]);
+      FT diha = minimum_dihedral_angle(m, ps[0], ps[1], ps[2], ps[3]);
+      if(diha < smallest_dihedral_angle)
+        smallest_dihedral_angle = diha;
+    }
+
+    values.push_back(smallest_dihedral_angle);
+  }
+
+  output_histogram(values, "histogram_cell_dihedral_angle_external_simplex_metric.cvs");
+}
+
 int main(int, char**)
 {
-  std::freopen("log.txt", "w", stdout); //all output is written in "log.txt"
+//  std::freopen("log.txt", "w", stdout); //all output is written in "log.txt"
 
   std::vector<Point_3> points;
   std::vector<int> facets, cells;
   std::vector<Metric> metrics;
 
-//  Constrain_surface* pdomain = new Constrain_surface("bambimboum.mesh");
-  Constrain_surface* pdomain = new Constrain_surface("../../data/Anisotropy_CMP/3DSurface/Fandisk.off");
+//  Constrain_surface* pdomain =
+//    new Constrain_surface("bambimboum.mesh");
+  Constrain_surface* pdomain =
+    new Constrain_surface("/home/mrouxell/Data/OFF/filled_oni.off");
 
   //----------- pick a metric field! ----
 //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
 //  Hyperbolic_shock_metric_field* metric_field = new Hyperbolic_shock_metric_field(0.6);
-  Custom_metric_field* metric_field = new Custom_metric_field();
+//  Custom_metric_field* metric_field = new Custom_metric_field();
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fandisk_Metric.txt");
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "metric_at_input.txt");
-//  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(*pdomain);
+  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(*pdomain);
 //  Implicit_curvature_metric_field* metric_field = new Implicit_curvature_metric_field(*pdomain);
 
-//  const char* mesh_filename = "/home/mrouxell/cgal/Anisotropic_mesh_3/data/Anisotropy_CMP/3DSurface/Fandisk.off";
-//  const char* mesh_filename = "../../data/Anisotropy_CMP/Ours_Results/Tet/Spherical.mesh";
-//  const char* mesh_filename = "./experiments/Yang Liu/cube/smoothed/5690/smoothed_cube_5690.mesh";
-//  const char* mesh_filename = "../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh";
-  const char* mesh_filename = "bambimboum_surf.mesh";
-//  const char* mesh_filename = "/home/mrouxell/vrac/vrac.off";
-//  const char* mesh_filename = "./experiments/Yang Liu/fandisk/iso/3D/Aniso_3/fandisk_100968.mesh";
-//  const char* mesh_filename = "./experiments/Yang Liu/Sphere/sphere_interrupted.mesh";
-//  const char* mesh_filename = "/home/mrouxell/Reviews/SIGASIA_Local_Convex_Aniso/AnisoMeshData/VOLUME/fig14_sine.mesh";
-//  const char* mesh_filename = "/home/mrouxell/Reviews/SIGASIA_Local_Convex_Aniso/AnisoMeshData/SURFACE/block.off";
+  // const char* mesh_filename = "bambimboum_surf.mesh";
+  const char* mesh_filename =
+    "/home/mrouxell/anisomeshes/Thesis_Mael/results/smoothed_oni_surf.mesh";
+//  const char* mesh_filename =
+//    "/home/mrouxell/anisomeshes/research_report/Results/fertility.off";
 
   fetch_mesh(mesh_filename, points, facets, cells);
   compute_metrics(points, metric_field, metrics);
 
-//  facet_distortion_histogram(points, facets, metrics);
-//  facet_edge_length_histogram(points, facets, metrics);
+  facet_distortion_histogram(points, facets, metrics);
+  facet_edge_length_histogram(points, facets, metrics);
   facet_angle_histogram(points, facets, metrics);
-//  cell_distortion_histogram(points, cells, metrics);
-//  cell_edge_length_histogram(points, cells, metrics);
-//  cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
-//  cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
+  facet_quality_histogram(points, facets, metrics);
+  cell_distortion_histogram(points, cells, metrics);
+  cell_edge_length_histogram(points, cells, metrics);
+  cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
+  cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
 
 //  delete pdomain;
-  delete metric_field;
+//  delete metric_field;
 
   return 0;
 }
