@@ -203,7 +203,7 @@ public:
       Base(surface_, epsilon_, en_factor_)
   {
     compute_local_metric();
-//    this->global_smooth();
+    this->global_smooth();
     this->output_mf_polylines();
   }
 };

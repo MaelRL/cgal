@@ -112,7 +112,7 @@ public:
     timer.start();
     double elapsed_time = 0.;
 
-#ifndef ANISO_VERBOSE
+#if 0 //ndef ANISO_VERBOSE
     // Scan surface and refine it
     m_facet_mesher.initialize();
     m_facet_mesher.refine(m_facet_visitor);
@@ -137,6 +137,7 @@ public:
 
     timer.stop();
     elapsed_time += timer.time();
+    time_out << std::endl;
     return elapsed_time;
   }
 

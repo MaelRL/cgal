@@ -394,7 +394,7 @@ public:
     {
       if(!m_refine_queue.top(rfacet_it, m_queue_ids_start, m_queue_ids_end))
       {
-#if 1
+#ifdef ANISO_EXPENSIVE_REF_QUEUE_CHECKS
         std::cout << "it says it's empty" << std::endl;
         fill_refinement_queue();
         if(!m_refine_queue.top(rfacet_it, m_queue_ids_start, m_queue_ids_end))

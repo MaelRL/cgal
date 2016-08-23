@@ -152,8 +152,8 @@ public:
 
   bool is_algorithm_done_()
   {
-    if(m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end))
-      report();
+    // if(m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end))
+    //   report();
     return m_refine_queue.empty(m_queue_ids_start, m_queue_ids_end);
   }
 
@@ -462,7 +462,7 @@ private:
     {
       if(!m_refine_queue.top(refine_cell, m_queue_ids_start, m_queue_ids_end))
       {
-#if 1
+#ifdef ANISO_EXPENSIVE_REF_QUEUE_CHECKS
         std::cout << "it says it's empty" << std::endl;
         fill_refinement_queue(this->m_starset, -1);
         if(!m_refine_queue.top(refine_cell, m_queue_ids_start, m_queue_ids_end))
