@@ -359,7 +359,9 @@ public:
     if(this->m_starset.size()%1000 == 0) // TMP
     {
       std::ofstream out_med("bambimboum_wip.mesh");
-      output_surface_medit(this->m_starset, out_med);
+      output_medit(this->m_starset, out_med);
+      std::ofstream out_med_surf("bambimboum_wip_surf.mesh");
+      output_surface_medit(this->m_starset, out_med_surf);
       std::ofstream out_dump("dump_wip.txt");
       dump(this->m_starset, out_dump);
     }
