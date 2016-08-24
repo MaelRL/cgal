@@ -197,13 +197,13 @@ void merge_8_small_cubes(Starset& ss)
         typename Starset::Star_handle star_k = ss[k];
         star->insert_to_star(star_k->center_point(), k, false /*no conflict check*/);
 
+        if(k%10000 == 0)
+          std::cout << "at: " << k << " out of " << ss.size() << std::endl;
+
         // trying to filter a bit that mess
         FT d = CGAL::squared_distance(p, star_k->center_point());
         if(d > (4*eps*eps))
           continue;
-
-        if(k%10000)
-          std::cout << "at: " << k << std::endl;
       }
       star->clean();
       ss.push_back(star);
