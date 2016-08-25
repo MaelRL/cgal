@@ -394,6 +394,7 @@ private:
     std::cout << " @ star: " << star->index_in_star_set() << std::endl;
 #endif
 
+#ifdef ANISO_USE_CONSISTENCY_QUEUE
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
     if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
@@ -414,6 +415,7 @@ private:
         return;
       }
     }
+#endif
 
     // size : 2
     if(is_criterion_tested(m_refine_queue.over_circumradius_queue) &&
@@ -831,7 +833,10 @@ private:
 
       // Pick_valid trick#3: check conflict (encroachment...) at lower levels
       //before testing the validity of the point.
-      if(Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) ||
+      if(
+#ifdef ANISO_USE_ENCROACH_SKIP
+         Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) ||
+#endif
          (++m_pick_valid_points_tried &&
          !is_valid_point(p, sq_radiusbound, star, newstar)))
       {
