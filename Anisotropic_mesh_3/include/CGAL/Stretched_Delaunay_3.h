@@ -2081,8 +2081,7 @@ public:
     TPoint_3 tp = m_metric.transform(p);
     bool found_vertex = false;
 
-#ifdef ANISO_DEBUG_SIMULATE_INSERT
-
+#ifdef ANISO_DEBUG_SIMULATE_INSERT_TO_STAR
     Vertex_handle vh;
 #ifndef ANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR
     int li, lj;
@@ -2110,7 +2109,6 @@ public:
     if(found_vertex) // already in star
     {
       std::cout << "Warning : simulate_insert_to_star re-inserts same point" << std::endl;
-      std::cout << this->index_in_star_set() << " p already there: " << vh->info() << std::endl;
       return -1;
     }
     else // in conflict

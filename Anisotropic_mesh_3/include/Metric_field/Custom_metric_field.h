@@ -87,36 +87,29 @@ public:
 
   Metric yang_liu_cube_shock(const Point_3& p) const
   {
-    double h = 0.05; // 0.3 for the 1.5m canvas
+    double h = 1.0; // 0.3 for the 1.5m canvas
 
     //Yang Liu 3D Metric
-    double x = p.x() + 0.1; // to avoid the origin...
-    double y = p.y() + 0.1;
-    double z = p.z() + 0.1;
+    double x = p.x();
+    double y = p.y();
+    double z = p.z();
 
     double r = std::sqrt(x*x + y*y + z*z);
-
 //    std::cout << "r: " << r << std::endl;
 
-    if(r < 0.05)
-      return this->build_metric(Vector_3(1.,0.,0.),
-                                Vector_3(0.,1.,0.),
-                                Vector_3(0.,0.,1.),
-                                1./h, 1./h, 1./h);
-
-    x /= r;
-    y /= r;
-    z /= r;
-
-    double lambda = std::exp(-0.5 * std::abs(r*r - 0.15));
-//    double h1 = 0.025 + (1-lambda);
-    double h1 = 0.5 + (1 - lambda);
+    double lambda = std::exp(-0.01 * std::abs(r*r - 49));
+    double h1 = 0.025 + (1-lambda);
+//    double h1 = 0.5 + (1 - lambda);
     double h2 = 1.;
     double h3 = 1.;
 
 //    std::cout << "at: " << p << " r: " << r << " || h1: " << h1 << std::endl;
 
     CGAL_assertion(std::abs(y) > 1e-15);
+
+    x /= r;
+    y /= r;
+    z /= r;
 
     double v2y = -y*z / std::sqrt((x*x + y*y + z*z)*(x*x + y*y));
     double v2x = x*v2y/y;
@@ -125,7 +118,6 @@ public:
     Vector_3 v1(x, y, z);
     Vector_3 v2(v2x, v2y, v2z);
     Vector_3 v3 = CGAL::cross_product(v1, v2);
-
 
     return this->build_metric(v1, v2, v3, 1./(h*h1), 1./(h*h2), 1./(h*h3));
   }
