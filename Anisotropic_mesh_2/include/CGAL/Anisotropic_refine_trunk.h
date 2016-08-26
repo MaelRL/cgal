@@ -843,6 +843,7 @@ public:
       CGAL_assertion(!ci.faces().empty());
     }
 
+#ifdef ANISO_DEBUG_CONFLICT_ZONES
     for(std::size_t i=0; i<number_of_stars(); ++i)
     {
       Star_handle si = get_star(i);
@@ -854,8 +855,8 @@ public:
       else
         CGAL_assertion(m_stars_czones.conflict_zones().find(i) ==
             m_stars_czones.conflict_zones().end());
-
     }
+#endif
 
     return m_stars_czones.conflicting_point_id();
   }

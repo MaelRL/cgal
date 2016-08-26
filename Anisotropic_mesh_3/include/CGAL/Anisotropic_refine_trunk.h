@@ -1684,7 +1684,7 @@ protected:
     typename std::vector<Point_3>::iterator end = poles_v.end();
     for(; it!=end; ++it, ++i)
     {
-      bool conditional = (i % 10 != 0); //1/10 with no condition
+      bool conditional = (i % 10 != 0); // 1/10 with no condition
       if(true) //m_refinement_condition(*it)) TODO
       {
         insert(*it, false /*no condition*/, false/*surface point*/); // tmp
@@ -1714,7 +1714,7 @@ protected:
     //The initial points need to be picked more cleverly as they completely ignore
     //the input metric field right now TODO
     typename Constrain_surface::Pointset initial_points =
-                                   this->m_pConstrain->get_surface_points(2*nb);
+      this->m_pConstrain->get_surface_points(2*nb);
 
     //only used in the case of a pure surface meshing process
     if(are_poles_used)
@@ -1881,6 +1881,7 @@ public:
 
     std::cout << "starset of size: " << m_starset.size() << " stars from " << filename << std::endl;
   }
+
 protected:
   void switch_to_volume_bboxes()
   {

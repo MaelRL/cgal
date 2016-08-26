@@ -359,7 +359,9 @@ public:
     if(this->m_starset.size()%1000 == 0) // TMP
     {
       std::ofstream out_med("bambimboum_wip.mesh");
-      output_surface_medit(this->m_starset, out_med);
+      output_medit(this->m_starset, out_med);
+      std::ofstream out_med_surf("bambimboum_wip_surf.mesh");
+      output_surface_medit(this->m_starset, out_med_surf);
       std::ofstream out_dump("dump_wip.txt");
       dump(this->m_starset, out_dump);
     }
@@ -719,11 +721,14 @@ private:
         Vertex_handle v3 = cell->vertex((offset+3)%4);
 
         typename Star::Traits::Compute_squared_distance_3 csd =
-            m_traits->compute_squared_distance_3_object();
+            star->traits()->compute_squared_distance_3_object();
 
-        if(csd(star->metric().inverse_transform(v1->point()), m_stars[v1->info()]->center_point()) > 1e-10 ||
-           csd(star->metric().inverse_transform(v2->point()), m_stars[v2->info()]->center_point()) > 1e-10 ||
-           csd(star->metric().inverse_transform(v3->point()), m_stars[v3->info()]->center_point()) > 1e-10)
+        if(csd(star->metric().inverse_transform(v1->point()),
+               Trunk::get_star(v1->info())->center_point()) > 1e-10 ||
+           csd(star->metric().inverse_transform(v2->point()),
+               Trunk::get_star(v2->info())->center_point()) > 1e-10 ||
+           csd(star->metric().inverse_transform(v3->point()),
+               Trunk::get_star(v3->info())->center_point()) > 1e-10)
         {
           std::cout.precision(20);
           std::cout << "points differ in fill_ref_queue: " << v1->info() << " " << v2->info() << " " << v3->info() << std::endl;
@@ -731,9 +736,9 @@ private:
           std::cout << star->metric().inverse_transform(v1->point()) << std::endl;
           std::cout << star->metric().inverse_transform(v2->point()) << std::endl;
           std::cout << star->metric().inverse_transform(v3->point()) << std::endl;
-          std::cout << m_stars[v1->info()]->center_point() << std::endl;
-          std::cout << m_stars[v2->info()]->center_point() << std::endl;
-          std::cout << m_stars[v3->info()]->center_point() << std::endl;
+          std::cout << Trunk::get_star(v1->info())->center_point() << std::endl;
+          std::cout << Trunk::get_star(v2->info())->center_point() << std::endl;
+          std::cout << Trunk::get_star(v3->info())->center_point() << std::endl;
         }
 #endif
 

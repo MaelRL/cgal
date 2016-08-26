@@ -681,6 +681,35 @@ FT minimum_dihedral_angle(const Metric& metric,
                    * FT(180) / FT(CGAL_PI));
 }
 
+FT compute_squared_shortest_edge(const Point_3& p,
+                                 const Point_3& q,
+                                 const Point_3& r,
+                                 const Point_3& s)
+{
+  typename Star_traits::Compute_squared_distance_3 o;
+  return min(min(min(min(min(o(p, q), o(p, r)), o(p, s)), o(q, r)), o(q, s)), o(r, s));
+}
+
+FT compute_sliverity(const Metric& metric,
+                     const Point_3& p0,
+                     const Point_3& p1,
+                     const Point_3& p2,
+                     const Point_3& p3)
+{
+  // not very efficient, but heh...
+  const Point_3& p = metric.transform(p0);
+  const Point_3& q = metric.transform(p1);
+  const Point_3& r = metric.transform(p2);
+  const Point_3& s = metric.transform(p3);
+
+  typename Star_traits::Compute_volume_3 o;
+
+  FT V_third = std::pow(std::abs(o(p, q, r, s)), 1.0 / 3.0);
+  FT h = std::sqrt(compute_squared_shortest_edge(p, q, r, s));
+
+  return V_third / h;
+}
+
 template<typename Metric_field>
 void cell_dihedral_angle_histogram(const std::vector<Point_3>& points,
                                    const std::vector<int>& cells,
@@ -705,10 +734,11 @@ void cell_dihedral_angle_histogram(const std::vector<Point_3>& points,
       ps[j] = points[ns[j]];
     }
 
-    for(int i=0; i<4; ++i)
+    for(int j=0; j<4; ++j)
     {
-      Metric m = mf->compute_metric(ps[i]);
+      Metric m = mf->compute_metric(ps[j]);
       FT diha = minimum_dihedral_angle(m, ps[0], ps[1], ps[2], ps[3]);
+
       if(diha < smallest_dihedral_angle)
         smallest_dihedral_angle = diha;
     }
@@ -717,6 +747,74 @@ void cell_dihedral_angle_histogram(const std::vector<Point_3>& points,
   }
 
   output_histogram(values, "histogram_cell_dihedral_angle_external_simplex_metric.cvs");
+}
+
+FT element_quality_3D(const Point_3& p, const Point_3& q,
+                      const Point_3& r, const Point_3& s)
+{
+  Star_traits star_traits;
+  typename Star_traits::Compute_area_3 ar;
+  typename Star_traits::Compute_volume_3 vo;
+
+  FT alpha = 216.*std::sqrt(3.);
+  FT V = std::abs(vo(p, q, r, s));
+  FT a = std::abs(ar(p, q, r));
+  FT b = std::abs(ar(p, q, s));
+  FT c = std::abs(ar(p, r, s));
+  FT d = std::abs(ar(q, r, s));
+
+  FT denom = (a + b + c + d);
+  FT quality = alpha * V * V / (denom * denom * denom);
+
+  if(quality > 1e30)
+    std::cout << V << " " << a << " " << b << " " << c << " " << d << std::endl;
+
+  return quality;
+}
+
+
+template<typename Metric_field>
+void cell_quality_histogram(const std::vector<Point_3>& points,
+                            const std::vector<int>& cells,
+                            const Metric_field* mf)
+{
+  if(cells.empty())
+    return;
+  std::cout << "\n -- Cell quality histo with size: " << cells.size() << std::endl;
+
+  std::vector<FT> values;
+
+  for(std::size_t i=0; i<cells.size();)
+  {
+    std::vector<int> ns(4);
+    std::vector<Point_3> ps(4);
+
+    FT min_quality = 1e30;
+
+    for(int j=0; j<4; ++j)
+    {
+      ns[j] = cells[i++];
+      ps[j] = points[ns[j]];
+    }
+
+    for(int j=0; j<4; ++j)
+    {
+      Metric m = mf->compute_metric(ps[j]);
+      std::vector<TPoint_3> tps(4);
+      for(int k=0; k<4; ++k)
+        tps[k] = m.transform(ps[k]);
+
+      FT quality = element_quality_3D(tps[0], tps[1], tps[2], tps[3]);
+      values.push_back(quality);
+
+      if(quality < min_quality)
+        min_quality = quality;
+    }
+
+//    values.push_back(min_quality);
+  }
+
+  output_histogram(values, "histogram_cell_quality_external_simplex_metric.cvs");
 }
 
 int main(int, char**)
@@ -729,21 +827,21 @@ int main(int, char**)
 
 //  Constrain_surface* pdomain =
 //    new Constrain_surface("bambimboum.mesh");
-  Constrain_surface* pdomain =
-    new Constrain_surface("/home/mrouxell/Data/OFF/filled_oni.off");
+//  Constrain_surface* pdomain =
+//    new Constrain_surface("/home/mrouxell/Data/OFF/fertility.off");
 
   //----------- pick a metric field! ----
 //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
 //  Hyperbolic_shock_metric_field* metric_field = new Hyperbolic_shock_metric_field(0.6);
-//  Custom_metric_field* metric_field = new Custom_metric_field();
+  Custom_metric_field* metric_field = new Custom_metric_field();
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "../../data/Anisotropy_CMP/3DSurface/Fandisk_Metric.txt");
 //  External_metric_field* metric_field = new External_metric_field(*pdomain, "metric_at_input.txt");
-  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(*pdomain);
+//  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(*pdomain);
 //  Implicit_curvature_metric_field* metric_field = new Implicit_curvature_metric_field(*pdomain);
 
   // const char* mesh_filename = "bambimboum_surf.mesh";
   const char* mesh_filename =
-    "/home/mrouxell/anisomeshes/Thesis_Mael/results/smoothed_oni_surf.mesh";
+    "/home/mrouxell/anisomeshes/Thesis_Mael/results/cube_1D_shock.mesh";
 //  const char* mesh_filename =
 //    "/home/mrouxell/anisomeshes/research_report/Results/fertility.off";
 
@@ -758,6 +856,8 @@ int main(int, char**)
   cell_edge_length_histogram(points, cells, metrics);
   cell_edge_length_histogram_midpoint_metric(points, cells, metric_field);
   cell_edge_length_histogram_simplex_metric(points, cells, metric_field);
+  cell_dihedral_angle_histogram(points, cells, metric_field);
+  cell_quality_histogram(points, cells, metric_field);
 
 //  delete pdomain;
 //  delete metric_field;

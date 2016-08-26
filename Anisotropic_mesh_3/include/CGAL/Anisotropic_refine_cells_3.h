@@ -819,8 +819,11 @@ private:
 
       // Pick_valid trick#3: check conflict (encroachment...) at lower levels
       //before testing the validity of the point.
-      if((Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) &&
+      if(
+#ifdef ANISO_USE_ENCROACH_SKIP
+         (Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) &&
          ++m_pick_valid_skipped_due_to_conflict) ||
+#endif
          (++m_pick_valid_points_tried &&
           !is_valid_point(p, sq_radiusbound, star, new_star)))
       {

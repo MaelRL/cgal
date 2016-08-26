@@ -114,7 +114,7 @@ public:
     double elapsed_time = 0.;
     std::ofstream time_out("time_tet_mesher.txt");
 
-#if 0//ndef ANISO_VERBOSE
+#ifndef ANISO_VERBOSE
     // Scan volume and refine it
     m_cell_mesher.initialize();
     m_cell_mesher.refine(m_cell_visitor);

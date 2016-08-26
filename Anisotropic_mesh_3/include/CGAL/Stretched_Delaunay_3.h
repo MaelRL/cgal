@@ -2080,8 +2080,9 @@ public:
     CGAL_HISTOGRAM_PROFILER("V", this->number_of_vertices());
     TPoint_3 tp = m_metric.transform(p);
     bool found_vertex = false;
-    Vertex_handle vh;
 
+#ifdef ANISO_DEBUG_SIMULATE_INSERT_TO_STAR
+    Vertex_handle vh;
 #ifndef ANISO_BRUTE_FORCE_SIMULATE_INSERT_TO_STAR
     int li, lj;
     typename Base::Locate_type lt;
@@ -2103,10 +2104,11 @@ public:
       }
     }
 #endif
+#endif
+
     if(found_vertex) // already in star
     {
       std::cout << "Warning : simulate_insert_to_star re-inserts same point" << std::endl;
-      std::cout << this->index_in_star_set() << " p already there: " << vh->info() << std::endl;
       return -1;
     }
     else // in conflict

@@ -1,23 +1,7 @@
-// Copyright (c) 2011  INRIA Sophia-Antipolis (France), ETH Zurich (Switzerland).
-// All rights reserved.
-//
-// This file is part of CGAL (www.cgal.org); you may redistribute it under
-// the terms of the Q Public License version 1.0.
-// See the file LICENSE.QPL distributed with CGAL.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// Author(s) : Kan-Le Shi
-
 #ifndef CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CUBE_H
 #define CGAL_ANISOTROPIC_MESH_3_CONSTRAIN_SURFACE_3_CUBE_H
 
 #include <CGAL/Constrain_surface_3.h>
-
 
 namespace CGAL
 {
@@ -25,7 +9,8 @@ namespace Anisotropic_mesh_3
 {
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
-class Constrain_surface_3_cube : public Constrain_surface_3<K, Point_container>
+class Constrain_surface_3_cube :
+  public Constrain_surface_3<K, Point_container>
 {
 public:
   typedef typename K::Point_3           Point_3;
@@ -37,7 +22,7 @@ public:
   typedef CGAL::Oriented_side           Oriented_side;
 
 public:
-  FT hside; //half side length
+  FT hside; // half side length
 
 protected:
   Object_3 intersection_of_ray(const Ray_3 &ray) const
@@ -230,7 +215,8 @@ public:
 };
 
 template<typename K, typename Point_container = std::vector<typename K::Point_3> >
-class Constrain_surface_3_free_cube : public Constrain_surface_3<K, Point_container>
+class Constrain_surface_3_free_cube :
+  public Constrain_surface_3<K, Point_container>
 {
 public:
   typedef typename K::FT                        FT;
@@ -352,7 +338,20 @@ public:
 
   void compute_poles(std::set<Point_3>& poles) const
   {
-    poles.insert(Point_3(0.,0.,0.));
+    FT dx = xmax - xmin;
+    FT dy = ymax - ymin;
+    FT dz = zmax - zmin;
+
+    poles.insert(Point_3(xmin + 0.60 * dx, ymin + 0.81 * dy, zmin + 0.37 * dz));
+    poles.insert(Point_3(xmin + 0.58 * dx, ymin + 0.59 * dy, zmin + 0.41 * dz));
+    poles.insert(Point_3(xmin + 0.76 * dx, ymin + 0.87 * dy, zmin + 0.52 * dz));
+    poles.insert(Point_3(xmin + 0.10 * dx, ymin + 0.11 * dy, zmin + 0.23 * dz));
+    poles.insert(Point_3(xmin + 0.22 * dx, ymin + 0.16 * dy, zmin + 0.37 * dz));
+    poles.insert(Point_3(xmin + 0.88 * dx, ymin + 0.72 * dy, zmin + 0.11 * dz));
+    poles.insert(Point_3(xmin + 0.66 * dx, ymin + 0.11 * dy, zmin + 0.75 * dz));
+    poles.insert(Point_3(xmin + 0.16 * dx, ymin + 0.82 * dy, zmin + 0.95 * dz));
+    poles.insert(Point_3(xmin + 0.95 * dx, ymin + 0.86 * dy, zmin + 0.45 * dz));
+    poles.insert(Point_3(xmin + 0.29 * dx, ymin + 0.60 * dy, zmin + 0.40 * dz));
   }
 
   Point_3 project(const Point_3 &p) const
