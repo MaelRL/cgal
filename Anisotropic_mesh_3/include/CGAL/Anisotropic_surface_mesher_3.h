@@ -122,7 +122,7 @@ public:
     elapsed_time += timer.time();
     timer.stop(); timer.reset(); timer.start();
 
-    std::ofstream time_out("time.txt");
+    std::ofstream time_out("time_surf_mesher.txt");
     while (!m_facet_mesher.is_algorithm_done())
     {
       m_facet_mesher.one_step(m_facet_visitor);

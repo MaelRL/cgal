@@ -112,7 +112,7 @@ public:
     CGAL::Timer timer;
     timer.start();
     double elapsed_time = 0.;
-    std::ofstream time_out("time.txt");
+    std::ofstream time_out("time_tet_mesher.txt");
 
 #if 0//ndef ANISO_VERBOSE
     // Scan volume and refine it
