@@ -49,6 +49,7 @@ public:
     {
   #if (VERBOSITY > 1)
       std::cout << "filtered : " << x << " " << y << " " << z << std::endl;
+      std::cout << "box is " << canvas.canvas_bbox << std::endl;
   #endif
       return seeds.size();
     }
@@ -67,6 +68,12 @@ public:
   std::size_t build_seeds()
   {
     std::ifstream in(seeds_str.c_str());
+    if(!in)
+    {
+      std::cout << "could not open seed file" << std::endl;
+      exit(0);
+    }
+
     std::string word;
     std::size_t useless, nv, dim;
     FT r_x, r_y, r_z;

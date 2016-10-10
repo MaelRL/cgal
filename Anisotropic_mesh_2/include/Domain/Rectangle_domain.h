@@ -71,6 +71,28 @@ public:
     points.push_back(Point_2(x+hside_x, y));
     points.push_back(Point_2(x, y+hside_y));
 
+    // to introduce some asymmetry
+    points.push_back(Point_2(x-hside_x/3., y+hside_y/2.));
+
+    //some points really far away on each side
+//    bbox_vertices.push_back(Point_2(2.*xmin-xmax, ymin+0.5*(ymax-ymin)));
+//    bbox_vertices.push_back(Point_2(2.*xmax-xmin, ymin+0.5*(ymax-ymin)));
+//    bbox_vertices.push_back(Point_2(xmin+0.5*(xmax-xmin), 2.*ymin-ymax));
+//    bbox_vertices.push_back(Point_2(xmin+0.5*(xmax-xmin), 2.*ymax-ymin));
+
+    //a net on the border just to have a clean border with Tangential_Complex
+//    int n = 10;
+//    for(int i=1; i<n; ++i)
+//    {
+//      FT xstep = (xmax-xmin)/(double) n;
+//      FT ystep = (ymax-ymin)/(double) n;
+
+//      bbox_vertices.push_back(Point_2(xmin, ymin+i*ystep));
+//      bbox_vertices.push_back(Point_2(xmax, ymin+i*ystep));
+//      bbox_vertices.push_back(Point_2(xmin+i*xstep, ymin));
+//      bbox_vertices.push_back(Point_2(xmin+i*xstep, ymax));
+//    }
+
     return points;
   }
 

@@ -43,6 +43,7 @@ public:
       evecs.push_back(constr_vec(d, vi.data(), vi.data() + d));
     }
 
+    evals[1] = 1./(0.0025+0.2*(1-std::exp(-std::abs(p[1]-0.3)))); // tmp
     return this->build_metric(evecs, evals);
   }
 

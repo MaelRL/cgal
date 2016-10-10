@@ -134,10 +134,77 @@ Matrixd get_metric(const Pointd& p)
 
 #ifdef dim1
   m(0,0) = p(0);
+#elif defined(dim2)
+
+#ifdef HYPER
+  FT x = p[0];
+  FT y = p[1];
+  FT delta = 0.1;
+  FT tanhder = tanh((2.0 * x - sin(5.0 * y)) / delta);
+  tanhder = (1.0 - tanhder * tanhder) / delta;
+  FT x1 = 2. * tanhder + 3.0 * x * x + y * y;
+  FT y1 = -tanhder * cos(5.0 * y) * 5.0 + 2.0 * x * y;
+
+  FT r = sqrt(x1 * x1 + y1 * y1);
+  FT x2 = -y1 / r;
+  FT y2 = x1 / r;
+  FT l1 = std::sqrt(x1*x1 + y1*y1);
+  FT l2 = std::sqrt(x2*x2 + y2*y2);
+
+  Vectord v1 = (1./l1) * Vectord(x1, y1);
+  Vectord v2 = (1./l2) * Vectord(x2, y2);
+
+  Eigen::Matrix2d eigen_m;
+  eigen_m(0,0) = v1.x();  eigen_m(0,1) = v2.x();
+  eigen_m(1,0) = v1.y();  eigen_m(1,1) = v2.y();
+
+  Eigen::Matrix2d eigen_diag = Eigen::Matrix2d::Zero();
+  eigen_diag(0,0) = l1;
+  eigen_diag(1,1) = l2;
+
+  Eigen::Matrix2d eigen_mtransp = eigen_m.transpose();
+  m = eigen_m * eigen_diag * eigen_mtransp;
+  m = m.transpose() * m;
 #else
-#ifdef dim2
-  m(0,0) = p(0); m(0,1) = 0.;
-  m(1,0) = 0.; m(1,1) = 1.;
+  double h = 0.3;
+
+  double x = p[0];
+  double y = p[1];
+  double r = std::sqrt(x*x + y*y);
+
+  if(r<0.1) // avoids problem near 0 (where v1 & v2 are undefined)
+  {
+    m(0,0) = 1./(h*h); m(0,1) = 0.;
+    m(1,0) = 0.; m(1,1) = 1./(h*h);
+    return m;
+  }
+
+  x /= r;
+  y /= r;
+
+  double lambda = std::exp(-0.5*std::abs(r*r-1));
+  double h1 = 0.1 + (1-lambda); // artificial smoothing
+  double h2 = 1.;
+
+  Vectord v1(x, y);
+  Vectord v2(-y, x);
+
+  FT l1 = 1./(h*h1);
+  FT l2 = 1./(h*h2);
+#endif
+
+  Eigen::Matrix2d eigen_m;
+  eigen_m(0,0) = v1.x();  eigen_m(0,1) = v2.x();
+  eigen_m(1,0) = v1.y();  eigen_m(1,1) = v2.y();
+
+  Eigen::Matrix2d eigen_diag = Eigen::Matrix2d::Zero();
+  eigen_diag(0,0) = l1;
+  eigen_diag(1,1) = l2;
+
+  Eigen::Matrix2d eigen_mtransp = eigen_m.transpose();
+  m = eigen_m * eigen_diag * eigen_mtransp;
+  m = m.transpose() * m;
+
 #else
   m(0,0) = 1.; m(0,1) = 0.; m(0,2) = 0.;
   m(1,0) = 0.; m(1,1) = 1.; m(1,2) = 0.;
@@ -552,6 +619,56 @@ void tinker_jacobian(Matrixd& m, const Vectord& h)
   m += m2;
 }
 
+void buse_shenanigans(const Simplex& fs,
+                      const std::vector<Pointd>& points,
+                      const std::vector<Weighted_point>& wpoints)
+{
+  std::cout << "let's do some shenanigans!" << std::endl;
+  CGAL_assertion(d == 2);
+
+  // We solve the system analytically. We recall the system :
+  // a0 + a1 x + a2 y + a3 xy + a4 x^2 + a5 y^2 = 0
+  // b0 + b1 x + b2 y + b3 xy + b4 x^2 + b5 y^2 = 0
+
+  // and ai = (P1-P0)(i) (except a0 = sum (P1-P0)(i)*Ci
+  // and bi = (P2-P0)(i) (except b0 = sum (P2-P0)(i)*Ci
+
+  // first of all, we need the coefficients
+  FT a0 = 68, a1 = -29, a2 = 5, a3 = -51, a4 = -26, a5 = 88;
+  FT b0 = 97, b1 = -67, b2 = 58, b3 = 37, b4 = 29, b5 = 5;
+
+  // then we can hardcode some matrices
+  Eigen::Matrix<FT,6,6> A, B;
+
+  A(0,0) = 0.; A(0,1) = 0.; A(0,2) = 1.; A(0,3) = 0.; A(0,4) = 0.; A(0,5) = 0.;
+  A(1,0) = 0.; A(1,1) = 0.; A(1,2) = 0.; A(1,3) = 1.; A(1,4) = 0.; A(1,5) = 0.;
+  A(2,0) = 0.; A(2,1) = 0.; A(2,2) = 0.; A(2,3) = 0.; A(2,4) = 1.; A(2,5) = 0.;
+  A(3,0) = 0.; A(3,1) = 0.; A(3,2) = 0.; A(3,3) = 0.; A(3,4) = 0.; A(3,5) = 1.;
+  A(4,0) = -a2*b5+a5*b2; A(4,1) = -a0*b5+a5*b0; A(4,2) = -a3*b5+a5*b3; A(4,3) = -a1*b5+a5*b1; A(4,4) = 0.; A(4,5) = -a4*b5+a5*b4;
+  A(5,0) = -a0*b5+a5*b0; A(5,1) = -a0*b2+a2*b0; A(5,2) = -a1*b5+a5*b1; A(5,3) = -a0*b3-a1*b2+a2*b1+a3*b0; A(5,4) = -a4*b5+a5*b4; A(5,5) = -a1*b3+a2*b4+a3*b1-a4*b2;
+
+  B(0,0) = 1.; B(0,1) = 0.; B(0,2) = 0.; B(0,3) = 0.; B(0,4) = 0.; B(0,5) = 0.;
+  B(1,0) = 0.; B(1,1) = 1.; B(1,2) = 0.; B(1,3) = 0.; B(1,4) = 0.; B(1,5) = 0.;
+  B(2,0) = 0.; B(2,1) = 0.; B(2,2) = 1.; B(2,3) = 0.; B(2,4) = 0.; B(2,5) = 0.;
+  B(3,0) = 0.; B(3,1) = 0.; B(3,2) = 0.; B(3,3) = 1.; B(3,4) = 0.; B(3,5) = 0.;
+  B(4,0) = 0.; B(4,1) = 0.; B(4,2) = 0.; B(4,3) = 0.; B(4,4) = 0.; B(4,5) = 0.;
+  B(5,0) = 0.; B(5,1) = 0.; B(5,2) = 0.; B(5,3) = 0.; B(5,4) = 0.; B(5,5) = -a3*b4+a4*b3;
+
+  // we take the generalized eigen decomposition
+  Eigen::GeneralizedEigenSolver<Eigen::Matrix<FT,6,6> > ges;
+  ges.compute(A, B, true /*compute vectors*/);
+
+  // and we look at the solutions
+  std::cout << "The (complex) numerators of the generalized eigenvalues are: " << std::endl
+            << ges.alphas() << std::endl;
+  std::cout << "The (real) denominators of the generalized eigenvalues are: " << std::endl
+            << ges.betas() << std::endl;
+  std::cout << "The (complex) generalized eigenvalues are (alphas./beta): " << std::endl
+            << ges.eigenvalues() << std::endl;
+//  std::cout << "The (complex) generalized eigenvectors are : " << std::endl
+//            << ges.eigenvectors() << std::endl; // not implemented yet...
+}
+
 bool newton(const Simplex& fs,
             const std::vector<Pointd>& points,
             const std::vector<Weighted_point>& wpoints,
@@ -604,6 +721,8 @@ bool newton(const Simplex& fs,
   std::cout << "final solution : " << vsolD.transpose() << std::endl;
   std::cout << "final jac/h: " << jac.determinant() << " " << h_err.norm() << std::endl;
 
+  buse_shenanigans(fs, points, wpoints);
+  CGAL_assertion(false);
 
   return true;
 }
@@ -710,7 +829,7 @@ void draw_stuff(const std::map<Simplex, int>& simplices_to_draw,
   int tn = tri_per_simplex * simplices_to_draw.size();
 
   // draw stuff
-#if 0
+#if 1
   std::ofstream out("aniso_regular.mesh");
   out << "MeshVersionFormatted 1" << std::endl;
   out << "Dimension " << d << std::endl;

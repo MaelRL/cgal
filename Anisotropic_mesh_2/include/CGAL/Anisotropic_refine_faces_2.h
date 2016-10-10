@@ -19,6 +19,8 @@
 
 #include <CGAL/IO/Star_set_output.h>
 
+#include <boost/chrono.hpp>
+
 namespace CGAL
 {
 namespace Anisotropic_mesh_2
@@ -99,6 +101,12 @@ public:
   mutable CGAL::Timer timer_pv;
   mutable CGAL::Timer timer_npv;
 
+  std::ofstream file_out;
+
+  // lazy hacks to be cleaned some day...
+  mutable std::size_t last_pv_amount_of_tries;
+  mutable FT bchrono_sum;
+
   bool& is_active() { return Mesher_lvl::is_active(); }
   const bool& is_active() const { return Mesher_lvl::is_active(); }
 
@@ -169,6 +177,8 @@ public:
 
   Refinement_point_status get_refinement_point_for_next_element_(Point_2& steiner_point)
   {
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
     Rface_set_iterator bad_face;
     bool need_picking_valid;
     Face_handle fh; // to be refined
@@ -251,6 +261,10 @@ public:
     // same for elements needing checks
     this->m_stars_czones.compute_elements_needing_check();
 
+    std::cout << "----     duration of get_next_ref: "
+              << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+              << " micro s\n";
+
     return SUITABLE_POINT;
   }
 
@@ -310,7 +324,7 @@ public:
   void report()
   {
     std::cout << "face consistency : ";
-    std::cout << this->m_starset.is_consistent(true /*verbose*/) << std::endl;
+//    std::cout << this->m_starset.is_consistent(true /*verbose*/) << std::endl;
     //all_face_histograms(this->m_starset, this->m_pdomain, this->m_criteria);
     std::cout << "face pick_valid stats: " << std::endl;
     std::cout << "tried: " << m_pick_valid_points_tried << " || ";
@@ -782,6 +796,13 @@ private:
                          const Face_handle fh)
   {
     bool success = (rp_status == SUITABLE_POINT);
+
+// uncomment to output the distortion and whether it succeeded or not
+// don't forget to uncomment other uses of file_out and to change
+// the name of the file
+    FT dist = this->m_starset.compute_distortion(fh);
+    file_out << dist << " " << success << " " << last_pv_amount_of_tries << std::endl;
+
     if(success)
       m_pick_valid_succeeded++;
     else //POINT_IN_CONFLICT or PICK_VALID_FAILED (maybe distinguish between them?) todo
@@ -801,6 +822,8 @@ private:
                                      const Face_handle& fh, //belongs to star and should be refined
                                      Point_2& p) const
   {
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
     timer_pv.start();
     // compute radius bound, in M_star
     TPoint_2 circumcenter = fh->circumcenter(*(star->traits()));
@@ -844,8 +867,16 @@ private:
       }
       else
       {
+        last_pv_amount_of_tries = tried_times;
         timer_pv.stop();
         delete newstar;
+
+        std::cout << "is_valid sum: " << bchrono_sum << std::endl;
+        bchrono_sum = 0;
+        std::cout << "----     duration of pv (success): "
+                  << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+                  << " micro s" << std::endl;
+
         //here, the newstar was a fully created star that could have been pushed in the star_set.
         //Not done at the moment since it introduces non symmetrical operations and force us
         //to check whether we have n or n+1 stars at various point, etc.etc. TODO
@@ -854,6 +885,7 @@ private:
 
       if(++tried_times >= this->m_criteria->max_times_to_try_in_picking_region)
       {
+        last_pv_amount_of_tries = this->m_criteria->max_times_to_try_in_picking_region;
         p = center;
         delete newstar;
         if(Mesher_lvl::is_point_in_conflict(p, true, true))
@@ -863,6 +895,13 @@ private:
           return POINT_IN_CONFLICT;
         }
         timer_pv.stop();
+
+        std::cout << "is_valid sum: " << bchrono_sum << std::endl;
+        bchrono_sum = 0;
+        std::cout << "----     duration of pv (failed): "
+                  << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+                  << " micro s" << std::endl;
+
         return PICK_VALID_FAILED;
       }
 
@@ -912,8 +951,16 @@ private:
     }
     else
     {
+      boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
       vertex_without_picking_count++;
       steiner = compute_insert_or_snap_point(to_be_refined, fh);
+
+      std::cout << "is_valid sum: " << bchrono_sum << std::endl;
+      bchrono_sum = 0;
+      std::cout << "----     duration of compute_insert_or_snap_point: "
+                << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+                << " micro s" << std::endl;
 
       if(Mesher_lvl::is_point_in_conflict(steiner, true, false))
       {
@@ -951,8 +998,11 @@ public:
       vertex_without_picking_count(0),
       m_leak_counter(0),
       timer_pv(),
-      timer_npv()
-  {}
+      timer_npv(),
+      file_out("PV_success.txt"),
+      last_pv_amount_of_tries(-1),
+      bchrono_sum(0)
+  { }
 
 private:
   Anisotropic_refine_faces_2(const Self& src);

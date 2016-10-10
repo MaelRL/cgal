@@ -109,7 +109,7 @@ void fetch_from_mesh(std::ifstream& in,
         Point_2 p2 = points[n2-1];
         Point_2 p3 = points[n3-1];
 
-        FT border = 2;
+        FT border = 0.8;
         if(std::abs(p1.x()) > border || std::abs(p1.y()) > border ||
            std::abs(p2.x()) > border || std::abs(p2.y()) > border ||
            std::abs(p3.x()) > border || std::abs(p3.y()) > border)
@@ -555,11 +555,11 @@ int main(int, char**)
   //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
   Custom_metric_field* metric_field = new Custom_metric_field();
 
-//  const std::string filename_core = "optimized_swirl_starset_11_dual";
+  const std::string filename_core = "optimized_shock_starset_39_dual";
 //  const std::string filename_core = "swirl_starset_dual";
 //  const std::string filename_core = "ref_3911_dual";
-  const std::string filename_core =
-  "/home/mrouxell/anisomeshes/Thesis_Mael/results/swirl";
+//  const std::string filename_core =
+//  "/home/mrouxell/anisomeshes/Thesis_Mael/results/optimized_shock_starset_40_dual";
 
   // ------------ pick OFF or MESH ------
   const std::string mesh_filename = filename_core + ".mesh";

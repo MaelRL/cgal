@@ -97,9 +97,12 @@ public:
     double r = std::sqrt(x*x + y*y + z*z);
 //    std::cout << "r: " << r << std::endl;
 
-    double lambda = std::exp(-0.01 * std::abs(r*r - 49));
-    double h1 = 0.025 + (1-lambda);
-//    double h1 = 0.5 + (1 - lambda);
+//    double lambda = std::exp(-0.01 * std::abs(r*r - 49));
+//    double h1 = 0.025 + (1-lambda);
+
+    double lambda = std::exp(-0.5 * std::abs(r*r - 0.15));
+    double h1 = 0.5 + (1 - lambda);
+
     double h2 = 1.;
     double h3 = 1.;
 
@@ -124,12 +127,19 @@ public:
 
   virtual Metric compute_metric(const Point_3& p) const
   {
-    return yang_liu_cube_shock(p);
     return yang_liu_cube_shock_1D(p);
+    return yang_liu_cube_shock(p);
     return yang_liu_sphere_sin(p);
 
+    double h = 0.2;
+
+    //logexp 1D
     FT denom = std::sqrt(9.); // = ratio at x=+/-1
-    double h = 1.0;
+    return this->build_metric(Vector_3(1, 0, 0),
+                              Vector_3(0, 1, 0),
+                              Vector_3(0, 0, 1),
+                              std::pow(1./denom, std::abs(p.x()))/h, 1./h, 1./h);
+
 
     //linear interpolation
     /*
@@ -138,12 +148,6 @@ public:
                               Vector_3(0, 0, 1),
                               1./((denom*std::abs(p.x())+(1-std::abs(p.x())))*h), 1./h, 1./h);
     */
-
-    //logexp 1D
-    return this->build_metric(Vector_3(1, 0, 0),
-                              Vector_3(0, 1, 0),
-                              Vector_3(0, 0, 1),
-                              std::pow(1./denom, std::abs(p.x()))/h, 1./h, 1./h);
 
     //logexp 1D extended into uniform
     return this->build_metric(Vector_3(1, 0, 0),

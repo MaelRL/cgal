@@ -299,7 +299,7 @@ public:
     tensor_frame(p_surf, vn, v1, v2, en, e1, e2);
     Metric m_surf = this->build_metric(vn, v1, v2, std::sqrt(en), std::sqrt(e1), std::sqrt(e2));
 
-#if 1
+#if 0
     FT val = m_pConstrain.evaluate(p.x(), p.y(), p.z());
     FT lvlset = -0.5;
     if(val < lvlset)

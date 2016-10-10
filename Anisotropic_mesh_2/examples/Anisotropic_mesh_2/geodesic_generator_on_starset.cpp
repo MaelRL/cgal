@@ -8,8 +8,8 @@
 // #define USE_FULL_REBUILDS
 #define FILTER_SEEDS_OUTSIDE_GRID
 
-// #define COMPUTE_GEODESIC
-#define COMPUTE_REAL_GEODESICS
+#define COMPUTE_GEODESIC
+// #define COMPUTE_REAL_GEODESICS
 // #define OVERWRITE_SEED_WITH_CANVAS_POINT // use that for easier geodesic drawing
 
 #include <CGAL/Anisotropic_mesher_2.h>
@@ -99,9 +99,9 @@ typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 MF mf;
 
 //geometry
-FT a = 2.1; // half the side (x)
-FT b = 2.1; // half the side (y)
-Point_2 center(0., 0.);
+FT a = 0.5; // half the side (x)
+FT b = 0.3; // half the side (y)
+Point_2 center(-0.35, -0.3);
 Rectangle_domain<K> pdomain(a, b, center);
 
 // seeds
@@ -113,18 +113,18 @@ enum Seed_status
   ON_CORNER
 };
 
-FT sa = 2.; // seeds bbox
-FT sb = 2.;
-std::size_t vertices_nv = 15000;
+FT sa = 0.5; // seeds bbox
+FT sb = 0.3;
+std::size_t vertices_nv = 1e10;
 bool are_constraints_discretized = false;
 
 std::vector<Point_2> seeds;
 std::vector<Metric> seeds_m;
 std::vector<Seed_status> seeds_s;
-const std::string str_seeds = "swirl_starset_15k_dual";
+const std::string str_seeds = "optimized_shock_starset_41_dual";
 
 // base mesh
-const std::string str_base_mesh = "swirl";
+const std::string str_base_mesh = "shock";
 CGAL::Bbox_2 base_mesh_bbox;
 
 // refinement
@@ -133,7 +133,7 @@ std::size_t min_ancestor_path_length = 5;
 static const int k = 8; // depth of the ancestor edge
 
 // optimization
-int max_opti_n = 50;
+int max_opti_n = 0;
 int max_depth = -1; // how precise are the Voronoi vertices (bigger = better)
 
 //debug & info
@@ -149,7 +149,7 @@ Path_map computed_paths;
 bool ignore_children = false;
 
 //face criteria
-FT f_r0 = .1; // since geodesic takes r0=1, we need r_0 << 1 here (0.1-ish ?)
+FT f_r0 = .025;
 FT f_rho0 = 3.0;
 
 //misc
@@ -827,6 +827,11 @@ public:
   std::size_t insert_new_seed(const FT x, const FT y,
                               const Seed_status s = IN_DOMAIN)
   {
+    // int asd = std::rand();
+    // if(asd % 100 != 0)
+    // {
+    //   return seeds.size();
+    // }
   #ifdef FILTER_SEEDS_OUTSIDE_GRID
       if(x < center.x() - sa || x > center.x() + sa ||
          y < center.y() - sb || y > center.y() + sb)
@@ -856,7 +861,6 @@ public:
     std::size_t constraint_seeds_n = seeds.size();
 
     std::ifstream in((str_seeds + ".mesh").c_str());
-
     if(!in)
     {
       std::cout << "couldn't open seed file" << std::endl;
@@ -966,6 +970,7 @@ public:
       return;
     }
 
+    std::cout << "initialize " << id << " with seed: " << seed_id << std::endl;
     cp.initialize_from_point(dist, seed_id);
     trial_points.push_back(cp.index);
     std::push_heap(trial_points.begin(), trial_points.end(),
@@ -1869,7 +1874,7 @@ public:
       vertex_gradients[i].normalize();
 
     std::cout << "draw gradient at seed_id: " << seed_id << std::endl;
-//    draw_gradient(vertex_gradients, seed_id);
+    draw_gradient(vertex_gradients, seed_id);
 
     // trace geodesic
     const boost::unordered_set<std::size_t>& seeds_to_reach = neighbors[seed_id];
@@ -1882,6 +1887,11 @@ public:
       std::size_t seed_to_reach = *it;
 
       if(seed_to_reach < seed_id)
+        continue;
+
+      // filter weird stuff from the map... Should find the origin
+      // of this though... 
+      if(seed_to_reach == static_cast<std::size_t>(-1))
         continue;
 
       // obviously really ugly and expensive
@@ -2138,6 +2148,7 @@ public:
 
 #ifdef COMPUTE_REAL_GEODESICS
       trace_geodesic_with_gradient(seed_id, real_geodesics, neighbors);
+//      exit(0);
 #endif
 
       rollback_points(canvas_point_memory); // reset the points we have overwritten
@@ -3749,8 +3760,10 @@ PQ_state Canvas_point::update_neighbors_distances(std::vector<std::size_t>& tria
   PQ_state pqs_ret = NOTHING_TO_DO;
 
   Star_handle star = bm->ss[index];
+
   Vertex_handle_handle vit = star->finite_adjacent_vertices_begin();
   Vertex_handle_handle vend = star->finite_adjacent_vertices_end();
+
   for(; vit!=vend; ++vit)
   {
     Vertex_handle vh = *vit;
@@ -4043,7 +4056,7 @@ int main(int, char**)
   }
 
   ignore_children = true;
-//  bm.compute_geodesics(str_base_mesh);
+  bm.compute_geodesics(str_base_mesh);
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "duration: " << duration << std::endl;

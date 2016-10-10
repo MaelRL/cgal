@@ -49,22 +49,22 @@ int main(int, char**)
   Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
 //  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(2.,2.,2.);
 
-//  CGAL::generate_canvas<K, MF>(metric_field);
+//  CGAL::generate_canvas<K, Custom_metric_field<K> >(metric_field);
 //  exit(0);
 
   // select the canvas
-  const std::string canvas_str = "input_base_mesh";
+  const std::string canvas_str = "cube_1D_shock_c3t3_input";
 
   // select the input seeds
-  std::size_t max_seeds_n = 2005;
-  const std::string seeds_str = "ref_2005_primal.mesh";
+  std::size_t max_seeds_n = 5;
+  const std::string seeds_str = "cube_1D_shock.mesh";
 
   Canvas canvas(canvas_str, seeds_str, max_seeds_n, metric_field);
   canvas.initialize();
   canvas.paint();
 
   // Refinement
-  std::size_t n_refine = 0;
+  std::size_t n_refine = 10;
   Canvas_mesher mesher(canvas, n_refine);
   mesher.refine();
 

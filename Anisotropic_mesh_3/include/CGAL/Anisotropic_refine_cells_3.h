@@ -104,10 +104,10 @@ public:
   mutable CGAL::Timer timer_pv;
   mutable CGAL::Timer timer_npv;
 
-#define OUTPUT_BOOST_TIMERS
 #ifdef OUTPUT_BOOST_TIMERS
   mutable std::ofstream btimers_out; // n of stars, time of fill ref queue, time of pick valid, time of insert
 #endif
+  mutable FT bchrono_sum;
 
 public:
   bool& is_active() { return Mesher_lvl::is_active(); }
@@ -381,7 +381,7 @@ public:
     */
 
 #ifdef ANISO_OUTPUT_WIP
-    if(this->m_starset.size()%1000 == 0) //should be somewhere else todo
+    if(this->m_starset.size() % 1000 == 0) //should be somewhere else todo
     {
       std::ofstream out_med("bambimboum_wip.mesh");
       output_medit(this->m_starset, out_med, false);
@@ -756,7 +756,10 @@ private:
                       Star_handle to_be_refined,
                       Star_handle& new_star) const
   {
-    return Trunk::is_valid_point_3D(p, sq_radiusbound, to_be_refined, new_star);
+    boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+    bool asd = Trunk::is_valid_point_3D(p, sq_radiusbound, to_be_refined, new_star);
+    bchrono_sum += boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count();
+    return asd;
   }
 
   void pick_valid_output(const Refinement_point_status rp_status)
@@ -837,9 +840,11 @@ private:
 #ifdef OUTPUT_BOOST_TIMERS
         btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
 #else
+        std::cout << "is_valid sum: " << bchrono_sum << std::endl;
+        bchrono_sum = 0;
         std::cout << "duration of pv (success): "
                   << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
-                  << " micro s\n";
+                  << " micro s" << std::endl;
 #endif
         return SUITABLE_POINT;
       }
@@ -861,9 +866,11 @@ private:
 #ifdef OUTPUT_BOOST_TIMERS
         btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
 #else
+        std::cout << "is_valid sum: " << bchrono_sum << std::endl;
+        bchrono_sum = 0;
         std::cout << "duration of pv (failed): "
                   << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
-                  << " micro s\n";
+                  << " micro s" << std::endl;
 #endif
 
         return PICK_VALID_FAILED;
@@ -915,9 +922,11 @@ private:
 #ifdef OUTPUT_BOOST_TIMERS
       btimers_out << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count() << " ";
 #else
+      std::cout << "is_valid sum: " << bchrono_sum << std::endl;
+      bchrono_sum = 0;
       std::cout << "duration of compute_insert_or_snap_point: "
                 << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
-                << " micro s\n";
+                << " micro s" << std::endl;
 #endif
 
       if(Mesher_lvl::is_point_in_conflict(steiner, true /*lower level queue insertion*/,
@@ -968,9 +977,14 @@ public:
     m_leak_counter(0),
     timer_pv(),
     timer_npv(),
-    btimers_out("boost_timers.txt")
-  { 
+    bchrono_sum(0)
+#ifdef OUTPUT_BOOST_TIMERS
+, btimers_out("boost_timers.txt")
+#endif
+  {
+#ifdef OUTPUT_BOOST_TIMERS
     btimers_out.precision(20);
+#endif
   }
 
 private:

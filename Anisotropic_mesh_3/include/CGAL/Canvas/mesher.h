@@ -188,7 +188,7 @@ public:
 
     // todo criteria in a criteria class...
     FT max_distortion = 1.; // <= 1 means unused
-    FT max_size = 1.; // <= 0 means unused
+    FT max_size = 0.01; // <= 0 means unused
     bool intersection_ref = false;
     FT min_qual = 0.; // <= 0 means unsused
 
@@ -310,6 +310,7 @@ public:
   {
 #if (VERBOSITY > 5)
     std::cout << "refine with : " << new_seed << std::endl;
+    std::cout << "now " << canvas.seeds.size()+1 << " seeds" << std::endl;
 #endif
 
     std::size_t old_seed_size =  canvas.seeds.size();

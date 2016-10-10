@@ -30,7 +30,7 @@ public:
 
   virtual Metric compute_metric(const Point_3 &p) const
   {
-    double h = 0.05; // scaling factor
+    double h = 0.02; // scaling factor
 
     FT x = p.x();
     FT y = p.y();

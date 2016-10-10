@@ -739,6 +739,14 @@ void cell_dihedral_angle_histogram(const std::vector<Point_3>& points,
       Metric m = mf->compute_metric(ps[j]);
       FT diha = minimum_dihedral_angle(m, ps[0], ps[1], ps[2], ps[3]);
 
+/*
+      if(diha < 10)
+      {
+        std::cout << "small dihedral angle. Sliverity: ";
+        std::cout << compute_sliverity(m, ps[0], ps[1], ps[2], ps[3]) << std::endl;
+      }
+*/
+
       if(diha < smallest_dihedral_angle)
         smallest_dihedral_angle = diha;
     }
@@ -827,8 +835,8 @@ int main(int, char**)
 
 //  Constrain_surface* pdomain =
 //    new Constrain_surface("bambimboum.mesh");
-//  Constrain_surface* pdomain =
-//    new Constrain_surface("/home/mrouxell/Data/OFF/fertility.off");
+  Constrain_surface* pdomain =
+    new Constrain_surface("/home/mrouxell/Data/OFF/fertility.off");
 
   //----------- pick a metric field! ----
 //  Euclidean_metric_field* metric_field = new Euclidean_metric_field();
@@ -839,9 +847,9 @@ int main(int, char**)
 //  Polyhedral_curvature_metric_field* metric_field = new Polyhedral_curvature_metric_field(*pdomain);
 //  Implicit_curvature_metric_field* metric_field = new Implicit_curvature_metric_field(*pdomain);
 
-  // const char* mesh_filename = "bambimboum_surf.mesh";
+//  const char* mesh_filename = "c2t3_fertility_tr_primal.mesh";
   const char* mesh_filename =
-    "/home/mrouxell/anisomeshes/Thesis_Mael/results/cube_1D_shock.mesh";
+    "/home/mrouxell/anisomeshes/Thesis_Mael/results/ref_1350_primal.mesh";
 //  const char* mesh_filename =
 //    "/home/mrouxell/anisomeshes/research_report/Results/fertility.off";
 

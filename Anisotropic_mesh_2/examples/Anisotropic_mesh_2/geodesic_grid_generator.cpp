@@ -34,8 +34,8 @@ typedef boost::array<std::size_t, 3>                         Tri;
 
 typedef Eigen::Matrix<double, 2, 1>                          Vector2d;
 
-typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
-//typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
+//typedef CGAL::Anisotropic_mesh_2::Euclidean_metric_field<K>* MF;
+typedef CGAL::Anisotropic_mesh_2::Custom_metric_field<K>* MF;
 
 typedef CGAL::Exact_predicates_exact_constructions_kernel    KExact;
 typedef typename KExact::Point_2                             EPoint;
@@ -55,14 +55,14 @@ Back_from_exact back_from_exact;
 const FT FT_inf = std::numeric_limits<FT>::infinity();
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 3;
+std::size_t vertices_nv = 1;
 
 // grid related stuff
 Point_2 center(0.,0.);
-const FT grid_side = 4.0;
+const FT grid_side = 5.0;
 FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
 FT offset_y = center.y() - grid_side/2.;
-FT n = 400.; // number of points per side of the grid
+FT n = 100.; // number of points per side of the grid
 FT step = grid_side / (n-1);
 
 // the metric field and the seeds
@@ -1489,6 +1489,10 @@ int main(int, char**)
 
   for(int i=0; i<n_refine; ++i)
   {
+#ifndef TMP_REFINEMENT_UGLY_HACK
+    std::cerr << "you forgot to enable the macro, birdhead" << std::endl;
+#endif
+
     gg.refine_grid();
     std::ostringstream out;
     out << "geo_grid_ref" << i;

@@ -101,10 +101,10 @@ std::vector<Point_2> seeds;
 std::vector<Metric> seeds_m;
 
 // seeds
-const std::string seeds_str = "ref_3911_dual";
+const std::string seeds_str = "starred_";
 
 // base mesh
-const std::string str_base_mesh = "shock";
+const std::string str_base_mesh = "starred";
 CGAL::Bbox_2 base_mesh_bbox;
 
 // refinement
@@ -140,7 +140,12 @@ public:
     FT base = 1.0;
 
     const Metric& m = mf->compute_metric(p);
-    const FT width = 1./(m.get_max_eigenvalue());
+    const FT width = 1./std::sqrt(m.get_max_eigenvalue());
+
+//    std::cout << "mM: " << m.get_min_eigenvalue() << " " << m.get_max_eigenvalue() << std::endl;
+//    std::cout << "width: " << width << std::endl;
+
+//    return 0.05;
 
     CGAL_assertion(m.get_max_eigenvalue() >= m.get_min_eigenvalue());
 
@@ -990,6 +995,9 @@ struct Base_mesh
       CGAL_assertion(false && "the grid is not dense enough for the input...");
     }
 
+    std::cout << "initialize grid point: " << gp->index << " (" << gp->point << ")" << std::endl;
+    std::cout << "at distance: " << dist << " from " << seed_id << std::endl;
+
     gp->initialize_from_point(dist, seed_id);
     trial_points.push_back(gp);
     std::push_heap(trial_points.begin(), trial_points.end(),
@@ -1763,7 +1771,14 @@ struct Base_mesh
     {
       FT t = points[anc].distance_to_closest_seed * total_length_inv;
       if(t < 0) t = 0.;
-      CGAL_postcondition(t >= 0. && t< 1.);
+
+      if(t >= 1.)
+      {
+        t = 0.999999999;
+        std::cout << "t: " << t << std::endl;
+      }
+
+      CGAL_postcondition(t >= 0. && t < 1.);
 
       geodesic_path.push_front(std::make_pair(anc, t));
 #ifdef EXTRACT_WITH_DEPTH
@@ -4862,10 +4877,17 @@ bool Grid_point::compute_closest_seed(const std::size_t anc_id,
       // interpolate between both metric and transform the normalized edge
       // then we have (transformed_edge).norm() = || e ||_M = sqrt(e^t M e)
       const Eigen::Matrix2d& f = get_interpolated_transformation(m0, m1);
-      Vector2d transformed_curr_edge = f*normalized_anc_edge;
+      Vector2d transformed_anc_edge = f*normalized_anc_edge;
+      FT l = transformed_anc_edge.norm(); // length of the normalized anc edge in the metric
 
+#if 0//def USE_MATHIJS_DISTANCE
+      FT nl = ancestor_edge.transpose() * f * f * curr_edge;
+      CGAL_precondition(l != 0.);
+      dist_to_ancestor += nl / ((f * ancestor_edge).norm());
+#else
       FT sp = curr_edge.dot(normalized_anc_edge);
       dist_to_ancestor += sp * l;
+#endif
     }
     dist_to_ancestor = (std::max)(dist_to_ancestor, 0.);
 
@@ -5216,7 +5238,7 @@ int main(int, char**)
   if(max_opti_n > 0)
   {
     bm.optimize_seeds();
-    bm.output_grid_data_and_dual("bis_optimized_" + str_base_mesh + "_tr");
+    bm.output_grid_data_and_dual("optimized_" + str_base_mesh + "_tr");
   }
 
   ignore_children = true;

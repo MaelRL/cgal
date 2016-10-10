@@ -6,7 +6,7 @@
   // Whether we ignore seeds that fall outside the canvas' bbox
 #define ANISO_GEO_FILTER_SEEDS_OUTSIDE_CANVAS_BBOX
 
-#define VERBOSITY 15 // verbose level, the higher the more info
+#define VERBOSITY 6 // verbose level, the higher the more info
 
   // if one wants to still initialize vertices even if the seed is found to be in
   // an exterior cell (might want to use that when there are seeds on the border
@@ -22,7 +22,7 @@
 
   // Whether we use exact full rebuilds after point insertion or only spread from
   // the new point (which can sometimes create issues)
-//#define USE_FULL_REBUILD
+#define USE_FULL_REBUILD
 
   // Whether all simplices of the primal are collected or only the tetrahedra
 #define COMPUTE_PRIMAL_ALL_DIMENSIONS

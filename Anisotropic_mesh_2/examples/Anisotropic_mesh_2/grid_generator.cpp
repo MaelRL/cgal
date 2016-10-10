@@ -100,7 +100,7 @@ std::vector<std::vector<std::size_t> > first_position; // could be a vector of b
 std::vector<std::vector<std::size_t> > second_position;
 
 // refine
-int n_refine = 25;
+int n_refine = 300;
 #ifdef TMP_REFINEMENT_UGLY_HACK
 // farthest point memory
 FT farthest_x = 1e30, farthest_y = 1e30;
@@ -273,8 +273,8 @@ Vector5d compute_hat(const Point_2& p,
 int insert_new_seed(const FT x, const FT y)
 {
 #ifdef FILTER_SEEDS_OUTSIDE_GRID
-    if(x < offset_x || x > center.x() + grid_side/2. ||
-       y < offset_y || y > center.y() + grid_side/2. )
+    if(x < offset_x || x > center.x() + side_x ||
+       y < offset_y || y > center.y() + side_y )
     {
       std::cout << "filtered : " << x << " " << y << std::endl;
       return seeds.size();
@@ -780,8 +780,8 @@ void adapted_grid(const bool refine,
 
   // idea is to create some kind of quadtree and refine a quad following
   // a criterion based on the value at its vertices
-  FT min_vol = grid_side*grid_side*1e-6;
-  FT max_vol = grid_side*grid_side*1e-3;
+  FT min_vol = min_side*min_side*1e-6;
+  FT max_vol = min_side*min_side*1e-3;
 
   std::list<Quad> quads_to_test;
   std::list<Quad> final_quads; // quads that won't be refined anymore

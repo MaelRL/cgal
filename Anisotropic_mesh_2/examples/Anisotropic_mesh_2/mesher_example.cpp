@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   boost::timer::auto_cpu_timer t;
 
   std::streambuf * old = std::cout.rdbuf();
-  //std::cout.rdbuf(0);
+//  std::cout.rdbuf(0);
 
   Timer timer;
   CGAL::default_random = CGAL::Random(0);
@@ -47,8 +47,8 @@ int main(int argc, char** argv)
   int n = 1;
 
 //geometry
-  FT a = (argc > n) ? atof(argv[n++]) : 5; // half the side
-  FT b = (argc > n) ? atof(argv[n++]) : 5;
+  FT a = (argc > n) ? atof(argv[n++]) : 2.0; // half the side
+  FT b = (argc > n) ? atof(argv[n++]) : 2.0;
   Point_2 center(0., 0.);
 
 //metric field
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 
 //misc
   FT gamma = (argc > n) ? atof(argv[n++]) : 2;
-  FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
+  FT beta = (argc > n) ? atof(argv[n++]) : 3;
   FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
@@ -75,7 +75,7 @@ int main(int argc, char** argv)
   Rectangle_domain<K>* pdomain = new Rectangle_domain<K>(a, b, center);
 
   //----------- pick a metric field! ----
-//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(1., 1.);
+//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(1000., 10.);
   Custom_metric_field<K>* metric_field = new Custom_metric_field<K>(epsilon);
 
   Starset<K> starset;
@@ -83,7 +83,7 @@ int main(int argc, char** argv)
   //----------- pick a mesher! -----------
   Anisotropic_mesher_2<K> mesher(starset, pdomain, criteria, metric_field);
 
-#if 0
+#if 1
   double elapsed_time = mesher.refine_mesh();
 
   std::cout.rdbuf(old);
@@ -91,9 +91,12 @@ int main(int argc, char** argv)
   mesher.report();
 
   std::ofstream out("bambimboum.mesh");
-  output_medit(starset, out, false);
+  output_medit(starset, out, false/*consistent_only*/);
 
-  starset.draw_metric_vector_field();
+//  starset.draw_metric_vector_field();
+//  starset.draw_metric_vector_field_2(metric_field);
+//  starset.output_radius_of_stars();
+
 #else
 // IF YOU WANT TO CONSTRAIN STARS (sweep)
 //  starset.constrain();

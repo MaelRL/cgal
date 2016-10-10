@@ -46,7 +46,8 @@ void test_transformations(const Star_handle star)
 
 void read_points(std::vector<Point_d>& points)
 {
-  std::ifstream in("aniso_regular.mesh");
+  std::ifstream in("../../../../Anisotropic_mesh_2/examples/Anisotropic_mesh_2/build/bambimboum.mesh");
+//  std::ifstream in("aniso_regular.mesh");
   std::string word;
   int useless, nv, dd;
   FT x;
@@ -124,6 +125,12 @@ void fill_refinement_queue(const Starset<Kd, KD>& starset,
     Star_handle star = *si;
     std::cout << "fill @ " << star->index() << std::endl;
 
+// tmp--------
+    if(star->center_point()[0] > 5 || star->center_point()[0] < -5 ||
+       star->center_point()[1] > 5 || star->center_point()[1] < -5)
+      continue;
+// --------------
+
     typename Starset::Full_cell_handle_iterator fchi = star->finite_incident_full_cells_begin();
     typename Starset::Full_cell_handle_iterator fend = star->finite_incident_full_cells_end();
     for(; fchi!=fend; ++fchi)
@@ -200,7 +207,12 @@ bool refine(Starset<Kd, KD>& starset)
 // VERBOSE ---------------------------------------------------------------------
 
     starset.insert_in_stars(ref);
-    if(rfsit->star->has_cell(fch, rfsit->full_cell.vertices()))
+
+    std::ofstream outpp("projected_points.txt");
+    starset[star->index()]->output_full_underlying_rt(outpp, starset.stars());
+
+// VERBOSE ---------------------------------------------------------------------
+    if(star->has_cell(fch, rfsit->full_cell.vertices()))
     {
       std::cout << star->index() << " star has cell unbroken by refinement point ";
       std::cout << fch->vertex(0)->data() << " ";
@@ -228,8 +240,8 @@ int main(int, char **)
 {
   std::freopen("log_aniso_TC.txt", "w", stdout); // redirect std::cout
 
-  //Custom_metric_field<Kd>* mf = new Custom_metric_field<Kd>();
-  Euclidean_metric_field<Kd>* mf = new Euclidean_metric_field<Kd>();
+  Custom_metric_field<Kd>* mf = new Custom_metric_field<Kd>();
+//  Euclidean_metric_field<Kd>* mf = new Euclidean_metric_field<Kd>();
 
   std::vector<Point_d> points;
   read_points(points);
@@ -243,11 +255,19 @@ int main(int, char **)
   }
 
   starset.rebuild();
-  refine(starset);
 
-  std::ofstream out("aniso_TC.off");
-  output_off(starset, out);
-  std::ofstream outm("aniso_TC.mesh");
+  std::ofstream outn("tests_pre_refine.mesh");
+  output_medit(starset, outn);
+
+  std::ofstream outpp("projected_points.txt");
+  starset[100]->output_full_underlying_rt(outpp, starset.stars());
+
+//  refine(starset);
+
+//  std::ofstream con_out("aniso_TC_stars.off");
+//  dump(starset, con_out);
+
+  std::ofstream outm("tests_final.mesh");
   output_medit(starset, outm);
 
   std::cout << std::endl;

@@ -68,7 +68,7 @@ struct Geo_sizing_field
     const FT l_third = 1. / std::sqrt( m.get_third_eigenvalue() );
     const FT min_width = std::min(l_max, l_min);
 
-    const FT discretization = 6.;
+    const FT discretization = 50.;
     const FT metric_based_size = min_width / discretization;
 
     // fixme needs to take into account the curvature of the domain here

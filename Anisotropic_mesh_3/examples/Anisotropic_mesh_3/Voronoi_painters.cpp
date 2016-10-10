@@ -244,7 +244,17 @@ int build_seeds()
   for(std::size_t i=0; i<nv; ++i)
   {
     in >> r_x >> r_y >> r_z >> useless;
-    insert_new_seed(r_x, r_y, r_z);
+//    insert_new_seed(r_x, r_y, r_z);
+
+    // corners
+    insert_new_seed(offset_x,           offset_y,           offset_z);
+    insert_new_seed(offset_x+grid_side, offset_y,           offset_z);
+    insert_new_seed(offset_x,           offset_y+grid_side, offset_z);
+    insert_new_seed(offset_x,           offset_y,           offset_z+grid_side);
+    insert_new_seed(offset_x+grid_side, offset_y+grid_side, offset_z);
+//    insert_new_seed(offset_x,           offset_y+grid_side, offset_z+grid_side);
+//    insert_new_seed(offset_x+grid_side, offset_y,           offset_z+grid_side);
+//    insert_new_seed(offset_x+grid_side, offset_y+grid_side, offset_z+grid_side);
 
     if(seeds.size() >= vertices_nv)
       break;
@@ -1028,8 +1038,8 @@ void output_dual(bool compute_intersections = false)
 // -----------------------------------------------------------------------------
 void initialize()
 {
-  mf = new Euclidean_metric_field<K>();
-//  mf = new Custom_metric_field<K>();
+//  mf = new Euclidean_metric_field<K>();
+  mf = new Custom_metric_field<K>();
 
   traits = new Traits();
   vertices_nv = build_seeds();

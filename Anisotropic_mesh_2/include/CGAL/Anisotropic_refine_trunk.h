@@ -19,6 +19,8 @@
 
 #include <omp.h>
 
+#include <boost/chrono.hpp>
+
 #include <deque>
 #include <set>
 #include <vector>
@@ -406,6 +408,8 @@ protected:
   Kd_tree& m_kd_tree;
 
   Stars_conflict_zones& m_stars_czones;
+
+  mutable FT bchrono_sum;
 
 public:
   //virtual functions used in the visitors
@@ -827,8 +831,14 @@ public:
       std::cout << p << " " << m_stars_czones.conflicting_point() << std::endl;
     }
 
+    // boost::chrono::thread_clock::time_point start = boost::chrono::thread_clock::now();
+
     if(m_stars_czones.status() == Stars_conflict_zones::CONFLICTING_POINT_IS_KNOWN)
       m_stars_czones.conflicting_point_id() = simulate_insert_to_stars(p);
+
+    // std::cout << "----     duration of simulate_insert_to_stars: "
+    //           << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
+    //           << " micro s\n";
 
     typename Stars_conflict_zones::iterator czit = m_stars_czones.begin();
     typename Stars_conflict_zones::iterator czend = m_stars_czones.end();
@@ -1030,7 +1040,7 @@ public:
         // the insertion was done correctly... But we need to check for OLDER points
         // that could become in conflict with the star after the insertion of
         // the new point...
-        insert_from_kd_tree(si);
+//        insert_from_kd_tree(si); // MEGA TMP
       }
     }
     return this_id;
@@ -1074,7 +1084,7 @@ public:
         // the insertion was done correctly... But we need to check for OLDER points
         // that could become in conflict with the star after the insertion of
         // the new point...
-        insert_from_kd_tree(si);
+//        insert_from_kd_tree(si); // MEGA TMP
       }
     }
     return this_id;
@@ -1146,6 +1156,7 @@ private:
     FT xmin = bbox.xmin(), xmax = bbox.xmax();
     FT ymin = bbox.ymin(), ymax = bbox.ymax();
 
+    //the only ones we ideally would use...
     bbox_vertices.push_back(Point_2(xmin, ymin));
     bbox_vertices.push_back(Point_2(xmax, ymin));
     bbox_vertices.push_back(Point_2(xmax, ymax));
@@ -1286,7 +1297,8 @@ public:
     m_metric_field(metric_field_),
     m_aabb_tree(aabb_tree_),
     m_kd_tree(kd_tree_),
-    m_stars_czones(stars_czones_)
+    m_stars_czones(stars_czones_),
+    bchrono_sum(0)
   { }
 
 };  // Anisotropic_refine_trunk

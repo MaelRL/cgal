@@ -1483,7 +1483,7 @@ public:
         // the insertion was done correctly... But we need to check for OLDER points
         // that could become in conflict with the star after the insertion of
         // the new point...
-        insert_from_kd_tree(si);
+//        insert_from_kd_tree(si); // MEGA TMP
       }
     }
 
@@ -1567,7 +1567,7 @@ public:
         // the insertion was done correctly... But we need to check for OLDER points
         // that could become in conflict with the star after the insertion of
         // the new point...
-        insert_from_kd_tree(si);
+//        insert_from_kd_tree(si); // MEGA TMP
       }
     }
     return this_id;

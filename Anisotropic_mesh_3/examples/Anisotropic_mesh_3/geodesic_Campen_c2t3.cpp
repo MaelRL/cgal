@@ -139,16 +139,16 @@ int main(int, char**)
   CGAL::generate_canvas<C3t3, MF, Mesh_domain>(c3t3, metric_field);
 
   // select the input seeds
-  std::size_t max_seeds_n = 1020;
-//  const std::string seeds_str = "input_c2t3_" + domain_str + ".mesh";
-  const std::string seeds_str = "c2t3_fertility_tr_primal.mesh";
+  std::size_t max_seeds_n = 5;
+  const std::string seeds_str = "input_c2t3.mesh";
+//  const std::string seeds_str = "c2t3_fertility_tr_primal.mesh";
 
   Canvas canvas(c3t3, canvas_str, seeds_str, max_seeds_n, metric_field);
   canvas.initialize();
   canvas.paint();
 
   // Refinement (meshing criteria are in mesher.h atm)
-  std::size_t n_refine = 5000;
+  std::size_t n_refine = 200;
   Canvas_mesher mesher(canvas, n_refine);
   mesher.refine();
 
@@ -164,6 +164,4 @@ int main(int, char**)
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cerr << "duration: " << duration << std::endl;
-
-  delete pdomain;
 }

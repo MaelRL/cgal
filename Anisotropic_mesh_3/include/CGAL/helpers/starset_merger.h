@@ -6,6 +6,10 @@
 #include <CGAL/Starset.h>
 #include <CGAL/IO/Star_set_IO.h>
 
+#include <CGAL/aabb_tree/aabb_tree_bbox.h>
+#include <CGAL/aabb_tree/aabb_tree_bbox_primitive.h>
+#include <CGAL/kd_tree/Kd_tree_for_star_set.h>
+
 #include <boost/bimap/bimap.hpp>
 
 #include <cstddef>
@@ -164,6 +168,8 @@ void merge_8_small_cubes(Starset& ss)
   // points that have not been included in the starset have id -1 in the
   // correspondence map.
   std::cout << stars_to_fully_build_count << " stars to fully build" << std::endl;
+
+  // build a kd tree of the starset to help...
 
   for(std::size_t i=0; i<8; ++i)
   {

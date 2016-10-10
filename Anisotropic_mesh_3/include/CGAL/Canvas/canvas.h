@@ -220,10 +220,13 @@ public:
     for(std::size_t i=0, cps=canvas_points.size(); i<cps; ++i)
       canvas_bbox += canvas_points[i].point().bbox();
 
-    std::cout << "final bbox: x "
-              << canvas_bbox.xmin() << " " << canvas_bbox.xmax() << " y "
-              << canvas_bbox.ymin() << " " << canvas_bbox.ymax() << " z "
-              << canvas_bbox.zmin() << " " << canvas_bbox.zmax() << std::endl;
+    // std::cout << "WARNING: hardcoding bbox" << std::endl;
+    // canvas_bbox = CGAL::Bbox_3(0.,0.,0.,3.,3.,3.);
+
+    std::cout << "final bbox: "
+              << "x " << canvas_bbox.xmin() << " " << canvas_bbox.xmax() << '\n'
+              << "y " << canvas_bbox.ymin() << " " << canvas_bbox.ymax() << '\n'
+              << "z " << canvas_bbox.zmin() << " " << canvas_bbox.zmax() << std::endl;
   }
 
   void locate_seeds_on_canvas()

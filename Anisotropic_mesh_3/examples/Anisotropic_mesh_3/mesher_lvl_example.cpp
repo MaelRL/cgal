@@ -54,18 +54,18 @@ int main(int argc, char** argv)
   int n = 1;
 
 //misc
-  FT gamma = (argc > n) ? atof(argv[n++]) : 1.2;
+  FT gamma = (argc > n) ? atof(argv[n++]) : 1e10;
   FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;
   int nb = (argc > n) ? atoi(argv[n++]) : 20;
   FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
 
 //metric field
-  FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
+  FT epsilon = (argc > n) ? atof(argv[n++]) : 0;
   FT en_factor = (argc > n) ? atof(argv[n++]) : 0.999;
 
 //facet criteria
-  FT approx = (argc > n) ? atof(argv[n++]) : 1e10;
+  FT approx = (argc > n) ? atof(argv[n++]) : 0.001;
   FT f_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
   FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
 
@@ -75,7 +75,7 @@ int main(int argc, char** argv)
   FT sliverity = (argc > n) ? atof(argv[n++]) : 0.3;
 
 //geometry
-  FT a = (argc > n) ? atof(argv[n++]) : 1.;
+  FT a = (argc > n) ? atof(argv[n++]) : 10.;
   FT b = (argc > n) ? atof(argv[n++]) : 1.;
   FT c = (argc > n) ? atof(argv[n++]) : 1.;
 
@@ -87,27 +87,27 @@ int main(int argc, char** argv)
   timer.start();
 
   //----------- pick a domain! ----------
-//  Constrain_surface_3_ellipse<K>* pdomain =
-//      new Constrain_surface_3_ellipse<K>(a, b, c);
+  Constrain_surface_3_ellipse<K>* pdomain =
+      new Constrain_surface_3_ellipse<K>(a, b, c);
 //  Constrain_surface_3_free_cube<K>* pdomain =
-//      new Constrain_surface_3_free_cube<K>(0., 0., 0., 3., 3., 3.);
-  Constrain_surface_3_polyhedral<K>* pdomain =
-      new Constrain_surface_3_polyhedral<K>("/home/mrouxell/Data/OFF/fandisk.off");
+//      new Constrain_surface_3_free_cube<K>(0., 0., 0., 1., 1., 1.);
+//  Constrain_surface_3_polyhedral<K>* pdomain =
+//      new Constrain_surface_3_polyhedral<K>("/home/mrouxell/Data/OFF/filled_oni.off");
 
   //----------- pick a metric field! ----
-  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
-//  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(10.,10.,10.);
+//  Custom_metric_field<K>* metric_field = new Custom_metric_field<K>();
+  Euclidean_metric_field<K>* metric_field = new Euclidean_metric_field<K>(1.,1.,1.);
 //  External_metric_field<K>* metric_field = new External_metric_field<K>(*pdomain, "../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/global_smooth/modified_fandisk_metric.txt");
-//  Implicit_curvature_metric_field<K>* metric_field = new Implicit_curvature_metric_field<K>(*pdomain);
+//  Implicit_curvature_metric_field<K>* metric_field = new Implicit_curvature_metric_field<K>(*pdomain, epsilon, en_factor);
 //  Hyperbolic_shock_metric_field<K>* metric_field = new Hyperbolic_shock_metric_field<K>(0.6);
 //  Polyhedral_curvature_metric_field<K>* metric_field = new Polyhedral_curvature_metric_field<K>(*pdomain);
 
   Starset<K> starset;
 
   //----------- pick a mesher! -----------
-//  Anisotropic_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+  Anisotropic_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
 //  Anisotropic_surface_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
-  Anisotropic_tet_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
+//  Anisotropic_tet_mesher_3<K> mesher(starset, pdomain, criteria, metric_field);
 
   //----------- Resuming? ---------------
 //  mesher.resume_from_mesh_file("../../data/Anisotropy_CMP/Ours_Results/Fandisk_Ours/our_metric/fandisk_7270_feature.mesh");
@@ -121,10 +121,10 @@ int main(int argc, char** argv)
   std::cout << "elapsed time: " << elapsed_time << std::endl;
 //  mesher.report();
 
-  std::ofstream out("test.mesh");
+  std::ofstream out("bambimboum.mesh");
   output_medit(starset, out, false);
-//  std::ofstream out_facet("bambimboum_surf.mesh");
-//  output_surface_medit(starset, out_facet);
+  std::ofstream out_facet("bambimboum_surf.mesh");
+  output_surface_medit(starset, out_facet);
 
   delete metric_field;
   delete pdomain;
