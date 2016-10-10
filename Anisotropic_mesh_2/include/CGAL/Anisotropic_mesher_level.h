@@ -109,7 +109,7 @@ public:
 
     derived().clear_conflict_zones();
 
-    if(pid%10 == 0)
+    if(pid % 75 == 0)
       derived().clean_stars();
 
 #if 0//def ANISO_DEBUG_QUEUE

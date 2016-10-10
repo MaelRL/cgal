@@ -195,6 +195,7 @@ public:
     //std::cout << "cell to be refined has distortion: " << this->m_starset.compute_distortion(c) << std::endl;
     //is_consistent(this->m_stars, c, false/*verbose*/, bad_cell->star->index_in_star_set());
 
+#ifdef SKIP_PICK_VALID_DISTORTION
     if(!this->m_criteria->max_times_to_try_in_picking_region || //dodge Pick_valid if the number of tries is set to 0
        (need_picking_valid &&
         this->m_starset.compute_distortion(c) > this->m_criteria->distortion)) //Pick_valid trick #1
@@ -202,6 +203,7 @@ public:
       m_pick_valid_skipped++;
       need_picking_valid = false;
     }
+#endif
 
 #ifdef OUTPUT_BOOST_TIMERS
     btimers_out << this->number_of_stars() << " ";
@@ -220,7 +222,7 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (successful) refinement of another element
     // will also solve the problem for the rejected element.
-#ifdef ANISO_REJECT_FAILED_PV
+#ifdef REJECT_FAILED_ELEMENTS
     if(rp_status == PICK_VALID_FAILED &&
        bad_cell->value != m_refine_queue.queue_min_value(bad_cell->queue_type) && //nothing to push if already last
        !bad_cell->prev_rejection) // if cell has not already been rejected
@@ -264,7 +266,7 @@ public:
 
     std::cout << "duration of get_next_ref: "
               << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
-              << " micro s\n";
+              << " micro s" << std::endl;
 
     return SUITABLE_POINT;
   }
@@ -393,7 +395,7 @@ public:
 #else
     std::cout << "duration of insert: "
               << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
-              << " micro s\n";
+              << " micro s" << std::endl;
 #endif
 
     return true;
@@ -504,10 +506,8 @@ private:
   void test_cell(Star_handle star, Cell_handle c,
                  bool force_push = false, bool check_if_in = false)
   {
-    //note : distortion is now used only to speed-up pick_valid
     // over distortion 1
-
-#ifndef ANISO_NO_DISTORTION_REFINEMENT
+#ifdef ANISO_USE_DISTORTION_QUEUE
     if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
        this->m_criteria->distortion > 0.)
     {
@@ -739,7 +739,7 @@ public:
 #else
     std::cout << "duration of fill ref queue: "
               << boost::chrono::duration_cast<boost::chrono::microseconds>(boost::chrono::thread_clock::now() - start).count()
-              << " micro s\n";
+              << " micro s" << std::endl;
 #endif
   }
 

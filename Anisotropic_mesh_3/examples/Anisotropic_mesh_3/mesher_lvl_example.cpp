@@ -1,6 +1,15 @@
 // #define ANISO_NO_CONSISTENCY
 #define ANISO_OUTPUT_WIP
-//#define NAIVE_CELL_QUEUES
+#define NAIVE_CELL_QUEUES
+#define ANISO_VERBOSE
+// #define ANISO_DEBUG_REFINEMENT_PP
+// #define OUTPUT_BOOST_TIMERS
+// #define REJECT_FAILED_ELEMENTS
+// #define ANISO_USE_ENCROACH_SKIP
+
+// only one of the two
+#define ANISO_USE_DISTORTION_QUEUE
+#define SKIP_PICK_VALID_DISTORTION
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Starset.h>

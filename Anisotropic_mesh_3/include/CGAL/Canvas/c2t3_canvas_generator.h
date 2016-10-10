@@ -108,27 +108,30 @@ void generate_canvas(C3t3& c3t3,
             << c3t3.number_of_vertices_in_complex() << std::endl;
 
   // Output
-  std::ofstream medit_file("input_c2t3_fertility.mesh");
+  std::ofstream medit_file("input_c2t3.mesh");
   output_to_medit_all_cells<C3t3, true/*rebind*/, false/*no patch*/>(medit_file, c3t3);
 }
 
 template<typename C3t3, typename MF, typename MD>
 void generate_canvas(C3t3& c3t3, const MF* metric_field)
 {
-//  MD const * const domain = sphere_domain<MD>();
+#ifdef IMPLICIT_DOMAIN
+  MD const * const domain = sphere_domain<MD>();
 //  MD const * const domain = cube_domain_with_features<MD>();
 //  MD const * const domain = chair_domain<MD>();
-
+#else
   // Polyhedral
     // bit ugly, would be nicer to use the constrain_surface_3_poly_domain
     // but it uses enriched polyhedron items...
   typedef typename MD::Polyhedron_type Polyhedron;
-  std::ifstream input("/home/mrouxell/Data/OFF/fertility.off");
+  std::ifstream input("/home/mrouxell/Data/OFF/fandisk.off");
   if(!input)
     std::cout << "\nWarning : file does not exist" << std::endl;
   Polyhedron poly;
   input >> poly;
-  MD const * const domain = new MD(poly);
+  MD * const domain = new MD(poly);
+  domain->detect_features();
+#endif
 
   generate_canvas<C3t3, MF, MD>(c3t3, metric_field, *domain);
   delete domain;

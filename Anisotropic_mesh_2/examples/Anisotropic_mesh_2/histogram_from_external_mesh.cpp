@@ -95,8 +95,8 @@ void fetch_from_mesh(std::ifstream& in,
         in >> n1 >> n2 >> n3 >> useless;
 
 #if 1 // artificial filter
-        FT min_dist = -1.0, max_dist = 1e30;
-        Point_2 p(0,0,0);
+        FT min_dist = -0.1, max_dist = 1e30;
+        Point_2 p(0,0);
         if(CGAL::squared_distance(points[n1-1], p) > max_dist ||
            CGAL::squared_distance(points[n1-1], p) < min_dist ||
            CGAL::squared_distance(points[n2-1], p) > max_dist ||

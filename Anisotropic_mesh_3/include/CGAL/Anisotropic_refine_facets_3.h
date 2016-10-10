@@ -185,6 +185,7 @@ public:
       std::cout << "trying to refine a degenerate (in the metric) facet" << std::endl;
 #endif
 
+#ifdef SKIP_PICK_VALID_DISTORTION
     if(!this->m_criteria->max_times_to_try_in_picking_region || //skip pick_valid if the number of tries is set to 0
        (need_picking_valid &&
         this->m_starset.compute_distortion(f) > this->m_criteria->distortion)) //pick_valid trick #1: skip pick_valid if the distortion is too high
@@ -192,6 +193,7 @@ public:
       m_pick_valid_skipped++;
       need_picking_valid = false;
     }
+#endif
 
     // note: failure in pick_valid AND a conflicting circumcenter gives POINT_IN_CONFLICT status (trick#2 is not applied)
     Refinement_point_status rp_status = compute_steiner_point(bad_facet->star, f,
@@ -206,7 +208,8 @@ public:
     // pick_valid trick #2: If an element fails a pick_valid test, put it at the end
     // of the (same) queue in hope that the (successful) refinement of another element
     // will also solve the problem for the rejected element.
-    if(0 && rp_status == PICK_VALID_FAILED &&
+#ifdef REJECT_FAILED_ELEMENTS
+    if(rp_status == PICK_VALID_FAILED &&
        bad_facet->value != m_refine_queue.queue_min_value(bad_facet->queue_type) && //nothing to do if already last
        !bad_facet->prev_rejection) // only allow one rejection
     {
@@ -217,6 +220,7 @@ public:
       timer_npv.stop();
       return get_refinement_point_for_next_element_(steiner_point);
     }
+#endif
 
     //We already know the conflict zones if it's a suitable point from pick_valid, but we need
     //to compute them for the other cases (won't cost anything if it's already known).
@@ -491,9 +495,8 @@ private:
     }
 */
 
-    // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
-/*
+#ifdef ANISO_USE_DISTORTION_QUEUE
     if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&
        this->m_criteria->distortion > 0.)
     {
@@ -512,7 +515,7 @@ private:
         return;
       }
     }
-*/
+#endif
 
     // size : 2
     if(is_criterion_tested(m_refine_queue.over_circumradius_queue) &&
@@ -1152,7 +1155,11 @@ private:
 
       // Pick_valid trick#3: check conflict (encroachment...) at lower levels
       //before testing the validity of the point.
-      if(Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/) ||
+      if(
+#ifdef ANISO_USE_ENCROACH_SKIP
+         (Mesher_lvl::is_point_in_conflict(p, false/*no insertion in lower level queue*/)
+         ) ||
+#endif
          (++m_pick_valid_points_tried &&
          !is_valid_point(p, sq_radiusbound, star, newstar)))
       {

@@ -86,11 +86,13 @@ public:
   typedef boost::unordered_map<Facet, Vector3d>           Facet_normal_map;
   typedef boost::unordered_map<std::pair<std::size_t, std::size_t>, Vector3d>
                                                           Edge_normal_map;
+  typedef boost::unordered_map<Vertex_handle, Vector3d>   Vertex_normal_map;
 
   C3t3& m_c3t3;
   Angle_map m_angles;
   Facet_normal_map m_facet_normals;
   Edge_normal_map m_edge_normals;
+  Vertex_normal_map m_vertex_normals;
 
   std::size_t compute_precise_Voronoi_vertex_on_edge(const std::size_t p,
                                                      const std::size_t q,
@@ -237,6 +239,27 @@ public:
     }
   }
 
+  void add_to_vertex_normals_map(Vertex_handle v1,
+                                 const Vector3d& normal)
+  {
+    std::pair<typename Vertex_normal_map::iterator, bool> is_insert_successful =
+                m_vertex_normals.insert(std::make_pair(v1, normal));
+    if(!is_insert_successful.second) // already exists in the map
+    {
+      typename Vertex_normal_map::iterator it = is_insert_successful.first;
+      Vector3d& n = it->second;
+      n += normal;
+    }
+  }
+
+  void normalize_vertex_normals()
+  {
+    typename Vertex_normal_map::iterator it = m_vertex_normals.begin();
+    typename Vertex_normal_map::iterator end = m_vertex_normals.end();
+    for(; it!=end; ++it)
+      it->second.normalize();
+  }
+
   void add_to_edge_normals_map(Vertex_handle v1, Vertex_handle v2,
                                const Vector3d& normal)
   {
@@ -316,7 +339,14 @@ public:
       add_to_edge_normals_map(va, vb, normal);
       add_to_edge_normals_map(va, vc, normal);
       add_to_edge_normals_map(vb, vc, normal);
+
+      // add this facet normal to the vertices
+      add_to_vertex_normals_map(va, normal);
+      add_to_vertex_normals_map(vb, normal);
+      add_to_vertex_normals_map(vc, normal);
     }
+
+    normalize_vertex_normals();
   }
 
 /*
@@ -773,7 +803,8 @@ public:
       m_c3t3(c3t3),
       m_angles(),
       m_facet_normals(),
-      m_edge_normals()
+      m_edge_normals(),
+      m_vertex_normals()
   { }
 };
 

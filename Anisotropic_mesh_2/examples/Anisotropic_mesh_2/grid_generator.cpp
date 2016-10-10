@@ -57,24 +57,26 @@ Back_from_exact back_from_exact;
 //#define WITNESS_DUAL
 
 #define FILTER_SEEDS_OUTSIDE_GRID
-//#define R2 // tangent plane mode
+// #define R2 // tangent plane mode
 
-//#define TMP_REFINEMENT_UGLY_HACK
+#define TMP_REFINEMENT_UGLY_HACK // keep the farthest point in memory
 
 // -----------------------------------------------------------------------------
 
 // using a lot of global variables, it's ugly but passing them by function is tedious
-std::size_t vertices_nv = 100;
+std::size_t vertices_nv = 5;
+std::string str_seed = "optimized_shock_starset_39_dual.mesh";
 
-Point_2 center(0.,0.);
+Point_2 center(0., 0.);
+const FT side_x = 0.5; // half the side
+const FT side_y = 0.3;
+const FT min_side = (std::min)(side_x, side_y);
 #ifdef R2
-const FT grid_side = 100;
-FT offset_x = -grid_side/2.; // offset is the bottom left point
-FT offset_y = -grid_side/2.; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
+FT offset_x = - side_x; // offset is the bottom left point
+FT offset_y = - side_y; // todo normalize this with aniso_mesh_2's rectangle whose offset is the center of the rectangle...
 #else
-const FT grid_side = 4.0; // length of a side
-FT offset_x = center.x() - grid_side/2.; // offset is the bottom left point
-FT offset_y = center.y() - grid_side/2.;
+FT offset_x = center.x() - side_x; // offset is the bottom left point
+FT offset_y = center.y() - side_y;
 #endif
 std::size_t max_grid_size = 1e6;
 
@@ -462,7 +464,7 @@ std::size_t value_at_point(const Point_2& p, std::size_t p_id)
 void full_grid()
 {
   double n = 300.; // number of points per side
-  double a = grid_side; // length of the side
+  double a = min_side; // length of the side
   double step = a/n;
   double sq_n = n*n;
   double tri_n = 2*(n-1)*(n-1);
@@ -713,13 +715,13 @@ void output_smart_grid(const std::list<Quad>& final_quads,
   std::size_t values_n = values.size();
   std::cout << "check: " << points.size() << " " << values.size() << " vertices" << std::endl;
 
-  std::ofstream out("smart_grid_LS.mesh");
+  std::ofstream out("smart_grid_DW.mesh");
   out << "MeshVersionFormatted 1" << '\n';
   out << "Dimension 2" << '\n';
   out << "Vertices" << '\n';
   out << values_n << '\n';
 
-  std::ofstream out_bb("smart_grid_LS.bb");
+  std::ofstream out_bb("smart_grid_DW.bb");
   out_bb << "2 1 " << values_n << " 2" << '\n';
 
   int counter = 0;
@@ -737,8 +739,26 @@ void output_smart_grid(const std::list<Quad>& final_quads,
   for(; it!=iend; ++it)
   {
     const Quad& q = *it;
-    out << q.i0+1 << " " << q.i2+1 << " " << q.i3+1 << " 1" << '\n';
-    out << q.i0+1 << " " << q.i1+1 << " " << q.i2+1 << " 2" << '\n';
+
+    std::size_t v0 = values[q.i0];
+    std::size_t v1 = values[q.i1];
+    std::size_t v2 = values[q.i2];
+    std::size_t v3 = values[q.i3];
+
+    std::size_t ctr1, ctr2;
+
+    if(v0 == v2 && v2 == v3)
+      ctr1 = (std::max)(v0 + 1, static_cast<std::size_t>(34));
+    else
+      ctr1 = 0;
+
+    if(v0 == v1 && v1 == v2)
+      ctr2 = (std::max)(v0 + 1, static_cast<std::size_t>(34));
+    else
+      ctr2 = 0;
+
+    out << q.i0+1 << " " << q.i2+1 << " " << q.i3+1 << " " << ctr1 << '\n';
+    out << q.i0+1 << " " << q.i1+1 << " " << q.i2+1 << " " << ctr2 << '\n';
   }
   out << "End" << '\n';
 }
@@ -769,9 +789,8 @@ void adapted_grid(const bool refine,
   std::vector<std::size_t> values;
 
   // create the initial quad
-  FT l = grid_side / 2.;
-  FT x0 = center.x() - l, x1 = center.x() + l;
-  FT y0 = center.y() - l, y1 = center.y() + l;
+  FT x0 = center.x() - side_x, x1 = center.x() + side_x;
+  FT y0 = center.y() - side_y, y1 = center.y() + side_y;
 
   Point_2 p0(x1,y1), p1(x0,y1), p2(x0,y0), p3(x1,y0);
   points.push_back(p0);
@@ -860,7 +879,7 @@ void output_simplices()
 {
   std::cout << "captured: " << simplices.size() << " simplices" << std::endl;
 
-  std::ofstream outd("grid_dual_LS.mesh");
+  std::ofstream outd("grid_dual_DW.mesh");
   outd << "MeshVersionFormatted 1" << '\n';
   outd << "Dimension 2" << '\n';
   outd << "Vertices" << '\n';

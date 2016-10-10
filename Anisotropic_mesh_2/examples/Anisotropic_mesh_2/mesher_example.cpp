@@ -1,10 +1,14 @@
 // #define NO_USE_AABB_TREE_OF_BBOXES
 // #define LIFT_AABB_TREE
-#define ANISO_OUTPUT_WIP
-// #define SKIP_PICK_VALID_DISTORTION
+// #define ANISO_OUTPUT_WIP
 // #define REJECT_FAILED_ELEMENTS
-// #define ANISO_NO_CONSISTENCY
 // #define ANISO_USE_CUSTOM_CONSISTENCY
+// #define ANISO_USE_ENCROACH_SKIP
+// #define ANISO_NO_CONSISTENCY
+
+// should use at most one (if using QUEUE, using SKIP is pointless)
+// #define ANISO_USE_DISTORTION_QUEUE
+#define SKIP_PICK_VALID_DISTORTION
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Starset.h>
@@ -51,11 +55,11 @@ int main(int argc, char** argv)
   FT epsilon = (argc > n) ? atof(argv[n++]) : 1e-6;
 
 //face criteria
-  FT f_r0 = (argc > n) ? atof(argv[n++]) : 0.1;
+  FT f_r0 = (argc > n) ? atof(argv[n++]) : 1.0;
   FT f_rho0 = (argc > n) ? atof(argv[n++]) : 3.0;
 
 //misc
-  FT gamma = (argc > n) ? atof(argv[n++]) : 1.5;
+  FT gamma = (argc > n) ? atof(argv[n++]) : 2;
   FT beta = (argc > n) ? atof(argv[n++]) : 2.5;
   FT delta = (argc > n) ? atof(argv[n++]) : 0.3;
   int max_times_to_try = (argc > n) ? atoi(argv[n++]) : 60;

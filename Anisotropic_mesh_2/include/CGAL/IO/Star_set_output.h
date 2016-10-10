@@ -115,10 +115,12 @@ void dump(const Starset& stars,
   for(std::size_t i=0; i<ns; ++i)
   {
     typename Starset::Star_handle star_i = stars[i];
+    star_i->clean();
+    star_i->invalidate_cache();
     typename Starset::Vertex_handle_handle vit = star_i->finite_adjacent_vertices_begin();
     typename Starset::Vertex_handle_handle vend = star_i->finite_adjacent_vertices_end();
     fx << vend - vit;
-    for(; vit != vend; vit++)
+    for(; vit != vend; ++vit)
       fx << " " << (*vit)->info();
     fx << '\n';
   }

@@ -1602,16 +1602,17 @@ public:
 
     std::pair<std::size_t, std::size_t> geo_id = std::make_pair(seed_id,
                                                                 seed_to_reach);
-    FT tau = 0.0001; // gradient step
+    FT tau = 0.001; // gradient step
+    FT min_dist_to_seed = 3. * tau;
 
-//    FT dist_at_seed_to_reach = points[starting_id].distance_to_seed;
+    FT dist_at_seed_to_reach = points[starting_id].distance_to_closest_seed;
 
     bool is_seed_reached = false;
     std::size_t iterations = 0.;
-    Point_2 current_point = points[starting_id].point;
+    Point_2 current_point = seeds[seed_to_reach];
 
     std::deque<Point_2> geodesic;
-    geodesic.push_front(current_point);
+    geodesic.push_front(seeds[seed_to_reach]);
 
     Eigen::Vector2d grad_at_current_point = Eigen::Vector2d::Zero();
 
@@ -1727,25 +1728,44 @@ public:
 //      std::cout << "d: " << d << std::endl;
 
       // following doesn't solve cycles
-      if(d < 1e-5) // hardcode fixme
+      if(d < min_dist_to_seed * min_dist_to_seed)
         break;
 
       iterations++;
-      if(iterations > 1e5)
+      if(iterations > 1e3)
       {
         std::cout << "time to debug stuff -----------------------------" << std::endl;
         break;
       }
     }
 
+    //cosmetic stuff
     geodesic.push_front(seeds[seed_id]); // to have a nice connection
+
+    typename std::deque<Point_2>::iterator it;
+    bool done = false;
+    while(false && !done && geodesic.size() >= 3)
+    {
+      it = geodesic.end();
+      --it; --it; // get second to last
+      if(CGAL::squared_distance(geodesic.back(), *it) < min_dist_to_seed*min_dist_to_seed)
+        geodesic.erase(it);
+      else
+        done = true;
+    }
 
     std::cout << "traced (gradient) geodesic: " << geo_id.first << " "
                                                 << geo_id.second << std::endl;
+
+    std::cout << seeds[geo_id.first] << " -- " << seeds[geo_id.second] << std::endl;
+    std::cout << geodesic.front() << " -- " << geodesic.back() << std::endl;
+
+
     real_geodesics[geo_id] = geodesic;
   }
 
-  void compute_gradient_at_face(Face_handle fh,
+  void compute_gradient_at_face(Star_handle star,
+                                Face_handle fh,
                                 std::vector<Eigen::Vector2d>& vertex_gradients)
   {
     // compute the grad on facet f = (c,sec) and update each vertex with
@@ -1794,22 +1814,24 @@ public:
       grad(1) += val * cp(1);
     }
     grad *= 0.5 / A;
+    grad = star->metric().get_inverse_mat() * grad;
 
     // center of the triangle
     FT third = 1. / 3.;
     Point_2 bg = CGAL::barycenter(face_points[0], third,
                                   face_points[1], third,
                                   face_points[2], third);
+    Point_2 tbg = star->metric().transform(bg);
 
     // add it to the vertex grad parts at each vertex
     typename K::Compute_squared_distance_2 sqd;
     for(std::size_t i=0; i<3; ++i)
     {
-      FT d = sqd(bg, face_points[i]);
+      FT d = sqd(tbg, fh->vertex(i)->point());
       CGAL_assertion(d != 0.);
 
       std::size_t id = face_ids[i];
-      vertex_gradients[id] += grad / A;
+      vertex_gradients[id] += grad / d;
     }
   }
 
@@ -1838,7 +1860,7 @@ public:
         if(is_face_outside_domain(star, fh))
           continue;
 
-        compute_gradient_at_face(fh, vertex_gradients);
+        compute_gradient_at_face(star, fh, vertex_gradients);
       }
     }
 
@@ -1910,8 +1932,13 @@ public:
       return;
     }
 
-    std::vector<bool> is_used(points.size(), false);
 #define GEO_FILTER_UNUSED_POINTS
+#ifdef GEO_FILTER_UNUSED_POINTS
+    std::vector<bool> is_used(points.size(), false);
+#else
+    std::vector<bool> is_used(points.size(), true);
+#endif
+
 #ifdef GEO_FILTER_UNUSED_POINTS
     for(std::size_t i=0; i<geodesics.size(); ++i)
     {
@@ -1926,6 +1953,7 @@ public:
         is_used[pp1.first] = true;
       }
     }
+#endif
 
     std::vector<std::size_t> renumbering(points.size(), -1);
     std::size_t n=0;
@@ -1934,7 +1962,6 @@ public:
       if(is_used[i])
         renumbering[i] = n++;
     }
-#endif
 
     std::ofstream out((str_base + "_geodesics.mesh").c_str());
 
@@ -1964,7 +1991,7 @@ public:
 
         // +1 due to medit
         out << renumbering[p.first] + 1 << " "
-            << renumbering[pp1.first] + 1 << " " << i << std::endl;
+            << renumbering[pp1.first] + 1 << " " << "1" << std::endl;
       }
     }
 
@@ -2051,7 +2078,8 @@ public:
         if(i > 0)
         {
           std::size_t prev = vertex_numbering_map[geo[i-1]];
-          out_t << prev << " " << n << " " << prev << " " << "1" << '\n';
+          std::size_t next = (is_insert_successful.first)->second;
+          out_t << prev << " " << next << " " << prev << " " << "1" << '\n';
           nt++;
         }
       }
@@ -3944,15 +3972,23 @@ int main(int, char**)
 //  std::freopen("log.txt", "w", stdout);
   double duration;
   start = std::clock();
-  std::srand(0);
+  std::srand(std::time(0));
 
-//  mf = new Euclidean_metric_field<K>(0.5, 2.5);
+//  mf = new Euclidean_metric_field<K>(2.0, 1.0);
   mf = new Custom_metric_field<K>();
 //  mf = new External_metric_field<K>("freefem.mesh", "freefem.sol");
 
+//  mesh_to_dump("bambimboum_wip.mesh");
+//  exit(0);
+
   Star_set starset;
-//  generate_starset(starset);
+#if 1
+//  read_dump(starset, "shock_zoom_starset.dump");
   read_dump(starset);
+#else
+  generate_starset(starset);
+  read_dump(starset);
+#endif
 
   duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
   std::cout << "Generated starset: " << duration << std::endl;

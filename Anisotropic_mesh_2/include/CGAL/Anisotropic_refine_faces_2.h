@@ -394,7 +394,7 @@ private:
     std::cout << " @ star: " << star->index_in_star_set() << std::endl;
 #endif
 
-#ifdef ANISO_USE_CONSISTENCY_QUEUE
+#ifdef ANISO_USE_DISTORTION_QUEUE
     // note : distortion is now used only to speed-up pick_valid (see pick_valid trick#1)
     // over distortion : 1
     if(is_criterion_tested(m_refine_queue.over_distortion_queue) &&

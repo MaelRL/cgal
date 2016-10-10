@@ -22,8 +22,10 @@ find_package(CGAL COMPONENTS ImageIO)
 
 if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
-  find_package(Boost)
-
+  find_package(Boost COMPONENTS timer)
+  include_directories(${Boost_INCLUDE_DIRS})
+  link_libraries(${Boost_LIBRARIES})
+  
   # Activate concurrency ? (turned OFF by default)
   option(ACTIVATE_CONCURRENT_MESH_3
     "Activate parallelism in Mesh_3"
