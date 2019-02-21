@@ -71,7 +71,7 @@ template<typename MotorcycleGraphTraits>
 class Motorcycle
 {
   typedef Motorcycle<MotorcycleGraphTraits>                                 Self;
-  typedef Motorcycle_graph<MotorcycleGraphTraits, Self>                     Motorcycle_graph;
+  typedef CGAL::Polyline_tracing::Motorcycle_graph<MotorcycleGraphTraits, Self> Motorcycle_graph;
 
 public:
   typedef MotorcycleGraphTraits                                             Geom_traits;
