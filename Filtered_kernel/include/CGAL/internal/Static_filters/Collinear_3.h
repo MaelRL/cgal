@@ -22,9 +22,12 @@
 #ifndef CGAL_INTERNAL_STATIC_FILTERS_COLLINEAR_3_H
 #define CGAL_INTERNAL_STATIC_FILTERS_COLLINEAR_3_H
 
-#include <CGAL/Profile_counter.h>
 #include <CGAL/internal/Static_filters/Static_filter_error.h>
 #include <CGAL/internal/Static_filters/tools.h>
+
+#include <CGAL/Exact_kernel_selector.h>
+#include <CGAL/Profile_counter.h>
+
 #include <cmath>
 
 namespace CGAL { namespace internal { namespace Static_filters_predicates {
@@ -44,10 +47,29 @@ class Collinear_3
   typedef typename K_base::Collinear_3    Base;
 
 public:
-
   typedef typename Base::result_type  result_type;
-  result_type 
-  operator()(const Point_3 &p, const Point_3 &q, const Point_3 &r) const
+
+private:
+  result_type exact_operator(const Point_3 &p, const Point_3 &q, const Point_3 &r) const
+  {
+#if 0
+    return Base::operator()(p, q, r); // that's the normal behavior and will be exact if the base kernel is filtered
+#else
+    typedef typename Exact_kernel_selector<K_base>::Exact_kernel    Exact_kernel;
+    typedef typename Exact_kernel_selector<K_base>::C2E             C2E;
+    typedef typename Exact_kernel_selector<K_base>::E2C             E2C;
+
+    std::cout << "Resolving to the exact kernel: " << typeid(Exact_kernel).name() << std::endl;
+
+    C2E c2e;
+    E2C e2c;
+
+    return e2c(Exact_kernel().collinear_3_object()(c2e(p), c2e(q), c2e(r)));
+#endif
+  }
+
+public:
+  result_type operator()(const Point_3 &p, const Point_3 &q, const Point_3 &r) const
   {
     CGAL_BRANCH_PROFILER_3("semi-static failures/attempts/calls to   : Collinear_3", tmp);
 
@@ -87,11 +109,11 @@ public:
 
       int int_tmp_result;
       if (lower_bound_1 < 5.00368081960964635413e-147)
-        return Base::operator()(p, q, r);
+        return exact_operator(p, q, r);
       else 
       {
         if (upper_bound_1 > 1.67597599124282407923e+153)
-          return Base::operator()(p, q, r);
+          return exact_operator(p, q, r);
 
         double eps = (8.88720573725927976811e-16 * (max1 * max2));
         if (double_tmp_result > eps)
@@ -101,7 +123,7 @@ public:
           if (double_tmp_result < -eps)
             int_tmp_result = -1;
           else 
-            return Base::operator()(p, q, r);
+            return exact_operator(p, q, r);
         } 
       } 
 
@@ -127,11 +149,11 @@ public:
         upper_bound_1 = max3;
 
       if (lower_bound_1 < 5.00368081960964635413e-147)
-        return Base::operator()(p, q, r);
+        return exact_operator(p, q, r);
       else 
       {
         if (upper_bound_1 > 1.67597599124282407923e+153)
-          return Base::operator()(p, q, r);
+          return exact_operator(p, q, r);
 
         double eps = (8.88720573725927976811e-16 * (max1 * max3));
         if (double_tmp_result_k3Lzf6g > eps)
@@ -141,7 +163,7 @@ public:
           if (double_tmp_result_k3Lzf6g < -eps)
             int_tmp_result_3SPBwDj = -1;
           else 
-            return Base::operator()(p, q, r);
+            return exact_operator(p, q, r);
         } 
       } 
 
@@ -159,11 +181,11 @@ public:
         upper_bound_1 = max3;
 
       if (lower_bound_1 < 5.00368081960964635413e-147)
-        return Base::operator()(p, q, r);
+        return exact_operator(p, q, r);
       else 
       {
         if (upper_bound_1 > 1.67597599124282407923e+153)
-          return Base::operator()(p, q, r);
+          return exact_operator(p, q, r);
 
         double eps = (8.88720573725927976811e-16 * (max2 * max3));
         if (double_tmp_result_AvrrXBP > eps)
@@ -173,13 +195,13 @@ public:
           if (double_tmp_result_AvrrXBP < -eps)
             int_tmp_result_Gx4H = -1;
           else 
-            return Base::operator()(p, q, r);
+            return exact_operator(p, q, r);
         } 
       } 
       int sign_of_determinant_return_value_k60Ocge = int_tmp_result_Gx4H;
       return ((sign_of_determinant_return_value_FFWKCAA == 0) && (sign_of_determinant_return_value_k60Ocge == 0));
     }
-    return Base::operator()(p, q, r);
+    return exact_operator(p, q, r);
   }
 
 };
