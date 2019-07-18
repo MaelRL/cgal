@@ -104,7 +104,7 @@ struct Filtered_kernel_base
 
 template < typename CK >
 struct Static_filters_base
-  : public internal::Static_filters< Filtered_kernel_base<CK> >
+  : public internal::Static_filters< CK >
 {
     template < typename Kernel2 >
     struct Base {
@@ -126,7 +126,7 @@ struct Filtered_kernel_adaptor
 
 template < typename CK >
 struct Filtered_kernel_adaptor<CK, true>
-  : public Static_filters_base<CK>
+  : public Static_filters_base< Filtered_kernel_base<CK> >
 {
 	enum { Has_static_filters = true };
 };
