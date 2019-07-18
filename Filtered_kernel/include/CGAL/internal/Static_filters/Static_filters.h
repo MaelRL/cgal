@@ -99,9 +99,17 @@
 
 namespace CGAL { namespace internal {
 
-// The K_base argument is supposed to provide exact primitives.
-template < typename K_base >
-class Static_filters : public K_base
+// K_base: this is the kernel that static predicates are evaluated with
+// K_exact: this is the kernel that we resort to when the static predicate cannot conclude anything.
+//          It is called as such because we likely want it to be exact (either through filtration
+//          or just immediately exact)
+//
+// And then we can just forward K_base and K_exact to static predicates...
+
+template < typename K_base,
+           typename K_exact = K_base >
+class Static_filters
+  : public K_exact
 {
   typedef Static_filters<K_base>                    Self;
 
