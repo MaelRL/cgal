@@ -237,6 +237,10 @@ int main()
 {
   std::cout << std::setprecision(17) << std::fixed;
 
+// #define USE_DT3
+#define USE_DTOS
+
+
   int n = 1000000;
   Point_container points;
 
@@ -245,8 +249,13 @@ int main()
   CGAL::Random_points_on_sphere_3<Point_3> g(1, rnd);
   CGAL::cpp11::copy_n(g, n, std::back_inserter(points));
 
-  const Projected_DToS2& dtos = construct_DTOS(points);
+#ifdef USE_DT3
   const Delaunay_triangulation_3& dt3 = construct_DT3(points);
+#endif
+
+#ifdef USE_DTOS
+  const Projected_DToS2& dtos = construct_DTOS(points);
+#endif
 
   int qn = 100000;
   Point_container queries;
@@ -254,11 +263,19 @@ int main()
 
 //  std::cout << "Timings..." << std::endl;
 //  test_interpolation(points, queries);
-  test_interpolation(dt3, queries);
-  test_interpolation(dtos, queries);
 
+#ifdef USE_DT3
+  test_interpolation(dt3, queries);
+#endif
+
+#ifdef USE_DTOS
+  test_interpolation(dtos, queries);
+#endif
+
+#if defined(USE_DT3) && defined(USE_DTOS)
   std::cout << "Comparing both..." << std::endl;
   test_interpolation(dt3, dtos, queries);
+#endif
 
   assert(dtos.is_valid());
 }
