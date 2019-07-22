@@ -323,6 +323,92 @@ surface_neighbor_coordinates_3(const Dt& dt,
                                         p, out, traits);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// WITH A TRIANGULATION ON THE SPHERE
+
+template <class DelaunayTraits, class OutputIterator>
+inline
+Triple< OutputIterator, typename DelaunayTraits::FT, bool >
+surface_neighbor_coordinates_3(const CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits>& dt,
+                               const typename DelaunayTraits::Point_3& p,
+                               const typename DelaunayTraits::Vector_3& normal,
+                               OutputIterator out,
+                               typename CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits>::Face_handle start =
+                                 typename CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits>::Face_handle())
+{
+  typedef Voronoi_intersection_2_traits_3<DelaunayTraits> I_gt;
+
+  return surface_neighbor_coordinates_3(dt, p, out, I_gt(p, normal), start);
+}
+
+template <class DelaunayTraits, class OutputIterator, class ITraits>
+Triple< OutputIterator, typename ITraits::FT, bool >
+surface_neighbor_coordinates_3(const CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits>& dt,
+                               const typename ITraits::Point_3& p,
+                               OutputIterator out,
+                               const ITraits& traits,
+                               typename CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits>::Face_handle start =
+                                 typename CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits>::Face_handle())
+{
+  typedef typename ITraits::FT            Coord_type;
+  typedef typename ITraits::Point_2       Point_3;
+
+  typedef CGAL::Delaunay_triangulation_sphere_2<DelaunayTraits> Dt;
+
+  typedef typename Dt::Vertex_handle      Vertex_handle;
+  typedef typename Dt::Edge               Edge;
+  typedef typename Dt::Face_handle        Face_handle;
+  typedef typename Dt::Locate_type        Locate_type;
+
+  //the Vertex_handle is, in fact, an iterator over vertex:
+  typedef Project_vertex_iterator_to_point< Vertex_handle>   Proj_point;
+  typedef Iterator_project<typename std::list< Vertex_handle >::iterator,
+                           Proj_point,
+                           const Point_3&,
+                           const Point_3*,
+                           std::ptrdiff_t,
+                           std::forward_iterator_tag>  Point_iterator;
+
+  // @fixme not necessarily using some projection traits...
+  typename DelaunayTraits::Point_2 pp = dt.geom_traits().construct_projected_point_3_object()(p);
+
+  Locate_type lt;
+  int li;
+  Face_handle f = dt.locate(pp, lt, li, start);
+
+  //if p is located on a vertex: the only neighbor is found
+  if(lt == Dt::VERTEX)
+  {
+    *out++= std::make_pair(f->vertex(li)->point(), Coord_type(1));
+    return make_triple(out, Coord_type(1), true);
+  }
+
+  // the candidate points are the points of dt in conflict with p:
+  std::vector<Face_handle> faces;
+  std::vector<Edge> edges;
+  faces.reserve(32);
+  edges.reserve(32);
+
+  dt.get_conflicts_and_boundary(pp, std::back_inserter(faces), std::back_inserter(edges), f);
+
+  // reset flags otherwise everything is wrong on the following calls
+  for(Face_handle f : faces)
+    f->set_in_conflict_flag(0);
+
+  // boundary edges --> vertex_handle on the boundary
+  std::list<Vertex_handle> conflict_vertices;
+  for(const Edge& e : edges)
+    conflict_vertices.push_back(e.first->vertex((e.second+1)%3));
+
+  return surface_neighbor_coordinates_3(Point_iterator(conflict_vertices.begin()),
+                                        Point_iterator(conflict_vertices.end()),
+                                        p, out, traits);
+}
+
 } //namespace CGAL
 
 #endif // CGAL_SURFACE_NEIGHBOR_COORDINATES_3_H
