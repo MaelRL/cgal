@@ -143,6 +143,23 @@ namespace Polygon_mesh_processing {
       typedef bool vertex_property_type;
     };
 
+    template<typename PolygonMesh>
+    std::size_t border_length(typename boost::graph_traits<PolygonMesh>::halfedge_descriptor h,
+                              const PolygonMesh& pm)
+    {
+      typedef typename boost::graph_traits<PolygonMesh>::halfedge_descriptor halfedge_descriptor;
+
+      std::size_t length = 0;
+      halfedge_descriptor done = h;
+      do
+      {
+        ++length;
+        h = next(h, pm);
+      }
+      while(h != done);
+
+      return length;
+    }
   }//end namespace internal
 
   /*!
