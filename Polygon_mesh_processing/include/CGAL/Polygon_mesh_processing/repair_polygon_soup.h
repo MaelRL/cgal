@@ -27,6 +27,7 @@
 #include <CGAL/Polygon_mesh_processing/internal/named_function_params.h>
 #include <CGAL/Polygon_mesh_processing/internal/named_params_helper.h>
 
+#include <CGAL/grid_simplify_point_set.h>
 #include <CGAL/iterator.h>
 #include <CGAL/Kernel_traits.h>
 
@@ -589,6 +590,57 @@ std::size_t merge_duplicate_points_in_polygon_soup(PointRange& points,
   return merge_duplicate_points_in_polygon_soup(points, polygons, CGAL::parameters::all_default());
 }
 
+template <typename PointRange, typename PolygonRange, typename FT>
+std::size_t merge_close_points_in_polygon_soup(PointRange& points,
+                                               PolygonRange& polygons,
+                                               const FT epsilon)
+{
+  typedef typename boost::range_value<PointRange>::type                             Point_3;
+  typedef typename boost::range_value<PolygonRange>::type                           Polygon_3;
+  typedef typename boost::range_value<Polygon_3>::type                              PID;
+
+  typedef typename Pointer_property_map<Point_3>::type                              Point_map;
+  typedef Epsilon_point_set_3<std::size_t, Point_map>                               Epsilon_point_set;
+
+  std::size_t pn = points.size();
+  std::vector<PID> remapping(pn);
+  std::iota(remapping.begin(), remapping.end(), 0); // @todo put iota in the other place too
+
+  // pretty much the same as in grid_simplify_point_set, but we need to keep track of IDs
+  Point_map pmap = CGAL::make_property_map(points);
+  Epsilon_point_set points_to_keep(epsilon, pmap);
+
+#ifdef CGAL_PMP_REPAIR_POLYGON_SOUP_VERBOSE
+  int clustered_pn = 0;
+#endif
+
+  for(std::size_t i=0; i<pn; ++i)
+  {
+    typename Epsilon_point_set::iterator it;
+    bool successful_insert;
+    std::tie(it, successful_insert) = points_to_keep.insert(i);
+
+    if(!successful_insert) // if not inserted
+      remapping[i] = *it;
+#ifdef CGAL_PMP_REPAIR_POLYGON_SOUP_VERBOSE
+    else
+     ++clustered_pn;
+#endif
+  }
+
+#ifdef CGAL_PMP_REPAIR_POLYGON_SOUP_VERBOSE
+  std::cout << "Clustered from " << points.size() << " points to " << clustered_pn << std::endl;
+#endif
+
+  for(Polygon_3& polygon : polygons)
+    for(PID& pid : polygon)
+      pid = remapping.at(pid);
+
+  remove_isolated_points_in_polygon_soup(points, polygons);
+
+  return points.size();
+}
+
 namespace internal {
 
 // Find the position of the (arbitrarily chose) first point of the canonical point
@@ -669,7 +721,7 @@ Polygon construct_canonical_polygon(const PointRange& points,
     reversed = false;
     return polygon;
   }
-  
+
 
 #ifdef CGAL_PMP_REPAIR_POLYGON_SOUP_VERBOSE_PP
   std::cout << "Input polygon:";
