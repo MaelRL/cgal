@@ -81,8 +81,8 @@ Straight_skeleton_builder_2<Gt,Ss,V>::validate( Vertex_handle aH ) const
 template<class Gt, class Ss, class V>
 void Straight_skeleton_builder_2<Gt,Ss,V>::InsertEventInPQ( EventPtr aEvent )
 {
-  mPQ.push(aEvent);
   CGAL_STSKEL_BUILDER_TRACE(4, "Enque: " << *aEvent);
+  mPQ.push(aEvent);
 }
 
 template<class Gt, class Ss, class V>
@@ -209,8 +209,14 @@ void Straight_skeleton_builder_2<Gt,Ss,V>::CollectSplitEvent( Vertex_handle aNod
         mVisitor.on_split_event_created(aNode) ;
  
         CGAL_STSKEL_DEBUG_CODE( SetEventTimeAndPoint(*lEvent) ) ;
-  
-        AddSplitEvent(aNode,lEvent);      
+
+        CGAL_STSKEL_BUILDER_TRACE(2, "Add Split Event: V" << aNode->id() << " PQ: " << *lEvent);
+
+#ifdef CGAL_SS2_ADD_ALL_SPLITS_TO_MAIN_PRIORITY_QUEUE
+        InsertEventInPQ(lEvent);
+#else
+        AddSplitEvent(aNode,lEvent);
+#endif
       }
     }
   }
@@ -1323,18 +1329,21 @@ void Straight_skeleton_builder_2<Gt,Ss,V>::Propagate()
 
   for (;;)
   {
+#ifndef CGAL_SS2_ADD_ALL_SPLITS_TO_MAIN_PRIORITY_QUEUE
     InsertNextSplitEventsInPQ();
+#endif
        
     if ( !mPQ.empty() )
     {
       EventPtr lEvent = PopEventFromPQ();
-    
-      if ( lEvent->type() != Event::cEdgeEvent )    
+      CGAL_STSKEL_BUILDER_TRACE (1,"\nS" << mStepID << " Event: " << *lEvent ) ;
+
+      if ( lEvent->type() != Event::cEdgeEvent )
         AllowNextSplitEvent(lEvent->seed0());
     
       if ( !IsProcessed(lEvent) )
       {
-        CGAL_STSKEL_BUILDER_TRACE (1,"\nS" << mStepID << " Event: " << *lEvent ) ;
+        CGAL_STSKEL_BUILDER_TRACE (1,"\n...processing event") ;
     
         SetEventTimeAndPoint(*lEvent) ;
         
