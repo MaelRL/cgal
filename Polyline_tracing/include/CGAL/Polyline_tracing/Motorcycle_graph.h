@@ -2949,9 +2949,9 @@ trace_graph()
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
     std::cout << "Driving priority queue:" << std::endl << motorcycle_pq_ << std::endl;
-#endif
     std::cout << "Driving priority queue size: " << motorcycle_pq_.size();
     std::cout << " closest time: " << next_time << ")" << std::endl << std::endl;
+#endif
 
     if(next_time > latest_event_time_)
       latest_event_time_ = next_time;
