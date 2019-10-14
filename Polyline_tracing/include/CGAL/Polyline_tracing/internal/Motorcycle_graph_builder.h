@@ -433,9 +433,11 @@ public:
         const bool is_moving_in_the_same_direction = (ts.target() == get(vnmap, target(hd, og)));
         const bool is_border_motorcycle = (mc.nature() == Motorcycle::BORDER_MOTORCYCLE);
         const bool is_border_halfedge = (is_moving_in_the_same_direction && is_border_motorcycle);
+#ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
         std::cout << "graph halfedge: " << og.point(source(hd, og)) << " --- " << og.point(target(hd, og)) << std::endl;
         std::cout << "motorcycle: " << ts.motorcycle_id();
         std::cout << " border? " << is_border_motorcycle << " same dir: " << is_moving_in_the_same_direction << std::endl;
+#endif
 
         // otherwise, create a new face and assign it properly (no need for Euler operations)
         face_descriptor fd = boost::graph_traits<Face_graph>::null_face();
