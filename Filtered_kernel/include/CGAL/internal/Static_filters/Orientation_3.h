@@ -24,6 +24,8 @@
 
 #include <CGAL/Profile_counter.h>
 #include <CGAL/internal/Static_filters/Static_filter_error.h>
+#include <CGAL/Cartesian_converter.h>
+
 #include <cmath>
 
 namespace CGAL { namespace internal { namespace Static_filters_predicates {
@@ -32,15 +34,19 @@ namespace CGAL { namespace internal { namespace Static_filters_predicates {
 #include <iostream>
 
 
-template < typename K_base >
+template < typename CK, typename EK >
 class Orientation_3
-  : public K_base::Orientation_3
+  : public EK::Orientation_3
 {
-  typedef typename K_base::Point_3          Point_3;
-  typedef typename K_base::Vector_3         Vector_3;
-  typedef typename K_base::Sphere_3         Sphere_3;
-  typedef typename K_base::Tetrahedron_3    Tetrahedron_3;
-  typedef typename K_base::Orientation_3    Base;
+  typedef typename CK::Point_3          Point_3;
+  typedef typename CK::Vector_3         Vector_3;
+  typedef typename CK::Sphere_3         Sphere_3;
+  typedef typename CK::Tetrahedron_3    Tetrahedron_3;
+
+  typedef typename EK::Vector_3         EK_Vector_3;
+  typedef typename EK::Sphere_3         EK_Sphere_3;
+  typedef typename EK::Tetrahedron_3    EK_Tetrahedron_3;
+  typedef typename EK::Orientation_3    Base;
 
 public:
  typedef typename Base::result_type  result_type;
@@ -49,19 +55,19 @@ public:
   using Base::operator();
 #else 
   result_type
-  operator()(const Vector_3& u, const Vector_3& v, const Vector_3& w) const
+  operator()(const EK_Vector_3& u, const EK_Vector_3& v, const EK_Vector_3& w) const
   { 
     return Base::operator()(u,v,w);
   }  
 
   result_type
-  operator()(const Sphere_3& s) const
+  operator()(const EK_Sphere_3& s) const
   { 
     return Base::operator()(s);
   }
 
   result_type
-  operator()(const Tetrahedron_3& t) const
+  operator()(const EK_Tetrahedron_3& t) const
   { 
     return Base::operator()(t);
   }
@@ -71,6 +77,8 @@ public:
   operator()(const Point_3 &p, const Point_3 &q,
 	     const Point_3 &r, const Point_3 &s) const
   {
+    std::cout << "static call in orientation_3" << std::endl;
+
       CGAL_BRANCH_PROFILER_3("semi-static failures/attempts/calls to   : Orientation_3", tmp);
 
       double px, py, pz, qx, qy, qz, rx, ry, rz, sx, sy, sz;
@@ -164,7 +172,10 @@ public:
 	  CGAL_BRANCH_PROFILER_BRANCH_2(tmp);
       }
 
-      return Base::operator()(p, q, r, s);
+      CGAL::Cartesian_converter<CK, EK> to_exact;
+
+      std::cout << "Calling base of static..." << std::endl;
+      return Base::operator()(to_exact(p), to_exact(q), to_exact(r), to_exact(s));
   }
 
   // Computes the epsilon for Orientation_3.

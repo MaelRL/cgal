@@ -98,6 +98,8 @@ typename Filtered_predicate<EP,AP,C2E,C2A,Protection>::result_type
 Filtered_predicate<EP,AP,C2E,C2A,Protection>::
   operator()(const Args&... args) const
 {
+  std::cout << "Calling a filtered predicate" << std::endl;
+
     CGAL_BRANCH_PROFILER(std::string(" failures/calls to   : ") + std::string(CGAL_PRETTY_FUNCTION), tmp);
     // Protection is outside the try block as VC8 has the CGAL_CFG_FPU_ROUNDING_MODE_UNWINDING_VC_BUG
     {
@@ -110,6 +112,9 @@ Filtered_predicate<EP,AP,C2E,C2A,Protection>::
 	}
       catch (Uncertain_conversion_exception&) {}
     }
+
+    std::cout << "Could not resolve with filtered predicate, calling base of filtered" << std::endl;
+
     CGAL_BRANCH_PROFILER_BRANCH(tmp);
     Protect_FPU_rounding<!Protection> p(CGAL_FE_TONEAREST);
     return ep(c2e(args)...);

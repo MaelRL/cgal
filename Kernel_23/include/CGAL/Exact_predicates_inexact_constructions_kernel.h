@@ -47,6 +47,12 @@ class Epick
 
 typedef Epick Exact_predicates_inexact_constructions_kernel;
 
+class Epick_without_intervals
+  : public Static_filters_base<
+      Simple_cartesian<double>,
+      CGAL::Exact_kernel_selector<Simple_cartesian<double> >::Exact_kernel>
+{};
+
 template <>
 struct Triangulation_structural_filtering_traits<Epick> {
   typedef Tag_true Use_structural_filtering_tag;
