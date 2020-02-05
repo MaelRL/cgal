@@ -14,6 +14,10 @@
 
 #include <CGAL/license/Surface_mesh_simplification.h>
 
+#ifndef CGAL_EIGEN3_ENABLED
+#error Garland Heckbert policies require Eigen
+#endif
+
 #include <CGAL/Surface_mesh_simplification/internal/Common.h>
 #include <CGAL/Surface_mesh_simplification/Policies/Edge_collapse/internal/GarlandHeckbert_core.h>
 
