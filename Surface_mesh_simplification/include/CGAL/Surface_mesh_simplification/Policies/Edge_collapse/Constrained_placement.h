@@ -36,6 +36,10 @@ public:
     typedef typename Profile::TM                                    TM;
     typedef typename boost::graph_traits<TM>::halfedge_descriptor   halfedge_descriptor;
 
+    boost::optional<typename Profile::Point> op = BasePlacement::operator()(profile);
+    if(!op)
+      return op;
+
     for(halfedge_descriptor h : halfedges_around_target(profile.v0(), profile.surface_mesh()))
     {
       if(get(m_ecm, edge(h, profile.surface_mesh())))
@@ -48,7 +52,7 @@ public:
         return get(profile.vertex_point_map(), profile.v1());
     }
 
-    return static_cast<const BasePlacement*>(this)->operator()(profile);
+    return op;
   }
 
 private:

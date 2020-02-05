@@ -114,7 +114,7 @@ public:
   
   static handle null_handle() { return handle(false); }
   
-private:
+public:
 
   Heap mHeap ;  
     

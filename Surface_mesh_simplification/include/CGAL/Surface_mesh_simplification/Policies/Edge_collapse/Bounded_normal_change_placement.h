@@ -35,6 +35,7 @@ public:
     typedef typename Profile::VertexPointMap                              Vertex_point_map;
 
     typedef typename Profile::Geom_traits                                 Geom_traits;
+    typedef typename Geom_traits::FT                                      FT;
     typedef typename Geom_traits::Vector_3                                Vector;
 
     typedef typename boost::property_traits<Vertex_point_map>::value_type Point;
@@ -75,7 +76,13 @@ public:
            Vector n1 = gt.construct_cross_product_vector_3_object()(eqp, eqr);
            Vector n2 = gt.construct_cross_product_vector_3_object()(eq2p, eq2r);
 
-           if(!is_positive(gt.compute_scalar_product_3_object()(n1, n2)))
+           const FT sp = gt.compute_scalar_product_3_object()(n1, n2);
+
+           if(!is_positive(sp))
+             return boost::optional<typename Profile::Point>();
+
+           const FT sq_cos_bound = CGAL::square(std::cos(45. * CGAL_PI / 180));
+           if(CGAL::square(sp) < n1.squared_length() * n2.squared_length() * sq_cos_bound)
              return boost::optional<typename Profile::Point>();
 
            ++it;

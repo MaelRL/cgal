@@ -590,7 +590,9 @@ loop()
 
   while((opt_h = pop_from_PQ()))
   {
-    CGAL_SMS_TRACE(1, "Popped " << edge_to_string(*opt_h));
+    std::cout << "Popped " << edge_to_string(*opt_h) << std::endl;
+    std::cout << mPQ->mHeap.size() << " in queue" << std::endl;
+
     CGAL_assertion(!is_constrained(*opt_h));
 
     const Profile profile = create_profile(*opt_h);

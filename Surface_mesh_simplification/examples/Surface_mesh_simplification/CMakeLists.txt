@@ -20,6 +20,18 @@ if ( NOT Boost_FOUND )
   return()
 endif()
 
+find_package( METIS )
+if( METIS_FOUND )
+  include_directories (${METIS_INCLUDE_DIRS})
+else()
+  message(STATUS "Examples that use the metis library will not be compiled.")
+endif()
+
+find_package( TBB )
+if( NOT TBB_FOUND )
+  message( STATUS "NOTICE: Intel TBB was not found. Examples will use sequential code." )
+endif()
+
 find_package( OpenMesh QUIET )
 
 if ( OpenMesh_FOUND )
@@ -48,6 +60,12 @@ if( Eigen3_FOUND )
   create_single_source_cgal_program( "edge_collapse_garland_heckbert.cpp" )
 else ()
   message(STATUS "Garland-Heckbert polices require the Eigen library, which has not been found; related examples will not be compiled.")
+endif()
+
+if(METIS_FOUND AND TBB_FOUND AND Eigen3_FOUND)
+  create_single_source_cgal_program( "parallel_edge_collapse.cpp" )
+  target_link_libraries( parallel_edge_collapse PRIVATE ${METIS_LIBRARIES} )
+  CGAL_target_use_TBB( parallel_edge_collapse )
 endif()
 
 if(OpenMesh_FOUND)
