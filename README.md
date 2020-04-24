@@ -15,7 +15,7 @@ The CGAL codebase was forked from commit https://github.com/CGAL/cgal/commit/216
 
 # Usage
 
-Two examples illustrate our algorithm, [generic_p2t2.cpp](https://github.com/MaelRL/cgal/blob/Generic_P2T2/Periodic_2_triangulation_2/examples/Periodic_2_triangulation_2/generic_p2t2.cpp) and [generic_p3t3.cpp](https://github.com/MaelRL/cgal/blob/Generic_P2T2/Periodic_3_triangulation_3/examples/Periodic_3_triangulation_3/generic_p3t3.cpp).
+Two examples illustrate our algorithm, [generic_p2t2.cpp](https://github.com/MaelRL/cgal/blob/Generic_Periodic_Triangulations/Periodic_2_triangulation_2/examples/Periodic_2_triangulation_2/generic_p2t2.cpp) and [generic_p3t3.cpp](https://github.com/MaelRL/cgal/blob/Generic_Periodic_Triangulations/Periodic_3_triangulation_3/examples/Periodic_3_triangulation_3/generic_p3t3.cpp).
 
 Downloading this code, compiling and executing the examples can be achieved as follows:
 ```
