@@ -12,7 +12,7 @@ This repository contains the implementation of the algorithm described in XXXXXX
 
 Our implementation enhances and builds on top of existing triangulations of CGAL. Consequently,
 [our repository](https://github.com/MaelRL/cgal/tree/Generic_Periodic_Triangulations/) follows the same structure
-as the git repository of CGAL, with each component of CGAL being a directory.
+as the git repository of CGAL, with each package of CGAL being a top level directory.
 Our contribution mainly resides within the
 [`Periodic_2_triangulation_2`](https://github.com/MaelRL/cgal/tree/Generic_Periodic_Triangulations/Periodic_2_triangulation_2/include/CGAL)
 and [`Periodic_3_triangulation_3`](https://github.com/MaelRL/cgal/tree/Generic_Periodic_Triangulations/Periodic_3_triangulation_3/include/CGAL) packages:
@@ -26,7 +26,7 @@ from the CGAL base, using `git diff 2167d4ffef72241e382d0779b448835660af6ca9`).
 Two examples illustrate our algorithm, [generic_p2t2.cpp](https://github.com/MaelRL/cgal/blob/Generic_Periodic_Triangulations/Periodic_2_triangulation_2/examples/Periodic_2_triangulation_2/generic_p2t2.cpp)
 and [generic_p3t3.cpp](https://github.com/MaelRL/cgal/blob/Generic_Periodic_Triangulations/Periodic_3_triangulation_3/examples/Periodic_3_triangulation_3/generic_p3t3.cpp).
 
-Downloading this code, compiling and executing the examples can be achieved as follows:
+Downloading this repository, and compiling and executing these examples can be achieved as follows:
 ```
 mkdir /path/to/cgal
 git clone git@github.com:MaelRL/cgal.git /path/to/cgal // or download the code directly from https://github.com/MaelRL/cgal/archive/Generic_Periodic_Triangulations.zip
