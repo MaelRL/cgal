@@ -20,19 +20,19 @@ Two examples illustrate our algorithm, [generic_p2t2.cpp](https://github.com/Mae
 Downloading this code, compiling and executing the examples can be achieved as follows:
 ```
 mkdir /path/to/cgal
-git clone git@github.com:GPT-Authors/Periodic-Delaunay-Triangulations-on-Lattices.git /path/to/cgal // or download the code directly from https://github.com/GPT-Authors/Periodic-Delaunay-Triangulations-on-Lattices.git
-cd /path/to/cgal/Periodic_2_triangulation_2/examples/Periodic_2_triangulation_2
+git clone git@github.com:MaelRL/cgal.git /path/to/cgal // or download the code directly from https://github.com/MaelRL/cgal/archive/Generic_Periodic_Triangulations.zip
+cd /path/to/cgal/Periodic_3_triangulation_3/examples/Periodic_3_triangulation_3
 mkdir -p build/debug
 cd build/debug
 cmake -DCMAKE_BUILD_TYPE=Debug -DCGAL_DIR=/path/to/cgal ../..
-make generic_p2t2
+make generic_p3t3
 ```
 
 See also https://github.com/CGAL/cgal/blob/master/INSTALL.md and CGAL's documentation for further installation instructions, if necessary.
 
 A typical output will be:
 ```
-./generic_p2t2 [number_of_vertices]
+./generic_p3t3 [number_of_vertices]
 random seed: 5588160 // the seed used to initialize the random number generator
 Basis vectors:
 24.7802 -0.222676 -50.4873
@@ -49,7 +49,7 @@ Time: 0.650457 s
 
 As well as creating a file called `final.off`, which can be opened with a large number of mesh visualization softwares such as the CGAL Polyhedron Demo, Meshlab, etc.
 
-A specific lattice can easily be specified through a set of 2 (3 in 3D) independent vectors and recompiling the program.
+A specific lattice can easily be specified through a set of 3 (2 in 2D) independent vectors and recompiling the program.
 
 # Functionality
 
