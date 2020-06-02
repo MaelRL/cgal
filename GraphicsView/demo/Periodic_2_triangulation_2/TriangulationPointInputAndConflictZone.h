@@ -55,23 +55,33 @@ template <typename T>
 void
 TriangulationPointInputAndConflictZone<T>::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-  p = convert(event->scenePos());
-  double dx = dt->domain().xmax() - dt->domain().xmin();
-  double dy = dt->domain().ymax() - dt->domain().ymin();
-  p = Point(p.x()- std::floor(p.x()/dx), p.y()- std::floor(p.y()/dy));
-
   if(dt->dimension() < 2 ||
      event->modifiers() != 0 ||
      event->button() != ::Qt::LeftButton) {
     return;
   }
 
+  p = convert(event->scenePos());
+  double dx = dt->domain().xmax() - dt->domain().xmin();
+  double dy = dt->domain().ymax() - dt->domain().ymin();
+  p = Point(p.x()- std::floor(p.x()/dx), p.y()- std::floor(p.y()/dy));
 
   dt->get_conflicts(p, std::back_inserter(faces));
   for(typename std::list<Face_handle>::iterator it = faces.begin();
       it != faces.end();
-      ++it) {
-      QGraphicsPolygonItem *item = new QGraphicsPolygonItem(convert(dt->triangle(*it)));
+      ++it)
+  {
+    typename K::Triangle_2 tr = dt->triangle(*it);
+    typename K::Triangle_2 translated_tr = tr;
+    // super hack to translate to fake a canonical domain in the center
+    if(!dt->is_1_cover())
+    {
+      translated_tr = typename K::Triangle_2(Point(tr[0].x() + 1, tr[0].y() + 1),
+                                             Point(tr[1].x() + 1, tr[1].y() + 1),
+                                             Point(tr[2].x() + 1, tr[2].y() + 1));
+    }
+
+      QGraphicsPolygonItem *item = new QGraphicsPolygonItem(convert(translated_tr));
       QColor color = ::Qt::blue;
       color.setAlpha(150);
       item->setBrush(QBrush(color));

@@ -181,26 +181,29 @@ private:
     Offset off0, off1, off2;
     get_edge_offsets(off0, off1, off2);
 
-    if (_t->number_of_sheets() != make_array(1, 1))
-      {
-        // If there is one offset with entries larger than 1 then we are
-        // talking about a vertex that is too far away from the original
-        // domain to belong to a canonical triangle.
-        if (off0.x() > 1) return false;
-        if (off0.y() > 1) return false;
-        if (off1.x() > 1) return false;
-        if (off1.y() > 1) return false;
-        if (off2.x() > 1) return false;
-        if (off2.y() > 1) return false;
-      }
+    if (_t->number_of_sheets() == make_array(1, 1))
+      return true;
+
+//    if (_t->number_of_sheets() != make_array(1, 1))
+//      {
+//        // If there is one offset with entries larger than 1 then we are
+//        // talking about a vertex that is too far away from the original
+//        // domain to belong to a canonical triangle.
+//        if (off0.x() > 1) return false;
+//        if (off0.y() > 1) return false;
+//        if (off1.x() > 1) return false;
+//        if (off1.y() > 1) return false;
+//        if (off2.x() > 1) return false;
+//        if (off2.y() > 1) return false;
+//      }
 
     // If there is one direction of space for which all offsets are
     // non-zero then the edge is not canonical because we can
     // take the copy closer towards the origin in that direction.
-    int offx = off0.x() & off1.x() & off2.x();
-    int offy = off0.y() & off1.y() & off2.y();
+    int offx = (std::min)({off0.x(), off1.x(), off2.x()});
+    int offy = (std::min)({off0.y(), off1.y(), off2.y()});
 
-    return (offx == 0 && offy == 0);
+    return (offx == 1 && offy == 1);
   }
 
   // Artificial incrementation function that takes periodic
@@ -287,7 +290,15 @@ private:
     // internally stored inside the cell telling us that this cell
     // wraps around the domain.
     if (_it == T::UNIQUE_COVER_DOMAIN)
+    {
       get_edge_offsets(off0, off1, off2);
+      int offx = (std::min)({off0.x(), off1.x(), off2.x()});
+      int offy = (std::min)({off0.y(), off1.y(), off2.y()});
+      Offset mino(offx, offy);
+      off0 -= mino;
+      off1 -= mino;
+      off2 -= mino;
+    }
     else
       {
         CGAL_triangulation_assertion(_it == T::STORED_COVER_DOMAIN);
@@ -499,24 +510,27 @@ private:
     Offset off0, off1;
     get_edge_offsets(off0, off1);
 
-    if (_t->number_of_sheets() != make_array(1, 1))
-      {
-        // If there is one offset with entries larger than 1 then we are
-        // talking about a vertex that is too far away from the original
-        // domain to belong to a canonical triangle.
-        if (off0.x() > 1) return false;
-        if (off0.y() > 1) return false;
-        if (off1.x() > 1) return false;
-        if (off1.y() > 1) return false;
-      }
+    if (_t->number_of_sheets() == make_array(1, 1))
+      return true;
+
+//    if (_t->number_of_sheets() != make_array(1, 1))
+//      {
+//        // If there is one offset with entries larger than 1 then we are
+//        // talking about a vertex that is too far away from the original
+//        // domain to belong to a canonical triangle.
+//        if (off0.x() > 1) return false;
+//        if (off0.y() > 1) return false;
+//        if (off1.x() > 1) return false;
+//        if (off1.y() > 1) return false;
+//      }
 
     // If there is one direction of space for which all offsets are
     // non-zero then the edge is not canonical because we can
     // take the copy closer towards the origin in that direction.
-    int offx = off0.x() & off1.x();
-    int offy = off0.y() & off1.y();
+    int offx = (std::min)(off0.x(), off1.x());
+    int offy = (std::min)(off0.y(), off1.y());
 
-    return (offx == 0 && offy == 0);
+    return (offx == 1 && offy == 1);
   }
 
   // Artificial incrementation function that takes periodic
