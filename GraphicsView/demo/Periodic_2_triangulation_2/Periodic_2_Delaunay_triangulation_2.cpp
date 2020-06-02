@@ -115,6 +115,7 @@ MainWindow::MainWindow()
                    pt_gi, SLOT(modelChanged()));
 
   pt_gi->setVerticesPen(QPen(Qt::red, 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  pt_gi->setEdgesPen(QPen(Qt::black, 0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
   scene.addItem(pt_gi);
 
   // Add a GraphicItem for the Voronoi diagram
