@@ -138,6 +138,47 @@ void test(const char* filename,
   out4.close();
 }
 
+template <typename Kernel, typename Mesh>
+void test_no_border()
+{
+  typedef typename Kernel::FT                                         FT;
+  typedef typename boost::graph_traits<Mesh>::vertex_descriptor       vertex_descriptor;
+  typedef typename boost::graph_traits<Mesh>::halfedge_descriptor     halfedge_descriptor;
+
+  Mesh fg_source, fg_target;
+
+  std::ifstream source_input("/home/mrouxell/DATA/Customers/Hitachi/Smesh_1.off");
+  if(!source_input || !(source_input >> fg_source))
+  {
+    std::cerr << "Error: cannot open source mesh\n";
+    return;
+  }
+
+  std::ifstream target_input("/home/mrouxell/DATA/Customers/Hitachi/Smesh_2.off");
+  if(!target_input || !(target_input >> fg_target))
+  {
+    std::cerr << "Error: cannot open target mesh\n";
+    return;
+  }
+
+  std::vector<halfedge_descriptor> srange;
+  PMP::internal::vertices_as_halfedges(vertices(fg_source), fg_source, std::back_inserter(srange));
+  std::vector<halfedge_descriptor> trange;
+  PMP::internal::edges_as_halfedges(edges(fg_target), fg_target, std::back_inserter(trange));
+
+  CGAL::Constant_property_map<vertex_descriptor, FT> tol_map(0.00001);
+
+  std::size_t res = PMP::internal::snap_vertex_edge_two_way(srange, fg_source, tol_map,
+                                                            trange, fg_target, tol_map,
+                                                            false /*self snapping*/,
+                                                            CGAL::parameters::all_default(),
+                                                            CGAL::parameters::all_default());
+  std::cout << "res: " << res << " vertices" << std::endl;
+
+  std::ofstream("out_A.off") << fg_source;
+  std::ofstream("out_B.off") << fg_target;
+}
+
 void test(const char* filename,
           const double large_tolerance,
           const double good_tolerance,
