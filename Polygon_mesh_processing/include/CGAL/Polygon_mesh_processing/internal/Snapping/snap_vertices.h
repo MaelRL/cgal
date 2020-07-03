@@ -74,7 +74,7 @@ struct Snapping_pair
 {
   typedef typename GeomTraits::FT                                                     FT;
   typedef typename boost::graph_traits<PolygonMesh>::halfedge_descriptor              halfedge_descriptor;
-  typedef std::vector<halfedge_descriptor>                                            Vertex_container;
+  typedef std::set<halfedge_descriptor>                                               Vertex_container;
   typedef std::pair<Vertex_container, FT>                                             Unique_vertex;
   typedef const Unique_vertex*                                                        Unique_vertex_ptr;
 
@@ -120,7 +120,7 @@ struct Vertex_proximity_report
 
   typedef typename GeomTraits::FT                                                     FT;
 
-  typedef std::vector<halfedge_descriptor>                                            Vertex_container;
+  typedef std::set<halfedge_descriptor>                                               Vertex_container;
   typedef std::pair<Vertex_container, FT>                                             Unique_vertex;
   typedef const Unique_vertex*                                                        Unique_vertex_ptr;
   typedef std::pair<Unique_vertex_ptr, Unique_vertex_ptr>                             Unique_vertex_pair;
@@ -166,7 +166,7 @@ struct Vertex_proximity_report
       return false;
 
     CGAL_assertion(!uv_a->first.empty() && !uv_b->first.empty());
-    const halfedge_descriptor ha = uv_a->first.front();
+    const halfedge_descriptor ha = *(uv_a->first.begin());
     return (std::find(uv_b->first.begin(), uv_b->first.end(), ha) != uv_b->first.end());
   }
 
@@ -174,8 +174,10 @@ struct Vertex_proximity_report
   {
     const Vertex_container& vs_a = uv_a->first;
     const Vertex_container& vs_b = uv_b->first;
-    const vertex_descriptor va = target(vs_a.front(), m_tm_A);
-    const vertex_descriptor vb = target(vs_b.front(), m_tm_B);
+    CGAL_assertion(!vs_a.empty() && !vs_b.empty());
+
+    const vertex_descriptor va = target(*(vs_a.begin()), m_tm_A);
+    const vertex_descriptor vb = target(*(vs_b.begin()), m_tm_B);
 
     // Check for patch compatibility
     if(get(m_vertex_patch_map_A, va) != get(m_vertex_patch_map_B, vb))
@@ -203,11 +205,13 @@ struct Vertex_proximity_report
 #endif
 
     if(res == CGAL::LARGER)
+    {
       return std::make_pair(-1, false); // ignore
+    }
     else
     {
       const FT sq_dist = (min)(m_gt.compute_squared_distance_3_object()(get(m_vpm_A, va), get(m_vpm_B, vb)),
-                               upper_bound_squared);
+                                                                        upper_bound_squared);
       return std::make_pair(sq_dist, true); // keep
     }
   }
@@ -286,7 +290,7 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
   typedef typename GT::FT                                                             FT;
   typedef typename boost::property_traits<VPM_B>::value_type                          Point;
 
-  typedef std::vector<halfedge_descriptor>                                            Vertex_container;
+  typedef std::set<halfedge_descriptor>                                               Vertex_container;
   typedef std::pair<Vertex_container, FT>                                             Unique_vertex;
   typedef const Unique_vertex*                                                        Unique_vertex_ptr;
   typedef std::map<std::pair<Point, std::size_t>, Unique_vertex>                      Unique_positions;
@@ -327,6 +331,16 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
   Unique_positions unique_positions_A;
   for(halfedge_descriptor h : halfedge_range_A)
   {
+    // get a canonical (border) halfedge if possible
+    halfedge_descriptor done = h;
+    do
+    {
+      if(is_border(h, tm_A))
+        break;
+      h = opposite(next(h, tm_A), tm_A);
+    }
+    while(h != done);
+
     const vertex_descriptor v = target(h, tm_A);
     const FT tolerance = get(tolerance_map_A, v);
 
@@ -336,16 +350,14 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
 
     Vertex_container nvc {{ h }};
     std::pair<typename Unique_positions::iterator, bool> is_insert_successful =
-      unique_positions_A.insert(std::make_pair(
-                                  std::make_pair(get(vpm_A, v), get(vertex_patch_map_A, v)), // point and patch id
-                                  std::make_pair(nvc, tolerance)));
+      unique_positions_A.emplace(std::make_pair(get(vpm_A, v), get(vertex_patch_map_A, v)), // point and patch id
+                                 std::make_pair(nvc, tolerance));
 
     if(!is_insert_successful.second) // point was already met
     {
       Unique_vertex& uv = is_insert_successful.first->second;
       Vertex_container& vc = uv.first; // second is the tolerance
-      CGAL_assertion(std::find(vc.begin(), vc.end(), h) == vc.end());
-      vc.push_back(h);
+      vc.insert(h);
       uv.second = (std::min)(uv.second, tolerance);
     }
   }
@@ -354,6 +366,16 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
   Unique_positions unique_positions_B;
   for(halfedge_descriptor h : halfedge_range_B)
   {
+    // get a canonical (border) halfedge if possible
+    halfedge_descriptor done = h;
+    do
+    {
+      if(is_border(h, tm_B))
+        break;
+      h = opposite(next(h, tm_B), tm_B);
+    }
+    while(h != done);
+
     const vertex_descriptor v = target(h, tm_B);
     const FT tolerance = get(tolerance_map_B, v);
 
@@ -363,16 +385,16 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
 
     Vertex_container nvc {{ h }};
     std::pair<typename Unique_positions::iterator, bool> is_insert_successful =
-      unique_positions_B.insert(std::make_pair(
-                                  std::make_pair(get(vpm_B, v), get(vertex_patch_map_B, v)), // point and patch id
-                                  std::make_pair(nvc, tolerance)));
+      unique_positions_B.emplace(std::make_pair(get(vpm_B, v), get(vertex_patch_map_B, v)), // point and patch id
+                                 std::make_pair(nvc, tolerance));
 
     if(!is_insert_successful.second) // point was already met
     {
       Unique_vertex& uv = is_insert_successful.first->second;
       Vertex_container& vc = uv.first; // second is the tolerance
-      CGAL_assertion(std::find(vc.begin(), vc.end(), h) == vc.end());
-      vc.push_back(h);
+
+      // looks expensive, but it's rare that we actually have more than a single halfedge for each vertex
+      vc.insert(h);
       uv.second = (std::min)(uv.second, tolerance);
     }
   }
@@ -396,7 +418,7 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     const Bbox_3 pb = gt.construct_bbox_3_object()(p.first.first);
     const Bbox_3 b(pb.xmin() - eps, pb.ymin() - eps, pb.zmin() - eps,
                    pb.xmax() + eps, pb.ymax() + eps, pb.zmax() + eps);
-    boxes_A.push_back(Box(b, &ev));
+    boxes_A.emplace_back(b, &ev);
   }
 
   for(const auto& p : unique_positions_B)
@@ -415,7 +437,7 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     const Bbox_3 pb = gt.construct_bbox_3_object()(p.first.first);
     const Bbox_3 b(pb.xmin() - eps, pb.ymin() - eps, pb.zmin() - eps,
                    pb.xmax() + eps, pb.ymax() + eps, pb.zmax() + eps);
-    boxes_B.push_back(Box(b, &ev));
+    boxes_B.emplace_back(b, &ev);
   }
 
   // @fixme bench and don't use ptrs if not useful
@@ -538,8 +560,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     CGAL_assertion_code(prev = sp.sq_dist;)
 
 #ifdef CGAL_PMP_SNAP_DEBUG_PP
-    const Point& pa = get(vpm_A, target(uv_a->first.front(), tm_A));
-    const Point& pb = get(vpm_B, target(uv_b->first.front(), tm_B));
+    const Point& pa = get(vpm_A, target(*(uv_a->first.begin()), tm_A));
+    const Point& pb = get(vpm_B, target(*(uv_b->first.begin()), tm_B));
     std::cout << "Snapping (" << pa << ") to (" << pb << ") at dist: " << sp.sq_dist << std::endl;
     std::cout << "#verts A: " << uv_a->first.size() << " #verts B: " << uv_b->first.size() << std::endl;
 #endif
@@ -578,8 +600,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     Unique_vertex_ptr uv_b = uvp.second;
     const Vertex_container& vs_a = uv_a->first;
     const Vertex_container& vs_b = uv_b->first;
-    const vertex_descriptor va = target(vs_a.front(), tm_A);
-    const vertex_descriptor vb = target(vs_b.front(), tm_B);
+    const vertex_descriptor va = target(*(vs_a.begin()), tm_A);
+    const vertex_descriptor vb = target(*(vs_b.begin()), tm_B);
 
 #ifdef CGAL_PMP_SNAP_DEBUG_OUTPUT
     out_edges << "2 " << tm_A.point(va) << " " << tm_B.point(vb) << std::endl;
