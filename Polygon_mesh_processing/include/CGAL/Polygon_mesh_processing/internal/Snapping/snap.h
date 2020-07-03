@@ -18,5 +18,6 @@
 
 #include <CGAL/Polygon_mesh_processing/internal/Snapping/snap_vertices.h>
 #include <CGAL/Polygon_mesh_processing/internal/Snapping/snap_edges.h>
+#include <CGAL/Polygon_mesh_processing/internal/Snapping/snap_faces.h>
 
 #endif // CGAL_POLYGON_MESH_PROCESSING_SNAPPING_SNAP_H
