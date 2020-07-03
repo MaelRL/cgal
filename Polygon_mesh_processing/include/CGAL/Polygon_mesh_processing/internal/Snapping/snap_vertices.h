@@ -674,9 +674,12 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     // @fixme this assumes compatible orientation...
     for(const halfedge_descriptor ha : vs_a)
     {
+      if(!is_border(ha, tm_A))
+         continue;
+
       for(const halfedge_descriptor hb : vs_b)
       {
-        if(!is_border(ha, tm_A) || !is_border(hb, tm_B))
+         if(!is_border(hb, tm_B))
           continue;
 
         const vertex_descriptor va = target(ha, tm_A);
