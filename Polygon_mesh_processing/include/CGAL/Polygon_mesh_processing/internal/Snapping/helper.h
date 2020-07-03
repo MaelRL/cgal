@@ -37,6 +37,19 @@ void vertices_as_halfedges(const VertexRange& vertex_range,
     *out++ = halfedge(v, pmesh);
 }
 
+template <typename EdgeRange,
+          typename HalfedgeOutputIterator,
+          typename PolygonMesh>
+void edges_as_halfedges(const EdgeRange& edge_range,
+                        const PolygonMesh& pmesh,
+                        HalfedgeOutputIterator out)
+{
+  typedef typename boost::graph_traits<PolygonMesh>::edge_descriptor                  edge_descriptor;
+
+  for(edge_descriptor e : edge_range)
+    *out++ = halfedge(e, pmesh);
+}
+
 // Assigns at each vertex the 'tolerance' value as tolerance, but bounded by a percentage of the length of its shortest incident edge
 template <typename HalfedgeRange,
           typename ToleranceMap,
