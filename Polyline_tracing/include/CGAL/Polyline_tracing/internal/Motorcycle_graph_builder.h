@@ -228,7 +228,7 @@ private:
       // Create a completely ordered edge range by traversing the input range
       // in the same order that the faces are ordered around the vertex
       CGAL::Face_around_target_iterator<Triangle_mesh> fit, fend;
-      boost::tie(fit, fend) = CGAL::faces_around_target(halfedge(vd, mg.mesh()), mg.mesh());
+      std::tie(fit, fend) = CGAL::faces_around_target(halfedge(vd, mg.mesh()), mg.mesh());
 
       CGAL_assertion(face_positions.size() <= static_cast<std::size_t>(std::distance(fit, fend)));
 
@@ -417,11 +417,11 @@ public:
       return is_valid_halfedge_graph(og);
 
     // Third: create faces
-    BOOST_FOREACH(fg_halfedge_descriptor hd, halfedges(og))
+    for(fg_halfedge_descriptor hd : halfedges(og))
       set_face(hd, boost::graph_traits<Face_graph>::null_face(), og);
 
     boost::unordered_set<fg_halfedge_descriptor> visited;
-    BOOST_FOREACH(fg_halfedge_descriptor hd, halfedges(og))
+    for(fg_halfedge_descriptor hd : halfedges(og))
     {
       if(visited.insert(hd).second) // never met this halfedge before
       {

@@ -27,8 +27,6 @@
 
 #include <CGAL/Polygon_mesh_processing/locate.h>
 
-#include <CGAL/function.h>
-
 #include <boost/optional.hpp>
 #include <boost/parameter.hpp>
 #include <boost/variant.hpp>
@@ -192,7 +190,7 @@ public:
 
   // Constructor
   template<typename Tracer,
-           typename NamedParameters = cgal_bgl_named_params<bool, internal_np::all_default_t> >
+           typename NamedParameters = Named_function_parameters<bool, internal_np::all_default_t> >
   Motorcycle(const Point_or_location& origin, const Tracer& tracer,
              const NamedParameters& np = CGAL::parameters::all_default());
 
@@ -317,13 +315,15 @@ Motorcycle(const Point_or_location& origin, const Tracer& tracer, const NamedPar
   :
     id_(-1),
     status_(IN_MOTION),
-    nature_(boost::choose_param(boost::get_param(np, internal_np::nature), FREE_MOTORCYCLE)),
+    nature_(parameters::choose_parameter(parameters::get_parameter(np, internal_np::nature),
+                                         FREE_MOTORCYCLE)),
     input_orig(origin),
-    input_dest(boost::choose_param(boost::get_param(np, internal_np::destination), boost::none)),
+    input_dest(parameters::choose_parameter(parameters::get_parameter(np, internal_np::destination),
+                                            boost::none)),
     orig(), dest(), conf(),
     is_dest_final(false),
-    speed_(boost::choose_param(boost::get_param(np, internal_np::speed), 1.)),
-    origin_time(boost::choose_param(boost::get_param(np, internal_np::initial_time), 0.)),
+    speed_(parameters::choose_parameter(parameters::get_parameter(np, internal_np::speed), 1.)),
+    origin_time(parameters::choose_parameter(parameters::get_parameter(np, internal_np::initial_time), 0.)),
     current_time_(origin_time),
     target_points(internal::Target_point_set_comparer<MotorcycleGraphTraits>()),
     track_(),
@@ -331,8 +331,8 @@ Motorcycle(const Point_or_location& origin, const Tracer& tracer, const NamedPar
     // about below, see remark above
     halfedge_tracer(std::ref(*(vertex_tracer.template target<Tracer>()))),
     face_tracer(std::ref(*(vertex_tracer.template target<Tracer>()))),
-    stop_predicate_(boost::choose_param(boost::get_param(np, internal_np::stop_predicate),
-                                        Default_stop_predicate()))
+    stop_predicate_(parameters::choose_parameter(parameters::get_parameter(np, internal_np::stop_predicate),
+                                                 Default_stop_predicate()))
 {
   CGAL_precondition(speed() > 0.);
 }
@@ -367,7 +367,7 @@ add_target(const Node_ptr target_point, const FT time_at_target)
   //       (e.g. after computing a new destination)
   CGAL_precondition(time_at_target >= current_time());
 
-  targets().insert(std::make_pair(target_point, time_at_target));
+  targets().emplace(target_point, time_at_target);
 }
 
 template<typename MotorcycleGraphTraits>

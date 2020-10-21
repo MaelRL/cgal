@@ -2,19 +2,10 @@
 // All rights reserved.
 //
 // This file is part of CGAL (www.cgal.org).
-// You can redistribute it and/or modify it under the terms of the GNU
-// General Public License as published by the Free Software Foundation,
-// either version 3 of the License, or (at your option) any later version.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 //
 // $URL$
 // $Id$
-// SPDX-License-Identifier: GPL-3.0+
+// SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 //
 // Author(s): Efi Fogel         <efif@post.tau.ac.il>
 //            Naama mayer       <naamamay@post.tau.ac.il>
@@ -242,6 +233,11 @@ private:
     /*! Set the marked-face index */
     void set_marked_facet_index(size_type id) {m_marked_facet_index = id;}
 
+    /*! Add vertices to the current facet. */
+    template <typename Iterator, typename Builder>
+    void add_vertices_to_facet(Iterator begin, Iterator end, Builder& B)
+    { for (Iterator it = begin; it != end; ++it) B.add_vertex_to_facet(*it); }
+
     /*! builds the polyhedron */
     void operator()(HDS& hds)
     {
@@ -262,11 +258,11 @@ private:
       for (CoordIndexIter it = m_indices_begin; it != m_indices_end; ++it) {
         Polyhedron_facet_handle fh = B.begin_facet();
         if (counter == m_marked_facet_index) fh->set_marked(true);
-        //! \todo EF: when upgrading to C++11 change the type of the following
-        // iterator to auto. Better yet, use for (auto blah : foo).
-        for (std::vector<size_t>::const_iterator iit = it->begin();
-             iit != it->end(); ++iit)
-          B.add_vertex_to_facet(*iit);
+        //! \todo EF: when upgrading to C++11 enable the following code and
+        // remove add_vertices_to_facet().
+        // for (const auto& facet : *it) B.add_vertex_to_facet(facet);
+        // B.end_facet();
+        add_vertices_to_facet(it->begin(), it->end(), B);
         B.end_facet();
         ++counter;
       }
@@ -519,7 +515,7 @@ public:
   /*! Constructor */
   Arr_polyhedral_sgm_initializer(PolyhedralSgm& sgm) :
     Base(sgm),
-    m_visitor(NULL),
+    m_visitor(nullptr),
     m_marked_vertex_index(0),
     m_marked_edge_index(0),
     m_marked_facet_index(0)
@@ -533,7 +529,7 @@ public:
    * \param visitor
    * \pre The polyhedron polyhedron does not have coplanar facets.
    */
-  void operator()(Polyhedron& polyhedron, Visitor* visitor = NULL)
+  void operator()(Polyhedron& polyhedron, Visitor* visitor = nullptr)
   {
 #if 0
     std::copy(polyhedron.points_begin(), polyhedron.points_end(),
@@ -563,7 +559,7 @@ public:
                   const CoordIndexIter indices_begin,
                   const CoordIndexIter indices_end,
                   size_type num_facets,
-                  Visitor* visitor = NULL)
+                  Visitor* visitor = nullptr)
   {
     m_visitor = visitor;
 
@@ -712,7 +708,7 @@ public:
  // template <typename SgmIterator>
  // void minkowski_sum(SgmIterator begin, SgmIterator end)
  // {
-	//typename SgmIterator::value_type* sgm1 = *begin++;
+        //typename SgmIterator::value_type* sgm1 = *begin++;
  //   typename SgmIterator::value_type* sgm2 = *begin;
  //   minkowski_sum(sgm1, sgm2);
  // }

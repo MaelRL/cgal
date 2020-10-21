@@ -4,7 +4,6 @@
 #include <CGAL/Circulator/Circulator_concepts.h>
 #include <CGAL/Surface_mesh.h>
 
-#include <boost/foreach.hpp>
 #include <boost/concept/assert.hpp>
 
 #include <iostream>
@@ -228,7 +227,7 @@ int main(int argc, char** argv)
 
   {
     std::cout << "out_edges: " << std::endl;
-    BOOST_FOREACH(edge_descriptor ed, out_edges(target(hd,P),P)){
+    for(edge_descriptor ed : out_edges(target(hd,P),P)){
       halfedge_descriptor hd2 = halfedge(ed,P);
       std::cout << get(CGAL::vertex_point, P, target(hd2,P)) << std::endl;
     }

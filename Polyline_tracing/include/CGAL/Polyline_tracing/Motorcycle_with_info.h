@@ -50,11 +50,11 @@ public:
 
   // Constructor
   template<typename Tracer,
-           typename NamedParameters = cgal_bgl_named_params<bool, internal_np::all_default_t> >
+           typename NamedParameters = Named_function_parameters<bool, internal_np::all_default_t> >
   Motorcycle_with_info(const Point_or_location& origin, const Tracer& tracer,
                        const NamedParameters& np = CGAL::parameters::all_default())
     : Base(origin, tracer, np),
-      _info(boost::choose_param(boost::get_param(np, internal_np::info), Info()))
+      _info(parameters::choose_parameter(parameters::get_parameter(np, internal_np::info), Info()))
   { }
 
 private:

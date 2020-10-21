@@ -1,10 +1,9 @@
 # This is the CMake script for compiling the CGAL Mesh_3 demo implicit functions.
 
-project( Mesh_3_implicit_functions )
+cmake_minimum_required(VERSION 3.1...3.15)
 
 include( polyhedron_demo_macros )
 
-cmake_minimum_required(VERSION 3.1)
 if(NOT POLICY CMP0070 AND POLICY CMP0053)
   # Only set CMP0053 to OLD with CMake<3.10, otherwise there is a warning.
   cmake_policy(SET CMP0053 OLD)
@@ -42,9 +41,9 @@ if(CGAL_Qt5_FOUND AND Qt5_FOUND)
   include(AddFileDependencies)
   remove_definitions(-DQT_STATICPLUGIN)
 
-  polyhedron_demo_plugin(p_sphere_function_plugin Sphere_implicit_function)
-  polyhedron_demo_plugin(p_tanglecube_function_plugin Tanglecube_implicit_function)
-  polyhedron_demo_plugin(p_klein_function_plugin Klein_implicit_function)
+  polyhedron_demo_plugin(p_sphere_function_plugin Sphere_implicit_function KEYWORDS Mesh_3)
+  polyhedron_demo_plugin(p_tanglecube_function_plugin Tanglecube_implicit_function KEYWORDS Mesh_3)
+  polyhedron_demo_plugin(p_klein_function_plugin Klein_implicit_function KEYWORDS Mesh_3)
 
 else (CGAL_Qt5_FOUND AND Qt5_FOUND)
 

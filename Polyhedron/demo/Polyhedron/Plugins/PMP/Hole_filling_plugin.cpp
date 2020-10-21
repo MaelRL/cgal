@@ -8,18 +8,27 @@
 #include "Scene_polyhedron_selection_item.h"
 #include "Scene.h"
 
+#include <CGAL/Three/Three.h>
+#include <CGAL/Three/Scene_item_rendering_helper.h>
 #include <CGAL/Three/Polyhedron_demo_plugin_helper.h>
+#include <CGAL/Three/Three.h>
 #include "ui_Hole_filling_widget.h"
 
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
+#include <CGAL/Polygon_mesh_processing/self_intersections.h>
+#include <CGAL/Polygon_mesh_processing/refine.h>
+#include <CGAL/Polygon_mesh_processing/internal/named_function_params.h>
+#include <CGAL/Polygon_mesh_processing/polygon_soup_to_polygon_mesh.h>
 #include <CGAL/Timer.h>
 #include <CGAL/iterator.h>
 
-#include <QTime>
+#include <QElapsedTimer>
 #include <QAction>
 #include <QMainWindow>
 #include <QApplication>
 #include <QDockWidget>
+#include <QInputDialog>
+#include <QMessageBox>
 
 #include <QEvent>
 #include <QKeyEvent>
@@ -30,7 +39,6 @@
 
 #include <CGAL/Qt/qglviewer.h>
 
-#include <CGAL/Polygon_mesh_processing/self_intersections.h>
 #include <CGAL/boost/graph/Euler_operations.h>
 #include "Kernel_type.h"
 
@@ -40,7 +48,20 @@
 #include <QMap>
 #include <QVector>
 
+using namespace CGAL::Three;
+
 typedef Scene_surface_mesh_item Scene_face_graph_item;
+
+
+struct Face : public std::array<int,3>
+{
+  Face(int i, int j, int k)
+  {
+    (*this)[0] = i;
+    (*this)[1] = j;
+    (*this)[2] = k;
+  }
+};
 
 void normalize_border(Scene_face_graph_item::Face_graph&)
 {}
@@ -55,7 +76,7 @@ typedef Kernel::Point_3 Point_3;
 
 // Class for visualizing holes in a polyhedron
 // provides mouse selection functionality
-class Q_DECL_EXPORT Scene_hole_visualizer : public CGAL::Three::Scene_item
+class Q_DECL_EXPORT Scene_hole_visualizer : public CGAL::Three::Scene_item_rendering_helper
 {
   Q_OBJECT
 public:
@@ -72,6 +93,7 @@ public:
   };
 public: typedef std::list<Polyline_data> Polyline_data_list;
 private:
+
   struct List_iterator_comparator {
     bool operator()(Polyline_data_list::const_iterator it_1, Polyline_data_list::const_iterator it_2) const
     { return (&*it_1) < (&*it_2); }
@@ -85,8 +107,10 @@ public:
     get_holes();
     active_hole = polyline_data_list.end();
 
-    CGAL::QGLViewer* viewer = *CGAL::QGLViewer::QGLViewerPool().begin();
-    viewer->installEventFilter(this);
+    Q_FOREACH(CGAL::QGLViewer* viewer, CGAL::QGLViewer::QGLViewerPool())
+    {
+      viewer->installEventFilter(this);
+    }
     mainWindow->installEventFilter(this);
 
     connect(poly_item, SIGNAL(item_is_about_to_be_changed()), this, SLOT(poly_item_changed()));
@@ -99,12 +123,12 @@ public:
   bool isFinite() const { return true; }
   bool isEmpty() const { return polyline_data_list.empty(); }
   void compute_bbox() const {
-    if(polyline_data_list.empty()) { _bbox = Bbox(); return;}
+    if(polyline_data_list.empty()) { setBbox(Bbox()); return;}
     Bbox bbox = polyline_data_list.begin()->polyline->bbox();
     for(Polyline_data_list::const_iterator it = polyline_data_list.begin(); it != polyline_data_list.end(); ++it) {
       bbox = bbox + it->polyline->bbox();
     }
-    _bbox = bbox;
+    setBbox(bbox);
   }
 
   Scene_hole_visualizer* clone() const {
@@ -117,17 +141,16 @@ public:
   bool supportsRenderingMode(RenderingMode m) const {
     return (m == Wireframe);
   }
-  void draw() const {}
   void drawEdges(CGAL::Three::Viewer_interface* viewer) const {
-    
+
     for(Polyline_data_list::const_iterator it = polyline_data_list.begin(); it != polyline_data_list.end(); ++it) {
       if(it == active_hole) { it->polyline->setWidth(7); }
       else                  { it->polyline->setWidth(3); }
 
       if(selected_holes.find(it) != selected_holes.end())
-      { it->polyline->setRbgColor(255, 0, 0); }
+      { it->polyline->setRgbColor(255, 0, 0); }
       else
-      { it->polyline->setRbgColor(0, 0, 255); }
+      { it->polyline->setRgbColor(0, 0, 255); }
 
       it->polyline->drawEdges(viewer);
     }
@@ -143,10 +166,24 @@ public:
     }
     Q_EMIT itemChanged();
   }
-
+void newViewer(Viewer_interface *viewer)
+{
+  for(Polyline_data_list::const_iterator it = polyline_data_list.begin(); it != polyline_data_list.end(); ++it) {
+    it->polyline->newViewer(viewer);
+  }
+  Scene_item_rendering_helper::newViewer(viewer);
+}
+void removeViewer(Viewer_interface *viewer)
+{
+  for(Polyline_data_list::const_iterator it = polyline_data_list.begin(); it != polyline_data_list.end(); ++it) {
+    it->polyline->removeViewer(viewer);
+  }
+  Scene_item_rendering_helper::removeViewer(viewer);
+}
   // filter events for selecting / activating holes with mouse input
-  bool eventFilter(QObject* /*target*/, QEvent *event)
+  bool eventFilter(QObject* , QEvent *event)
   {
+    Viewer_interface* viewer = CGAL::Three::Three::activeViewer();
     // This filter is both filtering events from 'viewer' and 'main window'
     Mouse_keyboard_state old_state = state;
     // key events
@@ -169,7 +206,6 @@ public:
     // activate closest hole
     if(event->type() == QEvent::HoverMove)
     {
-      CGAL::QGLViewer* viewer = *CGAL::QGLViewer::QGLViewerPool().begin();
       const QPoint& p = viewer->mapFromGlobal(QCursor::pos());
       bool need_repaint = activate_closest_hole(p.x(), p.y());
       if(need_repaint) { Q_EMIT itemChanged(); }
@@ -199,13 +235,13 @@ private:
     }
 
     clear();
-  
+
     Face_graph& poly = *poly_item->polyhedron();
 
     boost::unordered_set<fg_halfedge_descriptor> visited;
     boost::property_map<Face_graph,CGAL::vertex_point_t>::type vpm = get(CGAL::vertex_point,poly);
 
-    BOOST_FOREACH(fg_halfedge_descriptor hd, halfedges(poly)){
+    for(fg_halfedge_descriptor hd : halfedges(poly)){
       if(is_border(hd, poly) && visited.find(hd) == visited.end()){
         polyline_data_list.push_back(Polyline_data());
         Polyline_data& polyline_data = polyline_data_list.back();
@@ -215,8 +251,7 @@ private:
 
         CGAL::qglviewer::Vec center;
         int counter = 0;
-        fg_halfedge_descriptor hf_around_facet;
-        BOOST_FOREACH(hf_around_facet, halfedges_around_face(hd,poly)){
+        for(fg_halfedge_descriptor hf_around_facet : halfedges_around_face(hd,poly)){
           CGAL_assertion(visited.find(hf_around_facet) == visited.end());
           visited.insert(hf_around_facet);
           const Point_3& p = get(vpm,target(hf_around_facet, poly));
@@ -224,7 +259,7 @@ private:
           center += CGAL::qglviewer::Vec(p.x(), p.y(), p.z());
           ++counter;
         }
-        hf_around_facet = *halfedges_around_face(hd,poly).first;
+        fg_halfedge_descriptor hf_around_facet = *halfedges_around_face(hd,poly).first;
         polyline_data.polyline->polylines.front().push_back(get(vpm,target(hf_around_facet,poly)));
         polyline_data.position = center / counter;
       }
@@ -244,7 +279,7 @@ private:
 
     Face_graph& poly = *poly_item->polyhedron();
 
-    CGAL::QGLViewer* viewer = *CGAL::QGLViewer::QGLViewerPool().begin();
+    CGAL::QGLViewer* viewer = Three::currentViewer();
     CGAL::qglviewer::Camera* camera = viewer->camera();
 
     Polyline_data_list::const_iterator min_it;
@@ -252,31 +287,20 @@ private:
     Kernel::Point_2 xy(x,y);
     for(Polyline_data_list::const_iterator it = polyline_data_list.begin(); it != polyline_data_list.end(); ++it)
     {
-#if 0
-      /* use center of polyline to measure distance - performance wise */
-      const CGAL::qglviewer::Vec& pos_it = camera->projectedCoordinatesOf(it->position);
-      float dist = std::pow(pos_it.x - x, 2) + std::pow(pos_it.y - y, 2);
-      if(dist < min_dist) {
-        min_dist = dist;
-        min_it = it;
-      }
-#else
       boost::property_map<Face_graph,CGAL::vertex_point_t>::type vpm = get(CGAL::vertex_point,poly);
       /* use polyline points to measure distance - might hurt performance for large holes */
-      BOOST_FOREACH(fg_halfedge_descriptor hf_around_facet, halfedges_around_face(it->halfedge,poly)){
+      for(fg_halfedge_descriptor hf_around_facet : halfedges_around_face(it->halfedge,poly)){
         const Point_3& p_1 = get(vpm,target(hf_around_facet,poly));
         const CGAL::qglviewer::Vec& pos_it_1 = camera->projectedCoordinatesOf(CGAL::qglviewer::Vec(p_1.x(), p_1.y(), p_1.z()));
         const Point_3& p_2 = get(vpm,target(opposite(hf_around_facet,poly),poly));
         const CGAL::qglviewer::Vec& pos_it_2 = camera->projectedCoordinatesOf(CGAL::qglviewer::Vec(p_2.x(), p_2.y(), p_2.z()));
         Kernel::Segment_2 s(Kernel::Point_2(pos_it_1.x, pos_it_1.y), Kernel::Point_2(pos_it_2.x, pos_it_2.y));
-
         double dist = CGAL::squared_distance(s, xy);
         if(dist < min_dist) {
           min_dist = dist;
           min_it = it;
         }
       }
-#endif
     }
 
     if(min_it == active_hole) {
@@ -294,7 +318,7 @@ private:
     selected_holes.clear();
     active_hole = polyline_data_list.end();
   }
-  
+
   Polyline_data_list::const_iterator active_hole;
   Mouse_keyboard_state state;
 public:
@@ -319,12 +343,23 @@ class Polyhedron_demo_hole_filling_plugin :
 {
   Q_OBJECT
   Q_INTERFACES(CGAL::Three::Polyhedron_demo_plugin_interface)
-  Q_PLUGIN_METADATA(IID "com.geometryfactory.PolyhedronDemo.PluginInterface/1.0")
+  Q_PLUGIN_METADATA(IID "com.geometryfactory.PolyhedronDemo.PluginInterface/1.0" FILE "hole_filling_plugin.json")
 public:
-  bool applicable(QAction*) const { return qobject_cast<Scene_face_graph_item*>(scene->item(scene->mainSelectionIndex())) ||
-        qobject_cast<Scene_polyhedron_selection_item*>(scene->item(scene->mainSelectionIndex())); }
-  void print_message(QString message) { messages->information(message); }
-  QList<QAction*> actions() const { return QList<QAction*>() << actionHoleFilling; }
+  bool applicable(QAction* action) const
+  {
+    if(action == actionHoleFilling)
+    {
+      return qobject_cast<Scene_face_graph_item*>(scene->item(scene->mainSelectionIndex())) ||
+          qobject_cast<Scene_polyhedron_selection_item*>(scene->item(scene->mainSelectionIndex()));
+    }
+    else
+    {
+      return qobject_cast<Scene_polylines_item*>(scene->item(scene->mainSelectionIndex()));
+    }
+  }
+  void print_message(QString message) { CGAL::Three::Three::information(message); }
+  QList<QAction*> actions() const { return QList<QAction*>() << actionHoleFilling
+                                                             <<actionHoleFillingPolyline; }
 
 
   void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface, Messages_interface* m);
@@ -345,6 +380,7 @@ public Q_SLOTS:
   }
   void on_Select_all_holes_button();
   void on_Fill_from_selection_button();
+  void hole_filling_polyline_action();
   void on_Deselect_all_holes_button();
   void on_Visualize_holes_button();
   void on_Fill_selected_holes_button();
@@ -365,6 +401,7 @@ protected:
 
   void change_poly_item_by_blocking(Scene_face_graph_item* poly_item, Scene_hole_visualizer* collection) {
     if(collection) collection->block_poly_item_changed = true;
+    poly_item->resetColors();
     poly_item->invalidateOpenGLBuffers();
     poly_item->redraw();
     if(collection) collection->block_poly_item_changed = false;
@@ -372,9 +409,15 @@ protected:
 private:
   Messages_interface* messages;
   QAction* actionHoleFilling;
+  QAction* actionHoleFillingPolyline;
 
   QDockWidget* dock_widget;
   Ui::HoleFilling ui_widget;
+  struct Nop_functor {
+    template<class T>
+    void operator()(const T & /*t*/) const {}
+  };
+  typedef boost::function_output_iterator<Nop_functor> Nop_out;
 
   //Maintains a reference between all the visualizers and their poly_item
   // to ease the management of the visualizers
@@ -427,6 +470,10 @@ void Polyhedron_demo_hole_filling_plugin::init(QMainWindow* mainWindow,
                                     ), mw);
   actionHoleFilling->setProperty("subMenuName", "Polygon Mesh Processing");
   connect(actionHoleFilling, SIGNAL(triggered()), this, SLOT(hole_filling_action()));
+  actionHoleFillingPolyline = new QAction(tr("Polyline Hole Filling"), mw);
+  actionHoleFillingPolyline->setProperty("subMenuName", "Polygon Mesh Processing");
+  connect(actionHoleFillingPolyline, SIGNAL(triggered()),
+    this, SLOT(hole_filling_polyline_action()));
 
   dock_widget = new QDockWidget(
           "Hole Filling"
@@ -435,6 +482,7 @@ void Polyhedron_demo_hole_filling_plugin::init(QMainWindow* mainWindow,
   dock_widget->installEventFilter(this);
 
   ui_widget.setupUi(dock_widget);
+  ui_widget.Density_control_factor_spin_box->setMaximum(96.989999999999995);
   ui_widget.Accept_button->setVisible(false);
   ui_widget.Reject_button->setVisible(false);
 
@@ -442,7 +490,7 @@ void Polyhedron_demo_hole_filling_plugin::init(QMainWindow* mainWindow,
   dock_widget->setWindowTitle(tr(
                                   "Hole Filling"
                                 ));
-  
+
   connect(ui_widget.Fill_from_selection_button,  SIGNAL(clicked()), this, SLOT(on_Fill_from_selection_button()));
   connect(ui_widget.Visualize_holes_button,  SIGNAL(clicked()), this, SLOT(on_Visualize_holes_button()));
   connect(ui_widget.Fill_selected_holes_button,  SIGNAL(clicked()), this, SLOT(on_Fill_selected_holes_button()));
@@ -666,7 +714,7 @@ bool Polyhedron_demo_hole_filling_plugin::fill
 
     bool success;
     if(weight_index == 0) {
-      success = CGAL::cpp11::get<0>(CGAL::Polygon_mesh_processing::triangulate_refine_and_fair_hole(poly,
+      success = std::get<0>(CGAL::Polygon_mesh_processing::triangulate_refine_and_fair_hole(poly,
               it, std::back_inserter(patch), CGAL::Emptyset_iterator(),
               CGAL::Polygon_mesh_processing::parameters::weight_calculator
                 (CGAL::internal::Uniform_weight_fairing<Face_graph>(poly)).
@@ -675,7 +723,7 @@ bool Polyhedron_demo_hole_filling_plugin::fill
               use_delaunay_triangulation(use_DT)));
     }
     else {
-      success = CGAL::cpp11::get<0>(CGAL::Polygon_mesh_processing::triangulate_refine_and_fair_hole(poly,
+      success = std::get<0>(CGAL::Polygon_mesh_processing::triangulate_refine_and_fair_hole(poly,
               it, std::back_inserter(patch), CGAL::Emptyset_iterator(),
               CGAL::Polygon_mesh_processing::parameters::weight_calculator(CGAL::internal::Cotangent_weight_with_voronoi_area_fairing<Face_graph>(poly)).
               density_control_factor(alpha).
@@ -751,7 +799,7 @@ void Polyhedron_demo_hole_filling_plugin::on_Fill_from_selection_button() {
   boost::unordered_set<fg_halfedge_descriptor> buffer;
   //check if all selected edges are boder
   //to do check that the seection is closed
-  BOOST_FOREACH(fg_edge_descriptor ed, edge_selection->selected_edges)
+  for(fg_edge_descriptor ed : edge_selection->selected_edges)
   {
     fg_halfedge_descriptor h(halfedge(ed, *poly));
     if(! is_border(h,*poly))
@@ -775,7 +823,7 @@ void Polyhedron_demo_hole_filling_plugin::on_Fill_from_selection_button() {
   while(!buffer.empty())
   {
     bool found = false;
-    BOOST_FOREACH(fg_halfedge_descriptor h, buffer)
+    for(fg_halfedge_descriptor h : buffer)
     {
       //if h and c_e share a point
       if(target(h, *poly) == target(c_e,*poly) ||
@@ -859,9 +907,78 @@ void Polyhedron_demo_hole_filling_plugin::on_Fill_from_selection_button() {
     last_active_item = edge_selection->polyhedron_item();
     accept_reject_toggle(true);
   }
-
+  edge_selection->polyhedron_item()->resetColors();
   edge_selection->polyhedron_item()->invalidateOpenGLBuffers();
   edge_selection->polyhedron_item()->itemChanged();
+}
+
+void Polyhedron_demo_hole_filling_plugin::hole_filling_polyline_action() {
+  Scene_polylines_item* polylines_item = qobject_cast<Scene_polylines_item*>(scene->item(scene->mainSelectionIndex()));
+  if(!polylines_item) {
+    print_message("Error: there is no selected polyline item!");
+    return;
+  }
+
+  bool also_refine;
+  const double density_control_factor =
+    QInputDialog::getDouble(mw, tr("Density Control Factor"),
+    tr("Density Control Factor (Cancel for not Refine): "), 1.41, 0.0, 100.0, 2, &also_refine);
+
+  bool use_DT =
+    QMessageBox::Yes == QMessageBox::question(
+    NULL, "Use Delaunay Triangulation", "Use Delaunay Triangulation ?", QMessageBox::Yes|QMessageBox::No);
+
+  QApplication::setOverrideCursor(Qt::WaitCursor);
+  QApplication::processEvents();
+  std::size_t counter = 0;
+  for(Scene_polylines_item::Polylines_container::iterator it = polylines_item->polylines.begin();
+    it != polylines_item->polylines.end(); ++it, ++counter)
+  {
+    if(it->front() != it->back()) { //not closed, skip it
+      print_message("Warning: skipping not closed polyline!");
+      continue;
+    }
+    if(it->size() < 4) { // no triangle, skip it (needs at least 3 + 1 repeat)
+      print_message("Warning: skipping polyline which has less than 4 points!");
+      continue;
+    }
+
+    CGAL::Timer timer; timer.start();
+    std::vector<Face> patch;
+    CGAL::Polygon_mesh_processing::triangulate_hole_polyline(*it,
+      std::back_inserter(patch),
+      PMP::parameters::use_delaunay_triangulation(use_DT));
+    print_message(QString("Triangulated in %1 sec.").arg(timer.time()));
+
+    if(patch.empty()) {
+      if(use_DT){
+        print_message("Warning: generating patch is not successful, please try it without 'Delaunay Triangulation'!");
+        continue;
+      }
+      else{
+        print_message("Warning: generating patch is not successful, skipping.");
+        continue;
+      }
+    }
+    SMesh* poly = new SMesh;
+    CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(*it,
+                                                                patch,
+                                                                *poly);
+
+    if(also_refine) {
+      timer.reset();
+      CGAL::Polygon_mesh_processing::refine(*poly, faces(*poly),
+                                            Nop_out(), Nop_out(),
+                                            CGAL::Polygon_mesh_processing::parameters::density_control_factor(density_control_factor));
+      print_message(QString("Refined in %1 sec.").arg(timer.time()));
+    }
+
+    Scene_surface_mesh_item* poly_item = new Scene_surface_mesh_item(poly);
+    poly_item->setName(tr("%1-filled-%2").arg(polylines_item->name()).arg(counter));
+    poly_item->setRenderingMode(FlatPlusEdges);
+    scene->setSelectedItem(scene->addItem(poly_item));
+  }
+  QApplication::restoreOverrideCursor();
 }
 
 // Q_EXPORT_PLUGIN2(Polyhedron_demo_hole_filling_plugin, Polyhedron_demo_hole_filling_plugin)

@@ -207,7 +207,7 @@ compute_next_destination(const Node_ptr start_point, const face_descriptor fd,
   //
   // @todo a proper snap to closer halfedge / vertex. detect when we are walking an
   // edge, which should yield a target on a vertex (pass the bool in parameter).
-  CGAL::Polygon_mesh_processing::internal::snap_location_to_border<Triangle_mesh>(loc);
+  CGAL::Polygon_mesh_processing::internal::snap_location_to_border<FT>(loc, mesh);
   CGAL_postcondition(CGAL::Polygon_mesh_processing::is_on_face_border(loc, mesh));
 
   std::pair<Node_ptr, bool> destination = points.insert(loc, farthest_destination, mesh);

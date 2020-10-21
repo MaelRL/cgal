@@ -42,9 +42,9 @@ class SCENE_EXPORT Scene  :
 public:
   QList<QModelIndex> getModelIndexFromId(int id) const;
   int getIdFromModelIndex(QModelIndex modelId) const;
-  enum Columns { NameColumn = 0, 
-                 ColorColumn, 
-                 RenderingModeColumn, 
+  enum Columns { NameColumn = 0,
+                 ColorColumn,
+                 RenderingModeColumn,
                  VisibleColumn,
                  ABColumn,
                  LastColumn = ABColumn,
@@ -52,6 +52,7 @@ public:
   Scene(QObject*  parent);
   ~Scene();
   int addItem(CGAL::Three::Scene_item* item) Q_DECL_OVERRIDE;
+  void addChild(Scene_item* item) Q_DECL_OVERRIDE;
   void changeGroup(CGAL::Three::Scene_item* item, CGAL::Three::Scene_group_item* target_group) Q_DECL_OVERRIDE;
   CGAL::Three::Scene_item* replaceItem(int index, CGAL::Three::Scene_item* item, bool emit_item_about_to_be_destroyed = false) Q_DECL_OVERRIDE;
   Q_INVOKABLE int erase(int) Q_DECL_OVERRIDE;
@@ -63,9 +64,10 @@ public:
   int numberOfEntries() const Q_DECL_OVERRIDE;
   // returns the list of items.
   const QList<CGAL::Three::Scene_item*>& entries() const { return m_entries; }
+
   Q_INVOKABLE CGAL::Three::Scene_item* item(int) const Q_DECL_OVERRIDE;
   int item_id(CGAL::Three::Scene_item*) const Q_DECL_OVERRIDE;
-  
+
   //! \todo Replace Index based selection functionality with those
   //! functions.
   ///@{
@@ -80,20 +82,22 @@ public:
   int selectionAindex() const Q_DECL_OVERRIDE;
   int selectionBindex() const Q_DECL_OVERRIDE;
   void initializeGL(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
+  void initGL(CGAL::Three::Viewer_interface* viewer);
   void setPickedPixel(const QPoint &p) Q_DECL_OVERRIDE {picked_pixel = p;}
   void draw(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
   void drawWithNames(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
   bool keyPressEvent(QKeyEvent* e) Q_DECL_OVERRIDE;
   void printPrimitiveId(QPoint point,
                         CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
-  void printVertexIds(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
-  void printEdgeIds(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
-  void printFaceIds(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
-  void printAllIds(CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
+  void printVertexIds() Q_DECL_OVERRIDE;
+  void printEdgeIds() Q_DECL_OVERRIDE;
+  void printFaceIds() Q_DECL_OVERRIDE;
+  void printAllIds() Q_DECL_OVERRIDE;
   //!Re-computes the primitiveIds for `item`
-  void updatePrimitiveIds(Viewer_interface *, Scene_item *item) Q_DECL_OVERRIDE;
-  bool testDisplayId(double x, double y, double z, CGAL::Three::Viewer_interface* viewer) Q_DECL_OVERRIDE;
+  void updatePrimitiveIds(Scene_item *item) Q_DECL_OVERRIDE;
+  bool testDisplayId(double x, double y, double z, CGAL::Three::Viewer_interface* viewer, const QVector3D& scaler) Q_DECL_OVERRIDE;
   Bbox bbox() const Q_DECL_OVERRIDE;
+  void computeBbox();
   double len_diagonal() const Q_DECL_OVERRIDE
   {
     Bbox box = bbox();
@@ -139,6 +143,12 @@ public:
 
   void zoomToPosition(QPoint point,
                         CGAL::Three::Viewer_interface*) Q_DECL_OVERRIDE;
+  void setUpdatesEnabled(bool b) Q_DECL_OVERRIDE
+  {
+    dont_emit_changes = !b;
+    if(!b)
+      allItemsChanged();
+  }
 
 public Q_SLOTS:
   //!Specifies a group as Expanded for the Geometric Objects view
@@ -149,6 +159,7 @@ public Q_SLOTS:
   void itemChanged();
   void itemChanged(int i) Q_DECL_OVERRIDE;
   void itemChanged(CGAL::Three::Scene_item*) Q_DECL_OVERRIDE;
+  void allItemsChanged() Q_DECL_OVERRIDE;
   //!Transmits a CGAL::Three::Scene_item::itemVisibilityChanged() signal to the scene.
   void itemVisibilityChanged();
   void itemVisibilityChanged(CGAL::Three::Scene_item*) Q_DECL_OVERRIDE;
@@ -211,6 +222,8 @@ public Q_SLOTS:
   void setItemA(int i);
   //!Sets the item_B as the item at index i .
   void setItemB(int i);
+  void newViewer(CGAL::Three::Viewer_interface*);
+  void removeViewer(CGAL::Three::Viewer_interface*);
   void enableVisibilityRecentering(bool);
 
 Q_SIGNALS:
@@ -244,7 +257,7 @@ private Q_SLOTS:
   // Casts a selection ray and calls the item function select.
   void adjustIds(Scene_interface::Item_id removed_id);
   void setSelectionRay(double, double, double, double, double, double);
-  void callDraw(){  CGAL::QGLViewer* viewer = *CGAL::QGLViewer::QGLViewerPool().begin(); viewer->update();}
+  void callDraw();
   void s_itemAboutToBeDestroyed(CGAL::Three::Scene_item *);
 private:
   /*! Calls the drawing functions of each visible item according
@@ -268,6 +281,7 @@ private:
   typedef QList<CGAL::Three::Scene_item*> Entries;
   //List containing all the scene_items.
   Entries m_entries;
+  QList<Item_id> m_groups; //used to optimize createSelectionAll()
   QList<Item_id> children;
   // Index of the currently selected item.
   int selected_item;
@@ -284,8 +298,11 @@ private:
   float points[18];
   float uvs[12];
   QOpenGLShaderProgram program;
-  QOpenGLVertexArrayObject* vao;
+  QMap<CGAL::Three::Viewer_interface*, QOpenGLVertexArrayObject*> vaos;
   mutable QOpenGLBuffer vbo[2];
+  Bbox last_bbox;
+  //the scene will ignore the itemChanged() signals while this is true.
+  bool dont_emit_changes;
   bool visibility_recentering_enabled;
   bool sort_lists(QVector<QList<int> >&sorted_lists, bool up);
 }; // end class Scene
@@ -323,6 +340,7 @@ private:
   QAbstractProxyModel *proxy;
   Scene *scene;
   mutable int size;
+
 }; // end class SceneDelegate
 
 #endif // SCENE_H

@@ -301,7 +301,7 @@ std::pair<typename Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::Node
 Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::
 insert(const Face_location& loc, const std::size_t i, const FT time, const Triangle_mesh& mesh)
 {
-  Point p = CGAL::Polygon_mesh_processing::location_to_point(loc, mesh);
+  Point p = CGAL::Polygon_mesh_processing::construct_point(loc, mesh);
   return insert(loc, p, i, time, mesh);
 }
 
@@ -310,7 +310,7 @@ std::pair<typename Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::Node
 Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::
 insert(const Face_location& loc, const Triangle_mesh& mesh)
 {
-  Point p = CGAL::Polygon_mesh_processing::location_to_point(loc, mesh);
+  Point p = CGAL::Polygon_mesh_processing::construct_point(loc, mesh);
   return insert(loc, p, mesh);
 }
 

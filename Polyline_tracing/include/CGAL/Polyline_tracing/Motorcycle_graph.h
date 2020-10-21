@@ -38,7 +38,7 @@
 #include <CGAL/assertions.h>
 #include <CGAL/boost/graph/iterator.h>
 #include <CGAL/boost/graph/named_params_helper.h>
-#include <CGAL/boost/graph/named_function_params.h>
+#include <CGAL/boost/graph/Named_function_parameters.h>
 #include <CGAL/Cartesian_converter.h>
 #include <CGAL/enum.h>
 #include <CGAL/iterator.h>
@@ -168,12 +168,12 @@ public:
   // Constructor mesh/graph building functions
   template<typename Face_graph_ptr>
   void initialize_graph(Face_graph_ptr graph) { graph_ = graph; }
-  void initialize_graph(const boost::param_not_found);
+  void initialize_graph(const internal_np::Param_not_found);
 
   template<typename Triangle_mesh_ptr, typename NamedParameters>
   void initialize_mesh_and_graph(Triangle_mesh_ptr _mesh, const NamedParameters& np);
   template<typename NamedParameters>
-  void initialize_mesh_and_graph(const boost::param_not_found, const NamedParameters& np);
+  void initialize_mesh_and_graph(const internal_np::Param_not_found, const NamedParameters& np);
 
   // Constructor
   template<typename NamedParameters>
@@ -479,7 +479,7 @@ private:
 template<typename MotorcycleGraphTraits, typename MotorcycleType>
 void
 Motorcycle_graph<MotorcycleGraphTraits, MotorcycleType>::
-initialize_graph(const boost::param_not_found)
+initialize_graph(const internal_np::Param_not_found)
 {
   graph_ = new Face_graph();
   is_graph_provided = false;
@@ -495,14 +495,14 @@ initialize_mesh_and_graph(Triangle_mesh_ptr _mesh, const NamedParameters& np)
   CGAL_precondition(num_vertices(mesh()) > 0);
   CGAL_precondition(CGAL::is_triangle_mesh(mesh()));
 
-  initialize_graph(boost::get_param(np, CGAL::internal_np::output_graph));
+  initialize_graph(parameters::get_parameter(np, CGAL::internal_np::output_graph));
 }
 
 template<typename MotorcycleGraphTraits, typename MotorcycleType>
 template<typename NamedParameters>
 void
 Motorcycle_graph<MotorcycleGraphTraits, MotorcycleType>::
-initialize_mesh_and_graph(const boost::param_not_found, const NamedParameters& np)
+initialize_mesh_and_graph(const internal_np::Param_not_found, const NamedParameters& np)
 {
   // If no mesh is provided, we must be in 2D (technically, all points could be within a plane in 3D, but...)
   CGAL_precondition(Geom_traits::dimension() == 2);
@@ -516,7 +516,7 @@ initialize_mesh_and_graph(const boost::param_not_found, const NamedParameters& n
   // the box ? Pretty ugly, though...
   CGAL_assertion(false);
 
-  initialize_graph(boost::get_param(np, CGAL::internal_np::output_graph));
+  initialize_graph(parameters::get_parameter(np, CGAL::internal_np::output_graph));
 }
 
 template<typename MotorcycleGraphTraits, typename MotorcycleType>
@@ -537,12 +537,12 @@ Motorcycle_graph(const NamedParameters& np)
     aabb_tree_vpm_(),
     track_face_map_()
 {
-  using boost::choose_param;
-  using boost::get_param;
+  using parameters::choose_parameter;
+  using parameters::get_parameter;
 
-  gt_ = choose_param(get_param(np, internal_np::geom_traits), Geom_traits());
+  gt_ = choose_parameter(get_parameter(np, internal_np::geom_traits), Geom_traits());
 
-  initialize_mesh_and_graph(get_param(np, CGAL::internal_np::input_mesh), np);
+  initialize_mesh_and_graph(get_parameter(np, CGAL::internal_np::input_mesh), np);
 
   CGAL_precondition(num_vertices(graph()) == 0);
 }
@@ -617,14 +617,14 @@ add_origin_node(Motorcycle& mc, const Point_or_location& input_origin)
   else
   {
     origin_location = boost::get<Face_location>(input_origin);
-    origin_point = PMP::location_to_point(origin_location, mesh());
+    origin_point = PMP::construct_point(origin_location, mesh());
   }
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
   // handle nasty origin input
-  bool snapped = PMP::internal::snap_location_to_border<Triangle_mesh>(origin_location, tolerance_);
+  bool snapped = PMP::internal::snap_location_to_border(origin_location, mesh(), tolerance_);
   if(snapped)
-    origin_point = PMP::location_to_point(origin_location, mesh());
+    origin_point = PMP::construct_point(origin_location, mesh());
 #endif
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
@@ -705,14 +705,14 @@ add_destination_node(Motorcycle& mc,
     if(origin_location.first != destination_location.first)
       PMP::locate_in_common_face(origin_location, destination_location, mesh());
 
-    destination_point = PMP::location_to_point(destination_location, mesh());
+    destination_point = PMP::construct_point(destination_location, mesh());
   }
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
   // handle nasty origin input
-  bool snapped = PMP::internal::snap_location_to_border<Triangle_mesh>(destination_location, tolerance_);
+  bool snapped = PMP::internal::snap_location_to_border(destination_location, mesh(), tolerance_);
   if(snapped)
-    destination_point = PMP::location_to_point(destination_location, mesh());
+    destination_point = PMP::construct_point(destination_location, mesh());
 #endif
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
@@ -802,7 +802,7 @@ compute_middle_point(Node_ptr p, const FT p_time, Node_ptr q, const FT q_time)
                                                            0.5*(p_coords[1] + q_coords[1]),
                                                            0.5*(p_coords[2] + q_coords[2]));
   Face_location middle_loc = std::make_pair(p->face(), middle_coords);
-  const Point middle_p = Polygon_mesh_processing::location_to_point(middle_loc, mesh());
+  const Point middle_p = Polygon_mesh_processing::construct_point(middle_loc, mesh());
   const FT time_at_r = 0.5 * (p_time + q_time);
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
@@ -1085,7 +1085,7 @@ find_collision_with_tentative_track_extremity_on_border(const Motorcycle& mc,
 
     // Check all faces incident to 'vd' and intersections at vd
     const halfedge_descriptor hd = halfedge(vd, mesh());
-    BOOST_FOREACH(face_descriptor ffd, CGAL::faces_around_target(hd, mesh()))
+    for(face_descriptor ffd : CGAL::faces_around_target(hd, mesh()))
     {
       if(ffd == mc.current_face() || ffd == boost::graph_traits<Triangle_mesh>::null_face())
         continue;
@@ -1168,7 +1168,7 @@ find_collision_with_tentative_track_extremity_on_border_with_live_motorcycle_on_
             << "with live motorcycle #" << fmc.id() << std::endl;
 #endif
 
-  CGAL_precondition(ffd != boost::graph_traits<Triangle_mesh>::null_halfedge());
+  CGAL_precondition(ffd != boost::graph_traits<Triangle_mesh>::null_face());
   CGAL_precondition(mc.current_face() != ffd);
 
   // uninitialized motorcycles have a degenerate track living in the future)
@@ -2013,7 +2013,7 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
                                                                            1. - collision[0] - collision[1]));
 #ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
         // 1-x-y can result in some nasty "1e-17" imprecisions...
-        CGAL::Polygon_mesh_processing::internal::snap_location_to_border<Triangle_mesh>(collision_location, tolerance_);
+        CGAL::Polygon_mesh_processing::internal::snap_location_to_border(collision_location, mesh(), tolerance_);
 #endif
 
         // Couldn't find it through visiting times, but check if the new location
@@ -2066,7 +2066,7 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
           // But maybe there exists another point that is very close! Check for it,
           // and if needed, snap the new location (and the time) to it.
 
-          Point collision_point = CGAL::Polygon_mesh_processing::location_to_point(collision_location, mesh());
+          Point collision_point = CGAL::Polygon_mesh_processing::construct_point(collision_location, mesh());
 
           std::pair<Node_ptr, bool> is_snappable = find_close_existing_point(collision_location, collision_point);
           if(is_snappable.second) // successful snapping
@@ -2366,7 +2366,7 @@ find_collision_between_tracks(const Motorcycle& mc,
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
   // 1-x-y can result in some nasty "1e-17" imprecisions...
-  CGAL::Polygon_mesh_processing::internal::snap_location_to_border<Triangle_mesh>(collision_location, tolerance_);
+  CGAL::Polygon_mesh_processing::internal::snap_location_to_border(collision_location, mesh(), tolerance_);
 #endif
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
@@ -2462,7 +2462,7 @@ find_collision_between_tracks(const Motorcycle& mc,
   }
   else // The collision location has never been seen before!
   {
-    Point collision_point = CGAL::Polygon_mesh_processing::location_to_point(collision_location, mesh());
+    Point collision_point = CGAL::Polygon_mesh_processing::construct_point(collision_location, mesh());
 
     FT time_at_collision = mc.current_time() +
       CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(), collision_point)) / mc.speed();
@@ -2927,7 +2927,7 @@ locate(const Point& p) const
                                                  parameters::vertex_point_map(aabb_tree_vpm_));
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
-  PMP::internal::snap_location_to_border<Triangle_mesh>(loc, tolerance_);
+  PMP::internal::snap_location_to_border(loc, mesh(), tolerance_);
 #endif
 
   return loc;
