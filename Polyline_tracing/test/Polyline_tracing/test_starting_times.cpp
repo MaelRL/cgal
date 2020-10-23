@@ -2,6 +2,7 @@
 
 #define CGAL_CHECK_EXPENSIVE
 #define CGAL_MOTORCYCLE_GRAPH_VERBOSE
+#define CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
 #define CGAL_MOTORCYCLE_GRAPH_OUTPUT
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -124,7 +125,7 @@ void motorcycle_club(Motorcycle_graph& motorcycle_graph)
   motorcycle_graph.add_motorcycle(Point_2(0.15, 0.65) /*origin*/,
                                   Uniform_tracer(),
                                   CP::destination(Point_2(0.65, 0.65))
-                                      .initial_time(2.));
+                                     .initial_time(2.));
   motorcycle_graph.motorcycles().back().is_destination_final() = true;
 
   motorcycle_graph.add_motorcycle(Point_2(0.15, 0.65) /*origin*/,
@@ -239,6 +240,8 @@ int main()
   // read input mesh
   Triangle_mesh tm;
   std::ifstream in("data/eight_triangles.off");
+  assert(in);
+
   in >> tm;
   CGAL_precondition(tm.is_valid());
 
@@ -249,6 +252,8 @@ int main()
   assert(CGAL::Polyline_tracing::internal::is_valid(motorcycle_graph));
 
   is_valid_graph(motorcycle_graph);
+
+  std::cout << "Done!" << std::endl;
 
   return EXIT_SUCCESS;
 }

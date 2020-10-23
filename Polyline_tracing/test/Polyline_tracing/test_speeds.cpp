@@ -2,6 +2,8 @@
 
 #define CGAL_CHECK_EXPENSIVE
 #define CGAL_MOTORCYCLE_GRAPH_VERBOSE
+#define CGAL_MOTORCYCLE_GRAPH_TRAITS_VERBOSE
+#define CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
 #define CGAL_MOTORCYCLE_GRAPH_OUTPUT
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -168,6 +170,8 @@ int main()
   assert(CGAL::Polyline_tracing::internal::is_valid(motorcycle_graph));
 
   is_valid_graph(motorcycle_graph);
+
+  std::cout << "Done!" << std::endl;
 
   return EXIT_SUCCESS;
 }

@@ -207,8 +207,10 @@ compute_next_destination(const Node_ptr start_point, const face_descriptor fd,
   //
   // @todo a proper snap to closer halfedge / vertex. detect when we are walking an
   // edge, which should yield a target on a vertex (pass the bool in parameter).
+#ifdef CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
   CGAL::Polygon_mesh_processing::internal::snap_location_to_border<FT>(loc, mesh);
   CGAL_postcondition(CGAL::Polygon_mesh_processing::is_on_face_border(loc, mesh));
+#endif
 
   std::pair<Node_ptr, bool> destination = points.insert(loc, farthest_destination, mesh);
 
@@ -241,7 +243,7 @@ operator()(vertex_descriptor vd, const Motorcycle& mc,
 {
   // check which face we should move into, find it, compute.
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
-  std::cout << " Uniform tracing from a point on the vertex " << vd;
+  std::cout << "Uniform tracing from a point on the vertex " << vd;
   std::cout << " with direction: " << direction() << std::endl;
 #endif
 
@@ -294,7 +296,7 @@ operator()(halfedge_descriptor hd, const Motorcycle& mc,
            Nodes& points, const Triangle_mesh& mesh) const
 {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
-  std::cout << " Uniform tracing from a point on the halfedge " << hd;
+  std::cout << "Uniform tracing from a point on the halfedge " << hd;
   std::cout << " with direction: " << direction() << std::endl;
 #endif
   namespace PMP = CGAL::Polygon_mesh_processing;
@@ -323,8 +325,7 @@ operator()(halfedge_descriptor hd, const Motorcycle& mc,
     // Since (direction == NULL_VECTOR) has been filtered in Tracer.h, the destination
     // should not be equal to the origin
     // @todo This check would fail if one is manipulating a mesh with a degenerate (flat) face
-    if(res.template get<0>() &&
-       res.template get<2>() != mc.current_position())
+    if(res.template get<0>() && res.template get<2>() != mc.current_position())
       return res;
   }
 
@@ -357,7 +358,7 @@ operator()(face_descriptor fd, const Motorcycle& mc,
            Nodes& points, const Triangle_mesh& mesh) const
 {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
-  std::cout << " Uniform tracing from a point in the face " << fd;
+  std::cout << "Uniform tracing from a point in the face " << fd;
   std::cout << " with direction: " << direction() << std::endl;
 #endif
 

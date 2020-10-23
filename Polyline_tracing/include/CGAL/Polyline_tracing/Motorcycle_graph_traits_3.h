@@ -89,7 +89,7 @@ public:
   // - `w0 = source(halfedge(f, tm), tm)`
   // - `w1 = target(halfedge(f, tm), tm)`
   // - `w2 = target(next(halfedge(f, tm), tm), tm)`
-  typedef typename CGAL::cpp11::array<FT, 3>                  Barycentric_coordinates;
+  typedef typename std::array<FT, 3>                          Barycentric_coordinates;
   typedef std::pair<face_descriptor, Barycentric_coordinates> Face_location;
 
   // 2D robust predicate

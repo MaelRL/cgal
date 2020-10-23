@@ -190,8 +190,15 @@ public:
 
   void construct_motorcycle_graph(const bool construct_faces = false)
   {
-    boost::dummy_property_map dummy;
-    return construct_motorcycle_graph(dummy, dummy, construct_faces);
+    typedef std::unordered_map<vertex_descriptor, Node_ptr> VNMap;
+    typedef std::unordered_map<edge_descriptor, typename Track::iterator> ETMap;
+
+    VNMap vnmap;
+    boost::associative_property_map<VNMap> vnpmap(vnmap);
+    ETMap etmap;
+    boost::associative_property_map<ETMap> etpmap(etmap);
+
+    return construct_motorcycle_graph(vnpmap, etpmap, construct_faces);
   }
 
   // Function to add motorcycles, forwards the arguments to the constructor of 'Motorcycle'
@@ -620,7 +627,7 @@ add_origin_node(Motorcycle& mc, const Point_or_location& input_origin)
     origin_point = PMP::construct_point(origin_location, mesh());
   }
 
-#ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
+#ifdef CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
   // handle nasty origin input
   bool snapped = PMP::internal::snap_location_to_border(origin_location, mesh(), tolerance_);
   if(snapped)
@@ -635,7 +642,6 @@ add_origin_node(Motorcycle& mc, const Point_or_location& input_origin)
                          << origin_location.second[2] << "]" << std::endl;
 #endif
 
-#define CGAL_MOTORCYCLE_GRAPH_SNAPPING_CODE
 #ifdef CGAL_MOTORCYCLE_GRAPH_SNAPPING_CODE
   // Try to find an existing point close to that location
   std::pair<Node_ptr, bool> is_snappable = find_close_existing_point(origin_location, origin_point);
@@ -708,7 +714,7 @@ add_destination_node(Motorcycle& mc,
     destination_point = PMP::construct_point(destination_location, mesh());
   }
 
-#ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
+#ifdef CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
   // handle nasty origin input
   bool snapped = PMP::internal::snap_location_to_border(destination_location, mesh(), tolerance_);
   if(snapped)
@@ -746,7 +752,9 @@ add_destination_node(Motorcycle& mc,
 #endif
   {
     std::pair<Node_ptr, bool> is_insert_successful = nodes().insert(destination_location, destination_point, mesh());
+#ifdef CGAL_MOTORCYCLE_GRAPH_SNAPPING_CODE
     CGAL_assertion(is_insert_successful.second);
+#endif
     destination = is_insert_successful.first;
   }
 
@@ -1744,7 +1752,9 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
     // in the same direction, and with the same time... (both motorcycles crash)
     if(is_fmc_moving_on_track)
     {
+#ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
       std::cout << "Same origins, times, and directions!" << std::endl;
+#endif
 
       CGAL_assertion(mc.current_time() == time_at_fmc_track_source);
       CGAL_assertion(mc.track().size() == 1);
@@ -2011,7 +2021,7 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
         Face_location collision_location = std::make_pair(fmc_track_source->face(),
                                                           CGAL::make_array(collision[0], collision[1],
                                                                            1. - collision[0] - collision[1]));
-#ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
+#ifdef CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
         // 1-x-y can result in some nasty "1e-17" imprecisions...
         CGAL::Polygon_mesh_processing::internal::snap_location_to_border(collision_location, mesh(), tolerance_);
 #endif
@@ -2331,7 +2341,7 @@ find_collision_between_tracks(const Motorcycle& mc,
   }
 #endif
 
-  // --- The general-est case: the intersection must be computed ---
+  // --- The most generic case: the intersection must be computed ---
 #ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
   std::cout << "  general case..." << std::endl;
 #endif
@@ -2364,7 +2374,7 @@ find_collision_between_tracks(const Motorcycle& mc,
                                                     1. - collision[0] - collision[1]);
   Face_location collision_location = std::make_pair(mc.current_face(), coords);
 
-#ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
+#ifdef CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
   // 1-x-y can result in some nasty "1e-17" imprecisions...
   CGAL::Polygon_mesh_processing::internal::snap_location_to_border(collision_location, mesh(), tolerance_);
 #endif
@@ -2663,6 +2673,7 @@ find_collision(Motorcycle& mc, Collision_information& tc)
   std::cout << "~~~~~~~~~X ?" << std::endl;
   std::cout << "Checking for collisions on motorcycle #" << mc.id() << "'s track" << std::endl
             << "Currently on face: " << mc.current_face() << std::endl;
+  std::cout << "Degenerate track? " << mc.is_tentative_track_degenerate() << std::endl;
 #endif
 
   // Some sanity checks
@@ -2926,7 +2937,7 @@ locate(const Point& p) const
   Face_location loc = PMP::locate_with_AABB_tree(p3, aabb_tree(), mesh(),
                                                  parameters::vertex_point_map(aabb_tree_vpm_));
 
-#ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
+#ifdef CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
   PMP::internal::snap_location_to_border(loc, mesh(), tolerance_);
 #endif
 
@@ -3032,7 +3043,8 @@ trace_graph()
 #endif
       }
 
-      motorcycle_pq_.update(mc);
+      if(mc.status() != Motorcycle::CRASHED)
+        motorcycle_pq_.update(mc);
     }
 
     // Block the point that we have just reached
@@ -3104,7 +3116,7 @@ treat_collision(Motorcycle& mc, const Collision_information& collision_info)
   else if(is_collision_at_current_position)
   {
     // @fixme a bit hackish...
-    // We found a collision at the current point. If it were known collision,
+    // We found a collision at the current point. If it were a known collision,
     // it would have been ignored. Since we are here, it means that it is new information.
     // We can't however drive forward just yet because we have to look for collisions
     // in the tentative track beyond the current position.
@@ -3114,9 +3126,9 @@ treat_collision(Motorcycle& mc, const Collision_information& collision_info)
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
   std::cout << std::endl << "[[ Post treat_collision() ... ]]" << std::endl;
-  std::cout << "Motorcycle involved:" << std::endl << mc << std::endl;
   std::cout << "Collision point:" << std::endl << *collision_in_fd << std::endl;
   std::cout << collision_info.foreign_collisions.size() << " foreign motorcycles" << std::endl;
+  std::cout << "Motorcycles involved:" << std::endl << mc << std::endl;
 #endif
 
   // Now add the collision node to the foreign motorcycles too
@@ -3321,14 +3333,14 @@ construct_motorcycle_graph(VertexNodeMap& vnmap,
 #ifdef CGAL_MOTORCYCLE_GRAPH_OUTPUT
   if(construct_faces)
   {
-    std::ofstream out("motorcycle_graph.off");
+    std::ofstream out("results_2/motorcycle_graph.off");
     out.precision(20);
     CGAL::write_off(out, *graph_);
     out.close();
   }
   else
   {
-    std::ofstream out("motorcycle_graph.polylines.txt");
+    std::ofstream out("results_2/motorcycle_graph.polylines.txt");
     print_motorcycle_graph(out);
   }
 #endif
@@ -3433,14 +3445,22 @@ output_tracks() const
   for(; mc_it!=mc_end; ++mc_it)
   {
     std::stringstream oss;
-    oss << "motorcycle_track_" << mc_it->id() << ".polylines.txt" << std::ends;
+    oss << "results_2/motorcycle_track_" << mc_it->id() << ".polylines.txt" << std::ends;
     std::ofstream out(oss.str().c_str());
     out.precision(17);
 
     typename Track::const_iterator tscit = mc_it->track().begin();
     typename Track::const_iterator tsend = mc_it->track().end();
     for(; tscit!=tsend; ++tscit)
-      out << "2 " << tscit->source()->point() << " " << tscit->target()->point() << '\n';
+    {
+      out << "2 " << tscit->source()->point() << " " ;
+      if(Geom_traits::dimension() == 2)
+        out << " 0 ";
+      out << tscit->target()->point();
+      if(Geom_traits::dimension() == 2)
+        out << " 0";
+      out << "\n";
+    }
 
     out.close();
   }

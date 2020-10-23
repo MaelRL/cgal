@@ -56,7 +56,7 @@ void motorcycle_club_1(Motorcycle_graph& motorcycle_graph)
   while(fit != fend)
   {
     face_descriptor fd = *fit++;
-    CGAL::cpp11::array<FT, 3> arr = {{0.,0.,0.}};
+    std::array<FT, 3> arr = {{0.,0.,0.}};
 
     // location for the vertex
     int v_id = CGAL::Polygon_mesh_processing::vertex_index_in_face(vd, fd, mesh);

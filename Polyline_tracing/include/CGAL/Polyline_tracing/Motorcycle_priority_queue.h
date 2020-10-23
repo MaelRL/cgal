@@ -55,10 +55,10 @@ public:
   bool empty() const { return queue.empty(); }
   std::size_t size() const { return queue.size(); }
   const MPQ_entry& top() const { return queue.top(); }
-  handle_type handle(const Motorcycle& m) const { return handles[m.id()]; }
+  handle_type handle(const Motorcycle& m) const { return handles.at(m.id()); }
   handle_type push(const Motorcycle& m) { queue.push(&m); }
-  void update(const Motorcycle& m) { return queue.update(handles[m.id()]); }
-  void erase(const Motorcycle& m) { return queue.erase(handles[m.id()]); }
+  void update(const Motorcycle& m) { return queue.update(handles.at(m.id())); }
+  void erase(const Motorcycle& m) { return queue.erase(handles.at(m.id())); }
 
   Motorcycle_priority_queue() : queue(), handles() { }
 

@@ -24,8 +24,9 @@
 * the free functions of this package.
 */
 
-// @tmp
 #define CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
+#define CGAL_MOTORCYCLE_GRAPH_LOCATION_SNAPPING_CODE
+// #define CGAL_MOTORCYCLE_GRAPH_SNAPPING_CODE
 
 #include <CGAL/Polyline_tracing/Motorcycle_graph_traits_2.h>
 #include <CGAL/Polyline_tracing/Motorcycle_graph_traits_3.h>

@@ -53,6 +53,10 @@ robust_intersection(const typename Traits::Ray_2& r,
   // the ray and the segment
   CGAL_precondition(traits.do_intersect_2_object()(r, s));
 
+#ifdef CGAL_MOTORCYCLE_GRAPH_TRAITS_VERBOSE
+  std::cout << "Robust intersection of ray: " << r << " with segment: " << s << std::endl;
+#endif
+
   typedef typename Traits::Point_2                                 Point;
   typedef typename Traits::Segment_2                               Segment;
   typedef typename Traits::Ray_2                                   Ray;
@@ -75,7 +79,7 @@ robust_intersection(const typename Traits::Ray_2& r,
     // return the opposite extremity of the segment (the one that is not the ray's source)
     pp = boost::get<Point>(&*res);
 
-    // another type of sanity check ? @todo
+    // @fixme? "has_on() == true" might be too demanding
     if(!pp || !r.has_on(*pp) || !s.has_on(*pp))
       need_to_use_exact = true;
   }

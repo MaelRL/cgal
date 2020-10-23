@@ -120,7 +120,7 @@ private:
                                      VertexNodeMap& vnmap)
   {
     std::pair<typename PointDescriptorMap::iterator, bool> is_insert_successful =
-      pdm.insert(std::make_pair(it->point(), boost::graph_traits<Face_graph>::null_vertex()));
+      pdm.emplace(it->point(), boost::graph_traits<Face_graph>::null_vertex());
 
     if(is_insert_successful.second)
     {
@@ -130,6 +130,10 @@ private:
       is_insert_successful.first->second = vd;
       put(vpm, vd, it->point());
       put(vnmap, vd, it);
+
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+      std::cout << "Created vertex " << vd << " for position " << it->point() << std::endl;
+#endif
 
       return vd;
     }
@@ -146,6 +150,10 @@ private:
                                     const Node_ptr t_it,
                                     VIMap& vim) const
   {
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+    std::cout << "adding " << hd << " to incident halfedges of " << vd << std::endl;
+#endif
+
     CGAL_precondition(target(hd, og) == vd);
     face_descriptor fd = s_it->face();
     CGAL_precondition(fd == t_it->face());
@@ -155,8 +163,7 @@ private:
 //    CGAL_precondition(og.point(vd) == t_it->point());
 
     Incident_edges inc_edges(t_it);
-    std::pair<typename VIMap::iterator, bool> is_insert_successful =
-      vim.insert(std::make_pair(vd, inc_edges));
+    std::pair<typename VIMap::iterator, bool> is_insert_successful = vim.emplace(vd, inc_edges);
 
     const Point_2 s = mg.geom_traits().construct_point_2_object()(s_it->location().second[0],
                                                                   s_it->location().second[1]);
@@ -165,7 +172,7 @@ private:
     const Line_2 l = mg.geom_traits().construct_line_2_object()(s, t);
     const Direction_2 d = mg.geom_traits().construct_direction_2_object()(l);
 
-    is_insert_successful.first->second.iedges.push_back(Incident_edge(hd, fd, d));
+    is_insert_successful.first->second.iedges.emplace_back(hd, fd, d);
   }
 
   struct Edge_global_order
@@ -174,21 +181,23 @@ private:
     {
       if(e1.fd == e2.fd)
         return e1.dir > e2.dir; // compare the directions if within the same face...
-      return (e1.fd < e2.fd); // ...otherwise, compare the directions
+      return (e1.fd < e2.fd); // ...otherwise, compare the faces
     }
   };
 
   template <typename IncidentEdgeInputIterator, typename IncidentEdgeOutputIterator>
   IncidentEdgeOutputIterator order_incident_edges_in_face(const Node_ptr v,
                                                           IncidentEdgeInputIterator first,
-                                                          IncidentEdgeInputIterator last,
+                                                          IncidentEdgeInputIterator beyond,
                                                           IncidentEdgeOutputIterator out) const
   {
     CGAL_precondition(v != Node_ptr());
-    CGAL_precondition(first != last);
+    CGAL_precondition(first != beyond);
 
     namespace PMP = CGAL::Polygon_mesh_processing;
 
+    // @fixme check the claim below
+    //
     // If the motorcycle graph vertex is on a face or an edge, ordering by face
     // and internally within each face is enough to have a global ordering.
     // However, if it is on a mesh vertex, then the incident faces must also
@@ -200,7 +209,7 @@ private:
     // is chosen the same way on each face and thus has a global consistency!
     //
     // Thus: local ordering of edges on each face + global ordering the faces = global ordering of the edges
-    std::sort(first, last, Edge_global_order());
+    std::sort(first, beyond, Edge_global_order());
 
     descriptor_variant dv = PMP::get_descriptor_from_location(v->location(), mg.mesh());
     if(const vertex_descriptor* vd_ptr = boost::get<vertex_descriptor>(&dv))
@@ -214,9 +223,9 @@ private:
       IncidentEdgeInputIterator ieit = first;
       face_descriptor current_fd = ieit->fd;
       face_positions[current_fd] = ieit;
-      while(ieit != last)
+      while(ieit != beyond)
       {
-        if(current_fd != ieit->fd)
+        if(ieit->fd != current_fd)
         {
           current_fd = ieit->fd;
           face_positions[current_fd] = ieit;
@@ -232,6 +241,8 @@ private:
 
       CGAL_assertion(face_positions.size() <= static_cast<std::size_t>(std::distance(fit, fend)));
 
+      IncidentEdgeInputIterator last = std::prev(beyond);
+
       while(fit != fend)
       {
         current_fd = *fit++;
@@ -246,14 +257,16 @@ private:
         IncidentEdgeInputIterator face_position = pos->second;
         while(face_position->fd == current_fd)
         {
+
           *out++ = face_position->ihd;
-          ++face_position;
+          face_position = (face_position == last) ? first : std::next(face_position);
         }
       }
     }
     else // point is not on a vertex, simply dump the already ordered edges
     {
-      while(first != last)
+      std::cout << "standard" << std::endl;
+      while(first != beyond)
       {
         *out++ = first->ihd;
         ++first;
@@ -290,17 +303,26 @@ private:
         continue;
       }
 
+      if(std::distance(lit, end) == 2)
+      {
+        fg_halfedge_descriptor hd_1 = lit->ihd;
+        fg_halfedge_descriptor hd_2 = std::next(lit)->ihd;
+        set_next(hd_1, opposite(hd_2, og), og);
+        set_next(hd_2, opposite(hd_1, og), og);
+        continue;
+      }
+
       std::vector<fg_halfedge_descriptor> ordered_halfedges;
       order_incident_edges_in_face(incident_edges.p, lit, end, std::back_inserter(ordered_halfedges));
 
       typename std::vector<fg_halfedge_descriptor>::const_iterator hd_cit = ordered_halfedges.begin(),
-                                                                   hd_last = --(ordered_halfedges.end()),
+                                                                   hd_last = std::prev(ordered_halfedges.end()),
                                                                    hd_end = ordered_halfedges.end();
       for(; hd_cit!=hd_end; ++hd_cit)
       {
         fg_halfedge_descriptor current_hd = *hd_cit;
         fg_halfedge_descriptor next_hd = *((hd_cit == hd_last) ? ordered_halfedges.begin()
-                                                               : CGAL::cpp11::next(hd_cit));
+                                                               : std::next(hd_cit));
 
         CGAL_assertion(target(current_hd, og) == vd);
         CGAL_assertion(target(next_hd, og) == vd);
@@ -377,7 +399,9 @@ public:
         fg_vertex_descriptor next_vd = boost::graph_traits<Face_graph>::null_vertex();
         if(track_source == track_target || track_source->point() == track_target->point())
         {
-          std::cerr << "Warning: degenerate track at (" << track_source->point() << ")" << std::endl;
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+          std::cerr << "Warning: degenerate track at (" << track_source->point() << ") for Motorcycle #" << mc.id() << std::endl;
+#endif
           next_vd = current_vd;
           continue;
         }
@@ -396,10 +420,15 @@ public:
           fg_halfedge_descriptor opp_hd = opposite(hd, og);
           set_target(opp_hd, current_vd, og);
 
+
           set_halfedge(next_vd, hd, og);
           set_halfedge(current_vd, opp_hd, og);
           CGAL_assertion(target(hd, og) == next_vd);
           CGAL_assertion(target(opp_hd, og) == current_vd);
+
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+          std::cout << "Created edge " << ed << " [" << next_vd << " " << current_vd << "]" << std::endl;
+#endif
 
           // Fill the incident map
           add_incident_track_to_vertex(current_vd, opp_hd, track_target, track_source, vim);

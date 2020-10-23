@@ -80,7 +80,8 @@ struct Collision_information
     const bool must_crash;
     Track_segment_ptr foreign_track_ptr; // if it's not a track, then it'll be the tentative track
 
-    Foreign_collision_information(const std::size_t fmc_id, const FT foreign_time_at_collision,
+    Foreign_collision_information(const std::size_t fmc_id,
+                                  const FT foreign_time_at_collision,
                                   const bool must_foreign_motorcycle_crash = false)
       :
         fmc_id(fmc_id),
@@ -138,7 +139,7 @@ struct Collision_information
                          const bool must_motorcycle_crash = false)
   {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
-    std::cout << "Best new collision at time : " << time_at_collision << std::endl;
+    std::cout << "Best new collision at time: " << time_at_collision << std::endl;
     std::cout << "Previous best time was: " << time_at_closest_collision << std::endl;
 #endif
 
@@ -154,10 +155,10 @@ struct Collision_information
                                          const bool must_foreign_motorcycle_crash)
   {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
-    std::cout << "trying to add foreign collision with " << fmc_id << " at " << foreign_time_at_collision << std::endl;
+    std::cout << "Trying to add foreign collision with foreign Motorcycle #" << fmc_id << " at foreign time: " << foreign_time_at_collision << std::endl;
 #endif
 
-#if 1 // @tmp
+#if 0 // @tmp
     // If multiple foreign motorcycles intersect 'mc' at the same point,
     // keep a foreign motorcycle that does not know about this intersection
 
