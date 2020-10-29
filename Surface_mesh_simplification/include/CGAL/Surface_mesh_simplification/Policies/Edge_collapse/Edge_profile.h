@@ -15,6 +15,7 @@
 
 #include <CGAL/Surface_mesh_simplification/internal/Common.h>
 
+#include <CGAL/boost/graph/helpers.h>
 #include <CGAL/Kernel_traits.h>
 
 #include <vector>

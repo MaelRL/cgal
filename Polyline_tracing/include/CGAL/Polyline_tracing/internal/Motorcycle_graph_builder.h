@@ -257,7 +257,6 @@ private:
         IncidentEdgeInputIterator face_position = pos->second;
         while(face_position->fd == current_fd)
         {
-
           *out++ = face_position->ihd;
           face_position = (face_position == last) ? first : std::next(face_position);
         }
