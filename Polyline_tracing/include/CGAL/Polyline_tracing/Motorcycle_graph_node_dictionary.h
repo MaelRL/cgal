@@ -103,8 +103,8 @@ public:
   Node_ptr get_sibling(Node_ptr e, const face_descriptor fd) const;
 
   std::pair<Node_ptr, bool> insert(const Face_location& loc, const Point& p, const Triangle_mesh& mesh);
-  std::pair<Node_ptr, bool> insert(const Face_location& loc, const Point& p, const std::size_t i, const FT time, const Triangle_mesh& mesh);
-  std::pair<Node_ptr, bool> insert(const Face_location& loc, const std::size_t i, const FT time, const Triangle_mesh& mesh);
+  std::pair<Node_ptr, bool> insert(const Face_location& loc, const Point& p, const int i, const FT time, const Triangle_mesh& mesh);
+  std::pair<Node_ptr, bool> insert(const Face_location& loc, const int i, const FT time, const Triangle_mesh& mesh);
   std::pair<Node_ptr, bool> insert(const Face_location& loc, const Triangle_mesh& mesh);
 
   // Ouput
@@ -288,7 +288,7 @@ insert(const Face_location& location, const Point& p, const Triangle_mesh& mesh)
 template<typename MotorcycleGraphTraits>
 std::pair<typename Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::Node_ptr, bool>
 Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::
-insert(const Face_location& loc, const Point& p, const std::size_t i, const FT time, const Triangle_mesh& mesh)
+insert(const Face_location& loc, const Point& p, const int i, const FT time, const Triangle_mesh& mesh)
 {
   std::pair<Node_ptr, bool> node = insert(loc, p, mesh);
   node.first->add_motorcycle(i, time);
@@ -299,7 +299,7 @@ insert(const Face_location& loc, const Point& p, const std::size_t i, const FT t
 template<typename MotorcycleGraphTraits>
 std::pair<typename Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::Node_ptr, bool>
 Motorcycle_graph_node_dictionary<MotorcycleGraphTraits>::
-insert(const Face_location& loc, const std::size_t i, const FT time, const Triangle_mesh& mesh)
+insert(const Face_location& loc, const int i, const FT time, const Triangle_mesh& mesh)
 {
   Point p = CGAL::Polygon_mesh_processing::construct_point(loc, mesh);
   return insert(loc, p, i, time, mesh);

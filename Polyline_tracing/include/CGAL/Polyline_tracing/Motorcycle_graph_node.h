@@ -150,7 +150,7 @@ public:
   hg_vertex_descriptor& graph_vertex() { return out_vd_; }
   const hg_vertex_descriptor& graph_vertex() const { return out_vd_; }
 
-  std::pair<VMC_it, bool> add_motorcycle(const std::size_t id, const FT time) const;
+  std::pair<VMC_it, bool> add_motorcycle(const int id, const FT time) const;
   void add_motorcycles(const Visiting_motorcycles_container& foreign_visiting_mcs) const;
 
   template<typename MotorcycleOutputIterator>
@@ -158,35 +158,35 @@ public:
   FT earliest_visiting_time() const;
 
   // Checks if the motorcycle 'id' visits.
-  VMC_left_it find_motorcycle(const std::size_t id) const;
+  VMC_left_it find_motorcycle(const int id) const;
 
   // Checks if the motorcycle 'id' visits at time 'visiting_time'.
-  VMC_left_it find_motorcycle(const std::size_t id, const FT visiting_time) const;
+  VMC_left_it find_motorcycle(const int id, const FT visiting_time) const;
 
   // Checks if the motorcycle 'id' visits at time between 'min_' and 'max_visiting_time'.
   // The last parameter is optional and can be used to grab the visiting time
   // 'strictly_at_X' to include the boundary of the interval or not.
-  VMC_left_it find_motorcycle(const std::size_t id,
+  VMC_left_it find_motorcycle(const int id,
                               const FT min_visiting_time, const FT max_visiting_time,
                               FT& visiting_time /*time at which it is visited*/,
                               const bool strictly_at_min = false,  const bool strictly_at_max = false) const;
-  VMC_left_it find_motorcycle(const std::size_t id,
+  VMC_left_it find_motorcycle(const int id,
                               const FT min_visiting_time, const FT max_visiting_time,
                               const bool strictly_at_min = false, const bool strictly_at_max = false) const;
 
   // Checks if a motorcycle visits the point (possibly within a given time interval)
-  bool has_motorcycle(const std::size_t id) const;
-  bool has_motorcycle(const std::size_t id, const FT visiting_time) const;
-  bool has_motorcycle(const std::size_t id,
+  bool has_motorcycle(const int id) const;
+  bool has_motorcycle(const int id, const FT visiting_time) const;
+  bool has_motorcycle(const int id,
                       const FT min_visiting_time, const FT max_visiting_time,
                       FT& visiting_time /*time at which it is visited*/,
                       const bool strictly_at_min = false, const bool strictly_at_max = false) const;
-  bool has_motorcycle(const std::size_t id,
+  bool has_motorcycle(const int id,
                       const FT min_visiting_time, const FT max_visiting_time,
                       const bool strictly_at_min = false, const bool strictly_at_max = false) const;
   bool has_motorcycles() const;
 
-  size_type remove_motorcycle(const std::size_t id) const;
+  size_type remove_motorcycle(const int id) const;
 
   // Output
   friend std::ostream& operator<<(std::ostream& out, const Self& dec)
@@ -238,7 +238,7 @@ private:
 template<typename MotorcycleGraphTraits, typename Derived>
 std::pair<typename Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::VMC_it, bool>
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-add_motorcycle(const std::size_t id, const FT time) const
+add_motorcycle(const int id, const FT time) const
 {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
   std::cout << " > Point " << this << " is visited by motorcycle #" << id << " at time: " << time << std::endl;
@@ -299,7 +299,7 @@ earliest_visiting_time() const
 template<typename MotorcycleGraphTraits, typename Derived>
 typename Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::VMC_left_it
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-find_motorcycle(const std::size_t id) const
+find_motorcycle(const int id) const
 {
   // Since 'lower_bound' is used, it returns the first motorcycle fitting this
   VMC_left_it it = visiting_mcs_.left.lower_bound(id);
@@ -312,7 +312,7 @@ find_motorcycle(const std::size_t id) const
 template<typename MotorcycleGraphTraits, typename Derived>
 typename Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::VMC_left_it
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-find_motorcycle(const std::size_t id, const FT visiting_time) const
+find_motorcycle(const int id, const FT visiting_time) const
 {
   VMC_left_it mit = find_motorcycle(id);
   if(mit == visiting_motorcycles().left.end())
@@ -335,7 +335,7 @@ find_motorcycle(const std::size_t id, const FT visiting_time) const
 template<typename MotorcycleGraphTraits, typename Derived>
 typename Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::VMC_left_it
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-find_motorcycle(const std::size_t id,
+find_motorcycle(const int id,
                 const FT min_visiting_time, const FT max_visiting_time,
                 FT& visiting_time,
                 const bool strictly_at_min, const bool strictly_at_max) const
@@ -369,7 +369,7 @@ find_motorcycle(const std::size_t id,
 template<typename MotorcycleGraphTraits, typename Derived>
 typename Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::VMC_left_it
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-find_motorcycle(const std::size_t id,
+find_motorcycle(const int id,
                 const FT min_visiting_time, const FT max_visiting_time,
                 const bool strictly_at_min, const bool strictly_at_max) const
 {
@@ -381,7 +381,7 @@ find_motorcycle(const std::size_t id,
 template<typename MotorcycleGraphTraits, typename Derived>
 bool
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-has_motorcycle(const std::size_t id) const
+has_motorcycle(const int id) const
 {
   return (find_motorcycle(id) != visiting_motorcycles().left.end());
 }
@@ -389,7 +389,7 @@ has_motorcycle(const std::size_t id) const
 template<typename MotorcycleGraphTraits, typename Derived>
 bool
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-has_motorcycle(const std::size_t id, const FT visiting_time) const
+has_motorcycle(const int id, const FT visiting_time) const
 {
   return (find_motorcycle(id, visiting_time) != visiting_motorcycles().left.end());
 }
@@ -397,7 +397,7 @@ has_motorcycle(const std::size_t id, const FT visiting_time) const
 template<typename MotorcycleGraphTraits, typename Derived>
 bool
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-has_motorcycle(const std::size_t id,
+has_motorcycle(const int id,
                const FT min_visiting_time, const FT max_visiting_time,
                FT& visiting_time,
                const bool strictly_at_min, const bool strictly_at_max) const
@@ -410,7 +410,7 @@ has_motorcycle(const std::size_t id,
 template<typename MotorcycleGraphTraits, typename Derived>
 bool
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-has_motorcycle(const std::size_t id,
+has_motorcycle(const int id,
                const FT min_visiting_time, const FT max_visiting_time,
                const bool strictly_at_min, const bool strictly_at_max) const
 {
@@ -432,7 +432,7 @@ has_motorcycles() const
 template<typename MotorcycleGraphTraits, typename Derived>
 typename Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::size_type
 Motorcycle_graph_node_base<MotorcycleGraphTraits, Derived>::
-remove_motorcycle(const std::size_t id) const
+remove_motorcycle(const int id) const
 {
   // Note that this will remove all instances of motorcycle 'id' in the multiset
   return visiting_mcs_.left.erase(id);
@@ -513,7 +513,7 @@ public:
   Siblings_container& siblings() const { return base()->siblings(); }
   hg_vertex_descriptor& graph_vertex() const { return base()->graph_vertex(); }
 
-  std::pair<VMC_it, bool> add_motorcycle(const std::size_t id, const FT time) const {
+  std::pair<VMC_it, bool> add_motorcycle(const int id, const FT time) const {
     return base()->add_motorcycle(id, time);
   }
   void add_motorcycles(const Visiting_motorcycles_container& foreign_visiting_mcs) const {
@@ -524,30 +524,30 @@ public:
  MotorcycleOutputIterator earliest_motorcycles(MotorcycleOutputIterator out) const { return base()->earliest_motorcycles(out); }
   FT earliest_visiting_time() const { return base()->earliest_visiting_time(); }
 
-  VMC_left_it find_motorcycle(const std::size_t id) const { return base()->find_motorcycle(id); }
+  VMC_left_it find_motorcycle(const int id) const { return base()->find_motorcycle(id); }
   // Check if the motorcycle 'id' visits at time 'visiting_time'.
-  VMC_left_it find_motorcycle(const std::size_t id, const FT visiting_time) const {
+  VMC_left_it find_motorcycle(const int id, const FT visiting_time) const {
     return base()->find_motorcycle(id, visiting_time);
   }
 
-  VMC_left_it find_motorcycle(const std::size_t id, const FT min_visiting_time, const FT max_visiting_time,
+  VMC_left_it find_motorcycle(const int id, const FT min_visiting_time, const FT max_visiting_time,
                               FT& visiting_time, const bool strictly_at_min = false, const bool strictly_at_max = false) const {
     return base()->find_motorcycle(id, min_visiting_time, max_visiting_time, visiting_time, strictly_at_min, strictly_at_max);
   }
-  VMC_left_it find_motorcycle(const std::size_t id, const FT min_visiting_time, const FT max_visiting_time,
+  VMC_left_it find_motorcycle(const int id, const FT min_visiting_time, const FT max_visiting_time,
                               const bool strictly_at_min = false, const bool strictly_at_max = false) const {
     return base()->find_motorcycle(id, min_visiting_time, max_visiting_time, strictly_at_min, strictly_at_max);
   }
 
-  bool has_motorcycle(const std::size_t id) const { return base()->has_motorcycle(id); }
-  bool has_motorcycle(const std::size_t id, const FT visiting_time) const { return base()->has_motorcycle(id, visiting_time); }
-  bool has_motorcycle(const std::size_t id,
+  bool has_motorcycle(const int id) const { return base()->has_motorcycle(id); }
+  bool has_motorcycle(const int id, const FT visiting_time) const { return base()->has_motorcycle(id, visiting_time); }
+  bool has_motorcycle(const int id,
                       const FT min_visiting_time, const FT max_visiting_time,
                       FT& visiting_time /*time at which it is visited*/,
                       const bool strictly_at_min = false, const bool strictly_at_max = false) const {
     return base()->has_motorcycle(id, min_visiting_time, max_visiting_time, visiting_time, strictly_at_min, strictly_at_max);
   }
-  bool has_motorcycle(const std::size_t id,
+  bool has_motorcycle(const int id,
                       const FT min_visiting_time, const FT max_visiting_time,
                       const bool strictly_at_min = false, const bool strictly_at_max = false) const {
     return base()->has_motorcycle(id, min_visiting_time, max_visiting_time, strictly_at_min, strictly_at_max);
@@ -555,7 +555,7 @@ public:
   bool has_motorcycles() const { return base()->has_motorcycles(); }
 
   // check if the two earliest motorcycles meet at the same time
-  size_type remove_motorcycle(const std::size_t id) const { return base()->remove_motorcycle(id); }
+  size_type remove_motorcycle(const int id) const { return base()->remove_motorcycle(id); }
   // ---------------------------------------------------------------------------
 
   // Functions

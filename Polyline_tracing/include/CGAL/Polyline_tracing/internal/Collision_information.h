@@ -75,12 +75,12 @@ struct Collision_information
   // but in the case of multiple motorcycles, it is useful to add them all for robustness
   struct Foreign_collision_information
   {
-    const std::size_t fmc_id;
+    const int fmc_id;
     const FT foreign_time_at_closest_collision;
     const bool must_crash;
     Track_segment_ptr foreign_track_ptr; // if it's not a track, then it'll be the tentative track
 
-    Foreign_collision_information(const std::size_t fmc_id,
+    Foreign_collision_information(const int fmc_id,
                                   const FT foreign_time_at_collision,
                                   const bool must_foreign_motorcycle_crash = false)
       :
@@ -150,7 +150,7 @@ struct Collision_information
     closest_collision = collision;
   }
 
-  Collision_return add_foreign_collision(const std::size_t fmc_id, const FT foreign_time_at_collision,
+  Collision_return add_foreign_collision(const int fmc_id, const FT foreign_time_at_collision,
                                          const bool must_motorcycle_crash,
                                          const bool must_foreign_motorcycle_crash)
   {
@@ -201,7 +201,7 @@ struct Collision_information
 
   Collision_return treat_potential_collision(const Node_ptr_or_Face_location& collision,
                                              const FT time_at_collision,
-                                             const std::size_t fmc_id,
+                                             const int fmc_id,
                                              const FT foreign_time_at_collision,
                                              const bool crash_motorcycle = false,
                                              const bool crash_foreign_motorcycle = false)
