@@ -43,6 +43,8 @@ public:
 
   typedef typename Base::Point_or_location                          Point_or_location;
 
+  typedef typename Base::result_type                                result_type;
+
 public:
   // Access
   Info&       info()       { return _info; }
@@ -56,6 +58,18 @@ public:
     : Base(origin, tracer, np),
       _info(parameters::choose_parameter(parameters::get_parameter(np, internal_np::info), Info()))
   { }
+
+  // See explanation in Motorcycle.h
+
+  // disable copy operators
+  Motorcycle_with_info& operator=(const Motorcycle_with_info& other) = delete;
+  Motorcycle_with_info(const Motorcycle_with_info& other) = delete;
+
+  // disable move operators
+  Motorcycle_with_info (Motorcycle_with_info&& other) = delete;
+  Motorcycle_with_info& operator=(Motorcycle_with_info&& other) = delete;
+
+public:
 
 private:
   Info _info;

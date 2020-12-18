@@ -35,6 +35,7 @@
 #include <boost/optional.hpp>
 #include <boost/variant.hpp>
 
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -79,7 +80,7 @@ public:
   // - Node_ptr: the destination
   // - FT: the time at the destination
   // - bool: is the destination final
-  typedef boost::tuple<bool, Node_ptr, Node_ptr, FT, bool>                  result_type;
+  typedef std::tuple<bool, Node_ptr, Node_ptr, FT, bool>                    result_type;
 
   // Access
   // @todo add destination with a point ? dangerous if the point is on an edge
@@ -120,8 +121,8 @@ set_next_destination(const Motorcycle& mc, Nodes& points, const Triangle_mesh& m
   if(destinations().empty() || pos >= destinations().size())
   {
     std::cerr << "Warning: No destination or all destinations are already reached" << std::endl;
-    return boost::make_tuple(false, mc.current_position(), mc.current_position(),
-                             mc.current_time(), true /*final destination*/);
+    return std::make_tuple(false, mc.current_position(), mc.current_position(),
+                           mc.current_time(), true /*final destination*/);
   }
 
   // intentional copies of both locations
@@ -148,8 +149,8 @@ set_next_destination(const Motorcycle& mc, Nodes& points, const Triangle_mesh& m
 
   ++pos;
 
-  return boost::make_tuple(true, origin_in_next_face, destination.first,
-                           time_at_destination, is_final_destination);
+  return std::make_tuple(true, origin_in_next_face, destination.first,
+                         time_at_destination, is_final_destination);
 }
 
 template<typename MotorcycleGraphTraits, typename DestinationContainer>

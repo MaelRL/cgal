@@ -127,7 +127,7 @@ public:
     // - #4: the time at the destination
     // - #5: whether the motorcycle should continue once at the destination
   // @todo change that to face locations? or variant of both?
-  typedef boost::tuple<bool, Node_ptr, Node_ptr, FT, bool>                  Tracer_result;
+  typedef std::tuple<bool, Node_ptr, Node_ptr, FT, bool>                    Tracer_result;
 
   typedef Polygon_mesh_processing::internal::Point_to_Point_3<Triangle_mesh, Point>  Point_to_Point_3;
   typedef Polygon_mesh_processing::internal::Point_to_Point_3_VPM<Triangle_mesh>     AABB_tree_VPM;
@@ -148,7 +148,7 @@ public:
   // Tracks and targets
   typedef typename Motorcycle::TPC_iterator                                 TPC_iterator;
 
-  typedef Motorcycle_track<Geom_traits>                                     Track;
+  typedef typename Motorcycle::Track                                        Track;
   typedef typename Track::Track_segment                                     Track_segment;
   typedef typename Track::iterator                                          Track_segment_ptr;
   typedef boost::container::slist<Track_segment_ptr>                        Track_segment_ptr_container;
@@ -202,8 +202,8 @@ public:
   }
 
   // Function to add motorcycles, forwards the arguments to the constructor of 'Motorcycle'
-  template<typename ... Args>
-  int add_motorcycle(const Args& ... args);
+  template<typename ...Args>
+  int add_motorcycle(Args&& ... args);
 
   void trace_graph();
 
@@ -565,13 +565,13 @@ Motorcycle_graph<MotorcycleGraphTraits, MotorcycleType>::
 }
 
 template<typename MotorcycleGraphTraits, typename MotorcycleType>
-template<typename ... Args>
+template<typename ...Args>
 int
 Motorcycle_graph<MotorcycleGraphTraits, MotorcycleType>::
-add_motorcycle(const Args& ... args)
+add_motorcycle(Args&& ... args)
 {
   int new_id = number_of_motorcycles();
-  motorcycles_.emplace_back(args...);
+  motorcycles_.emplace_back(std::forward<Args>(args)...);
   motorcycles_.back().set_id(new_id);
 
   return new_id;
@@ -843,7 +843,7 @@ compute_and_set_next_destination(Motorcycle& mc)
 {
   Tracer_result res = mc.compute_next_destination(nodes(), mesh());
 
-  if(!res.template get<0>()) // couldn't find a next path
+  if(!std::get<0>(res)) // couldn't find a next path
   {
     mc.destination() = mc.current_position();
     mc.time_at_destination() = mc.current_time();
@@ -851,10 +851,10 @@ compute_and_set_next_destination(Motorcycle& mc)
     return false;
   }
 
-  const Node_ptr& next_origin = res.template get<1>();
-  Node_ptr next_destination = res.template get<2>();
-  const FT time_at_next_destination = res.template get<3>();
-  const bool is_destination_final = res.template get<4>();
+  const Node_ptr& next_origin = std::get<1>(res);
+  Node_ptr next_destination = std::get<2>(res);
+  const FT time_at_next_destination = std::get<3>(res);
+  const bool is_destination_final = std::get<4>(res);
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_SNAPPING_CODE
   // 'false' because we want to ignore the location of 'next_destination'
@@ -890,7 +890,7 @@ compute_and_set_next_destination(Motorcycle& mc)
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
     std::cerr << "Origin has changed!" << std::endl
               << "Previously: " << std::endl << *(mc.origin()) << std::endl
-              << "Now: " << std::endl << *(res.template get<1>()) << std::endl;
+              << "Now: " << std::endl << *(std::get<1>(res)) << std::endl;
 #endif
 
     mc.current_position() = next_origin;
@@ -1200,7 +1200,7 @@ find_collision_with_tentative_track_extremity_on_border_with_live_motorcycle_on_
   CGAL_assertion(fmc.id() != mc.id());
   CGAL_assertion(!fmc.targets().empty());
 
-  Track_segment fmc_track(fmc.id(),
+  Track_segment fmc_track(fmc,
                           fmc.current_position(), fmc.current_time(),
                           fmc.closest_target(), fmc.time_at_closest_target());
 
@@ -1448,7 +1448,7 @@ find_collision_with_live_motorcycle_on_foreign_face(const Motorcycle& mc,
   CGAL_assertion(fmc.id() != mc.id());
   CGAL_assertion(!fmc.targets().empty());
 
-  Track_segment fmc_track(fmc.id(), fmc.current_position(), fmc.current_time(),
+  Track_segment fmc_track(fmc, fmc.current_position(), fmc.current_time(),
                           fmc.closest_target(), fmc.time_at_closest_target());
 
   return find_collision_with_track_on_foreign_face(mc, hd, fmc_track, true /*is_fmc_moving_on_track*/, tc);
@@ -2654,7 +2654,7 @@ find_collision_with_live_motorcycle(Motorcycle& mc,
 
   CGAL_assertion(!fmc.targets().empty());
 
-  Track_segment fmc_track(fmc.id(),
+  Track_segment fmc_track(fmc,
                           fmc.current_position(), fmc.current_time(),
                           fmc.closest_target(), fmc.time_at_closest_target());
 

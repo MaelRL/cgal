@@ -33,6 +33,7 @@
 #include <boost/optional.hpp>
 #include <boost/tuple/tuple.hpp>
 
+#include <tuple>
 #include <utility>
 
 namespace CGAL {
@@ -74,7 +75,7 @@ public:
   // - Node_ptr: the destination
   // - FT: the time at the destination
   // - bool: is the destination final
-  typedef boost::tuple<bool, Node_ptr, Node_ptr, FT, bool>                  result_type;
+  typedef std::tuple<bool, Node_ptr, Node_ptr, FT, bool>                    result_type;
 
   // Constructors
   Uniform_direction_tracer_visitor(const Vector& direction = CGAL::NULL_VECTOR,
@@ -195,7 +196,7 @@ compute_next_destination(const Node_ptr start_point, const face_descriptor fd,
     // position is the new destination, then the direction is pointing outside
     // of this face.
     CGAL_assertion(direction() != CGAL::NULL_VECTOR);
-    return boost::make_tuple(false, Node_ptr(), Node_ptr(), 0., false /*not final*/);
+    return std::make_tuple(false, Node_ptr(), Node_ptr(), 0., false /*not final*/);
   }
 
   Face_location loc = CGAL::Polygon_mesh_processing::locate_in_face(
@@ -231,8 +232,8 @@ compute_next_destination(const Node_ptr start_point, const face_descriptor fd,
             << " time: " << time_at_farthest_destination << std::endl;
 #endif
 
-  return boost::make_tuple(true, start_point, destination.first,
-                           time_at_farthest_destination, false /*not final*/);
+  return std::make_tuple(true, start_point, destination.first,
+                         time_at_farthest_destination, false /*not final*/);
 }
 
 template<typename MotorcycleGraph>
@@ -249,8 +250,8 @@ operator()(vertex_descriptor vd, const Motorcycle& mc,
 
   if(is_direction_null(mc))
   {
-    return boost::make_tuple(true, mc.current_position(), mc.current_position(),
-                             mc.current_time(), true /*final destination*/);
+    return std::make_tuple(true, mc.current_position(), mc.current_position(),
+                           mc.current_time(), true /*final destination*/);
   }
 
   halfedge_descriptor hd = halfedge(vd, mesh);
@@ -275,7 +276,7 @@ operator()(vertex_descriptor vd, const Motorcycle& mc,
     // should not be equal to the origin
     // @todo This check would fail if one is manipulating a mesh with a completely
     // degenerate face
-    if(res.template get<0>() && res.template get<2>() != origin_in_fd)
+    if(std::get<0>(res) && std::get<2>(res) != origin_in_fd)
       return res;
 
     ++fatc;
@@ -285,8 +286,8 @@ operator()(vertex_descriptor vd, const Motorcycle& mc,
   // If we couldn't find a destination, then we must be on the border of the mesh
   // with a direction pointing out.
   CGAL_assertion(bool(is_border(vd, mesh)));
-  return boost::make_tuple(false, mc.current_position(), mc.current_position(),
-                           mc.current_time(), true /*final destination*/);
+  return std::make_tuple(false, mc.current_position(), mc.current_position(),
+                         mc.current_time(), true /*final destination*/);
 }
 
 template<typename MotorcycleGraph>
@@ -303,8 +304,8 @@ operator()(halfedge_descriptor hd, const Motorcycle& mc,
 
   if(is_direction_null(mc))
   {
-    return boost::make_tuple(true, mc.current_position(), mc.current_position(),
-                             mc.current_time(), true /*final destination*/);
+    return std::make_tuple(true, mc.current_position(), mc.current_position(),
+                           mc.current_time(), true /*final destination*/);
   }
 
   // When we reach the border at the interior of a halfedge, the path continues
@@ -325,7 +326,7 @@ operator()(halfedge_descriptor hd, const Motorcycle& mc,
     // Since (direction == NULL_VECTOR) has been filtered in Tracer.h, the destination
     // should not be equal to the origin
     // @todo This check would fail if one is manipulating a mesh with a degenerate (flat) face
-    if(res.template get<0>() && res.template get<2>() != mc.current_position())
+    if(std::get<0>(res) && std::get<2>(res) != mc.current_position())
       return res;
   }
 
@@ -335,8 +336,8 @@ operator()(halfedge_descriptor hd, const Motorcycle& mc,
   if(is_border(opp_hd, mesh))
   {
     // Origin is on the border of the mesh and the direction is pointing out,
-    return boost::make_tuple(false, mc.current_position(), mc.current_position(),
-                             mc.current_time(), true /*final destination*/);
+    return std::make_tuple(false, mc.current_position(), mc.current_position(),
+                           mc.current_time(), true /*final destination*/);
   }
 
   // Compute the position of the motorcycle in the opposite face
@@ -346,7 +347,7 @@ operator()(halfedge_descriptor hd, const Motorcycle& mc,
   // Insert the origin seen from the opposite face in the dictionary
   Node_ptr origin_in_next_face = points.get_sibling(mc.current_position(), opp_fd);
   result_type opp_res = compute_next_destination(origin_in_next_face, opp_fd, mc, points, mesh);
-  CGAL_assertion(opp_res.template get<0>());
+  CGAL_assertion(std::get<0>(opp_res));
 
   return opp_res;
 }
@@ -364,8 +365,8 @@ operator()(face_descriptor fd, const Motorcycle& mc,
 
   if(is_direction_null(mc))
   {
-    return boost::make_tuple(true, mc.current_position(), mc.current_position(),
-                             mc.current_time(), true /*final destination*/);
+    return std::make_tuple(true, mc.current_position(), mc.current_position(),
+                           mc.current_time(), true /*final destination*/);
   }
 
   return compute_next_destination(mc.current_position(), fd, mc, points, mesh);

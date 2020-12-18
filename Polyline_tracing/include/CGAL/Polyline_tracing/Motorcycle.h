@@ -36,6 +36,7 @@
 #include <list>
 #include <set>
 #include <sstream>
+#include <tuple>
 
 namespace CGAL {
 
@@ -65,15 +66,21 @@ public:
 template<typename MotorcycleGraphTraits, typename MotorcycleType>
 class Motorcycle_graph;
 
-template<typename MotorcycleGraphTraits>
+// @todo info is annoying to extract into a 'Motorcycle_with_info' because the type-erasing
+// std::functions use Self in their parameters, so a class inheriting this one will need
+// to redeclare those type for the 'Self' to match (or -ugly- define Self from CRTP)
+template<typename MotorcycleGraphTraits_,
+         typename Track_ = Motorcycle_track<MotorcycleGraphTraits_>,
+         typename Info_ = char>
 class Motorcycle
 {
-  typedef Motorcycle<MotorcycleGraphTraits>                                 Self;
-  typedef CGAL::Polyline_tracing::Motorcycle_graph<MotorcycleGraphTraits, Self> Motorcycle_graph;
+  typedef Motorcycle<MotorcycleGraphTraits_, Track_, Info_>                 Self;
 
 public:
-  typedef MotorcycleGraphTraits                                             Geom_traits;
+  typedef MotorcycleGraphTraits_                                            Geom_traits;
   typedef typename Geom_traits::Triangle_mesh                               Triangle_mesh;
+
+  typedef CGAL::Polyline_tracing::Motorcycle_graph<Geom_traits, Self>       Motorcycle_graph;
 
   typedef typename Geom_traits::FT                                          FT;
   typedef typename Geom_traits::Point_d                                     Point;
@@ -102,7 +109,7 @@ public:
                    internal::Target_point_set_comparer<Geom_traits> >       Target_point_container;
   typedef typename Target_point_container::iterator                         TPC_iterator;
 
-  typedef Motorcycle_track<Geom_traits>                                     Track;
+  typedef Track_                                                            Track;
   typedef typename Track::Track_segment                                     Track_segment;
   typedef typename Track::iterator                                          Track_iterator;
 
@@ -111,22 +118,23 @@ public:
   // - Node_ptr: the destination
   // - FT: the time at the destination
   // - bool: is the destination final
-  typedef boost::tuple<bool, Node_ptr, Node_ptr, FT, bool>                  result_type;
+  typedef std::tuple<bool, Node_ptr, Node_ptr, FT, bool>                    result_type;
 
   // Using type erasure to avoid templating the motorcycle with the tracer type
-  typedef CGAL::cpp11::function<result_type(const vertex_descriptor,
-                                            const Self&, Nodes&,
-                                            const Triangle_mesh&)>          Vertex_tracer;
-  typedef CGAL::cpp11::function<result_type(const halfedge_descriptor,
-                                            const Self&, Nodes&,
-                                            const Triangle_mesh&)>          Halfedge_tracer;
-  typedef CGAL::cpp11::function<result_type(const face_descriptor,
-                                            const Self&, Nodes&,
-                                            const Triangle_mesh&)>          Face_tracer;
+  typedef std::function<result_type(const vertex_descriptor,
+                                    const Self&, Nodes&,
+                                    const Triangle_mesh&)>                  Vertex_tracer;
+  typedef std::function<result_type(const halfedge_descriptor,
+                                    const Self&, Nodes&,
+                                    const Triangle_mesh&)>                  Halfedge_tracer;
+  typedef std::function<result_type(const face_descriptor,
+                                    const Self&, Nodes&,
+                                    const Triangle_mesh&)>                  Face_tracer;
 
-  typedef CGAL::cpp11::function<bool(const int, const Motorcycle_graph&)>   Stop_predicate;
-
+  typedef std::function<bool(const int, const Motorcycle_graph&)>           Stop_predicate;
   typedef internal::Default_stop_predicate<Motorcycle_graph>                Default_stop_predicate;
+
+  typedef Info_                                                             Info;
 
   enum Motorcycle_status
   {
@@ -188,11 +196,36 @@ public:
 
   const Stop_predicate& stop_predicate() const { return stop_predicate_; }
 
+  Info& info() const { return info_; } // info_ is mutable for more freedom of movement
+
   // Constructor
   template<typename Tracer,
            typename NamedParameters = Named_function_parameters<bool, internal_np::all_default_t> >
   Motorcycle(const Point_or_location& origin, const Tracer& tracer,
              const NamedParameters& np = CGAL::parameters::all_default());
+
+  // Explanation about disallowing all copy/moves operators:
+  // - minor: This class is heavy
+  // - main: The three tracers above are constructed in a very particular way,
+  //         due to the usage of type erasure for the tracer (which avoids having to
+  //         template this Motorcycle class with a Tracer class): when we construct
+  //         'vertex_tracer', we intentionally copy the tracer, because we don't want
+  //         to assume that the tracer will have a long-enough lifetime. However,
+  //         we do not want to copy it for 'halfedge/face_tracers' because tracers
+  //         usually have states. Thus, we initialize them using the tracer contained
+  //         within 'vertex_tracer'.
+  //         Problem: if you copy, the default operator is not a deep copy
+  //         and the references in 'halfedge/face_tracers' do not point
+  //         to the new copied vertex_tracer... and you run in trouble.
+  //         Solution: disable all copy/move operations.
+
+  // disable copy operators
+  Motorcycle& operator=(const Motorcycle& other) = delete;
+  Motorcycle(const Motorcycle& other) = delete;
+
+  // disable move operators
+  Motorcycle (Motorcycle&& other) = delete;
+  Motorcycle& operator=(Motorcycle&& other) = delete;
 
   // Functions
   void add_target(const Node_ptr target_point, const FT time_at_target);
@@ -283,34 +316,12 @@ protected:
 
   Stop_predicate stop_predicate_;
 
-private:
-  // Explanation about disallowing all copy/moves operators:
-  // - minor: This class is heavy
-  // - main: The three tracers above are constructed in a very particular way,
-  //         due to the usage of type erasure for the tracer (which avoids having to
-  //         template this Motorcycle class with a Tracer class): when we construct
-  //         'vertex_tracer', we intentionally copy the tracer, because we don't want
-  //         to assume that the tracer will have a long-enough lifetime. However,
-  //         we do not want to copy it for 'halfedge/face_tracers' because tracers
-  //         usually have states. Thus, we initialize them using the tracer contained
-  //         within 'vertex_tracer'.
-  //         Problem: if you copy, the default operator is not a deep copy
-  //         and the references in 'halfedge/face_tracers' do not point
-  //         to the new copied vertex_tracer... and you run in trouble.
-  //         Solution: disable all copy/move operations.
-
-  // disable copy operators
-  Motorcycle& operator=(const Motorcycle& other);
-  Motorcycle(const Motorcycle& other);
-
-  // disable move operators
-  Motorcycle (Motorcycle&& other);
-  Motorcycle& operator=(Motorcycle&& other);
+  mutable Info info_;
 };
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 template <typename Tracer, typename NamedParameters>
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 Motorcycle(const Point_or_location& origin, const Tracer& tracer, const NamedParameters& np)
   :
     id_(-1),
@@ -325,21 +336,22 @@ Motorcycle(const Point_or_location& origin, const Tracer& tracer, const NamedPar
     speed_(parameters::choose_parameter(parameters::get_parameter(np, internal_np::speed), 1.)),
     origin_time(parameters::choose_parameter(parameters::get_parameter(np, internal_np::initial_time), 0.)),
     current_time_(origin_time),
-    target_points(internal::Target_point_set_comparer<MotorcycleGraphTraits>()),
+    target_points(internal::Target_point_set_comparer<Geom_traits>()),
     track_(),
     vertex_tracer(tracer),
     // about below, see remark above
     halfedge_tracer(std::ref(*(vertex_tracer.template target<Tracer>()))),
     face_tracer(std::ref(*(vertex_tracer.template target<Tracer>()))),
     stop_predicate_(parameters::choose_parameter(parameters::get_parameter(np, internal_np::stop_predicate),
-                                                 Default_stop_predicate()))
+                                                 Default_stop_predicate())),
+    info_(parameters::choose_parameter(parameters::get_parameter(np, internal_np::info), Info()))
 {
   CGAL_precondition(speed() > 0.);
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 void
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 add_target(const Node_ptr target_point, const FT time_at_target)
 {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
@@ -370,9 +382,9 @@ add_target(const Node_ptr target_point, const FT time_at_target)
   targets().emplace(target_point, time_at_target);
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 void
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 crash()
 {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
@@ -386,9 +398,9 @@ crash()
   clear_targets();
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 void
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 clear_targets()
 {
   // Go through the next targets of the motorcycle and remove it from the list
@@ -407,27 +419,27 @@ clear_targets()
   targets().clear();
 }
 
-template<typename MotorcycleGraphTraits>
-typename Motorcycle<MotorcycleGraphTraits>::Node_ptr
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::Node_ptr
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 closest_target() const
 {
   CGAL_precondition(!targets().empty());
   return targets().begin()->first;
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 void
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 remove_closest_target_from_targets()
 {
   CGAL_precondition(!targets().empty());
   targets().erase(targets().begin());
 }
 
-template<typename MotorcycleGraphTraits>
-std::pair<typename Motorcycle<MotorcycleGraphTraits>::TPC_iterator, bool>
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+std::pair<typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::TPC_iterator, bool>
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_target(const Node_ptr e) const
 {
   // Note that since the set is sorted on the visting time, we have no choice
@@ -441,9 +453,9 @@ has_target(const Node_ptr e) const
   return std::make_pair(end, false);
 }
 
-template<typename MotorcycleGraphTraits>
-std::pair<typename Motorcycle<MotorcycleGraphTraits>::TPC_iterator, bool>
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+std::pair<typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::TPC_iterator, bool>
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_target(const Face_location loc) const
 {
   // Same remark as the 'has_target' function above.
@@ -455,18 +467,18 @@ has_target(const Face_location loc) const
   return std::make_pair(end, false);
 }
 
-template<typename MotorcycleGraphTraits>
-std::pair<typename Motorcycle<MotorcycleGraphTraits>::TPC_iterator, bool>
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+std::pair<typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::TPC_iterator, bool>
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_target_at_time(const FT visiting_time) const
 {
   TPC_iterator res = targets().find(std::make_pair(Node_ptr(), visiting_time));
   return std::make_pair(res, (res != targets().end()));
 }
 
-template<typename MotorcycleGraphTraits>
-std::pair<typename Motorcycle<MotorcycleGraphTraits>::TPC_iterator, bool>
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+std::pair<typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::TPC_iterator, bool>
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_target_at_time(const FT min_visiting_time, const FT max_visiting_time) const
 {
   std::cout << "checking for target in interval: " << min_visiting_time << " || " << max_visiting_time << std::endl;
@@ -493,35 +505,35 @@ has_target_at_time(const FT min_visiting_time, const FT max_visiting_time) const
   return std::make_pair(targets().end(), false);
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 bool
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_left_starting_position() const
 {
   return (current_position() != origin());
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 bool
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_target_at_time(const Node_ptr e, const FT visiting_time) const
 {
   TPC_iterator res = targets().find(std::make_pair(e, visiting_time));
   return (res != targets().end() && res->first == e);
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 bool
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 has_reached_blocked_point() const
 {
   CGAL_precondition(is_initialized());
   return current_position()->is_blocked();
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 bool
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 is_tentative_track_degenerate() const
 {
   CGAL_precondition(is_initialized());
@@ -529,9 +541,9 @@ is_tentative_track_degenerate() const
           current_position() == closest_target());
 }
 
-template<typename MotorcycleGraphTraits>
-typename Motorcycle<MotorcycleGraphTraits>::FT
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::FT
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 time_at_closest_target() const
 {
   // Motorcycles are in the priority queue before they are properly initialized
@@ -544,9 +556,9 @@ time_at_closest_target() const
   return targets().begin()->second;
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 bool
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 drive_to_closest_target()
 {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
@@ -559,12 +571,15 @@ drive_to_closest_target()
 
   // Don't create degenerate track segments if they are not required (otherwise
   // it increases the cost of computing intersections between tracks)
-  // @todo don't insert the first one that is degenerate (see also mg::drive_to_closest_target())
   bool created_new_track_segment = false;
+
+  // @todo don't insert the first one that is degenerate (see also mg::drive_to_closest_target())
+  // (but need to keep in mind motorcycles that die instantly?)
   if(track().empty() || current_position() != closest_target())
   {
-    Track_segment ts(id(), current_position(), current_time(), closest_target(), time_at_closest_target());
-    track().push_back(ts);
+    track().emplace_back(*this,
+                         current_position(), current_time(),
+                         closest_target(), time_at_closest_target());
     created_new_track_segment = true;
   }
 
@@ -579,9 +594,9 @@ drive_to_closest_target()
   return created_new_track_segment;
 }
 
-template<typename MotorcycleGraphTraits>
-typename Motorcycle<MotorcycleGraphTraits>::result_type
-Motorcycle<MotorcycleGraphTraits>::
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
+typename Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::result_type
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 compute_next_destination(Nodes& points, const Triangle_mesh& mesh)
 {
   CGAL_precondition(targets().empty());
@@ -615,9 +630,9 @@ compute_next_destination(Nodes& points, const Triangle_mesh& mesh)
   }
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 void
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 output_origin_and_destination() const
 {
   std::stringstream oss_orig, oss_dest;
@@ -644,9 +659,9 @@ output_origin_and_destination() const
   odf << '\n';
 }
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits_, typename Track_, typename Info_>
 void
-Motorcycle<MotorcycleGraphTraits>::
+Motorcycle<MotorcycleGraphTraits_, Track_, Info_>::
 output_track() const
 {
   std::ostringstream out_filename;

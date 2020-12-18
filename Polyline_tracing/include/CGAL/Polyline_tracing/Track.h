@@ -59,12 +59,14 @@ public:
 
   // Constructor
   Motorcycle_track_segment() { }
-  Motorcycle_track_segment(const Motorcycle_ID mc_id,
+
+  template<typename Motorcycle>
+  Motorcycle_track_segment(const Motorcycle& mc,
                            const Node_ptr source,
                            const FT source_time,
                            const Node_ptr target,
                            const FT target_time)
-    : mc_id(mc_id),
+    : mc_id(mc.id()),
       source_node(source), target_node(target),
       source_time(source_time), target_time(target_time)
   {
@@ -115,16 +117,18 @@ private:
   hg_edge_descriptor ed;
 };
 
-template<typename MotorcycleGraphTraits>
+template<typename MotorcycleGraphTraits,
+         typename MotorcycleTrackSegment = Motorcycle_track_segment<MotorcycleGraphTraits> >
 class Motorcycle_track
 {
-  typedef Motorcycle_track<MotorcycleGraphTraits>           Self;
-
 public:
   typedef MotorcycleGraphTraits                             Geom_traits;
+  typedef MotorcycleTrackSegment                            Track_segment;
 
-  typedef Motorcycle_track_segment<Geom_traits>             Track_segment;
+private:
+  typedef Motorcycle_track<Geom_traits, Track_segment>      Self;
 
+public:
   // This container must be stable because we store iterators to its elements
   typedef std::list<Track_segment>                          Track_segment_container;
 
@@ -147,7 +151,10 @@ public:
   iterator end() { return tsc_.end(); }
   const_iterator end() const { return tsc_.end(); }
 
+  template <typename ...Args>
+  void emplace_back(Args&&... args) { tsc_.emplace_back(std::forward<Args>(args)...); }
   void push_back(const Track_segment& ts) { return tsc_.push_back(ts); }
+
   reference front() { return tsc_.front(); }
   const_reference front() const { return tsc_.front(); }
   reference back() { return tsc_.back(); }
@@ -160,12 +167,11 @@ public:
   {
     CGAL_precondition(it->time_at_source() <= time_at_splitting_point);
     CGAL_precondition(time_at_splitting_point <= it->time_at_target());
+    CGAL_precondition(it->face() == splitting_point->face());
 
-    const Node_ptr source = it->source();
-    CGAL_assertion(source->face() == splitting_point->face());
-    const FT time_at_source = it->time_at_source();
-
-    Track_segment new_seg(it->motorcycle_id(), source, time_at_source, splitting_point, time_at_splitting_point);
+    Track_segment new_seg = *it;
+    new_seg.target() = splitting_point;
+    new_seg.time_at_target() = time_at_splitting_point;
     iterator new_it = tsc_.insert(it, new_seg); // std::list's 'insert()' insert before the iterator
 
     it->source() = splitting_point;
