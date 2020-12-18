@@ -199,7 +199,7 @@ insert(const Face_location& location, const Point& p, const Triangle_mesh& mesh)
   if(!is_insert_successful.second)
   {
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
-    std::cerr << "Warning: point already exists in the dictionary: "
+    std::cerr << "Point already exists in the dictionary: "
               << &*(is_insert_successful.first) << std::endl
               << *(is_insert_successful.first) << std::endl;
 #endif

@@ -128,12 +128,16 @@ private:
       it->graph_vertex() = vd;
 
       is_insert_successful.first->second = vd;
+
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+      std::cout << "Created vertex " << vd.idx() << std::endl
+                << "at position " << it->point() << std::endl;
+#endif
+
       put(vpm, vd, it->point());
       put(vnmap, vd, it);
 
-#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
-      std::cout << "Created vertex " << vd << " for position " << it->point() << std::endl;
-#endif
+      CGAL_postcondition(get(vpm, vd) == it->point());
 
       return vd;
     }
@@ -151,7 +155,7 @@ private:
                                     VIMap& vim) const
   {
 #ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
-    std::cout << "adding " << hd << " to incident halfedges of " << vd << std::endl;
+    std::cout << "adding " << hd.idx() << " to incident halfedges of " << vd.idx() << std::endl;
 #endif
 
     CGAL_precondition(target(hd, og) == vd);
@@ -264,7 +268,6 @@ private:
     }
     else // point is not on a vertex, simply dump the already ordered edges
     {
-      std::cout << "standard" << std::endl;
       while(first != beyond)
       {
         *out++ = first->ihd;
@@ -373,9 +376,15 @@ public:
       Motorcycle& mc = mg.motorcycle(mc_it);
       Track& mct = mc.track();
 
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+      std::cout << "Building from track of motorcycle #" << mc.id() << std::endl;
+#endif
+
       if(mct.size() == 0)
       {
-        std::cout << "Warning: motorcycle " << mc.id() << " has no track" << std::endl;
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+        std::cerr << "Warning: motorcycle " << mc.id() << " has no track" << std::endl;
+#endif
         CGAL_assertion(false);
         continue;
       }
@@ -399,7 +408,7 @@ public:
         if(track_source == track_target || track_source->point() == track_target->point())
         {
 #ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
-          std::cerr << "Warning: degenerate track at (" << track_source->point() << ") for Motorcycle #" << mc.id() << std::endl;
+          std::cerr << "Warning: degenerate track segment at (" << track_source->point() << ") for Motorcycle #" << mc.id() << std::endl;
 #endif
           next_vd = current_vd;
           continue;
@@ -419,14 +428,13 @@ public:
           fg_halfedge_descriptor opp_hd = opposite(hd, og);
           set_target(opp_hd, current_vd, og);
 
-
           set_halfedge(next_vd, hd, og);
           set_halfedge(current_vd, opp_hd, og);
           CGAL_assertion(target(hd, og) == next_vd);
           CGAL_assertion(target(opp_hd, og) == current_vd);
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
-          std::cout << "Created edge " << ed << " [" << next_vd << " " << current_vd << "]" << std::endl;
+          std::cout << "Created edge e" << ed.idx() << " [v" << next_vd << " v" << current_vd << "]" << std::endl;
 #endif
 
           // Fill the incident map
@@ -461,6 +469,7 @@ public:
         const bool is_moving_in_the_same_direction = (ts.target() == get(vnmap, target(hd, og)));
         const bool is_border_motorcycle = (mc.nature() == Motorcycle::BORDER_MOTORCYCLE);
         const bool is_border_halfedge = (is_moving_in_the_same_direction && is_border_motorcycle);
+
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
         std::cout << "graph halfedge: " << og.point(source(hd, og)) << " --- " << og.point(target(hd, og)) << std::endl;
         std::cout << "motorcycle: " << ts.motorcycle_id();
@@ -486,6 +495,27 @@ public:
         while(hd != end);
       }
     }
+
+#ifdef CGAL_MOTORCYCLE_GRAPH_BUILDER_VERBOSE
+    std::cout << num_vertices(og) << " vertices" << std::endl;
+    std::cout << num_edges(og) << " edges" << std::endl;
+    std::cout << num_faces(og) << " faces" << std::endl;
+
+    std::cout << "Full face graph:" << std::endl;
+    for(fg_face_descriptor f : faces(og))
+    {
+      std::cout << "face " << f.idx() << std::endl;
+      fg_halfedge_descriptor h = halfedge(f, og), done = h;
+      do
+      {
+        std::cout << "  h" << h.idx()
+                  << " (v" << source(h, og) << " " << og.point(source(h, og))
+                  << " - v" << target(h, og) << " " << og.point(target(h, og)) << ")" << std::endl;
+        h = next(h, og);
+      }
+      while(h != done);
+    }
+#endif
 
     return is_valid_face_graph(og);
   }

@@ -3333,14 +3333,14 @@ construct_motorcycle_graph(VertexNodeMap& vnmap,
 #ifdef CGAL_MOTORCYCLE_GRAPH_OUTPUT
   if(construct_faces)
   {
-    std::ofstream out("results_2/motorcycle_graph.off");
+    std::ofstream out("results_3/motorcycle_graph.off");
     out.precision(20);
     CGAL::write_off(out, *graph_);
     out.close();
   }
   else
   {
-    std::ofstream out("results_2/motorcycle_graph.polylines.txt");
+    std::ofstream out("results_3/motorcycle_graph.polylines.txt");
     print_motorcycle_graph(out);
   }
 #endif
@@ -3445,7 +3445,7 @@ output_tracks() const
   for(; mc_it!=mc_end; ++mc_it)
   {
     std::stringstream oss;
-    oss << "results_2/motorcycle_track_" << mc_it->id() << ".polylines.txt" << std::ends;
+    oss << "results_3/motorcycle_track_" << mc_it->id() << ".polylines.txt" << std::ends;
     std::ofstream out(oss.str().c_str());
     out.precision(17);
 

@@ -47,8 +47,10 @@ bool are_logically_collinear_on_border(const typename Traits::Face_location& fir
     return false;
 
   for(int i=0; i<3; ++i)
+  {
     if(first_loc.second[i] == 0. && second_loc.second[i] == 0. && third_loc.second[i] == 0.)
       return true;
+  }
 
   return false;
 }
@@ -70,12 +72,14 @@ bool are_logically_collinear_on_border(const typename Traits::Face_location& fir
      second_loc.first != fourth_loc.first || third_loc.first != fourth_loc.first)
     return false;
 
-    for(int i=0; i<3; ++i)
-      if(first_loc.second[i] == 0. && second_loc.second[i] == 0. &&
-         third_loc.second[i] == 0. && fourth_loc.second[i] == 0.)
-        return true;
+  for(int i=0; i<3; ++i)
+  {
+    if(first_loc.second[i] == 0. && second_loc.second[i] == 0. &&
+       third_loc.second[i] == 0. && fourth_loc.second[i] == 0.)
+      return true;
+  }
 
-    return false;
+  return false;
 }
 
 template <class Traits>

@@ -102,11 +102,47 @@ public:
 
   bool is_valid() const
   {
-    return ((source_time != target_time || source_node == target_node) &&
-            source_node != Node_ptr() &&
-            target_node != Node_ptr() &&
-            source_node->face() == target_node->face() &&
-            source_time <= target_time);
+    if(source_node == Node_ptr() || target_node == Node_ptr())
+    {
+#ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
+      std::cerr << "Error: Track segment nodes cannot be 'nullptr' " << std::endl;
+#endif
+      return false;
+    }
+
+    if(source_node->face() != target_node->face())
+    {
+#ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
+      std::cerr << "Error: Track segment nodes on different faces: " << source_node->face() << " " << target_node->face() << std::endl;
+#endif
+      return false;
+    }
+
+    if(source_time > target_time)
+    {
+#ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
+      std::cerr << "Error: Source time " << source_time << " greater than target time " << target_time << std::endl;
+#endif
+      return false;
+    }
+
+    if(source_node == target_node)
+    {
+#ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
+      std::cerr << "Warning: Building degenerate track segment (nodes) " << &*source_node << std::endl;
+#endif
+      // return false; //@tmp
+    }
+
+    if(source_time == target_time)
+    {
+#ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
+      std::cerr << "Warning: Building degenerate track segment (time) " << source_time << " & " << target_time << std::endl;
+#endif
+      // return false; //@tmp
+    }
+
+    return true;
   }
 
 private:
