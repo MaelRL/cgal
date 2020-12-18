@@ -228,8 +228,7 @@ public:
 #if defined(CGAL_USE_OM_POINTS)
     const_cast<OpenMesh&>(*pm.sm_).set_point(v,p);
 #else
-    const_cast<OpenMesh&>(*pm.sm_).set_point
-      (v, typename OpenMesh::Point((float)p[0], (float)p[1], (float)p[2]));
+    const_cast<OpenMesh&>(*pm.sm_).set_point(v, typename OpenMesh::Point(p[0], p[1], p[2]));
 #endif
   }
 
