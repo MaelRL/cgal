@@ -171,7 +171,9 @@ compute_next_destination(const Node_ptr start_point, const face_descriptor fd,
 
       // compute the time at destination
       FT time_at_new_destination = mc.current_time() +
-        CGAL::sqrt(CGAL::squared_distance(start_point->point(), new_destination)) / mc.speed();
+                                   CGAL::approximate_sqrt(
+                                     CGAL::squared_distance(start_point->point(),
+                                                            new_destination)) / mc.speed();
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_VERBOSE
       std::cout << "new potential destination: " << new_destination

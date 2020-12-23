@@ -764,7 +764,8 @@ add_destination_node(Motorcycle& mc,
   const FT speed = mc.speed();
   const Point& origin_point = mc.origin()->point();
   time_at_destination = mc.time_at_origin() +
-                        CGAL::sqrt(CGAL::squared_distance(origin_point, destination_point)) / speed;
+                        CGAL::approximate_sqrt(
+                          CGAL::squared_distance(origin_point, destination_point)) / speed;
   mc.time_at_destination() = time_at_destination;
 
   if(mc.origin() != mc.destination())
@@ -1339,8 +1340,9 @@ find_collision_with_tentative_track_extremity_on_border_with_track_on_foreign_fa
     // No choice but to compute the foreign time
     const FT time_at_fmc_track_source = fmc_track.time_at_source();
     const FT foreign_time_at_collision = time_at_fmc_track_source +
-      CGAL::sqrt(CGAL::squared_distance(fmc_track_source->point(),
-                                         extremity->point())) / fmc.speed();
+                                           CGAL::approximate_sqrt(
+                                             CGAL::squared_distance(fmc_track_source->point(),
+                                                                    extremity->point())) / fmc.speed();
 
     return tc.treat_potential_collision(extremity, time_at_extremity, fmc_id, foreign_time_at_collision);
   }
@@ -1645,8 +1647,9 @@ find_collision_with_foreign_track_extremity(const Motorcycle& mc,
 
     const Point collision_point = foreign_extremity->point();
     const FT time_at_collision = mc.current_time() +
-      CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(),
-                                        collision_point)) / mc.speed();
+                                   CGAL::approximate_sqrt(
+                                     CGAL::squared_distance(mc.current_position()->point(),
+                                                            collision_point)) / mc.speed();
 
     return tc.treat_potential_collision(foreign_extremity, time_at_collision, fmc.id(), foreign_time_at_collision);
   }
@@ -1792,8 +1795,10 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
                                                                                fmcs.target()))
     {
       const FT foreign_time_at_collision = time_at_fmc_track_source +
-        CGAL::sqrt(CGAL::squared_distance(fmc_track_source->point(),
-                                          mc.current_position()->point())) / fmc.speed();
+                                             CGAL::approximate_sqrt(
+                                               CGAL::squared_distance(fmc_track_source->point(),
+                                                                      mc.current_position()->point()))
+                                           / fmc.speed();
 
       return tc.treat_potential_collision(mc.current_position(), mc.current_time(),
                                           fmc.id(), foreign_time_at_collision, true /*crash mc*/);
@@ -1843,8 +1848,9 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
                                                                                mcs.target()))
     {
       time_at_collision = mc.current_time() +
-        CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(),
-                                          fmc_track_source->point())) / mc.speed();
+                          CGAL::approximate_sqrt(
+                            CGAL::squared_distance(mc.current_position()->point(),
+                                                   fmc_track_source->point())) / mc.speed();
     }
     else
     {
@@ -1910,8 +1916,9 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
       {
         // No choice but to compute the collision time
         time_at_collision = mc.current_time() +
-          CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(),
-                                            fmc_track_target->point())) / mc.speed();
+                              CGAL::approximate_sqrt(
+                                CGAL::squared_distance(mc.current_position()->point(),
+                                                       fmc_track_target->point())) / mc.speed();
 
         // @todo time snapping here ?
 
@@ -1941,7 +1948,9 @@ find_collision_between_collinear_tracks(const Motorcycle& mc,
       const FT sqd = CGAL::squared_distance(mc.current_position()->point(),
                                             fmc_track_source->point());
       time_at_collision = mc.current_time() +
-        (CGAL::sqrt(sqd) - fmc.speed() * (mc.current_time() - time_at_fmc_track_source)) / (mc.speed() + fmc.speed());
+                            (CGAL::approximate_sqrt(sqd) - fmc.speed()
+                              * (mc.current_time() - time_at_fmc_track_source))
+                          / (mc.speed() + fmc.speed());
 
       // @todo complete time snapping here
 #ifdef CGAL_MOTORCYCLE_GRAPH_ROBUSTNESS_CODE
@@ -2242,8 +2251,10 @@ find_collision_between_tracks(const Motorcycle& mc,
     {
       const FT time_at_collision = mc.time_at_closest_target();
       const FT foreign_time_at_collision = time_at_fmc_track_source +
-        CGAL::sqrt(CGAL::squared_distance(fmc_track_source->point(),
-                                          mc.closest_target()->point())) / fmc.speed();
+                                             CGAL::approximate_sqrt(
+                                               CGAL::squared_distance(fmc_track_source->point(),
+                                                                      mc.closest_target()->point()))
+                                           / fmc.speed();
 
       return tc.treat_potential_collision(mc.closest_target(), time_at_collision, fmc.id(), foreign_time_at_collision);
     }
@@ -2267,8 +2278,10 @@ find_collision_between_tracks(const Motorcycle& mc,
     {
       const FT time_at_collision = mc.current_time();
       const FT foreign_time_at_collision = time_at_fmc_track_source +
-        CGAL::sqrt(CGAL::squared_distance(fmc_track_source->point(),
-                                          mc.current_position()->point())) / fmc.speed();
+                                           CGAL::approximate_sqrt(
+                                             CGAL::squared_distance(fmc_track_source->point(),
+                                                                    mc.current_position()->point()))
+                                           / fmc.speed();
 
       return tc.treat_potential_collision(mc.current_position(), time_at_collision, fmc.id(), foreign_time_at_collision);
     }
@@ -2292,7 +2305,7 @@ find_collision_between_tracks(const Motorcycle& mc,
     {
       const FT sqd = CGAL::squared_distance(mc.current_position()->point(),
                                             fmc_track_target->point());
-      const FT time_at_collision = mc.current_time() + CGAL::sqrt(sqd) / mc.speed();
+      const FT time_at_collision = mc.current_time() + CGAL::approximate_sqrt(sqd) / mc.speed();
       const FT foreign_time_at_collision = time_at_fmc_track_target;
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
@@ -2325,8 +2338,9 @@ find_collision_between_tracks(const Motorcycle& mc,
          mcs.source(), fmcs.source(), mcs.target()))
     {
       const FT time_at_collision = mc.current_time() +
-        CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(),
-                                          fmc_track_source->point())) / mc.speed();
+                                   CGAL::approximate_sqrt(
+                                     CGAL::squared_distance(mc.current_position()->point(),
+                                                            fmc_track_source->point())) / mc.speed();
       const FT foreign_time_at_collision = time_at_fmc_track_source;
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
@@ -2414,8 +2428,9 @@ find_collision_between_tracks(const Motorcycle& mc,
 
       // No choice but to compute the visiting time
       time_at_collision = mc.current_time() +
-        CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(),
-                                          collision_point->point())) / mc.speed();
+                            CGAL::approximate_sqrt(
+                              CGAL::squared_distance(mc.current_position()->point(),
+                                                     collision_point->point())) / mc.speed();
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_SNAPPING_CODE
       // Although we have found an _existing_ point at the location of the intersection,
@@ -2447,7 +2462,7 @@ find_collision_between_tracks(const Motorcycle& mc,
         // No choice but to compute the foreign visiting time
         const FT sqd = CGAL::squared_distance(fmc_track_source->point(),
                                               collision_point->point());
-        foreign_time_at_collision = time_at_fmc_track_source + CGAL::sqrt(sqd) / fmc.speed();
+        foreign_time_at_collision = time_at_fmc_track_source + CGAL::approximate_sqrt(sqd) / fmc.speed();
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
       std::cout << "  Gotta compute the foreign time " << std::endl;
@@ -2475,9 +2490,13 @@ find_collision_between_tracks(const Motorcycle& mc,
     Point collision_point = CGAL::Polygon_mesh_processing::construct_point(collision_location, mesh());
 
     FT time_at_collision = mc.current_time() +
-      CGAL::sqrt(CGAL::squared_distance(mc.current_position()->point(), collision_point)) / mc.speed();
+                           CGAL::approximate_sqrt(
+                             CGAL::squared_distance(mc.current_position()->point(),
+                                                    collision_point)) / mc.speed();
     FT foreign_time_at_collision = time_at_fmc_track_source +
-      CGAL::sqrt(CGAL::squared_distance(fmc_track_source->point(), collision_point)) / fmc.speed();
+                                   CGAL::approximate_sqrt(
+                                     CGAL::squared_distance(fmc_track_source->point(),
+                                                            collision_point)) / fmc.speed();
 
 #ifdef CGAL_MOTORCYCLE_GRAPH_COLLISION_VERBOSE
     std::cout << "Location never seen before, corresponds to point ("

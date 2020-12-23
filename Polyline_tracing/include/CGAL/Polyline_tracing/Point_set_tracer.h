@@ -141,8 +141,9 @@ set_next_destination(const Motorcycle& mc, Nodes& points, const Triangle_mesh& m
 
   const Point& destination_point = destination.first->point();
   FT time_at_destination = mc.current_time() +
-    CGAL::sqrt(CGAL::squared_distance(origin_in_next_face->point(),
-                                      destination_point)) / mc.speed();
+                           CGAL::approximate_sqrt(
+                             CGAL::squared_distance(origin_in_next_face->point(),
+                                                    destination_point)) / mc.speed();
 
   // the last destination is marked as final
   const bool is_final_destination = (pos == destinations().size() - 1);
