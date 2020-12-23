@@ -477,7 +477,7 @@ public:
 #endif
 
         // otherwise, create a new face and assign it properly (no need for Euler operations)
-        face_descriptor fd = boost::graph_traits<Face_graph>::null_face();
+        fg_face_descriptor fd = boost::graph_traits<Face_graph>::null_face();
         if(!is_border_halfedge)
         {
           fd = add_face(og);
