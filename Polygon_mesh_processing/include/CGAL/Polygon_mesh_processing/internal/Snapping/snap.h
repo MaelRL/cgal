@@ -41,7 +41,6 @@
 #include <CGAL/Dynamic_property_map.h>
 #include <CGAL/Kernel/global_functions.h>
 #include <CGAL/number_utils.h>
-#include <CGAL/Real_timer.h>
 #include <CGAL/utility.h>
 
 #ifdef CGAL_EIGEN3_ENABLED
@@ -613,9 +612,6 @@ std::size_t split_edges(EdgesToSplitContainer& edges_to_split,
 
   std::size_t snapped_n = 0;
 
-  CGAL::Real_timer timer;
-  timer.start();
-
   for(Edge_and_splitters& es : edges_to_split)
   {
     halfedge_descriptor h_to_split = es.first;
@@ -880,15 +876,10 @@ std::size_t snap_non_conformal_one_way(const HalfedgeRange& halfedge_range_S,
               Concurrent_edge_to_split_container, AABB_tree,
               VertexPatchMap_S, FacePatchMap_T, VPMS, VPMT, GT>                  Functor;
 
-    CGAL::Real_timer timer;
-    timer.start();
-
     Concurrent_edge_to_split_container edges_to_split;
     Functor f(vertices_to_snap, edges_to_split, &aabb_tree,
               tm_S, vertex_patch_map_S, vpm_S, tm_T, face_patch_map_T, vpm_T, gt);
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, vertices_to_snap.size()), f);
-
-    std::cout << "Time to gather edges: " << timer.time() << std::endl;
 
     return split_edges(edges_to_split, tm_S, vpm_S,  tm_T, vpm_T, gt, is_source_mesh_fixed);
   }
@@ -1130,7 +1121,7 @@ std::size_t snap_non_conformal(HalfedgeRange& halfedge_range_A,
 #endif
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
-  /// #3 (Two one-way vertex-edge snapping)
+  /// #3 (Two one-way vertex-edge snappings)
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef CGAL_PMP_SNAP_DEBUG

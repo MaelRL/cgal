@@ -37,7 +37,8 @@ void vertices_as_halfedges(const VertexRange& vertex_range,
     *out++ = halfedge(v, pmesh);
 }
 
-// Assigns at each vertex the 'tolerance' value as tolerance, but bounded by a percentage of the length of its shortest incident edge
+// Assigns at each vertex the 'tolerance' value as tolerance,
+// but bounded by a percentage of the length of its shortest incident edge
 template <typename HalfedgeRange,
           typename ToleranceMap,
           typename PolygonMesh,
@@ -116,9 +117,14 @@ bool is_collinear_with_tolerance(const typename GeomTraits::Point_3& p, // va ==
   const FT sp = gt.compute_scalar_product_3_object()(va, vb);
 
   // To avoid junctions like:
-  //  ----va vb-----  from being locked since it could be needed in ------------- later
-  //       | |                                                      ----va  vb---
-  //                                                                    |   |
+  //  ----va vb-----
+  //       | |
+  //
+  // from being locked since it could be needed in a configuration such as
+  // -------------
+  // ----va  vb---
+  //     |   |
+  // later
   if(sp < FT(0))
     return false;
 

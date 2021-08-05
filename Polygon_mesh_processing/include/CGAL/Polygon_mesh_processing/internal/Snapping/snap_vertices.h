@@ -38,7 +38,6 @@
 #include <CGAL/Kernel/global_functions.h>
 #include <CGAL/number_utils.h>
 #include <CGAL/utility.h>
-#include <CGAL/Real_timer.h>
 #include <CGAL/tags.h>
 
 #include <boost/multi_index_container.hpp>
@@ -213,17 +212,17 @@ struct Vertex_proximity_report
     }
   }
 
-  // that's the sequential version
+  // sequential version
   void operator()(const Box* a, const Box* b)
   {
     Unique_vertex_ptr uv_a = a->info(), uv_b = b->info();
     const std::pair<FT, bool> res = do_keep(uv_a, uv_b);
     if(res.second)
-      m_snapping_pairs.insert(Snapping_pair<PolygonMesh, GeomTraits>(uv_a, uv_b, res.first));
+      m_snapping_pairs.emplace(uv_a, uv_b, res.first);
   }
 
+  // parallel version
 #ifdef CGAL_LINKED_WITH_TBB
-  // that's the parallel version
   void operator()(const tbb::blocked_range<std::size_t>& r) const
   {
     CGAL_assertion(m_uv_pairs != nullptr);
@@ -337,9 +336,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
 
     Vertex_container nvc {{ h }};
     std::pair<typename Unique_positions::iterator, bool> is_insert_successful =
-      unique_positions_A.insert(std::make_pair(
-                                  std::make_pair(get(vpm_A, v), get(vertex_patch_map_A, v)), // point and patch id
-                                  std::make_pair(nvc, tolerance)));
+      unique_positions_A.emplace(std::make_pair(get(vpm_A, v), get(vertex_patch_map_A, v)), // point and patch id
+                                 std::make_pair(nvc, tolerance));
 
     if(!is_insert_successful.second) // point was already met
     {
@@ -364,9 +362,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
 
     Vertex_container nvc {{ h }};
     std::pair<typename Unique_positions::iterator, bool> is_insert_successful =
-      unique_positions_B.insert(std::make_pair(
-                                  std::make_pair(get(vpm_B, v), get(vertex_patch_map_B, v)), // point and patch id
-                                  std::make_pair(nvc, tolerance)));
+      unique_positions_B.emplace(std::make_pair(get(vpm_B, v), get(vertex_patch_map_B, v)), // point and patch id
+                                 std::make_pair(nvc, tolerance));
 
     if(!is_insert_successful.second) // point was already met
     {
@@ -397,7 +394,7 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     const Bbox_3 pb = gt.construct_bbox_3_object()(p.first.first);
     const Bbox_3 b(pb.xmin() - eps, pb.ymin() - eps, pb.zmin() - eps,
                    pb.xmax() + eps, pb.ymax() + eps, pb.zmax() + eps);
-    boxes_A.push_back(Box(b, &ev));
+    boxes_A.emplace_back(b, &ev);
   }
 
   for(const auto& p : unique_positions_B)
@@ -416,7 +413,7 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     const Bbox_3 pb = gt.construct_bbox_3_object()(p.first.first);
     const Bbox_3 b(pb.xmin() - eps, pb.ymin() - eps, pb.zmin() - eps,
                    pb.xmax() + eps, pb.ymax() + eps, pb.zmax() + eps);
-    boxes_B.push_back(Box(b, &ev));
+    boxes_B.emplace_back(b, &ev);
   }
 
   // @fixme bench and don't use ptrs if not useful
@@ -461,15 +458,10 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     Unique_vertex_pairs uv_pairs;
     Intersecting_boxes_pairs_report<UVP_output_iterator> callback(std::back_inserter(uv_pairs));
 
-    CGAL::Real_timer timer;
-    timer.start();
-
     // Grab the boxes that are interesecting but don't do any extra filtering (in parallel)
     CGAL::box_intersection_d<CGAL::Parallel_tag>(boxes_A_ptr.begin(), boxes_A_ptr.end(),
                                                  boxes_B_ptr.begin(), boxes_B_ptr.end(),
                                                  callback);
-
-    std::cout << "time for box_d: " << timer.time() << std::endl;
 
     // Actually filter the range of intersecting boxes now (in parallel)
     typedef std::vector<std::pair<FT, bool> >                                         Filters;
@@ -480,28 +472,33 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
                                     Box, Unique_vertex_pairs, Filters>                Reporter;
 
     Filters to_keep(uv_pairs.size());
-    Reporter proximity_filterer(snapping_pairs, tm_A, tolerance_map_A, vertex_patch_map_A, vpm_A,
-                                                tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B,
+    Reporter proximity_filterer(snapping_pairs,
+                                tm_A, tolerance_map_A, vertex_patch_map_A, vpm_A,
+                                tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B,
                                 gt, &uv_pairs, &to_keep);
+
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, uv_pairs.size()), proximity_filterer);
 
     // Now fill the multi index, sequentially
     for(std::size_t i=0, uvps = uv_pairs.size(); i<uvps; ++i)
       if(to_keep[i].second)
-        snapping_pairs.insert(Snapping_pair(uv_pairs[i].first, uv_pairs[i].second, to_keep[i].first));
+        snapping_pairs.emplace(uv_pairs[i].first, uv_pairs[i].second, to_keep[i].first);
   }
   else
 #endif
+  // Sequential code
   {
-    typedef Vertex_proximity_report<Snapping_pair_container, PolygonMesh, GT,
-                                    VPM_A, VPM_B, ToleranceMap_A, ToleranceMap_B,
+    typedef Vertex_proximity_report<Snapping_pair_container,
+                                    PolygonMesh, GT, VPM_A, VPM_B,
+                                    ToleranceMap_A, ToleranceMap_B,
                                     VertexPatchMap_A, VertexPatchMap_B, Box>          Reporter;
 
-    Reporter vpr(snapping_pairs, tm_A, tolerance_map_A, vertex_patch_map_A, vpm_A,
-                                 tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B, gt);
+    Reporter proximity_filterer(snapping_pairs,
+                                tm_A, tolerance_map_A, vertex_patch_map_A, vpm_A,
+                                tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B, gt);
 
     // Shenanigans to pass a reference as callback (which is copied by value by 'box_intersection_d')
-    std::function<void(const Box*, const Box*)> callback(std::ref(vpr));
+    std::function<void(const Box*, const Box*)> callback(std::ref(proximity_filterer));
 
     CGAL::box_intersection_d<CGAL::Sequential_tag>(boxes_A_ptr.begin(), boxes_A_ptr.end(),
                                                    boxes_B_ptr.begin(), boxes_B_ptr.end(),
@@ -750,15 +747,15 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
   using CGAL::parameters::choose_parameter;
   using CGAL::parameters::get_parameter;
 
-  return snap_vertices_two_way(halfedge_range_A, tm_A, tolerance_map_A,
-                               choose_parameter(get_parameter(np_A, internal_np::vertex_incident_patches),
-                                                Constant_property_map<vertex_descriptor, std::size_t>(-1)),
-                               halfedge_range_B, tm_B, tolerance_map_B,
-                               choose_parameter(get_parameter(np_B, internal_np::vertex_incident_patches),
-                                                Constant_property_map<vertex_descriptor, std::size_t>(-1)),
-                               lockable_vps_out, lockable_ha_out, lockable_hb_out,
-                               choose_parameter(get_parameter(np_B, internal_np::do_lock_mesh), false),
-                               np_A, np_B);
+  return snap_vertices_two_way<ConcurrencyTag>(halfedge_range_A, tm_A, tolerance_map_A,
+                                               choose_parameter(get_parameter(np_A, internal_np::vertex_incident_patches),
+                                                                Constant_property_map<vertex_descriptor, std::size_t>(-1)),
+                                               halfedge_range_B, tm_B, tolerance_map_B,
+                                               choose_parameter(get_parameter(np_B, internal_np::vertex_incident_patches),
+                                                                Constant_property_map<vertex_descriptor, std::size_t>(-1)),
+                                               lockable_vps_out, lockable_ha_out, lockable_hb_out,
+                                               choose_parameter(get_parameter(np_B, internal_np::do_lock_mesh), false),
+                                               np_A, np_B);
 }
 
 } // namespace internal
@@ -818,7 +815,8 @@ namespace experimental {
 //
 // \return the number of snapped vertex pairs
 //
-template <typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh,
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh,
           typename ToleranceMap_A, typename ToleranceMap_B,
           typename NamedParameters_A, typename NamedParameters_B>
 std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
@@ -832,13 +830,14 @@ std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
 {
   CGAL::Emptyset_iterator unused_output_iterator;
 
-  return internal::snap_vertices_two_way(halfedge_range_A, tm_A, tolerance_map_A,
-                                         halfedge_range_B, tm_B, tolerance_map_B,
-                                         unused_output_iterator, unused_output_iterator,
-                                         unused_output_iterator, np_A, np_B);
+  return internal::snap_vertices_two_way<ConcurrencyTag>(halfedge_range_A, tm_A, tolerance_map_A,
+                                                         halfedge_range_B, tm_B, tolerance_map_B,
+                                                         unused_output_iterator, unused_output_iterator,
+                                                         unused_output_iterator, np_A, np_B);
 }
 
-template <typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh,
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh,
           typename ToleranceMap_A, typename ToleranceMap_B>
 std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
                           PolygonMesh& tm_A,
@@ -847,11 +846,13 @@ std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
                           PolygonMesh& tm_B,
                           ToleranceMap_B tolerance_map_B)
 {
-  return snap_vertices(halfedge_range_A, tm_A, tolerance_map_A, halfedge_range_B, tm_B, tolerance_map_B,
-                       CGAL::parameters::all_default(), CGAL::parameters::all_default());
+  return snap_vertices<ConcurrencyTag>(halfedge_range_A, tm_A, tolerance_map_A,
+                                       halfedge_range_B, tm_B, tolerance_map_B,
+                                       CGAL::parameters::all_default(), CGAL::parameters::all_default());
 }
 
-template <typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh,
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh,
           typename T_A, typename Tag_A, typename Base_A,
           typename T_B, typename Tag_B, typename Base_B>
 std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
@@ -877,21 +878,23 @@ std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
   return snap_vertices(halfedge_range_A, tm_A, tolerance_map_A, halfedge_range_B, tm_B, tolerance_map_B, np_A, np_B);
 }
 
-template <typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh>
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename HalfedgeRange_A, typename HalfedgeRange_B, typename PolygonMesh>
 std::size_t snap_vertices(const HalfedgeRange_A& halfedge_range_A,
                           PolygonMesh& tm_A,
                           const HalfedgeRange_B& halfedge_range_B,
                           PolygonMesh& tm_B)
 {
-  return snap_vertices(halfedge_range_A, tm_A, halfedge_range_B, tm_B,
-                       parameters::all_default(), parameters::all_default());
+  return snap_vertices<ConcurrencyTag>(halfedge_range_A, tm_A, halfedge_range_B, tm_B,
+                                       parameters::all_default(), parameters::all_default());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Border convenience overloads
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <typename PolygonMesh, typename ToleranceMap_A, typename ToleranceMap_B>
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename PolygonMesh, typename ToleranceMap_A, typename ToleranceMap_B>
 std::size_t snap_border_vertices(PolygonMesh& tm_A,
                                  ToleranceMap_A tolerance_map_A,
                                  PolygonMesh& tm_B,
@@ -904,11 +907,12 @@ std::size_t snap_border_vertices(PolygonMesh& tm_A,
   std::vector<halfedge_descriptor> border_B;
   border_halfedges(tm_B, std::back_inserter(border_B));
 
-  return snap_vertices(border_A, tm_A, tolerance_map_A,
-                       border_B, tm_B, tolerance_map_B);
+  return snap_vertices<ConcurrencyTag>(border_A, tm_A, tolerance_map_A,
+                                       border_B, tm_B, tolerance_map_B);
 }
 
-template <typename PolygonMesh>
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename PolygonMesh>
 std::size_t snap_border_vertices(PolygonMesh& tm_A,
                                  PolygonMesh& tm_B)
 {
@@ -920,25 +924,28 @@ std::size_t snap_border_vertices(PolygonMesh& tm_A,
   std::vector<halfedge_descriptor> border_vertices_B;
   border_halfedges(tm_B, std::back_inserter(border_vertices_B));
 
-  return snap_vertices(border_vertices_A, tm_A, border_vertices_B, tm_B);
+  return snap_vertices<ConcurrencyTag>(border_vertices_A, tm_A, border_vertices_B, tm_B);
 }
 
-template <typename PolygonMesh, typename ToleranceMap>
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename PolygonMesh, typename ToleranceMap>
 std::size_t snap_border_vertices(PolygonMesh& tm, ToleranceMap tolerance_map)
 {
-  return snap_border_vertices(tm, tolerance_map, tm, tolerance_map);
+  return snap_border_vertices<ConcurrencyTag>(tm, tolerance_map, tm, tolerance_map);
 }
 
-template <typename PolygonMesh>
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename PolygonMesh>
 std::size_t snap_border_vertices(PolygonMesh& tm)
 {
-  return snap_border_vertices(tm, tm);
+  return snap_border_vertices<ConcurrencyTag>(tm, tm);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Other convenience overloads
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-template <typename PolygonMesh, typename ToleranceMap>
+template <typename ConcurrencyTag = CGAL::Sequential_tag,
+          typename PolygonMesh, typename ToleranceMap>
 std::size_t snap_all_vertices(PolygonMesh& tm, ToleranceMap tolerance_map)
 {
   typedef boost::graph_traits<PolygonMesh> GT;
@@ -952,9 +959,8 @@ std::size_t snap_all_vertices(PolygonMesh& tm, ToleranceMap tolerance_map)
                  boost::make_transform_iterator(vertices(tm).begin(), get_halfedge),
                  boost::make_transform_iterator(vertices(tm).end(), get_halfedge) );
 
-  return snap_vertices(hedges, tm, tolerance_map, hedges, tm, tolerance_map);
+  return snap_vertices<ConcurrencyTag>(hedges, tm, tolerance_map, hedges, tm, tolerance_map);
 }
-
 
 } // namespace experimental
 } // namespace Polygon_mesh_processing

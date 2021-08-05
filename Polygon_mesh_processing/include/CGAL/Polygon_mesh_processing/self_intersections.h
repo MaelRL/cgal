@@ -256,7 +256,7 @@ self_intersections_impl(const FaceRange& face_range,
     }
     else
     {
-      boxes.push_back(Box(p.bbox() + q.bbox() + r.bbox(), f));
+      boxes.emplace_back(p.bbox() + q.bbox() + r.bbox(), f);
     }
   }
 
@@ -508,7 +508,7 @@ bool does_self_intersect(const FaceRange& face_range,
   {
     return true;
   }
-  #if defined(CGAL_LINKED_WITH_TBB) && TBB_USE_CAPTURED_EXCEPTION
+#if defined(CGAL_LINKED_WITH_TBB) && TBB_USE_CAPTURED_EXCEPTION
   catch (const tbb::captured_exception& e)
   {
     const char* ti1 = e.name();
@@ -518,7 +518,7 @@ bool does_self_intersect(const FaceRange& face_range,
     if (tn1 == tn2) return true;
     else throw;
   }
-  #endif
+#endif
   return false;
 }
 
