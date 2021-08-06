@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace PMP = CGAL::Polygon_mesh_processing;
+namespace PMP = PMP;
 namespace params = CGAL::parameters;
 
 typedef CGAL::Exact_predicates_exact_constructions_kernel             EPECK;
@@ -53,10 +53,10 @@ void read_mesh(const char* filename,
     std::vector<std::array<int, 3> > faces;
     CGAL::IO::read_STL(in, points, faces);
 
-    if(!CGAL::Polygon_mesh_processing::orient_polygon_soup(points, faces))
+    if(!PMP::orient_polygon_soup(points, faces))
       std::cerr << "W: File does not describe a polygon mesh" << std::endl;
 
-    CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, faces, sm);
+    PMP::polygon_soup_to_polygon_mesh(points, faces, sm);
   }
   else // off reading
   {
@@ -119,7 +119,7 @@ void test(const char* filename,
 
   sm_cpy = sm;
   CGAL::Constant_property_map<vertex_descriptor, FT> tol_pmap_good(good_tolerance);
-  res = PMP::experimental::snap_borders(sm_cpy, tol_pmap_good);
+  res = PMP::experimental::snap_borders<CGAL::Parallel_tag>(sm_cpy, tol_pmap_good);
   std::cout << "snapped: " << res << std::endl;
 
   std::ofstream out3("good.off");

@@ -122,8 +122,9 @@ if(TARGET CGAL::TBB_support)
   target_link_libraries(test_hausdorff_bounded_error_distance PUBLIC CGAL::TBB_support)
   target_link_libraries(test_pmp_distance PUBLIC CGAL::TBB_support)
   target_link_libraries(orient_polygon_soup_test PUBLIC CGAL::TBB_support)
-  target_link_libraries(self_intersection_surface_mesh_test
-                        PUBLIC CGAL::TBB_support)
+  target_link_libraries(self_intersection_surface_mesh_test PUBLIC CGAL::TBB_support)
+  target_link_libraries(test_pmp_snapping PUBLIC CGAL::TBB_support)
+  target_link_libraries(test_pmp_non_conforming_snapping PUBLIC CGAL::TBB_support)
 else()
   message(
     STATUS

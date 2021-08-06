@@ -97,10 +97,10 @@ void test_1()
   PMP::border_halfedges(fg_source_cpy, std::back_inserter(border_vertices));
 
   CGAL::Constant_property_map<vertex_descriptor, FT> tol_map_big(0.1);
-  res = PMP::experimental::snap_vertices(border_vertices, fg_source_cpy, tol_map_big,
-                                         target_halfedge_range, fg_target, tol_map_big,
-                                         params::geom_traits(Kernel()),
-                                         params::do_lock_mesh(true));
+  res = PMP::experimental::snap_vertices<CGAL::Parallel_tag>(border_vertices, fg_source_cpy, tol_map_big,
+                                                             target_halfedge_range, fg_target, tol_map_big,
+                                                             params::geom_traits(Kernel()),
+                                                             params::do_lock_mesh(true));
 
   std::cout << "res: " << res << " (expected 154)" << std::endl;
   assert(res == 154);
