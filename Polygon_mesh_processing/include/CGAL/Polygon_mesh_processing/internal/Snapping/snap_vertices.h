@@ -34,6 +34,7 @@
 #include <CGAL/box_intersection_d.h>
 #include <CGAL/circulator.h>
 #include <CGAL/Dynamic_property_map.h>
+#include <CGAL/exceptions.h>
 #include <CGAL/iterator.h>
 #include <CGAL/Kernel/global_functions.h>
 #include <CGAL/number_utils.h>
@@ -87,25 +88,45 @@ struct Snapping_pair
   FT sq_dist;
 };
 
-// Functor that just forwards the pair of the two intersecting boxes
-template <class OutputIterator>
-struct Intersecting_boxes_pairs_report
+#ifdef CGAL_LINKED_WITH_TBB
+// Functor that forwards the pair of the two intersecting boxes
+// Note that Box_intersection_d does a lot of copies of the callback functor, but we are passing it
+// with std::ref, so is always refering to the same reporter object (and importantly, the same counter)
+template <typename OutputIterator, typename Visitor>
+struct Intersecting_boxes_pairs_parallel_report
 {
-  Intersecting_boxes_pairs_report(OutputIterator it) :  m_iterator(it) { }
+  mutable OutputIterator m_iterator;
+  mutable std::atomic<std::size_t> m_counter;
+  Visitor& m_visitor;
+
+  Intersecting_boxes_pairs_parallel_report(OutputIterator it, Visitor& visitor)
+    : m_iterator(it),
+      m_counter(0),
+      m_visitor(visitor)
+  { }
+
+  // Copy should not be allowed, otherwise the counter is whacky
+  Intersecting_boxes_pairs_parallel_report(const Intersecting_boxes_pairs_parallel_report& other) = delete;
+  Intersecting_boxes_pairs_parallel_report& operator=(const Intersecting_boxes_pairs_parallel_report&) = delete;
 
   template <class Box>
-  void operator()(const Box* b, const Box* c) const {
-    *m_iterator++ = std::make_pair(b->info(), c->info());
-  }
+  void operator()(const Box* b, const Box* c) const
+  {
+    *m_iterator++ = std::make_pair(b->info(), c->info()); // writing into a concurrent vector
 
-  mutable OutputIterator m_iterator;
+    m_visitor.on_vertex_vertex_potential_match(b, c, ++m_counter);
+    if(m_visitor.stop()) // @fixme should there be a lock around it to be safe?
+      throw CGAL::internal::Throw_at_output_exception();
+  }
 };
+#endif
 
 template <typename SnappingPairContainer,
           typename PolygonMesh, typename GeomTraits,
           typename VPM_A, typename VPM_B,
           typename ToleranceMap_A, typename ToleranceMap_B,
           typename VertexPatchMap_A, typename VertexPatchMap_B,
+          typename Visitor,
           typename Box
 #ifdef CGAL_LINKED_WITH_TBB
           , typename UniqueVertexPairContainer = void
@@ -125,6 +146,26 @@ struct Vertex_proximity_report
   typedef const Unique_vertex*                                                        Unique_vertex_ptr;
   typedef std::pair<Unique_vertex_ptr, Unique_vertex_ptr>                             Unique_vertex_pair;
 
+private:
+  const PolygonMesh& m_tm_A;
+  ToleranceMap_A m_tolerance_map_A;
+  VertexPatchMap_A m_vertex_patch_map_A;
+  VPM_A m_vpm_A;
+  const PolygonMesh& m_tm_B;
+  ToleranceMap_B m_tolerance_map_B;
+  VertexPatchMap_B m_vertex_patch_map_B;
+  VPM_B m_vpm_B;
+  const GeomTraits& m_gt;
+
+  Visitor& m_visitor;
+  SnappingPairContainer& m_snapping_pairs; // will only be filled here in the sequential setting
+
+#ifdef CGAL_LINKED_WITH_TBB
+  const UniqueVertexPairContainer* m_uv_pairs;
+  ToKeepContainer* m_to_keep;
+#endif
+
+public:
   Vertex_proximity_report(SnappingPairContainer& snapping_pairs,
                           const PolygonMesh& tm_A,
                           ToleranceMap_A tolerance_map_A,
@@ -134,7 +175,8 @@ struct Vertex_proximity_report
                           ToleranceMap_B tolerance_map_B,
                           VertexPatchMap_B vertex_patch_map_B,
                           const VPM_B& vpm_B,
-                          const GeomTraits& gt
+                          const GeomTraits& gt,
+                          Visitor& visitor
 #ifdef CGAL_LINKED_WITH_TBB
                           , const UniqueVertexPairContainer* uv_pairs = nullptr
                           , ToKeepContainer* to_keep = nullptr
@@ -150,6 +192,7 @@ struct Vertex_proximity_report
       m_vertex_patch_map_B(vertex_patch_map_B),
       m_vpm_B(vpm_B),
       m_gt(gt),
+      m_visitor(visitor),
       m_snapping_pairs(snapping_pairs)
 #ifdef CGAL_LINKED_WITH_TBB
     , m_uv_pairs(uv_pairs)
@@ -216,9 +259,16 @@ struct Vertex_proximity_report
   void operator()(const Box* a, const Box* b)
   {
     Unique_vertex_ptr uv_a = a->info(), uv_b = b->info();
+    m_visitor.on_vertex_vertex_potential_match(a, b, m_snapping_pairs.size()); // @fixme should have a counter for potential matches...
+    if(m_visitor.stop())
+      throw CGAL::internal::Throw_at_output_exception();
+
     const std::pair<FT, bool> res = do_keep(uv_a, uv_b);
     if(res.second)
+    {
       m_snapping_pairs.emplace(uv_a, uv_b, res.first);
+      m_visitor.on_vertex_vertex_match(uv_a->first, uv_a->first);
+    }
   }
 
   // parallel version
@@ -234,24 +284,6 @@ struct Vertex_proximity_report
       m_to_keep->operator[](ri) = do_keep(hp.first, hp.second);
     }
   }
-#endif
-
-private:
-  const PolygonMesh& m_tm_A;
-  ToleranceMap_A m_tolerance_map_A;
-  VertexPatchMap_A m_vertex_patch_map_A;
-  VPM_A m_vpm_A;
-  const PolygonMesh& m_tm_B;
-  ToleranceMap_B m_tolerance_map_B;
-  VertexPatchMap_B m_vertex_patch_map_B;
-  VPM_B m_vpm_B;
-  const GeomTraits& m_gt;
-
-  SnappingPairContainer& m_snapping_pairs; // will only be filled here in the sequential setting
-
-#ifdef CGAL_LINKED_WITH_TBB
-  const UniqueVertexPairContainer* m_uv_pairs;
-  ToKeepContainer* m_to_keep;
 #endif
 };
 
@@ -294,6 +326,12 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
   typedef Box_intersection_d::ID_FROM_BOX_ADDRESS                                             Box_policy;
   typedef CGAL::Box_intersection_d::Box_with_info_d<double, 3, Unique_vertex_ptr, Box_policy> Box;
 
+  typedef typename internal_np::Lookup_named_param_def <
+    internal_np::visitor_t,
+    NamedParameters_A,
+    internal::Snapping_default_visitor<PolygonMesh> // default
+  > ::type                                                                            Visitor;
+
   using parameters::get_parameter;
   using parameters::choose_parameter;
 
@@ -304,6 +342,13 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
                                  get_property_map(vertex_point, tm_A));
   VPM_B vpm_B = choose_parameter(get_parameter(np_B, internal_np::vertex_point),
                                  get_property_map(vertex_point, tm_B));
+
+  // @fixme that's not the same visitor as in snap.h anymore since there is a copy in NP
+  Visitor visitor = choose_parameter<Visitor>(get_parameter(np_A, internal_np::visitor));
+
+  visitor.start_vertex_vertex_phase();
+  if(visitor.stop())
+    return 0;
 
 #ifdef CGAL_PMP_SNAP_DEBUG
   std::cout << "Finding snappables vertices. Range sizes: "
@@ -456,33 +501,62 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     typedef std::back_insert_iterator<Unique_vertex_pairs>                            UVP_output_iterator;
 
     Unique_vertex_pairs uv_pairs;
-    Intersecting_boxes_pairs_report<UVP_output_iterator> callback(std::back_inserter(uv_pairs));
+    Intersecting_boxes_pairs_parallel_report<UVP_output_iterator, Visitor> box_callback(std::back_inserter(uv_pairs), visitor);
+
+    // Shenanigans to pass a reference as callback (which is copied by value by 'box_intersection_d')
+    std::function<void(const Box*, const Box*)> callback(std::ref(box_callback));
 
     // Grab the boxes that are interesecting but don't do any extra filtering (in parallel)
-    CGAL::box_intersection_d<CGAL::Parallel_tag>(boxes_A_ptr.begin(), boxes_A_ptr.end(),
-                                                 boxes_B_ptr.begin(), boxes_B_ptr.end(),
-                                                 callback);
+    try // the callback will throw to get out of the parallel loop if the visitor asks for a stop
+    {
+      CGAL::box_intersection_d<CGAL::Parallel_tag>(boxes_A_ptr.begin(), boxes_A_ptr.end(),
+                                                   boxes_B_ptr.begin(), boxes_B_ptr.end(),
+                                                   callback);
+    }
+    catch(const CGAL::internal::Throw_at_output_exception&)
+    {
+      // do nothing: continue the snapping with what we have found so far
+    }
+#if TBB_USE_CAPTURED_EXCEPTION
+    catch (const tbb::captured_exception& e)
+    {
+      const std::string tn1(e.name());
+      const std::string tn2(typeid(const CGAL::internal::Throw_at_output_exception&).name());
+      if(tn1 != tn2)
+      {
+        std::cerr << "Unexpected throw: " << tn1 << std::endl;
+        throw;
+      }
+    }
+#endif // TBB_USE_CAPTURED_EXCEPTION
 
-    // Actually filter the range of intersecting boxes now (in parallel)
+    std::cout << "uv_pairs.size() = " << uv_pairs.size() << std::endl;
+
+    // Actually filter the range of intersecting boxes now (also in parallel)
     typedef std::vector<std::pair<FT, bool> >                                         Filters;
     typedef Vertex_proximity_report<Snapping_pair_container,
                                     PolygonMesh, GT, VPM_A, VPM_B,
                                     ToleranceMap_A, ToleranceMap_B,
                                     VertexPatchMap_A, VertexPatchMap_B,
-                                    Box, Unique_vertex_pairs, Filters>                Reporter;
+                                    Visitor, Box, Unique_vertex_pairs, Filters>       Reporter;
 
     Filters to_keep(uv_pairs.size());
     Reporter proximity_filterer(snapping_pairs,
                                 tm_A, tolerance_map_A, vertex_patch_map_A, vpm_A,
                                 tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B,
-                                gt, &uv_pairs, &to_keep);
+                                gt, visitor, &uv_pairs, &to_keep);
 
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, uv_pairs.size()), proximity_filterer);
 
-    // Now fill the multi index, sequentially
+    // Now fill the multi-index, sequentially
     for(std::size_t i=0, uvps = uv_pairs.size(); i<uvps; ++i)
+    {
       if(to_keep[i].second)
+      {
         snapping_pairs.emplace(uv_pairs[i].first, uv_pairs[i].second, to_keep[i].first);
+        visitor.on_vertex_vertex_match(uv_pairs[i].first->first, uv_pairs[i].second->first);
+      }
+    }
   }
   else
 #endif
@@ -491,25 +565,34 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     typedef Vertex_proximity_report<Snapping_pair_container,
                                     PolygonMesh, GT, VPM_A, VPM_B,
                                     ToleranceMap_A, ToleranceMap_B,
-                                    VertexPatchMap_A, VertexPatchMap_B, Box>          Reporter;
+                                    VertexPatchMap_A, VertexPatchMap_B,
+                                    Visitor, Box>                                     Reporter;
 
     Reporter proximity_filterer(snapping_pairs,
                                 tm_A, tolerance_map_A, vertex_patch_map_A, vpm_A,
-                                tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B, gt);
+                                tm_B, tolerance_map_B, vertex_patch_map_B, vpm_B, gt,
+                                visitor);
 
     // Shenanigans to pass a reference as callback (which is copied by value by 'box_intersection_d')
     std::function<void(const Box*, const Box*)> callback(std::ref(proximity_filterer));
 
-    CGAL::box_intersection_d<CGAL::Sequential_tag>(boxes_A_ptr.begin(), boxes_A_ptr.end(),
-                                                   boxes_B_ptr.begin(), boxes_B_ptr.end(),
-                                                   callback);
+    try // the callback will throw to get out of the loop if the visitor asks for a stop
+    {
+      CGAL::box_intersection_d<CGAL::Sequential_tag>(boxes_A_ptr.begin(), boxes_A_ptr.end(),
+                                                     boxes_B_ptr.begin(), boxes_B_ptr.end(),
+                                                     callback);
+    }
+    catch(const CGAL::internal::Throw_at_output_exception&)
+    {
+      // do nothing: continue the snapping with what we have found so far
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   /// Done collecting; start matching
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  if(snapping_pairs.empty())
+  if(snapping_pairs.empty() || visitor.stop())
     return 0;
 
   typedef std::pair<Unique_vertex_ptr, Unique_vertex_ptr>                             Unique_vertex_pair;
@@ -542,6 +625,7 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     std::cout << "#verts A: " << uv_a->first.size() << " #verts B: " << uv_b->first.size() << std::endl;
 #endif
 
+    visitor.on_vertex_vertex_match(uv_a->first, uv_b->first);
     snappable_vertices_pairs.emplace_back(uv_a, uv_b);
 
     // 'va' and 'vb' cannot be used anymore, remove them from the container
@@ -563,13 +647,16 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
   /// Done matching; start snapping
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  std::size_t counter = 0;
+  visitor.before_vertex_vertex_snapping(snappable_vertices_pairs.size());
+  if(snappable_vertices_pairs.empty() || visitor.stop())
+    return 0;
 
 #ifdef CGAL_PMP_SNAP_DEBUG_OUTPUT
   std::ofstream out_edges("results/snappable.polylines.txt");
   out_edges.precision(17);
 #endif
 
+  std::size_t counter = 0;
   for(const Unique_vertex_pair& uvp : snappable_vertices_pairs)
   {
     Unique_vertex_ptr uv_a = uvp.first;
@@ -578,6 +665,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
     const Vertex_container& vs_b = uv_b->first;
     const vertex_descriptor va = target(vs_a.front(), tm_A);
     const vertex_descriptor vb = target(vs_b.front(), tm_B);
+
+    visitor.before_vertex_vertex_snap(vs_a, vs_b);
 
 #ifdef CGAL_PMP_SNAP_DEBUG_OUTPUT
     out_edges << "2 " << tm_A.point(va) << " " << tm_B.point(vb) << std::endl;
@@ -612,6 +701,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
 
       ++counter;
     }
+
+    visitor.after_vertex_vertex_snap(vs_a, vs_b);
   }
 
 #ifdef CGAL_PMP_SNAP_DEBUG_OUTPUT
@@ -720,6 +811,8 @@ std::size_t snap_vertices_two_way(const HalfedgeRange_A& halfedge_range_A,
       }
     }
   }
+
+  visitor.end_vertex_vertex_phase();
 
   return counter;
 }

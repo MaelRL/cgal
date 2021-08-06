@@ -135,6 +135,82 @@ bool is_collinear_with_tolerance(const typename GeomTraits::Point_3& p, // va ==
   return (CGAL::square(sp) >= sq_va_l * sq_vb_l * sq_cos);
 }
 
+template <typename PolygonMesh>
+struct Snapping_default_visitor
+{
+  bool m_stop = false;
+
+  bool stop() { return m_stop; }
+
+  // What should this be?
+  void status_update() { }
+
+  template <typename ToleranceMap_A, typename ToleranceMap_B>
+  void parameters_used(bool /*simplify_first_mesh*/,
+                       bool /*simplify_second_mesh*/,
+                       bool /*is_second_mesh_fixed */,
+                       const ToleranceMap_A /*tolerance_map_A*/,
+                       const ToleranceMap_B /*tolerance_map_B*/) { }
+
+  // ------------------------------- Vertex - Vertex -------------------------------
+
+  // Called when starting snapping a range of vertices of A and a range of vertices of B.
+  void start_vertex_vertex_phase() { }
+
+  // Called when finished snapping a range of vertices of A and a range of vertices of B.
+  void end_vertex_vertex_phase() { }
+
+  // Called when a potential match is found (boxes are based on the tolerance at the vertex).
+  // The std::size_t parameter is the total of potential matches found so far.
+  template <typename Box>
+  void on_vertex_vertex_potential_match(const Box*, const Box*, std::size_t /*total*/) { }
+
+  // Called when a match between two vertices is found.
+  // Vertices of a given mesh that have the same geometrical positions are snapped
+  // at the same time, thus it is a container of vertices rather than just a single vertex
+  template <typename VertexContainer>
+  void on_vertex_vertex_match(const VertexContainer& /*va*/, const VertexContainer& /*vb*/) { }
+
+  // Called before proceeding with actual snapping.
+  void before_vertex_vertex_snapping(const std::size_t /*total number of pairs*/) { }
+
+  // Called before two ranges of vertices are snapped.
+  // Again, all vertices in va have the same geometrical position (and same for vb).
+  template <typename VertexContainer>
+  void before_vertex_vertex_snap(const VertexContainer& /*va*/, const VertexContainer& /*vb*/) { }
+
+  // Called after two ranges of vertices have been snapped.
+  template <typename VertexContainer>
+  void after_vertex_vertex_snap(const VertexContainer&, const VertexContainer&) { }
+
+  // -------------------------------  Vertex - Edge -------------------------------
+
+  // Called when starting snapping a range of vertices of A onto edges of B
+  void start_first_vertex_edge_phase() { }
+
+  // Called when finished snapping a range of vertices of A onto edges of B
+  void end_first_vertex_edge_phase() { }
+
+  // Called when starting snapping a range of vertices of B onto edges of A.
+  // Not called if A and B are the same mesh.
+  void start_second_vertex_edge_phase() { }
+
+  // Called when starting snapping a range of vertices of B onto edges of A.
+  // Not called if A and B are the same mesh.
+  void end_second_vertex_edge_phase() { }
+
+  // Called when a match between a vertex and an edge is found.
+  template <typename Vertex, typename Edge, typename Point>
+  void on_vertex_edge_match(const Vertex, const Edge, const Point&) { }
+
+  // Called before proceeding with actual snapping.
+  void before_vertex_edge_snapping(const std::size_t /* total*/) { }
+
+  // Called after a new vertex has been created, splitting an edge.
+  template <typename Vertex>
+  void on_vertex_edge_snap(const Vertex /*new_vertex*/) { }
+};
+
 } // namespace internal
 } // namespace Polygon_mesh_processing
 } // namespace CGAL
