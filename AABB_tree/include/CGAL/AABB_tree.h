@@ -472,6 +472,17 @@ public:
     /// \pre `!empty()`
     Point closest_point(const Point& query, const Point& hint) const;
 
+    Point closest_point(const Point& query, const FT upper_bound) const
+    {
+      using namespace CGAL::internal::AABB_tree;
+
+      CGAL_precondition(!empty());
+      Projection_traits<AABBTraits> projection_traits(upper_bound, m_traits);
+
+      this->traversal(query, projection_traits);
+      return projection_traits.closest_point();
+    }
+
     /// returns a `Point_and_primitive_id` which realizes the
     /// smallest distance between the query point and all input
     /// primitives. The internal KD-tree is not used.

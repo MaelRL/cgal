@@ -295,6 +295,15 @@ public:
       m_traits(traits)
   {}
 
+  // upper bound needs to be strictly greater than a known solution other the closest point will be uninitialized
+  Projection_traits(const FT upper_bound,
+                    const AABBTraits& traits)
+    : m_sq_upper_bound(square(upper_bound)),
+      m_use_FT_bound(true),
+      m_closest_point(CGAL::ORIGIN),
+      m_traits(traits)
+  {}
+
   bool go_further() const { return true; }
 
   void intersection(const Point& query, const Primitive& primitive)
@@ -310,8 +319,15 @@ public:
 
   bool do_intersect(const Point& query, const Node& node) const
   {
-    return m_traits.compare_distance_object()
-      (query, node.bbox(), m_closest_point) == CGAL::SMALLER;
+    if(m_use_FT_bound)
+    {
+      bool res = (m_traits.compare_distance_object()(query, node.bbox(), m_sq_upper_bound) == CGAL::SMALLER);
+      if(res)
+        m_use_FT_bound = false;
+      return res;
+    }
+    else
+      return m_traits.compare_distance_object()(query, node.bbox(), m_closest_point) == CGAL::SMALLER;
   }
 
   Point closest_point() const { return m_closest_point; }
@@ -321,6 +337,9 @@ public:
   }
 
 private:
+  mutable bool m_use_FT_bound = false;
+  FT m_sq_upper_bound;
+
   Point m_closest_point;
   typename Primitive::Id m_closest_primitive;
   const AABBTraits& m_traits;
