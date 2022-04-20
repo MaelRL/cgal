@@ -498,6 +498,7 @@ template <typename PolygonMesh, typename FaceNormalVector, typename GT>
 typename GT::Vector_3
 compute_vertex_normal_most_visible_min_circle(typename boost::graph_traits<PolygonMesh>::vertex_descriptor v,
                                               const FaceNormalVector& face_normals,
+                                              const std::size_t max_degree,
                                               const PolygonMesh& pmesh,
                                               const GT& traits)
 {
@@ -517,6 +518,10 @@ compute_vertex_normal_most_visible_min_circle(typename boost::graph_traits<Polyg
 
   if(incident_faces.size() == 1)
     return get(face_normals, incident_faces.front());
+
+  // The complexity is high, so it might be desirable not to use this tactic for high-valence vertices
+  if(incident_faces.size() > max_degree)
+    return CGAL::NULL_VECTOR;
 
   Vector_3 res = compute_most_visible_normal_2_points<PolygonMesh>(incident_faces, face_normals, traits);
 
@@ -687,14 +692,15 @@ compute_vertex_normal(typename boost::graph_traits<PolygonMesh>::vertex_descript
                                                   Default_map(default_fvmap));
   const bool must_compute_face_normals = is_default_parameter<NamedParameters, internal_np::face_normal_t>();
 
+  // Maximum number of incident faces to attempt a most visible normal computation (due to O(n^4) complexity)
+  const std::size_t max_degree = choose_parameter(get_parameter(np, internal_np::max_vertex_degree), 500);
+
 #ifdef CGAL_PMP_COMPUTE_NORMAL_DEBUG_PP
   std::cout << "<----- compute vertex normal at " << get(vpmap, v)
             << ", must compute face normals? " << must_compute_face_normals << std::endl;
 #endif
 
-  // handle isolated vertices
-  halfedge_descriptor he = halfedge(v, pmesh);
-  if(he == boost::graph_traits<PolygonMesh>::null_halfedge())
+  if(CGAL::internal::is_isolated(v, pmesh))
     return CGAL::NULL_VECTOR;
 
   if(must_compute_face_normals)
@@ -717,7 +723,8 @@ compute_vertex_normal(typename boost::graph_traits<PolygonMesh>::vertex_descript
   }
 #endif
 
-  Vector_3 normal = internal::compute_vertex_normal_most_visible_min_circle(v, face_normals, pmesh, traits);
+  Vector_3 normal = internal::compute_vertex_normal_most_visible_min_circle(v, face_normals, max_degree, pmesh, traits);
+
   if(traits.equal_3_object()(normal, CGAL::NULL_VECTOR)) // can't always find a most visible normal
   {
 #ifdef CGAL_PMP_COMPUTE_NORMAL_DEBUG_PP
