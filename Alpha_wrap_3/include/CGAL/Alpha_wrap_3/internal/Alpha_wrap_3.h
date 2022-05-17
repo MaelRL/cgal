@@ -363,6 +363,96 @@ public:
   }
 
 private:
+  enum Facet_queue_status
+  {
+    IRRELEVANT = 0,
+    ARTIFICIAL_FACET,
+    TRAVERSABLE
+  };
+
+  // @speed some decent time may be spent constructing Facet (pairs) for no reason as it's always
+  // just to grab the .first and .second as soon as it's constructed, and not due to API requirements
+  // e.g. from DT3
+  Facet_queue_status facet_status(const Facet& f) const
+  {
+    CGAL_precondition(!m_dt.is_infinite(f));
+
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+    std::cout << "facet status: "
+              << f.first->vertex((f.second + 1)&3)->point() << " "
+              << f.first->vertex((f.second + 2)&3)->point() << " "
+              << f.first->vertex((f.second + 3)&3)->point() << std::endl;
+#endif
+
+    // skip if neighbor is OUTSIDE or infinite
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Cell_handle nh = ch->neighbor(id);
+    if(m_dt.is_infinite(nh))
+      return TRAVERSABLE;
+
+    if(nh->info().is_outside)
+    {
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+      std::cout << "Neighbor already outside" << std::endl;
+#endif
+      return IRRELEVANT;
+    }
+
+    // push if facet is connected to artifical vertices
+    for(int i=0; i<3; ++i)
+    {
+      const Vertex_handle vh = ch->vertex(Dt::vertex_triple_index(id, i));
+      if(vh->info() == BBOX_VERTEX || vh->info() == SEED_VERTEX)
+      {
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+        std::cout << "artificial facet due to artificial vertex #" << i << std::endl;
+#endif
+        return ARTIFICIAL_FACET;
+      }
+    }
+
+    // skip if f min empty sphere radius is smaller than alpha
+    if(is_traversable(f))
+    {
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+      std::cout << "traversable" << std::endl;
+#endif
+      return TRAVERSABLE;
+    }
+
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+    std::cout << "not traversable" << std::endl;
+#endif
+    return IRRELEVANT;
+  }
+
+  bool push_facet(const Facet& f)
+  {
+    CGAL_precondition(f.first->info().is_outside);
+
+    // skip if f is already in queue
+    if(m_queue.contains_with_bounds_check(Gate(f)))
+      return false;
+
+    const Facet_queue_status s = facet_status(f);
+    if(s == IRRELEVANT)
+      return false;
+
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Point_3& p0 = m_dt.point(ch, (id+1)&3);
+    const Point_3& p1 = m_dt.point(ch, (id+2)&3);
+    const Point_3& p2 = m_dt.point(ch, (id+3)&3);
+
+    // @todo should prob be the real value we compare to alpha instead of squared_radius
+    const FT sqr = geom_traits().compute_squared_radius_3_object()(p0, p1, p2);
+    m_queue.resize_and_push(Gate(f, sqr, (s == ARTIFICIAL_FACET)));
+
+    return true;
+  }
+
+private:
   // Adjust the bbox & insert its corners to construct the starting triangulation
   void insert_bbox_corners()
   {
@@ -857,96 +947,6 @@ private:
 #endif
 
     return false;
-  }
-
-private:
-  enum Facet_queue_status
-  {
-    IRRELEVANT = 0,
-    ARTIFICIAL_FACET,
-    TRAVERSABLE
-  };
-
-  // @speed some decent time may be spent constructing Facet (pairs) for no reason as it's always
-  // just to grab the .first and .second as soon as it's constructed, and not due to API requirements
-  // e.g. from DT3
-  Facet_queue_status facet_status(const Facet& f) const
-  {
-    CGAL_precondition(!m_dt.is_infinite(f));
-
-#ifdef CGAL_AW3_DEBUG_FACET_STATUS
-    std::cout << "facet status: "
-              << f.first->vertex((f.second + 1)&3)->point() << " "
-              << f.first->vertex((f.second + 2)&3)->point() << " "
-              << f.first->vertex((f.second + 3)&3)->point() << std::endl;
-#endif
-
-    // skip if neighbor is OUTSIDE or infinite
-    const Cell_handle ch = f.first;
-    const int id = f.second;
-    const Cell_handle nh = ch->neighbor(id);
-    if(m_dt.is_infinite(nh))
-      return TRAVERSABLE;
-
-    if(nh->info().is_outside)
-    {
-#ifdef CGAL_AW3_DEBUG_FACET_STATUS
-      std::cout << "Neighbor already outside" << std::endl;
-#endif
-      return IRRELEVANT;
-    }
-
-    // push if facet is connected to artifical vertices
-    for(int i=0; i<3; ++i)
-    {
-      const Vertex_handle vh = ch->vertex(Dt::vertex_triple_index(id, i));
-      if(vh->info() == BBOX_VERTEX || vh->info() == SEED_VERTEX)
-      {
-#ifdef CGAL_AW3_DEBUG_FACET_STATUS
-        std::cout << "artificial facet due to artificial vertex #" << i << std::endl;
-#endif
-        return ARTIFICIAL_FACET;
-      }
-    }
-
-    // skip if f min empty sphere radius is smaller than alpha
-    if(is_traversable(f))
-    {
-#ifdef CGAL_AW3_DEBUG_FACET_STATUS
-      std::cout << "traversable" << std::endl;
-#endif
-      return TRAVERSABLE;
-    }
-
-#ifdef CGAL_AW3_DEBUG_FACET_STATUS
-    std::cout << "not traversable" << std::endl;
-#endif
-    return IRRELEVANT;
-  }
-
-  bool push_facet(const Facet& f)
-  {
-    CGAL_precondition(f.first->info().is_outside);
-
-    // skip if f is already in queue
-    if(m_queue.contains_with_bounds_check(Gate(f)))
-      return false;
-
-    const Facet_queue_status s = facet_status(f);
-    if(s == IRRELEVANT)
-      return false;
-
-    const Cell_handle ch = f.first;
-    const int id = f.second;
-    const Point_3& p0 = m_dt.point(ch, (id+1)&3);
-    const Point_3& p1 = m_dt.point(ch, (id+2)&3);
-    const Point_3& p2 = m_dt.point(ch, (id+3)&3);
-
-    // @todo should prob be the real value we compare to alpha instead of squared_radius
-    const FT sqr = geom_traits().compute_squared_radius_3_object()(p0, p1, p2);
-    m_queue.resize_and_push(Gate(f, sqr, (s == ARTIFICIAL_FACET)));
-
-    return true;
   }
 
 private:
