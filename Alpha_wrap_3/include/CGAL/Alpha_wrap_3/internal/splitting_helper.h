@@ -216,7 +216,7 @@ struct AABB_tree_oracle_splitter
   using AABB_traits = typename ATST::AABB_traits;
   using AABB_tree = typename ATST::AABB_tree;
 
-protected:
+public:
   double m_sq_alpha;
 
   // one per face

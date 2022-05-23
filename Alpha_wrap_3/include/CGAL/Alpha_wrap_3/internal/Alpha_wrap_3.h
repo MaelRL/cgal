@@ -34,6 +34,7 @@
 
 #include <CGAL/boost/graph/Euler_operations.h>
 #include <CGAL/boost/graph/named_params_helper.h>
+#include <CGAL/boost/graph/IO/polygon_mesh_io.h>
 #include <CGAL/Named_function_parameters.h>
 #include <CGAL/Modifiable_priority_queue.h>
 #include <CGAL/Polygon_mesh_processing/bbox.h>
@@ -52,6 +53,9 @@
 #include <CGAL/Delaunay_triangulation_cell_base_with_circumcenter_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/Robust_weighted_circumcenter_filtered_traits_3.h>
+
+#include <Eigen/Dense>
+#include <Eigen/QR>
 
 #include <array>
 #include <algorithm>
@@ -103,6 +107,7 @@ class Alpha_wrap_3
   using FT = typename Geom_traits::FT;
   using Point_3 = typename Geom_traits::Point_3;
   using Vector_3 = typename Geom_traits::Vector_3;
+  using Triangle_3 = typename Geom_traits::Triangle_3;
   using Ball_3 = typename Geom_traits::Ball_3;
   using Iso_cuboid_3 = typename Geom_traits::Iso_cuboid_3;
 
@@ -301,15 +306,19 @@ public:
     std::cout << "Surface extraction took: " << t.time() << " s." << std::endl;
 #endif
 
-#ifdef CGAL_AW3_DEBUG
+#if 1//def CGAL_AW3_DEBUG
     std::cout << "Alpha wrap vertices:  " << vertices(output_mesh).size() << std::endl;
     std::cout << "Alpha wrap faces:     " << faces(output_mesh).size() << std::endl;
 
- #ifdef CGAL_AW3_DEBUG_DUMP_EVERY_STEP
-    IO::write_polygon_mesh("final.off", alpha_wrap, CGAL::parameters::stream_precision(17));
+ #if 1//def CGAL_AW3_DEBUG_DUMP_EVERY_STEP
+    IO::write_polygon_mesh("final.off", output_mesh, CGAL::parameters::stream_precision(17));
     dump_triangulation_faces("final_dt3.off", false /*only_boundary_faces*/);
  #endif
 #endif
+
+    optimize(output_mesh, ovpm);
+
+    IO::write_polygon_mesh("optimized.off", output_mesh, CGAL::parameters::stream_precision(17));
   }
 
   // Convenience overloads
@@ -384,7 +393,7 @@ private:
               << f.first->vertex((f.second + 3)&3)->point() << std::endl;
 #endif
 
-    // skip if neighbor is OUTSIDE or infinite
+    // Always allow carving infinite cells
     const Cell_handle ch = f.first;
     const int id = f.second;
     const Cell_handle nh = ch->neighbor(id);
@@ -431,12 +440,12 @@ private:
   {
     CGAL_precondition(f.first->info().is_outside);
 
-    // skip if f is already in queue
-    if(m_queue.contains_with_bounds_check(Gate(f)))
-      return false;
-
     const Facet_queue_status s = facet_status(f);
     if(s == IRRELEVANT)
+      return false;
+
+    // skip if f is already in queue
+    if(m_queue.contains_with_bounds_check(Gate(f)))
       return false;
 
     const Cell_handle ch = f.first;
@@ -471,6 +480,21 @@ private:
       std::cout << "\t" << bp << std::endl;
 #endif
       bv->info() = BBOX_VERTEX;
+    }
+  }
+
+  // This functions requires that cells have already been marked as inside/outside
+  void fill_queue()
+  {
+    CGAL_warning(m_queue.empty());
+
+    for(Cell_handle ch : m_dt.all_cell_handles())
+    {
+      if(!ch->info().is_outside)
+        continue;
+
+      for(int i=0; i<4; ++i)
+        push_facet(std::make_pair(ch, i));
     }
   }
 
@@ -648,17 +672,7 @@ private:
     }
 
     // Might as well go through the full triangulation since only seeds should have been inserted
-    for(Cell_handle ch : m_dt.all_cell_handles())
-    {
-      if(!ch->info().is_outside)
-        continue;
-
-      // When the algorithm starts from a manually dug hole, infinite cells are tagged "inside"
-      CGAL_assertion(!m_dt.is_infinite(ch));
-
-      for(int i=0; i<4; ++i)
-        push_facet(std::make_pair(ch, i));
-    }
+    fill_queue();
 
     if(m_queue.empty())
     {
@@ -1433,6 +1447,279 @@ private:
 
     CGAL_assertion_code(for(Vertex_handle v : m_dt.finite_vertex_handles()))
     CGAL_assertion(!is_non_manifold(v));
+  }
+
+public:
+  // Voronoi face is one of the faces making a piecewise-linear approximation of the geodesic
+  // Voronoi cell of the node.
+  Eigen::MatrixXd compute_Vor_face_quadric(const Point_3& np,
+                                           const Point_3& lp,
+                                           const Point_3& rp)
+  {
+    std::cout << "    nlrp" << std::endl;
+    std::cout << np << std::endl << lp << std::endl << rp << std::endl;
+
+    const FT third = FT(1) / FT(3);
+    const Point_3 bary = CGAL::barycenter(np, third, lp, third, rp, third);
+
+    const Vector_3 vor_face_normal = CGAL::cross_product(Vector_3(np, lp), Vector_3(np, rp));
+
+#if 0
+    // This is the "correct" normal computation, but it's not great for convex areas
+    // since there is a round part in the offset
+
+    const Point_3 bary_proj = m_oracle.closest_point(bary);
+    Vector_3 dir;
+    if(bary_proj == bary)
+    {
+      dir = vor_face_normal; // @fixme that's not correct, but how to evaluate it otherwise? (especially if bary is a corner)
+    }
+    else
+    {
+      dir = Vector_3(bary_proj, bary);
+    }
+
+    dir = dir / approximate_sqrt(dir * dir);
+    const Point_3 bary_on_offset = bary_proj + m_offset * dir;
+
+    std::cout << "    barys" << std::endl << bary << std::endl << bary_proj << std::endl << bary_on_offset << std::endl;
+
+    Vector_3 normal = dir;
+    if(normal * vor_face_normal < 0)
+      normal = - normal;
+#else
+    // Trying something else: use the normal of the closest primitive
+    auto bary_proj = m_oracle.closest_point_and_primitive(bary);
+
+    const Triangle_3 tr = get(m_oracle.m_dpm, bary_proj.second);
+    Vector_3 normal = CGAL::cross_product(Vector_3(tr[0], tr[1]), Vector_3(tr[0], tr[2]));
+    normal = normal / approximate_sqrt(normal * normal);
+
+    if(normal * vor_face_normal < 0)
+      normal = - normal;
+
+    const Point_3 bary_on_offset = bary_proj.first + m_offset * normal;
+#endif
+
+    std::cout << "baryoo " << bary_on_offset << " " << bary_on_offset + normal << std::endl;
+
+    const double a = normal.x();
+    const double b = normal.y();
+    const double c = normal.z();
+    const double d = -(a * bary_on_offset.x() + b * bary_on_offset.y() + c * bary_on_offset.z());
+
+    Eigen::MatrixXd quadric = Eigen::MatrixXd(4, 4);
+    quadric << a * a, a * b, a * c, a * d,
+               a * b, b * b, b * c, b * d,
+               a * c, b * c, c * c, c * d,
+               a * d, b * d, c * d, d * d;
+
+    const FT area = approximate_sqrt(Triangle_3(np, lp, rp).squared_area());
+    quadric = area * quadric;
+
+    return quadric;
+  }
+
+  template <typename OutputMesh, typename OVPM>
+  void restore_Delaunay(OutputMesh& output_mesh,
+                        OVPM ovpm)
+  {
+    using halfedge_descriptor = typename boost::graph_traits<OutputMesh>::halfedge_descriptor;
+    using edge_descriptor = typename boost::graph_traits<OutputMesh>::edge_descriptor;
+
+    auto angle = [&](edge_descriptor e) -> FT
+    {
+      halfedge_descriptor h = halfedge(e, output_mesh);
+      halfedge_descriptor opp_h = opposite(h, output_mesh);
+
+      const FT ang = approximate_angle(get(ovpm, target(h, output_mesh)),
+                                       get(ovpm, target(next(h, output_mesh), output_mesh)),
+                                       get(ovpm, source(h, output_mesh)))
+                     + approximate_angle(get(ovpm, target(opp_h, output_mesh)),
+                                         get(ovpm, target(next(opp_h, output_mesh), output_mesh)),
+                                         get(ovpm, source(opp_h, output_mesh)));
+
+      return ang;
+    };
+
+    auto comp = [](const std::pair<edge_descriptor, FT>& x,
+                   const std::pair<edge_descriptor, FT>& y) -> bool
+    {
+      return x.second > y.second;
+    };
+
+    std::set<std::pair<edge_descriptor, FT>, decltype(comp)> edges_to_flip(comp);
+
+    for(edge_descriptor e : edges(output_mesh))
+    {
+      FT ang = angle(e);
+      if(ang > FT(180))
+        edges_to_flip.emplace(e, ang);
+    }
+
+    while(!edges_to_flip.empty())
+    {
+      const std::pair<edge_descriptor, FT>& top = *(edges_to_flip.begin());
+
+      edge_descriptor e = top.first;
+      std::cout << "Flip " << top.first << " angle " << top.second << std::endl;
+      edges_to_flip.erase(edges_to_flip.begin());
+
+      halfedge_descriptor h = halfedge(e, output_mesh);
+      Euler::flip_edge(h, output_mesh);
+
+      // Update the four edges whose angles were modified by the flip
+      auto update_edge_angles = [&](halfedge_descriptor other_h) -> void
+      {
+        edge_descriptor other_e = edge(other_h, output_mesh);
+        FT ang = angle(other_e);
+
+        auto is_equal_edge_descriptor = [&](const auto& p) -> bool { return p.first == other_e; };
+
+        // purge existing value
+        auto it = std::find_if(edges_to_flip.begin(), edges_to_flip.end(), is_equal_edge_descriptor);
+        if(it != edges_to_flip.end())
+          edges_to_flip.erase(it);
+
+        if(ang > 180)
+          edges_to_flip.emplace(other_e, ang);
+      };
+
+      update_edge_angles(next(h, output_mesh));
+      update_edge_angles(prev(h, output_mesh));
+      update_edge_angles(next(opposite(h, output_mesh), output_mesh));
+      update_edge_angles(prev(opposite(h, output_mesh), output_mesh));
+    }
+  }
+
+  // Try #1
+  // QEM during the refinement algorithm
+  // Doesn't work because we need to ensure these points are part of the final triangulation
+  // And you need to refine facets, and the moved Steiner point might not be in conflict
+  //
+  // Try #2
+  // Add some protecting balls
+  // Difficult to sample the protecting lines
+  // Difficult to find the weight
+  //
+  // Try #3
+  // Postprocessing optimization
+  //
+
+  template <typename OutputMesh, typename OVPM>
+  void optimize(OutputMesh& output_mesh,
+                OVPM ovpm)
+  {
+    std::cout << "Optimize..." << std::endl;
+
+    using vertex_descriptor = typename boost::graph_traits<OutputMesh>::vertex_descriptor;
+    using halfedge_descriptor = typename boost::graph_traits<OutputMesh>::halfedge_descriptor;
+
+    int max = 10;
+    for(int iter=0; iter<max; ++iter)
+    {
+      std::cout << " Iteration " << iter << std::endl;
+
+      std::vector<Point_3> ops;
+
+      for(vertex_descriptor v : vertices(output_mesh))
+      {
+        std::cout << "  Vertex " << v << std::endl;
+
+        const Point_3& vp = get(ovpm, v);
+
+        Eigen::MatrixXd quadric = Eigen::MatrixXd::Zero(4, 4);
+
+        // quadric is computed by triangulating the Voronoi face of 'v' into 2n triangles
+        // with n the number of incident faces
+        for(halfedge_descriptor h : halfedges_around_target(v, output_mesh))
+        {
+          CGAL_assertion(!is_border(h, output_mesh));
+
+          std::cout << "   Face" << std::endl;
+          std::cout << get(ovpm, source(h, output_mesh)) << std::endl;
+          std::cout << get(ovpm, target(h, output_mesh)) << std::endl;
+          std::cout << get(ovpm, target(next(h, output_mesh), output_mesh)) << std::endl;
+
+          const FT third = FT(1) / FT(3);
+          Point_3 bar = CGAL::barycenter(get(ovpm, source(h, output_mesh)), third,
+                                         get(ovpm, target(h, output_mesh)), third,
+                                         get(ovpm, target(next(h, output_mesh), output_mesh)), third);
+
+#if 0
+          // This is what the paper says, but it seems to me that you can create configurations
+          // where two adjacent vertices belonging to two "sides" of a crease have all
+          // their barycenter projections onto the same side, and thus nothing moves?
+
+          // Quadric #1
+          Point_3 opp_mp = CGAL::midpoint(get(ovpm, target(h, output_mesh)),
+                                          get(ovpm, target(next(h, output_mesh), output_mesh)));
+          quadric += compute_Vor_face_quadric(vp, opp_mp, bar);
+
+          // Quadric #2
+          Point_3 mp = CGAL::midpoint(get(ovpm, source(h, output_mesh)),
+                                      get(ovpm, target(h, output_mesh)));
+          quadric += compute_Vor_face_quadric(vp, bar, mp);
+#else
+          quadric += compute_Vor_face_quadric(vp,
+                                              get(ovpm, target(next(h, output_mesh), output_mesh)),
+                                              get(ovpm, source(h, output_mesh)));
+#endif
+        }
+
+        // set last column of quadric
+        quadric(3, 0) = 0.0;
+        quadric(3, 1) = 0.0;
+        quadric(3, 2) = 0.0;
+        quadric(3, 3) = 1.0;
+
+        // debug --
+        Eigen::MatrixXd A = quadric.block(0,0, 3,3);
+
+        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(A);
+        Eigen::VectorXd ev = es.eigenvalues();
+        std::cout << "Eigenvalues: " << ev << std::endl;
+
+        // solver
+        Eigen::JacobiSVD<Eigen::MatrixXd> solver(quadric, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+        // set threshold as in Peter Lindstrom's paper, "Out-of-Core
+        // Simplification of Large Polygonal Models"
+        solver.setThreshold(1e-3);
+
+        // Init x hat and b
+        Eigen::VectorXd x_hat(4), b(4), v_svd(4);
+        x_hat << vp.x(), vp.y(), vp.z(), 1.0;
+        b << 0.0, 0.0, 0.0, 1.0;
+
+        // Lindstrom formula for QEM new position for singular matrices
+        // x = x_hat + SVD * (b - A * x_hat)
+        v_svd = x_hat + solver.solve(b - quadric * x_hat);
+        Point_3 op = Point_3(v_svd[0], v_svd[1], v_svd[2]);
+
+        std::cout << "Sharpened SP: " << op << std::endl;
+        ops.push_back(op);
+      }
+
+      CGAL_assertion(ops.size() == vertices(output_mesh).size());
+
+      int pos = 0;
+      for(vertex_descriptor v : vertices(output_mesh))
+      {
+        put(ovpm, v, ops[pos++]);
+      }
+
+      std::ostringstream oss;
+      oss << "results/opt_iter_" << iter << "_moved.off" << std::ends;
+      IO::write_polygon_mesh(oss.str().c_str(), output_mesh, CGAL::parameters::stream_precision(17));
+
+      // do some flipping; kinda brute force for now
+      restore_Delaunay(output_mesh, ovpm);
+
+      std::ostringstream oss2;
+      oss2 << "results/opt_iter_" << iter << "_restored.off" << std::ends;
+      IO::write_polygon_mesh(oss2.str().c_str(), output_mesh, CGAL::parameters::stream_precision(17));
+    }
   }
 
 private:

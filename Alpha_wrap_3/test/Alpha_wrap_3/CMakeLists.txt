@@ -6,8 +6,13 @@ project(Alpha_wrap_3_Tests)
 
 find_package(CGAL REQUIRED)
 
+find_package(Eigen3 3.2.0) #(requires 3.2.0 or greater)
+include(CGAL_Eigen3_support)
+
 # create a target per cppfile
 create_single_source_cgal_program("test_alpha_wrap_3_mesh.cpp")
+target_link_libraries(test_alpha_wrap_3_mesh PUBLIC CGAL::Eigen3_support)
+
 create_single_source_cgal_program("test_AW3_cavity_initializations.cpp")
 create_single_source_cgal_program("test_AW3_manifoldness.cpp")
 create_single_source_cgal_program("test_AW3_multiple_calls.cpp")

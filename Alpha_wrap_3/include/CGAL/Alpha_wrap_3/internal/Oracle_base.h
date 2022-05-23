@@ -78,6 +78,20 @@ struct AABB_tree_oracle_helper
     return projection_traits.closest_point();
   }
 
+  static typename AABB_traits::Point_and_primitive_id closest_point_and_primitive(const Point_3& p,
+                                                                                  const AABBTree& tree)
+  {
+    CGAL_precondition(!tree.empty());
+
+    using Projection_traits = typename AABBTraversalTraits::Projection_traits;
+
+    const auto& hint = tree.best_hint(p);
+
+    Projection_traits projection_traits(hint.first, hint.second, tree.traits());
+    tree.traversal(p, projection_traits);
+    return projection_traits.closest_point_and_primitive();
+  }
+
   static FT squared_distance(const Point_3& p,
                              const AABBTree& tree)
   {
@@ -179,6 +193,16 @@ public:
     return (compare_distance_to_point(p, base_c, this_c) == CGAL::SMALLER) ? base_c : this_c;
   }
 
+  typename AABB_traits::Point_and_primitive_id closest_point_and_primitive(const Point_3& p) const
+  {
+    const Point_3 base_c = base().closest_point_and_primitive(p);
+
+    // @speed could do a smarter traversal, no need to search deeper than the current best
+    const Point_3 this_c = AABB_helper::closest_point_and_primitive(p, tree());
+
+    return (compare_distance_to_point(p, base_c, this_c) == CGAL::SMALLER) ? base_c : this_c;
+  }
+
   bool first_intersection(const Point_3& p, const Point_3& q,
                           Point_3& o,
                           const FT offset_size,
@@ -272,6 +296,11 @@ public:
   Point_3 closest_point(const Point_3& p) const
   {
     return AABB_helper::closest_point(p, tree());
+  }
+
+  typename AABB_traits::Point_and_primitive_id closest_point_and_primitive(const Point_3& p) const
+  {
+    return AABB_helper::closest_point_and_primitive(p, tree());
   }
 
   bool first_intersection(const Point_3& p, const Point_3& q, Point_3& o,
