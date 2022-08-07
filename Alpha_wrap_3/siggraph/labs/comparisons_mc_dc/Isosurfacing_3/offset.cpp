@@ -5,7 +5,7 @@
 #include "Marching_cubes_3.h"
 
 #include "types.h"
-
+#include <CGAL/Timer.h>
 #include <CGAL/AABB_triangle_primitive.h>
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_tree.h>
@@ -144,8 +144,11 @@ int main(int argc, char** argv) {
 
 	std::cout << "Run alpha wrap...";
 	Mesh out_wrap;
+	CGAL::Timer timer;
+	timer.start();
 	CGAL::alpha_wrap_3(points_in, polygons_in, alpha_value, offset_value, out_wrap);
-	std::cout << "done (" << num_vertices(out_wrap) << " vertices)" << std::endl;
+	timer.stop();
+	std::cout << "done (" << num_vertices(out_wrap) << " vertices, " << timer.time() << " s)" << std::endl;
 
 	std::cout << "Save output mesh...";
 	std::string wrap_output_name("out_wrap.off");
