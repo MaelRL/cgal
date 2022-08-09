@@ -3,6 +3,7 @@
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>
+#include "Cartesian_grid_3.h"
 
 // typedef CGAL::Simple_cartesian<float> Kernel;
 typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;

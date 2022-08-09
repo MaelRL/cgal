@@ -55,8 +55,6 @@ foreach(exec ${EXECUTABLES})
   
   add_executable( ${exec_name} ${SOURCES} ${exec} )
 
-  #add_to_cached_list( CGAL_EXECUTABLE_TARGETS ${exec_name} )
-
   # Link the executable to CGAL and third-party libraries
   target_link_libraries( ${exec_name} PRIVATE CGAL::CGAL )
 
