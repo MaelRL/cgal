@@ -20,6 +20,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <queue>
 #include <utility>
 #include <iostream>
 
@@ -609,8 +610,443 @@ public:
     return _tds.collapse_edge(e);
   }
 
+public:
   Vertex_handle file_input(std::istream& is);
   void file_output(std::ostream& os) const;
+
+  // Vertices as raw points (value type is Triangulation_2::Point)
+  // Edges as a pair of indices refering to vertices, in the order of elements in 'points'
+  //
+  // Does NOT set up complementary values for faces
+  template <typename PointRange, typename EdgeRange>
+  bool range_input(const PointRange& points,
+                   const EdgeRange& edges)
+  {
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+    std::cout << points.size() << " points and " << edges.size() << " edges" << std::endl;
+#endif
+    CGAL_precondition(!points.empty() && !edges.empty());
+
+    typedef std::pair<int, int> Input_edge;
+
+    const std::size_t nv = points.size();
+    const std::size_t ne = edges.size();
+
+    _tds.clear();
+    _tds.set_dimension(2); // @todo handle other dimensions
+
+    // @fixme below is not legal
+    _tds.vertices().reserve(nv);
+    _tds.faces().reserve(ne - nv);
+
+    std::vector<Vertex_handle> V(nv);
+
+    _infinite_vertex = _tds.create_vertex();
+
+    std::unordered_map<Vertex_handle, int> vertex_ids; // @tmp debug
+    vertex_ids[_infinite_vertex] = -1; // @tmp debug
+    std::size_t inc_2_counter = 0, more_than_inc_2_counter = 0;
+
+    int idx = 0; // @todo indexation set up at 1?
+    for(const Point& p : points)
+    {
+      V[idx] = _tds.create_vertex();
+      V[idx]->point() = p;
+      vertex_ids[V[idx]] = idx; // @tmp
+      CGAL_assertion(p == V[idx]->point() && p == points[idx]);
+      ++idx;
+    }
+
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+    std::cout << " --> Created " << number_of_vertices() << " vertices" << std::endl;
+#endif
+
+    using Vertex_incidences = std::set<int>;
+    std::vector<Vertex_incidences> incidences(nv);
+    for(const Input_edge& e : edges)
+    {
+      incidences[e.second].insert(e.first);
+      incidences[e.first].insert(e.second);
+    }
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+    std::cout << "incidence map: " << std::endl;
+    int is_idx = 0;
+    for(const auto& is : incidences)
+    {
+      std::cout << "vertex " << is_idx++ << " |";
+      for(int ii : is)
+        std::cout << " " << ii;
+      std::cout << std::endl;
+    }
+#endif
+
+    // Walk from edge to edge, creating faces
+
+    typedef std::unordered_map<Input_edge, Edge, boost::hash<Input_edge> > IE_2_TE;
+    typedef typename IE_2_TE::iterator                                     IE_2_TE_It;
+    IE_2_TE ie_2_te;
+
+    auto create_face = [&](const Vertex_handle vi,
+                           const Vertex_handle vj,
+                           const Vertex_handle vk) -> Face_handle
+    {
+      Face_handle f = _tds.create_face(vi, vj, vk);
+
+      // The face pointer of vertices is set too often, but otherwise we need another map
+      // @todo bitset to avoid this?
+      vi->set_face(f);
+      vj->set_face(f);
+      vk->set_face(f);
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << " --> Created new face, " << &*f
+                << " with vertices: " << vertex_ids[f->vertex(0)] << " "
+                                      << vertex_ids[f->vertex(1)] << " "
+                                      << vertex_ids[f->vertex(2)] << std::endl;
+#endif
+
+      return f;
+    };
+
+    struct Edge_to_cross
+    {
+      int i, j; // edge crossing, seen in the new face
+      Edge e; // edge crossing, seen from the previous face
+      IE_2_TE_It it;
+
+      Edge_to_cross(int i, int j, const Edge& e, IE_2_TE_It it)
+        : i(i), j(j), e(e), it(it)
+      { }
+    };
+
+    auto compute_incidences = [&incidences](const int i, const int j) -> std::vector<int>
+    {
+       std::vector<int> cis;
+
+       Vertex_incidences& i_incidences = incidences[i];
+       Vertex_incidences& j_incidences = incidences[j];
+
+       std::set_intersection(std::cbegin(i_incidences), std::cend(i_incidences),
+                             std::cbegin(j_incidences), std::cend(j_incidences),
+                             std::back_inserter(cis));
+
+ #ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+       std::cout << "common_incidences(" << i << ", " << j << ") =";
+       for(int i : cis)
+         std::cout << " " << i;
+       std::cout << std::endl;
+ #endif
+
+       CGAL_assertion(!cis.empty());
+
+       return cis;
+    };
+
+    auto sort_incidences = [&](const int i, const int j, std::vector<int>& cis) -> void
+    {
+      // signed distance from line(a,b) to point t
+//      auto compute_signed_distance = [&] (const Point& pa, const Point& pb, const Point& pt) -> double
+//      {
+//        if (pt == pa)
+//          return 0.;
+//        if (pt == pb)
+//          return 0.;
+//        if (pa == pb)
+//          return CGAL::approximate_sqrt(geom_traits().compute_squared_distance_2_object()(pa, pt));
+
+//        auto vab = geom_traits().construct_vector_2_object()(pa, pb);
+//        // Normalize vab
+//        vab = geom_traits().construct_scaled_vector_2_object()(vab,
+//          1. / CGAL::approximate_sqrt(geom_traits().compute_squared_length_2_object()(vab)));
+//        auto vab90 = geom_traits().construct_vector_2_object()(-vab.y(), vab.x());
+//        auto vat = geom_traits().construct_vector_2_object()(pa, pt);
+//        return geom_traits().compute_scalar_product_2_object()(vat, vab90);
+//      };
+
+      auto incidence_sorter = [&](const int k1, const int k2) -> bool
+      {
+        const Point& pi = points[i];
+        const Point& pj = points[j];
+
+//        std::cout << "ij " << i << " " << j << std::endl;
+//        std::cout << "pij " << pi << " " << pj << std::endl;
+//        std::cout << "compute_signed_distance[" << k1 << "] = " << compute_signed_distance(pi, pj, points[k1]) << std::endl;
+//        std::cout << "compute_signed_distance[" << k2 << "] = " << compute_signed_distance(pi, pj, points[k2]) << std::endl;
+//        std::cout << _gt.compare_signed_distance_to_line_2_object()(pi, pj, points[k1], points[k2]) << std::endl;
+//        std::cout << (_gt.compare_signed_distance_to_line_2_object()(pi, pj, points[k1], points[k2]) == SMALLER) << std::endl;
+        return (_gt.compare_signed_distance_to_line_2_object()(pi, pj, points[k1], points[k2]) == SMALLER);
+      };
+
+      std::sort(std::begin(cis), std::end(cis), incidence_sorter);
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << "Sorted to ";
+      for(int i : cis)
+        std::cout << " " << i;
+      std::cout << std::endl;
+#endif
+    };
+
+    // Use a FIFO to avoid creating a global map of faces: instead, just check if we have closed
+    // the umbrella around a vertex before creating a new face
+    std::queue<Edge_to_cross> edges_to_cross;
+
+    // Treat the first one outside the loop for clarity
+    auto treat_first = [&](const int i, const int j) -> bool
+    {
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << "-- First edge " << i << " " << j << std::endl;
+#endif
+      auto cis = compute_incidences(i, j);
+      sort_incidences(i, j, cis);
+
+      int k = -1;
+      for(int ci : cis)
+      {
+        if(_gt.orientation_2_object()(points[i], points[j], points[ci]) == LEFT_TURN)
+        {
+          k = ci;
+          break;
+        }
+      }
+
+      if(k == -1)
+        return false;
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << "INIT; Create face " << i << " " << j << " " << k << std::endl;
+#endif
+
+      Face_handle f = create_face(V[i], V[j], V[k]);
+
+      auto res = ie_2_te.emplace(std::piecewise_construct,
+                                 std::forward_as_tuple(i,j),
+                                 std::forward_as_tuple(f, 2));
+      res = ie_2_te.emplace(std::piecewise_construct,
+                            std::forward_as_tuple(j,k),
+                            std::forward_as_tuple(f, 0));
+      res = ie_2_te.emplace(std::piecewise_construct,
+                            std::forward_as_tuple(k,i),
+                            std::forward_as_tuple(f, 1));
+
+      // Propagate to all adjacent faces
+      auto res_ji = ie_2_te.emplace(std::piecewise_construct,
+                                    std::forward_as_tuple(j, i),
+                                    std::forward_as_tuple(Face_handle(), -1));
+      CGAL_assertion(res_ji.second); // nothing exists since we're at the first face
+      edges_to_cross.emplace(j, i, std::make_pair(f, 2), res_ji.first);
+
+      auto res_ik = ie_2_te.emplace(std::piecewise_construct,
+                                    std::forward_as_tuple(i, k),
+                                    std::forward_as_tuple(Face_handle(), -1));
+      CGAL_assertion(res_ik.second);
+      edges_to_cross.emplace(i, k, std::make_pair(f, 1), res_ik.first);
+
+      auto res_kj = ie_2_te.emplace(std::piecewise_construct,
+                                    std::forward_as_tuple(k, j),
+                                    std::forward_as_tuple(Face_handle(), -1));
+      CGAL_assertion(res_kj.second);
+      edges_to_cross.emplace(k, j, std::make_pair(f, 0), res_kj.first);
+
+      return true;
+    };
+
+    auto cross_edge = [&](const int i, const int j,
+                          const Face_handle of, const int os,
+                          IE_2_TE_It it) -> void
+    {
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << "# Dealing with edge " << i << " " << j << std::endl;
+#endif
+
+      CGAL_assertion(it->first == std::make_pair(i, j));
+
+      // When the edge was put in the queue, the face might not have existed, but now it might exist
+      if(it->second.first != Face_handle())
+      {
+        const Edge& e = it->second;
+        CGAL_assertion(e.second >= 0 && e.second < 3);
+        of->set_neighbor(os, e.first);
+        e.first->set_neighbor(e.second, of);
+        return;
+      }
+
+      CGAL_assertion(it->second.second == -1);
+
+      // If there is only one incidence, we're necessarily on the border
+      //
+      // For 2 incidences is the usual case for a typical Delaunay triangulation,
+      // but we still need to check that both are on the same side of the line supporting the edge
+      auto cis = compute_incidences(i, j);
+      int k = -1;
+      if(cis.size() == 2)
+      {
+        ++inc_2_counter; // @tmp
+
+        int potential_third = -1;
+        if(V[cis.front()] == of->vertex(os))
+          potential_third = cis.back();
+        else
+          potential_third = cis.front();
+
+        if(_gt.orientation_2_object()(points[i], points[j], points[potential_third]) == LEFT_TURN)
+          k = potential_third;
+      }
+      else if(cis.size() > 2)
+      {
+        ++more_than_inc_2_counter; // @tmp
+
+        sort_incidences(i, j, cis);
+
+        for(const int ci : cis)
+        {
+          if(_gt.orientation_2_object()(points[i], points[j], points[ci]) == LEFT_TURN)
+          {
+            k = ci;
+            break;
+          }
+        }
+      }
+
+      if(k == -1)
+      {
+        // Incident to an infinite face, which we create now
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+        std::cout << " --> Create INF face" << std::endl;
+#endif
+
+        Face_handle cf = create_face(V[i], V[j], _infinite_vertex);
+
+        cf->set_neighbor(2, of);
+        of->set_neighbor(os, cf);
+
+        it->second.first = cf;
+        it->second.second = 2;
+
+        return;
+      }
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << " --> Create face " << i << " " << j << " " << k << std::endl;
+#endif
+
+      Face_handle cf = create_face(V[i], V[j], V[k]);
+
+      cf->set_neighbor(2, of); // k is at pos 2
+      of->set_neighbor(os, cf); // e_ij is the edge seen from f
+
+      // Add entries in the edge correspondency map
+      it->second.first = cf;
+      it->second.second = 2;
+
+      // this is not calling "emplace" on purpose because we need to overwrite any potential dummy
+      ie_2_te[std::make_pair(j, k)] = std::make_pair(cf, 0);
+      ie_2_te[std::make_pair(k, i)] = std::make_pair(cf, 1);
+
+      auto propagate = [&](const int ei, const int ej, const int cs) // 's' is the pos of the third vertex in f
+      {
+        auto res = ie_2_te.emplace(std::piecewise_construct,
+                                   std::forward_as_tuple(ei, ej),
+                                   std::forward_as_tuple(Face_handle(), -1));
+
+        if(!res.second)
+        {
+          const Edge& e = res.first->second;
+          CGAL_assertion(e.first != Face_handle() && e.second != -1); // otherwise, what would have created that dummy edge?
+
+          cf->set_neighbor(cs, e.first);
+          e.first->set_neighbor(e.second, cf);
+        }
+        else
+        {
+          edges_to_cross.emplace(ei, ej, std::make_pair(cf, cs), res.first);
+        }
+      };
+
+      propagate(i, k, 1);
+      propagate(k, j, 0);
+    };
+
+    // Actual coloring
+    const Input_edge& ie = *(std::begin(edges));
+    bool is_good_start = treat_first(ie.first, ie.second);
+    if(!is_good_start)
+    {
+      is_good_start = treat_first(ie.second, ie.first);
+      CGAL_assertion(is_good_start);
+    }
+
+    while(!edges_to_cross.empty())
+    {
+      const Edge_to_cross& etc = edges_to_cross.front();
+      const int i = etc.i;
+      const int j = etc.j;
+      const Face_handle f = etc.e.first;
+      const int s = etc.e.second;
+      IE_2_TE_It it = etc.it;
+      edges_to_cross.pop();
+
+      cross_edge(i, j, f, s, it);
+    }
+
+    std::cout << inc_2_counter << " && " << more_than_inc_2_counter << std::endl;
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+    std::cout << _tds.number_of_faces() << " total faces" << std::endl;
+#endif
+
+    // Set up all infinite faces: find an edge that has an incident face = Face_handle()
+    // and walk the border
+
+    const Face_handle start_inf_f = _infinite_vertex->face();
+    CGAL_assertion(start_inf_f != Face_handle());
+
+    Face_handle prev_inf_f = start_inf_f, curr_inf_f = start_inf_f;
+    do
+    {
+      // get the ccw adjacent, infinite face by walking around cw(_inf_vertex)
+      prev_inf_f = curr_inf_f;
+
+      CGAL_assertion(prev_inf_f != Face_handle() && is_infinite(prev_inf_f));
+      CGAL_assertion(curr_inf_f != Face_handle() && is_infinite(curr_inf_f));
+
+      int s = 2; // position of the vertex opposite to the edge that we will traverse next
+      const Vertex_handle rot_v = curr_inf_f->vertex(ccw(s));
+
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+      std::cout << "Start from " << vertex_ids[curr_inf_f->vertex(0)] << " "
+                                 << vertex_ids[curr_inf_f->vertex(1)] << " "
+                                 << vertex_ids[curr_inf_f->vertex(2)] << std::endl;
+      std::cout << "Rotate around " << vertex_ids[rot_v] << std::endl;
+#endif
+
+      do
+      {
+        curr_inf_f = curr_inf_f->neighbor(s);
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+        std::cout << "Now at face " << vertex_ids[curr_inf_f->vertex(0)] << " "
+                                    << vertex_ids[curr_inf_f->vertex(1)] << " "
+                                    << vertex_ids[curr_inf_f->vertex(2)] << std::endl;
+#endif
+        CGAL_assertion(curr_inf_f != Face_handle());
+        CGAL_assertion(curr_inf_f != prev_inf_f);
+        CGAL_assertion(curr_inf_f->has_vertex(rot_v));
+        s = cw(curr_inf_f->index(rot_v));
+#ifdef CGAL_T2_BUILD_FROM_RANGES_DEBUG
+        std::cout << "s is " << s << " (vertex " << vertex_ids[curr_inf_f->vertex(s)] << ")" << std::endl;
+#endif
+      }
+      while(!is_infinite(curr_inf_f));
+
+      prev_inf_f->set_neighbor(1, curr_inf_f); // the infinite vertex is at 2 in all infinite faces
+      curr_inf_f->set_neighbor(0, prev_inf_f);
+    }
+    while(curr_inf_f != start_inf_f);
+
+    return true;
+  }
 
 private:
   Vertex_handle insert_outside_convex_hull_1(const Point& p, Face_handle f);
