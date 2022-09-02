@@ -420,7 +420,9 @@ namespace CartesianKernelFunctors {
   template <typename K>
   class Compare_angle_with_x_axis_2
   {
+    typedef typename K::Point_2            Point_2;
     typedef typename K::Direction_2        Direction_2;
+
   public:
     typedef typename K::Comparison_result  result_type;
 
@@ -428,6 +430,21 @@ namespace CartesianKernelFunctors {
     operator()(const Direction_2& d1, const Direction_2& d2) const
     {
       return compare_angle_with_x_axisC2(d1.dx(), d1.dy(), d2.dx(), d2.dy());
+    }
+
+    result_type
+    operator()(const Point_2& o, const Point_2& p, const Point_2& q) const
+    {
+      return compare_angle_with_x_axisC2(p.x() - o.x(), p.y() - o.y(),
+                                         q.x() - o.x(), q.y() - o.y());
+    }
+
+    result_type
+    operator()(const Point_2& p1, const Point_2& p2,
+               const Point_2& q1, const Point_2& q2) const
+    {
+      return compare_angle_with_x_axisC2(p2.x() - p1.x(), p2.y() - p1.y(),
+                                         q2.x() - q1.x(), q2.y() - q1.y());
     }
   };
 
