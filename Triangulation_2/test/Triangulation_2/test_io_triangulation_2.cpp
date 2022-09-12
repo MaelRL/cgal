@@ -234,22 +234,22 @@ void random_test(const std::size_t n)
 
   std::cout << "Validity: " << T2b2.is_valid(true) << std::endl;
 
-  std::cout << " === " << std::endl;
+//  std::cout << " === " << std::endl;
 
-  timer.reset();
-  timer.start();
+//  timer.reset();
+//  timer.start();
 
-  Tr T2b3;
-  T2b3.range_input_v3(points, edges);
-  timer.stop();
+//  Tr T2b3;
+//  T2b3.range_input_v3(points, edges);
+//  timer.stop();
 
-  std::cout << "Built with V3 range_input: " << timer.time() << std::endl;
-  std::cout << std::distance(T2b3.finite_vertices_begin(), T2b3.finite_vertices_end()) << " nv" << std::endl;
-  std::cout << std::distance(T2b3.finite_edges_begin(), T2b3.finite_edges_end()) << " ne" << std::endl;
-  std::cout << std::distance(T2b3.finite_faces_begin(), T2b3.finite_faces_end()) << " nf" << std::endl;
-  std::cout << std::distance(T2b3.all_faces_begin(), T2b3.all_faces_end()) << " anf" << std::endl;
+//  std::cout << "Built with V3 range_input: " << timer.time() << std::endl;
+//  std::cout << std::distance(T2b3.finite_vertices_begin(), T2b3.finite_vertices_end()) << " nv" << std::endl;
+//  std::cout << std::distance(T2b3.finite_edges_begin(), T2b3.finite_edges_end()) << " ne" << std::endl;
+//  std::cout << std::distance(T2b3.finite_faces_begin(), T2b3.finite_faces_end()) << " nf" << std::endl;
+//  std::cout << std::distance(T2b3.all_faces_begin(), T2b3.all_faces_end()) << " anf" << std::endl;
 
-  std::cout << "Validity: " << T2b3.is_valid(true) << std::endl;
+//  std::cout << "Validity: " << T2b3.is_valid(true) << std::endl;
 }
 
 int main(int argc, char** argv)
