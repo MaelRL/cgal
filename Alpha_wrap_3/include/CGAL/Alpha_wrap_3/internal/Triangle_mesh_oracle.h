@@ -17,10 +17,12 @@
 #include <CGAL/Alpha_wrap_3/internal/Alpha_wrap_AABB_traits.h>
 #include <CGAL/Alpha_wrap_3/internal/Oracle_base.h>
 #include <CGAL/Alpha_wrap_3/internal/splitting_helper.h>
+#include <CGAL/Alpha_wrap_3/internal/QEM_placer.h>
 
 #include <CGAL/boost/graph/named_params_helper.h>
 #include <CGAL/Named_function_parameters.h>
 #include <CGAL/Polygon_mesh_processing/shape_predicates.h>
+#include <CGAL/Polygon_mesh_processing/compute_normal.h>
 
 #include <algorithm>
 #include <iostream>
@@ -120,6 +122,179 @@ public:
  Triangle_mesh_oracle()
    : Triangle_mesh_oracle(0. /*alpha*/, BaseOracle(), Base_GT())
  { }
+
+public:
+  template <typename VPM, typename FT>
+  auto get_projection(const Point_3& p,
+                      const TriangleMesh& tmesh,
+                      VPM vpm,
+                      const FT alpha,
+                      const FT offset) const
+  {
+    using Point_3 = typename boost::property_traits<VPM>::value_type;
+    using K = typename CGAL::Kernel_traits<Point_3>::type;
+    using Vector_3 = typename K::Vector_3;
+    using Triangle_3 = typename K::Triangle_3;
+    using Sphere_3 = typename K::Sphere_3;
+
+    using Primitive_id = typename AABB_tree::Primitive_id;
+
+    std::vector<Primitive_id> qem_primitives;
+    this->tree().all_intersected_primitives(Sphere_3(p, CGAL::square(alpha)), // some padding @cache
+                                            std::back_inserter(qem_primitives));
+
+    std::cout << "QEM Faces intersection: " << qem_primitives.size() << std::endl;
+
+    if(!qem_primitives.empty())
+    {
+      std::vector<Triangle_3> qem_triangles;
+      qem_triangles.reserve(qem_primitives.size());
+      for(const Primitive_id id : qem_primitives)
+      {
+        qem_triangles.push_back(get(this->m_dpm, id));
+//        std::cout << qem_triangles.back() << std::endl;
+      }
+
+      auto optimal_point = solve_qem<Geom_traits>(p, qem_triangles.begin(), qem_triangles.end(),
+                                                  this->tree(), alpha, offset);
+
+      std::cout << "Sharpened SP: " << optimal_point.first << " type " << optimal_point.second << std::endl;
+      return optimal_point;
+    }
+
+    return std::make_pair(p, 0 /*plane*/);
+  }
+
+  template <typename VPM, typename FT>
+  auto get_splitting_position(typename boost::graph_traits<TriangleMesh>::edge_descriptor e,
+                              const TriangleMesh& tmesh,
+                              VPM vpm,
+                              const FT alpha,
+                              const FT offset) const
+  {
+    using halfedge_descriptor = typename boost::graph_traits<TriangleMesh>::halfedge_descriptor;
+    using edge_descriptor = typename boost::graph_traits<TriangleMesh>::edge_descriptor;
+    using face_descriptor = typename boost::graph_traits<TriangleMesh>::face_descriptor;
+
+    using Point_3 = typename boost::property_traits<VPM>::value_type;
+    using K = typename CGAL::Kernel_traits<Point_3>::type;
+    using Vector_3 = typename K::Vector_3;
+    using Ray_3 = typename K::Ray_3;
+    using Sphere_3 = typename K::Sphere_3;
+
+    using Primitive_id = typename AABB_tree::Primitive_id;
+
+    std::cout << std::endl << "----" << std::endl;
+    std::cout << "get_splitting_position of " << e << std::endl;
+
+    auto get_cc = [&](const face_descriptor f) -> Point_3
+    {
+      halfedge_descriptor h = halfedge(f, tmesh);
+      return CGAL::circumcenter(get(vpm, target(h, tmesh)),
+                                get(vpm, target(next(h, tmesh), tmesh)),
+                                get(vpm, source(h, tmesh)));
+    };
+
+//    auto get_steiner = [&](const face_descriptor f,
+//                           Point_3& steiner_point) -> bool
+//    {
+//      Point_3 cc = get_cc(f);
+
+//      Vector_3 v = Polygon_mesh_processing::compute_face_normal(f, tmesh);
+//      v = -v; // to point inwards
+//      Ray_3 r(cc, v);
+
+//      std::cout << "CC of " << f << " is " << cc << std::endl;
+//      std::cout << "Inverted normal: " << v << std::endl;
+
+//      auto closest = this->tree().first_intersection(r);
+//      if(!closest)
+//      {
+//        std::cerr << "Huh?" << std::endl;
+//        return false;
+//      }
+
+//      const Point_3* closest_pt = boost::get<Point_3>( &closest->first );
+//      if(!closest_pt)
+//      {
+//        std::cerr << "Hah?" << std::endl;
+//        return false;
+//      }
+
+//      std::cout << "Intersection with input: " << *closest_pt << std::endl;
+
+//      bool res = this->first_intersection(cc, *closest_pt, steiner_point, offset);
+//      if(!res)
+//      {
+//        std::cerr << "Heh?" << std::endl;
+//        std::exit(1);
+//      }
+
+//      std::cout << "Steiner: " << steiner_point << std::endl;
+
+//      return true;
+//    };
+
+    auto get_qem_primitives = [&](const face_descriptor f,
+                                  std::vector<Primitive_id>& intersections) -> void
+    {
+//      Point_3 steiner_point;
+//      bool res = get_steiner(f, steiner_point);
+
+//      if(!res)
+//        return;
+
+      // center the ball at the CC of the face
+      Point_3 cc = get_cc(f);
+
+      this->tree().all_intersected_primitives(Sphere_3(cc, CGAL::square(2 * alpha)), // some padding @cache
+                                              std::back_inserter(intersections));
+
+      std::cout << "Input P: " << cc << " Intersections: " << intersections.size() << std::endl;
+    };
+
+    // Get the new position
+    face_descriptor f1 = face(halfedge(e, tmesh), tmesh);
+    face_descriptor f2 = face(opposite(halfedge(e, tmesh), tmesh), tmesh);
+
+    std::vector<Primitive_id> qem_primitives_1;
+    get_qem_primitives(f1, qem_primitives_1);
+
+    std::vector<Primitive_id> qem_primitives_2;
+    get_qem_primitives(f2, qem_primitives_2);
+
+    std::sort(qem_primitives_1.begin(), qem_primitives_1.end());
+    std::sort(qem_primitives_2.begin(), qem_primitives_2.end());
+
+    std::vector<Primitive_id> qem_primitives;
+    std::set_intersection(qem_primitives_1.begin(), qem_primitives_1.end(),
+                          qem_primitives_2.begin(), qem_primitives_2.end(),
+                          back_inserter(qem_primitives));
+
+    std::cout << "QEM Faces intersection: " << qem_primitives.size() << std::endl;
+
+    Point_3 m = CGAL::midpoint(get(vpm, source(e, tmesh)),
+                               get(vpm, target(e, tmesh)));
+
+    if(!qem_primitives.empty())
+    {
+      std::vector<Triangle_3> qem_triangles;
+      qem_triangles.reserve(qem_primitives.size());
+      for(const Primitive_id id : qem_primitives)
+      {
+        qem_triangles.push_back(get(this->m_dpm, id));
+//        std::cout << qem_triangles.back() << std::endl;
+      }
+
+      Point_3 opt_point = solve_qem<Geom_traits>(m, qem_triangles.begin(), qem_triangles.end(),
+                                                 this->tree(), alpha, offset);
+
+      std::cout << "Sharpened SP: " << opt_point << std::endl;
+      return opt_point;
+    }
+
+    return m;
+  }
 
 public:
   template <typename NamedParameters = parameters::Default_named_parameters>
