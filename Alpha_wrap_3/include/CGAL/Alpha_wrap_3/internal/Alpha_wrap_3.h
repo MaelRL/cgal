@@ -33,12 +33,14 @@
 #include <CGAL/Simple_cartesian.h>
 
 #include <CGAL/boost/graph/Euler_operations.h>
+#include <CGAL/boost/graph/iterator.h>
 #include <CGAL/boost/graph/named_params_helper.h>
 #include <CGAL/boost/graph/IO/polygon_mesh_io.h>
 #include <CGAL/Named_function_parameters.h>
 #include <CGAL/Modifiable_priority_queue.h>
 #include <CGAL/Polygon_mesh_processing/angle_and_area_smoothing.h>
 #include <CGAL/Polygon_mesh_processing/bbox.h>
+#include <CGAL/Polygon_mesh_processing/locate.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
 #include <CGAL/Polygon_mesh_processing/orientation.h>
 #include <CGAL/Polygon_mesh_processing/orient_polygon_soup.h>
@@ -109,6 +111,7 @@ class Alpha_wrap_3
 
   using FT = typename Geom_traits::FT;
   using Point_3 = typename Geom_traits::Point_3;
+  using Segment_3 = typename Geom_traits::Segment_3;
   using Vector_3 = typename Geom_traits::Vector_3;
   using Triangle_3 = typename Geom_traits::Triangle_3;
   using Ball_3 = typename Geom_traits::Ball_3;
@@ -214,7 +217,6 @@ public:
     using parameters::get_parameter;
     using parameters::get_parameter_reference;
     using parameters::choose_parameter;
-    std::cout << "Optimize..." << std::endl;
 
     using OVPM = typename CGAL::GetVertexPointMap<OutputMesh, NamedParameters>::type;
     OVPM ovpm = choose_parameter(get_parameter(np, internal_np::vertex_point),
@@ -320,8 +322,13 @@ public:
  #endif
 #endif
 
+    std::cout << "Optimize..." << std::endl;
+    IO::write_polygon_mesh("not_optimized.off", output_mesh, CGAL::parameters::stream_precision(17));
+
+//    Valette_optimize(output_mesh, ovpm);
 //    optimize_with_iso_remesh(output_mesh, ovpm);
-    optimize_with_edge_subdivision(output_mesh, ovpm);
+//    optimize_with_edge_subdivision(output_mesh, ovpm);
+    optimize_with_L1_minimization(output_mesh, ovpm);
 
     IO::write_polygon_mesh("optimized.off", output_mesh, CGAL::parameters::stream_precision(17));
   }
@@ -2291,6 +2298,428 @@ public:
       std::ostringstream oss2;
       oss2 << "results/opt_iter_" << iter << "_restored.off" << std::ends;
       IO::write_polygon_mesh(oss2.str().c_str(), output_mesh, CGAL::parameters::stream_precision(17));
+    }
+  }
+
+public:
+  // L1-minimization by gradient descent
+  // Alliez et al. Mesh Approximation using a Volume-Based Metric.
+  // PACIFIC GRAPHICS '99 Conference Proceedings, pages 292-301, 1999.
+  // https://ieeexplore.ieee.org/abstract/document/803373/
+  // download pdf file: https://filesender.renater.fr/?s=download&token=19d5bc27-62dc-40d5-9d0a-523f8bdc9c27
+
+  // We wish to minimize the volume between the alpha wrap and the offset of the input,
+  // referred to as offset in the sequel.
+  // As such a volume may be ill-defined, we need to make few assumptions.
+  // The following approach implements a gradient descent of the said volume,
+  // with adaptive steps, for one vertex of the alpha wrap.
+
+  // Denote by `v` a vertex of the alpha wrap mesh.
+  // `v` is adjacent to a star of facets.
+  // The gradient of the volume at `v` is a vector, obtained by a point-based
+  // quadrature over the incident facets that sums up weighted and oriented facet normals
+  // at each quadrature point `q_j`.
+  // For each quadrature point `q_j`, the weight is defined by the barycentric coordinate of `q_j`
+  // with respect to `v`, and the associated sign for the facet normal at `q_j` is given
+  // by the relative orientation of `q_j` with respect to the offset.
+  template <typename OutputMesh, typename OVPM>
+  Vector_3 neg_volume_gradient(typename boost::graph_traits<OutputMesh>::vertex_descriptor v,
+                               const FT quadrature_density, // #samples per area unit
+                               const int min_nb_samples_per_facet,
+                               const OutputMesh& output_mesh,
+                               const OVPM ovpm) // probably function of alpha parameter ?
+  {
+    namespace PMP = ::CGAL::Polygon_mesh_processing;
+
+    using halfedge_descriptor = typename boost::graph_traits<OutputMesh>::halfedge_descriptor;
+    using face_descriptor = typename boost::graph_traits<OutputMesh>::face_descriptor;
+
+    Vector_3 sum = NULL_VECTOR;
+
+    for(halfedge_descriptor h : halfedges_around_target(v, output_mesh))
+    {
+      CGAL_assertion(!is_border(h, output_mesh));
+      const face_descriptor f = face(h, output_mesh);
+
+      const FT area_fi = PMP::face_area(f, output_mesh, CGAL::parameters::vertex_point_map(ovpm));
+      const Vector_3 n_fi = PMP::compute_face_normal(f, output_mesh, CGAL::parameters::vertex_point_map(ovpm));
+      if(n_fi == CGAL::NULL_VECTOR)
+        continue;
+
+      const int nb_samples = (std::max)(min_nb_samples_per_facet, int(area_fi * quadrature_density));
+      const FT area_weight = area_fi / nb_samples;
+
+//      std::cout << "quadrature_density = " << quadrature_density << std::endl;
+//      std::cout << "area_fi = " << area_fi << std::endl;
+//      std::cout << "nb_samples = " << nb_samples << std::endl;
+      for(int j=0; j<nb_samples; ++j)
+      {
+        PMP::Face_location<OutputMesh, FT> loc = PMP::random_location_on_face<FT>(f, output_mesh);
+        FT lambda = loc.second[vertex_index_in_face(v, f, output_mesh)];
+        Point_3 q_j = PMP::construct_point(loc, output_mesh, CGAL::parameters::vertex_point_map(ovpm));
+
+        // Find the closest not-too-far offset
+        Point_3 inter_on_pos_side = CGAL::ORIGIN;
+        bool has_result_on_pos_side = m_oracle.first_intersection(q_j, q_j + n_fi * m_alpha, inter_on_pos_side, m_offset);
+
+        Point_3 inter_on_neg_side = CGAL::ORIGIN;
+        bool has_result_on_neg_side = m_oracle.first_intersection(q_j, q_j - n_fi * m_alpha, inter_on_neg_side, m_offset);
+
+        FT sign_probe = 0;
+        if(has_result_on_pos_side)
+        {
+          if(has_result_on_neg_side)
+          {
+            CGAL::Comparison_result res = geom_traits().compare_distance_3_object()(q_j, inter_on_pos_side, inter_on_neg_side);
+            sign_probe = (res == CGAL::SMALLER) ? 1 : -1;
+          }
+          else
+          {
+            sign_probe = 1;
+          }
+        }
+        else if(has_result_on_neg_side)
+        {
+          sign_probe = -1;
+        }
+
+        // adds up a pulling force to gradient, both weighted and signed
+        sum += area_weight * lambda * sign_probe * n_fi;
+      }
+    }
+
+    const FT norm = CGAL::approximate_sqrt(sum * sum);
+    if(!is_zero(norm))
+      sum = sum / norm;
+    return sum;
+  }
+
+  template <typename OutputMesh, typename OVPM>
+  void optimize_with_L1_minimization(typename boost::graph_traits<OutputMesh>::vertex_descriptor v,
+                                     OutputMesh& output_mesh,
+                                     OVPM ovpm)
+  {
+//    std::cout << "Optimizing Vertex #" << v << " (" << get(ovpm, v) << ")" << std::endl;
+
+    using halfedge_descriptor = typename boost::graph_traits<OutputMesh>::halfedge_descriptor;
+
+    const FT quadrature_density = FT{20} / m_sq_alpha;
+    const int min_nb_samples_per_facet = 1;
+
+    const Point_3 initial_pos = get(ovpm, v); // intentional copy since it'll change
+
+    int iter = 0, max_iter = 10;
+    while(iter++ < max_iter)
+    {
+      // @todo this or fraction of cubic root of estimated local volume?
+
+      // Take a % of alpha, reduced with every successive iteration
+      FT step_size = ((max_iter - iter) / double(max_iter)) * 0.1 * m_alpha;
+//      std::cout << "base step_size = " << step_size << std::endl;
+
+      const FT sq_dist_to_offset = m_oracle.squared_distance(get(ovpm, v));
+      if(sq_dist_to_offset < 1e-10 * m_sq_offset) // fix vertices whose position is "close-enough"
+        continue;
+
+      // Don't allow large moves if close to the offset
+//      step_size = (std::min)(step_size, 0.1 * CGAL::approximate_sqrt(sq_dist_to_offset));
+//      std::cout << "dist2off = " << 0.1 * CGAL::approximate_sqrt(sq_dist_to_offset) << std::endl;
+
+      // Don't allow moves that might create flips
+      FT min_sq_edge_length = FT{10} * m_sq_alpha; // edge length < 2 * m_alpha by theoretical bounds
+      for(halfedge_descriptor h : halfedges_around_target(v, output_mesh))
+      {
+        FT sq_el = Polygon_mesh_processing::squared_edge_length(h, output_mesh,
+                                                                CGAL::parameters::vertex_point_map(ovpm));
+        if(sq_el < min_sq_edge_length)
+          min_sq_edge_length = sq_el;
+      }
+      step_size = (std::min)(step_size, 0.1 * CGAL::approximate_sqrt(min_sq_edge_length));
+//      std::cout << "minIncEdge = " << 0.1 * CGAL::approximate_sqrt(min_sq_edge_length) << std::endl;
+
+      const Vector_3 neg_grad = neg_volume_gradient(v, quadrature_density, min_nb_samples_per_facet,
+                                                    output_mesh, ovpm);
+      put(ovpm, v, get(ovpm, v) + step_size * neg_grad);
+
+//      std::cout << "Iter = " << iter << " step size = " << step_size << std::endl;
+//      std::cout << "Moved Vertex #" << v << " to " << get(ovpm, v) << std::endl;
+    }
+  }
+
+  template <typename OutputMesh, typename OVPM>
+  void optimize_with_L1_minimization(OutputMesh& output_mesh,
+                                     OVPM ovpm)
+  {
+    using OPoint_3 = typename boost::property_traits<OVPM>::value_type;
+    using OPoint_3_ref = typename boost::property_traits<OVPM>::reference;
+    using K = typename CGAL::Kernel_traits<OPoint_3>::type;
+    using OVector_3 = typename K::Vector_3;
+
+    using vertex_descriptor = typename boost::graph_traits<OutputMesh>::vertex_descriptor;
+    using halfedge_descriptor = typename boost::graph_traits<OutputMesh>::halfedge_descriptor;
+    using edge_descriptor = typename boost::graph_traits<OutputMesh>::edge_descriptor;
+
+    // --- Split
+
+    auto is_far_edge = [&](const edge_descriptor e) -> bool
+    {
+      const OPoint_3_ref sp = get(ovpm, source(e, output_mesh));
+      const OPoint_3_ref tp = get(ovpm, target(e, output_mesh));
+      const OVector_3 v(sp, tp);
+
+      // nothing subtle
+      int split_n = 10;
+      for(int i=1; i<split_n; ++i) // 0 gives 'sp', which is on the offset
+      {
+        const OPoint_3 p = sp + double(i) / split_n * v;
+        const FT sqd = m_oracle.squared_distance(p);
+//        std::cout << p << " at squared distance " << sqd << " (" << m_sq_offset << ")" << std::endl;
+
+        // Grab the concave
+        if(sqd > square(m_offset + 0.1 * m_alpha)) // not really clear what the alpha term should be
+          return true;
+
+        // Grab the convex
+        if(sqd < 0.25 * m_sq_offset)
+          return true;
+      }
+
+      return false;
+    };
+
+    auto split_far_and_long_edges = [&]() -> void
+    {
+      std::cout << "Split" << std::endl;
+
+      std::vector<edge_descriptor> far_splittable_edges(std::cbegin(edges(output_mesh)),
+                                                        std::cend(edges(output_mesh)));
+
+      for(edge_descriptor e : far_splittable_edges)
+      {
+        const FT sq_el = Polygon_mesh_processing::squared_edge_length(e, output_mesh,
+                                                                      CGAL::parameters::vertex_point_map(ovpm));
+        if(sq_el > 4 * m_sq_alpha || is_far_edge(e))
+        {
+          OPoint_3 mp = CGAL::midpoint(get(ovpm, target(e, output_mesh)),
+                                       get(ovpm, source(e, output_mesh)));
+          halfedge_descriptor hnew = CGAL::Euler::split_edge_and_incident_faces(halfedge(e, output_mesh), output_mesh);
+          put(ovpm, target(hnew, output_mesh), mp);
+        }
+      }
+    };
+
+    auto flip_edges = [&]() -> void
+    {
+      std::cout << "Flip" << std::endl;
+
+      std::vector<edge_descriptor> flippable_edges(std::cbegin(edges(output_mesh)),
+                                                   std::cend(edges(output_mesh)));
+
+      auto gain_calc = [&] (const edge_descriptor e) -> FT
+      {
+        halfedge_descriptor h = halfedge(e, output_mesh);
+
+        // check if topology allows flips
+        if(halfedge(target(next(h, output_mesh), output_mesh),
+                    target(next(opposite(h, output_mesh), output_mesh), output_mesh),
+                    output_mesh).second)
+          return -1;
+
+        // before flip, faces are p012 & p023 (mid edge is 02)
+        // post flip, faces are p013 & p123 (mid edge is 13)
+        const Point_3& p0 = get(ovpm, target(h, output_mesh));
+        const Point_3& p1 = get(ovpm, target(next(h, output_mesh), output_mesh));
+        const Point_3& p2 = get(ovpm, source(h, output_mesh));
+        const Point_3& p3 = get(ovpm, target(next(opposite(h, output_mesh), output_mesh), output_mesh));
+
+        // surface Delaunay angles
+        halfedge_descriptor opp_h = opposite(h, output_mesh);
+
+        // prevent a flip if it creates an intersection
+        if(m_oracle.do_intersect(Triangle_3(p0, p1, p3)) ||
+           m_oracle.do_intersect(Triangle_3(p1, p2, p3)))
+          return -1;
+
+#if 1
+        const FT ang = approximate_angle(get(ovpm, target(h, output_mesh)),
+                                         get(ovpm, target(next(h, output_mesh), output_mesh)),
+                                         get(ovpm, source(h, output_mesh)))
+                       + approximate_angle(get(ovpm, target(opp_h, output_mesh)),
+                                           get(ovpm, target(next(opp_h, output_mesh), output_mesh)),
+                                           get(ovpm, source(opp_h, output_mesh)));
+
+        const FT score = ang - FT(180);
+
+        if(score <= 0)
+          return score;
+
+        return score;
+#else
+        // Use distance to the offset (doesn't work well...)
+        const Point_3 m = CGAL::midpoint(p0, p2);
+        const Point_3 om = CGAL::midpoint(p1, p3);
+
+        const FT current_dist = CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(m)) - m_offset);
+        const FT potential_dist = CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(om)) - m_offset);
+
+        // flip edge if midpoint is farther to offset surface than the other diagonal's midpoint
+        return (current_dist - potential_dist);
+#endif
+      };
+
+      std::map<edge_descriptor, FT> edge_gains;
+      for(edge_descriptor e : flippable_edges)
+        edge_gains[e] = gain_calc(e);
+
+      auto gain_comp = [&](const edge_descriptor le, const edge_descriptor re) -> bool
+      {
+//        std::cout << "le " << le << " gain " << edge_gains[le] << std::endl;
+//        std::cout << "re " << re << " gain " << edge_gains[re] << std::endl;
+        return (edge_gains[le] > edge_gains[re]);
+      };
+
+      auto update_gains = [&](const edge_descriptor e) -> void
+      {
+        edge_gains[e] = gain_calc(e);
+
+        halfedge_descriptor h = halfedge(e, output_mesh);
+
+        edge_descriptor e1 = edge(next(h, output_mesh), output_mesh);
+        edge_gains[e1] = gain_calc(e1);
+
+        edge_descriptor e2 = edge(prev(h, output_mesh), output_mesh);
+        edge_gains[e2] = gain_calc(e2);
+
+        edge_descriptor e3 = edge(next(opposite(h, output_mesh), output_mesh), output_mesh);
+        edge_gains[e3] = gain_calc(e3);
+
+        edge_descriptor e4 = edge(prev(opposite(h, output_mesh), output_mesh), output_mesh);
+        edge_gains[e4] = gain_calc(e4);
+      };
+
+      for(;;)
+      {
+        // @todo modifiable PQ
+        std::sort(flippable_edges.begin(), flippable_edges.end(), gain_comp);
+
+        edge_descriptor e = flippable_edges.front();
+        FT gain = gain_calc(e);
+        std::cout << "Flip " << e << " with gain " << gain << std::endl;
+        if(gain <= 0)
+          break;
+
+        Euler::flip_edge(halfedge(e, output_mesh), output_mesh);
+        update_gains(e);
+      }
+    };
+
+    auto collapse_edges = [&]() -> void
+    {
+      std::cout << "Collapse" << std::endl;
+
+      auto opposite_angle_smaller_than_PI_12 = [&](halfedge_descriptor h)
+      {
+        const OPoint_3& a = get(ovpm, target(next(opposite(h, output_mesh), output_mesh), output_mesh));
+        const OPoint_3& b = get(ovpm, source(h, output_mesh));
+        const OPoint_3& c = get(ovpm, target(h, output_mesh));
+
+        return (b-a)*(c-a) / approximate_sqrt(squared_distance(a,b))
+                           / approximate_sqrt(squared_distance(a,c)) >= 0.999989561;
+      };
+
+      auto is_collapsible = [&](const halfedge_descriptor h) -> bool
+      {
+        const FT sq_collapse_bound = square(0.25 * m_alpha);
+        return (Polygon_mesh_processing::squared_edge_length(h, output_mesh,
+                                                             CGAL::parameters::vertex_point_map(ovpm)) < sq_collapse_bound
+                // || opposite_angle_smaller_than_PI_12(h)
+                );
+      };
+
+      std::unordered_set<halfedge_descriptor> edges_to_collapse;
+
+      for(edge_descriptor e : edges(output_mesh))
+      {
+        halfedge_descriptor h = halfedge(e, output_mesh);
+        if(is_collapsible(h))
+          edges_to_collapse.insert(h);
+      }
+
+      while(!edges_to_collapse.empty())
+      {
+        const halfedge_descriptor h = *(edges_to_collapse.begin());
+        edges_to_collapse.erase(edges_to_collapse.begin());
+
+        if(output_mesh.is_removed(h)) // @fixme, CGAL::Surface_mesh-specific
+          continue;
+
+        const Point_3 mp = CGAL::midpoint(get(ovpm, target(h, output_mesh)),
+                                          get(ovpm, source(h, output_mesh)));
+        if(!CGAL::Euler::does_satisfy_link_condition(edge(h, output_mesh), output_mesh))
+          continue;
+
+        // do not allow collapse to carve into the mesh
+        auto check_around_target_vertex = [&](halfedge_descriptor h) -> bool
+        {
+          halfedge_descriptor h_around = h;
+          for(;;)
+          {
+            if(!is_border(h_around, output_mesh))
+            {
+              const Triangle_3 tr(get(ovpm, target(next(h_around, output_mesh), output_mesh)),
+                                  get(ovpm, source(h_around, output_mesh)),
+                                  mp); // new position of target(h_around, output_mesh)
+
+              if(geom_traits().is_degenerate_3_object()(tr))
+                return false;
+              if(m_oracle.do_intersect(tr))
+                return false;
+            }
+
+            h_around = opposite(next(h_around, output_mesh), output_mesh);
+            if(h_around == h)
+              break;
+          }
+
+          return true;
+        };
+
+        if(!check_around_target_vertex(h) || !check_around_target_vertex(opposite(h, output_mesh)))
+          continue;
+
+        vertex_descriptor res = Euler::collapse_edge(edge(h, output_mesh), output_mesh);
+        put(ovpm, res, m_oracle.get_projection(mp, output_mesh, ovpm, m_alpha, m_offset).first);
+
+        for(halfedge_descriptor h : halfedges_around_target(res, output_mesh))
+        {
+          if(is_collapsible(h))
+            edges_to_collapse.insert(h);
+        }
+      }
+    };
+
+    // Main Loop
+    for(std::size_t i=0; i<10; ++i)
+    {
+      std::cout << "Main loop iteration " << i << std::endl;
+
+      collapse_edges();
+      IO::write_polygon_mesh("L1_opti_iter_"+std::to_string(i)+"_a_collapse.off", output_mesh,
+                             CGAL::parameters::vertex_point_map(ovpm).stream_precision(17));
+
+      flip_edges();
+      IO::write_polygon_mesh("L1_opti_iter_"+std::to_string(i)+"_b_flip.off", output_mesh,
+                             CGAL::parameters::vertex_point_map(ovpm).stream_precision(17));
+
+//      split_far_and_long_edges();
+//      CGAL::IO::write_polygon_mesh("L1_opti_iter_"+std::to_string(i)+"_c_split.off", output_mesh,
+//                                   CGAL::parameters::vertex_point_map(ovpm).stream_precision(17));
+
+      for(vertex_descriptor v : vertices(output_mesh))
+        optimize_with_L1_minimization(v, output_mesh, ovpm);
+
+      CGAL::IO::write_polygon_mesh("L1_opti_iter_"+std::to_string(i)+"_d_optimized.off", output_mesh,
+                                   CGAL::parameters::vertex_point_map(ovpm).stream_precision(17));
     }
   }
 
