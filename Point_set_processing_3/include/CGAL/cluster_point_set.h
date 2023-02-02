@@ -68,8 +68,8 @@ CGAL::Emptyset_iterator get_adjacencies (const NamedParameters&, CGAL::Emptyset_
 
    \tparam PointRange is a model of `Range`. The value type of its
    iterator is the key type of the named parameter `point_map`.
-   \tparam ClusterMap is a model of `ReadWritePropertyMap` with value
-   type `std::size_t`.
+   \tparam ClusterMap is a model of `ReadWritePropertyMap` whose key type is the value type
+   of the iterator of `PointRange` and whose value type `std::size_t`.
 
    \param points input point range
    \param cluster_map maps each point to the index of the cluster it belongs to.
