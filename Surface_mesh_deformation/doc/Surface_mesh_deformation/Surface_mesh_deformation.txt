@@ -501,7 +501,7 @@ Only the local step is influenced by the added term, and the optimal rotation no
 \section SMD_History Design and Implementation History
 An initial version of this package has been implemented during the 2011 Google Summer of Code by Yin Xu under the guidance of Olga Sorkine and Andreas Fabri.
 Ilker O. Yaz took over the finalization of the package with the help of Sébastien Loriot for the documentation and the API.
-In 2016, Zohar Levi and Sébastien Loriot extended the package to support Smoothed Rotation Enhanced ARAP.
+In 2016, Zohar Levi and Sébastien Loriot extended the package to support Smoothed %Rotation Enhanced ARAP.
 The authors are grateful to Gaël Guennebaud for his great help on using the Eigen library and for providing the code to compute
 the closest rotation.
 */
