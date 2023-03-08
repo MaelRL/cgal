@@ -23,6 +23,9 @@
 #include <CGAL/Filtered_construction.h>
 #include <CGAL/Uncertain.h>
 
+#include <CGAL/AABB_tree.h>
+#include <CGAL/AABB_traits.h>
+
 #include <boost/optional/optional.hpp>
 #include <boost/tuple/tuple.hpp>
 
@@ -307,6 +310,35 @@ struct Straight_skeleton_builder_traits_2_base
 } ;
 
 
+template <typename K>
+struct Segment_with_ID_primitive
+{
+  typedef const typename K::Point_3& Point;
+  typedef typename K::Segment_3 Datum;
+  typedef std::size_t Id;
+
+  Segment_with_ID_primitive() { }
+  Segment_with_ID_primitive(const typename K::Segment_2& s, const std::size_t id)
+    : mSeg(s), mID(id)
+  {
+    mSeg3D = typename K::Segment_3(typename K::Point_3(s.source().x(), s.source().y(), 0),
+                                   typename K::Point_3(s.target().x(), s.target().y(), 0));
+  }
+
+  Id id() const { return mID; }
+
+  Datum datum() const { return mSeg3D; }
+
+  Point reference_point() const
+  {
+    return mSeg3D.source();
+  }
+
+  typename K::Segment_2 mSeg;
+  typename K::Segment_3 mSeg3D;
+  std::size_t mID;
+};
+
 template<class Is_filtered_kernel, class K>
 class Straight_skeleton_builder_traits_2_impl ;
 
@@ -520,6 +552,11 @@ public:
   mutable std::size_t mTrisegment_ID = 0 ;
   mutable CGAL_SS_i::Caches<K> mCaches ;
   mutable boost::optional< typename K::FT > mFilteringBound ;
+
+  typedef CGAL::AABB_traits<K, Segment_with_ID_primitive<K> > AABB_traits;
+  typedef CGAL::AABB_tree<AABB_traits> Tree;
+
+  mutable std::shared_ptr<Tree> mTreePtr;
 } ;
 
 template<class K>
@@ -738,8 +775,12 @@ public:
     typedef typename FK::Point_2 Target_Point_2;
     typedef typename FK::Vector_2 Target_Vector_2;
     typedef typename FK::Segment_2 Target_Segment_2;
-    typedef typename FK::Ray_2 Target_Ray_2;
     typedef typename FK::Line_2 Target_Line_2;
+
+    typedef typename FK::Point_3 Target_Point_3;
+    typedef typename FK::Vector_3 Target_Vector_3;
+    typedef typename FK::Ray_3 Target_Ray_3;
+
 
     typedef decltype(aNode->halfedge()) Halfedge_handle;
     typedef CGAL_SS_i::Segment_2_with_ID<FK> Target_Segment_with_ID_2;
@@ -781,27 +822,46 @@ public:
     Target_Vector_2 lVL(  lL->b(), - lL->a()) ;
     Target_Vector_2 lVR(- lR->b(),   lR->a()) ;
     Target_Vector_2 lVLR = lVL + lVR ;
-    Target_Ray_2 bisect_ray(laP, lVLR) ;
+    Target_Ray_3 bisect_ray(Target_Point_3(laP.x(), laP.y(), 0),
+                            Target_Vector_3(lVLR[0], lVLR[1], 0)) ;
 
-    // @todo this should use some kind of spatial searching
-    for ( Halfedge_handle_vector_iterator h = contour_halfedges_begin; h != contour_halfedges_end; ++h )
+    typedef typename Straight_skeleton_builder_traits_2_impl<Tag_false, FK>::Tree Target_Tree;
+
+    if(!mApproximate_traits.mTreePtr)
+      mApproximate_traits.mTreePtr = std::make_shared<Target_Tree>();
+
+    if(mApproximate_traits.mTreePtr->empty())
     {
-      try
+      for(Halfedge_handle_vector_iterator h = contour_halfedges_begin; h != contour_halfedges_end; ++h)
       {
-        CGAL_assertion((*h)->vertex()->is_contour() && (*h)->opposite()->vertex()->is_contour() );
+        Target_Segment_2 s(lToFiltered((*h)->opposite()->vertex()->point()),
+                           lToFiltered((*h)->vertex()->point()));
+        Segment_with_ID_primitive<FK> mprim(s, (*h)->id());
+        mApproximate_traits.mTreePtr->insert(mprim);
+      }
+
+      std::cout << "Tree of size: " << mApproximate_traits.mTreePtr->size() << std::endl;
+    }
+
+    std::list<typename Target_Tree::Primitive_id> intersections;
+    mApproximate_traits.mTreePtr->all_intersected_primitives(bisect_ray, std::back_inserter(intersections));
+
+    std::cout << intersections.size() << " intersections" << std::endl;
+
+    try
+    {
+      for(const auto& id : intersections)
+      {
+        Halfedge_handle h = *(std::next(contour_halfedges_begin, id / 2)); // horrible complexity
 
         // @todo could be a line as long as we are in a convex area
-        Target_Segment_2 s_h(lToFiltered((*h)->opposite()->vertex()->point()),
-                             lToFiltered((*h)->vertex()->point()));
+        Target_Segment_2 s_h(lToFiltered(h->opposite()->vertex()->point()),
+                             lToFiltered(h->vertex()->point()));
 
         // we use segments of the input polygon intersected by the bisector and such that
         // they are oriented such that the reflex vertex is on the left side of the segment
         Uncertain<Oriented_side> orient = FK().orientation_2_object()(s_h[0], s_h[1], laP);
         if (!is_certain(orient) || orient != LEFT_TURN)
-          continue;
-
-        Uncertain<bool> inter = FK().do_intersect_2_object()(bisect_ray, s_h);
-        if (!is_certain(inter) || !inter)
           continue;
 
         // We want the time it takes to get from aNode to h along the primary bisector of aNode.
@@ -823,7 +883,7 @@ public:
         // If we express H as lambda * |d0 + d1|, we get:
         //   lambda = - T / (d0 + d1) * n2
 
-        Target_Segment_with_ID_2 lSh (s_h, (*h)->id());
+        Target_Segment_with_ID_2 lSh (s_h, h->id());
         boost::optional<Target_Line_2> lh = CGAL_SS_i::compute_normalized_line_coeffC2(lSh, mApproximate_traits.mCaches);
 
         Target_FT lLambda = - ( lh->a()*laP.x() + lh->b()*laP.y() + lh->c() ) /
@@ -834,7 +894,7 @@ public:
         Target_FT lBound = lLambda * ( lL->a()*lP.x() + lL->b()*lP.y() + lL->c() ) ;
 
 #if 0
-        std::cout << "E" << (*h)->id() << " s_h = " << s_h << std::endl;
+        std::cout << "E" << h->id() << " s_h = " << s_h << std::endl;
         std::cout << "left/right E" << lHL->id() << " E" << lHR->id() << std::endl;
         std::cout << "V" << aNode->id() << std::endl;
         std::cout << "lSL: " << lSL << std::endl;
@@ -876,8 +936,10 @@ public:
         if(!mApproximate_traits.mFilteringBound || *mApproximate_traits.mFilteringBound > lBound)
           mApproximate_traits.mFilteringBound = lBound;
       }
-      catch(CGAL::Uncertain_conversion_exception&)
-      {}
+    }
+    catch(const CGAL::Uncertain_conversion_exception&)
+    {
+      CGAL_STSKEL_TRAITS_TRACE("Uncertain_conversion_exception");
     }
 
     if(mApproximate_traits.mFilteringBound)
@@ -886,6 +948,8 @@ public:
     } else {
       CGAL_STSKEL_TRAITS_TRACE("Filtering bound: none");
     }
+
+    // std::cout << "Filtering bound: " << *mApproximate_traits.mFilteringBound << std::endl;
   }
 
 public:
