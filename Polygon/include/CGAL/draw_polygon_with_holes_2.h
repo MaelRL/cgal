@@ -75,6 +75,13 @@ public:
   }
 
 protected:
+  void print_vertex_label(const Point& pos, std::size_t id)
+  {
+    std::stringstream label;
+    label << "V" << id << std::ends;
+    add_text(pos, label.str());
+  }
+
   void compute_one_loop_elements(const typename P2::General_polygon_2& p, bool hole)
   {
     if (hole)
@@ -85,6 +92,7 @@ protected:
          i!=p.vertices_end(); ++i)
     {
       add_point(*i);         // Add vertex
+      print_vertex_label(*i, std::distance(p.vertices_begin(), i));
       if (i!=p.vertices_begin())
       { add_segment(*prev, *i); } // Add segment with previous point
       add_point_in_face(*i); // Add point in face

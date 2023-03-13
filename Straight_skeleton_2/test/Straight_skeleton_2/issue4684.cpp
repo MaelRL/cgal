@@ -1,8 +1,51 @@
-#include<CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#if 1
 
-#include<CGAL/Polygon_2.h>
-#include<CGAL/create_offset_polygons_2.h>
-#include<CGAL/draw_straight_skeleton_2.h>
+#include <string>
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+
+bool lAppToLog = false ;
+
+void Straight_skeleton_external_trace ( std::string m )
+{
+  std::ofstream out("/home/mrouxell/sls_log.txt", ( lAppToLog ? std::ios::app | std::ios::ate : std::ios::trunc | std::ios::ate ) );
+  out << std::setprecision(17) << m << std::endl << std::flush ;
+  lAppToLog = true ;
+}
+void Straight_skeleton_traits_external_trace ( std::string m )
+{
+  std::ofstream out("/home/mrouxell/sls_log.txt", ( lAppToLog ? std::ios::app | std::ios::ate : std::ios::trunc | std::ios::ate ) ) ;
+  out << std::setprecision(17) << m << std::endl << std::flush ;
+  lAppToLog = true ;
+}
+
+void error_handler ( char const* what, char const* expr, char const* file, int line, char const* msg )
+{
+  std::cerr << "CGAL error: " << what << " violation!" << std::endl
+       << "Expr: " << expr << std::endl
+       << "File: " << file << std::endl
+       << "Line: " << line << std::endl;
+  if ( msg != nullptr)
+      std::cerr << "Explanation:" << msg << std::endl;
+
+  std::exit(1);
+}
+
+#define CGAL_STRAIGHT_SKELETON_ENABLE_TRACE 5
+#define CGAL_STRAIGHT_SKELETON_TRAITS_ENABLE_TRACE
+#define CGAL_STRAIGHT_SKELETON_VALIDITY_ENABLE_TRACE
+#define CGAL_POLYGON_OFFSET_ENABLE_TRACE 4
+#define CGAL_SLS_PRINT_QUEUE_BEFORE_EACH_POP
+
+#endif // if 0|1 debug
+
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/draw_straight_skeleton_2.h>
+#include <CGAL/draw_polygon_2.h>
+
+#include <CGAL/Polygon_2.h>
+#include <CGAL/create_offset_polygons_2.h>
 
 #include <boost/shared_ptr.hpp>
 
@@ -48,6 +91,8 @@ void low_precision_run()
   poly.push_back(Point(3.4641, 17.5));
 
   assert(poly.is_simple());
+
+  CGAL::draw(poly);
 
   if(poly.is_clockwise_oriented())
     poly.reverse_orientation();

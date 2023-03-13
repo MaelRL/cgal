@@ -546,6 +546,7 @@ void Straight_skeleton_builder_2<Gt,Ss,V>::UpdatePQ( Vertex_handle aNode, Triedg
   Halfedge_handle lOBisector_C = aNode->primary_bisector() ;
   Halfedge_handle lOBisector_N = lNext->primary_bisector() ;
 
+  // @todo it's pointless to collect for both the left and the right for contour nodes
   if ( AreBisectorsCoincident(lOBisector_C,lOBisector_P) )
     HandleSimultaneousEdgeEvent( aNode, lPrev ) ;
   else if ( AreBisectorsCoincident(lOBisector_C,lOBisector_N) )
@@ -642,6 +643,7 @@ void Straight_skeleton_builder_2<Gt,Ss,V>::CreateContourBisectors()
   }
 }
 
+// @fixme this should use are_edges_orderly_collinearC2?
 template<class Gt, class Ss, class V>
 void Straight_skeleton_builder_2<Gt,Ss,V>::HarmonizeSpeeds(boost::mpl::bool_<true>)
 {
@@ -2034,6 +2036,7 @@ bool Straight_skeleton_builder_2<Gt,Ss,V>::MergeCoincidentNodes()
 // in polygon offseting. We add so-called artificial nodes and bisectors to ensure that faces
 // are simply-connected by shooting rays from the topmost vertex of the bisectors of the skeleton
 // of the hole(s).
+// @fixme filtering and whatnot?
 template<class Gt, class Ss, class V>
 void Straight_skeleton_builder_2<Gt,Ss,V>::EnforceSimpleConnectedness()
 {
@@ -2144,6 +2147,7 @@ void Straight_skeleton_builder_2<Gt,Ss,V>::EnforceSimpleConnectedness()
 
         Triedge artificial_triedge(contour_h, contour_h, h);
         Trisegment_2_ptr artificial_trisegment = CreateTrisegment(artificial_triedge, extreme_h->vertex());
+        std::cout << "V" << extreme_h->vertex()->id() << " " << GetTrisegment(extreme_h->vertex()) << std::endl;
         CGAL_assertion(bool(artificial_trisegment->child_l()));
 
         if(!ExistEvent(artificial_trisegment))

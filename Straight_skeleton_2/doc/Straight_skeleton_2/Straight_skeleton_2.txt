@@ -6,71 +6,63 @@ namespace CGAL {
 \anchor Chapter_2D_Straight_Skeleton_and_Polygon_Offsetting
 \anchor chapterstraightskeleton2
 \cgalAutoToc
-\author Fernando Cacciola
+\authors Fernando Cacciola, Mael Rouxel-Labbé
 
 \section Straight_skeleton_2Definitions Definitions
 
-\subsection Straight_skeleton_22DContour 2D Contour
+\subsection Straight_skeleton_22DContour 2D Contours
 
-A <I>2D contour</I> is a closed sequence (a cycle) of 3 or more <I>connected 2D oriented straight
-line segments</I> called <I>contour edges</I>. The endpoints of the contour edges are called <I>vertices</I>.
-Each contour edge shares its endpoints with at least two other contour edges.
+A <I>2D contour</I> is a closed sequence (a cycle) of three or more <I>connected 2D oriented straight
+line segments</I> called <I>contour edges</I>. The endpoints of contour edges are called <I>vertices</I>,
+and are shared by exactly two incident edges.
 
-If the edges intersect only at the vertices and at most are coincident along a line but do not <I>cross</I>
-one another, the contour is classified as <I>simple</I>.
+A contour partitions the plane in open regions that are bounded and unbounded.
+If the contour forms the boundary of a single open region that is a simply connected set,
+then this contour is said to be <I>weakly simple</I>. If the edges of the contour intersect
+only at their common vertices, the contour is said to be <I>simple</I>.
 
-A contour is topologically equivalent to a <I>disk</I> and if it is simple, is said to be a <I>Jordan Curve</I>.
-
-Contours partition the plane in two open regions: one bounded and one unbounded. If the bounded region
-of a contour is only one <I>singly-connected set</I>, the contour is said to be <I>strictly-simple</I>.
-
-The `Orientation` of a contour is given by the order of the vertices around the region they bound.
-It can be `CLOCKWISE` (CW) or `COUNTERCLOCKWISE` (CCW).
-
-The <I>bounded side</I> of a contour edge is the side facing the bounded region of the contour.
-If the contour is oriented CCW, the bounded side of an edge is its left side.
-
-A contour with a null edge (a segment of length zero given by two consecutive coincident vertices),
-or with edges not connected to the bounded region (an antenna: 2 consecutive edges going forth
-and back along the same line), is said to be <I>degenerate</I> (collinear edges are <I>not</I> considered
-a degeneracy).
+The orientation of a contour is given by the order of the vertices around the region they bound.
+It can be `clockwise` (CW) or `counterclockwise` (CCW). The <I>bounded side</I> of a contour edge
+is the side facing the bounded region of the contour. If the contour is oriented CCW, the bounded
+side of an edge is its left side.
 
 \subsection Straight_skeleton_22DPolygonwithHoles 2D Polygon with Holes
 
 A <I>2D polygon</I> is a contour.
 
-A <I>2D polygon with holes</I> is a contour, called the <I>outer contour</I>, having zero or more contours,
-called <I>inner contours</I>, or <I>holes</I>, in its bounded region. The intersection of the bounded region
-of the outer contour and the unbounded regions of each inner contour is the <I>interior</I> of the polygon
-with holes. The orientation of the holes must be opposite to the orientation of the outer contour
-and there cannot be any intersection among any contour. A hole cannot be in the bounded region
-of any other hole.
-
-A polygon with holes is strictly-simple if its interior is a singly-connected set.
+A <I>2D polygon with holes</I> is a contour having zero or more contours in its bounded regions.
+The former contour is called <I>outer contour</I> or <I>outer boundary</I>, and the latter
+contours are called <I>inner contours</I>, or <I>holes</I>. The intersection of the bounded regions
+of the outer contour and the unbounded regions of each inner contour is the <I>interior</I>
+of the polygon with holes. In this chapter, we require that the orientation of the holes is
+opposite to the orientation of the outer contour, and that there cannot be any intersection
+among any two contours. Furthermore, a hole cannot be in the bounded region of another hole.
 
 The orientation of a polygon with holes is the orientation of its outer contour. The bounded side
 of <I>any</I> edge, whether of the outer contour or a hole, is the <I>same</I> for all edges.
 That is, if the outer contour is oriented CCW and the holes CW, both contour and hole edges face
 the polygon interior to their left.
 
+A polygon with holes is said to be weakly simple if its interior is a simply connected set.
+
 Throughout the rest of this chapter the term <I>polygon</I> will be used as a shortcut
 for <I>polygon with holes</I>.
 
 \cgalFigureBegin{Validpolygons,valid_polygons.png}
-Examples of strictly simple polygons: One with no holes and two edges coincident (left) and one
+Examples of weakly simple polygons: one with no holes and two edges coincident (left) and one
 with 2 holes (right).
 \cgalFigureEnd
 
 \cgalFigureBegin{Invalidpolygons,invalid_polygons.png}
-Examples of non-simple polygons: One folding into itself, that is, non-planar (left), one with a vertex
-touching an edge (middle), and one with a hole crossing into the outside (right)
+Examples of non-simple polygons: one folding into itself, that is, non-planar (left), one with a vertex
+touching an edge (middle), and one with a hole crossing into the outside (right) @fixme
 \cgalFigureEnd
 
-\subsection Straight_skeleton_2InwardOffsetofaNondegenerate Inward Offset of a Non-degenerate Strictly-Simple Polygon with Holes
+\subsection Straight_skeleton_2InwardOffsetofa Inward Offset of Weakly Simple Polygons
 
-For any 2D non-degenerate strictly-simple polygon with holes called the <I>source</I>, there can
-exist a <I>set</I> of 0, 1 or more <I>inward offset polygons with holes</I>, or just offset polygons
-for short, at some euclidean distance <I>t</I> \f$ >0\f$ (each being strictly simple and non-degenerate).
+For any 2D weakly simple polygon called the <I>source</I>, there can exist a <I>set</I> of 0, 1,
+or more <I>inward offset polygons</I>, or just offset polygons
+for short, at some euclidean distance <I>t</I> \f$ >0\f$ (each being strictly simple).
 Any contour edge of such offset polygon, called an <I>offset edge</I> corresponds to <I>some</I> contour edge
 of the source polygon, called its <I>source edge</I>. An offset edge is parallel to its source edge
 and has the same orientation. The Euclidean distance between the <I>lines</I> supporting an offset edge
@@ -89,15 +81,15 @@ Each offset polygon has the same orientation as the source polygon.
 
 \anchor Offsets
 
-\subsection Straight_skeleton_2StraightSkeletonofa2D Straight Skeleton of a 2D Non-degenerate Strictly-Simple Polygon with Holes
+\subsection Straight_skeleton_2StraightSkeletonofa2D Straight Skeleton of 2D Weakly Simple Polygons
 
-The <I>2D straight skeleton</I> of a non-degenerate strictly-simple polygon with holes \cgalCite{aaag-ntsp-95}
+The <I>2D straight skeleton</I> of a non-degenerate strictly simple polygon \cgalCite{aaag-ntsp-95}
 is a special partitioning of the polygon interior into <I>straight skeleton regions</I> corresponding
 to the monotone areas traced by a continuous <I>inward offsetting</I> of the contour edges.
 Each region corresponds to exactly 1 contour edge.
 
 These regions are bounded by angular bisectors of the supporting lines of the contour edges
-and each such region is itself a non-convex non-degenerate strictly-simple polygon.
+and each such region is itself a non-convex non-degenerate strictly simple polygon.
 
 \cgalFigureBegin{ComplexSLS,complex_skeleton.png}
 Straight skeleton of a complex shaggy contour
@@ -179,7 +171,7 @@ This \cgal package represents a straight skeleton as a specialized `Halfedge Dat
 whose vertices embed 2D Points (see the `StraightSkeleton_2` concept in the reference manual for details).
 
 Its halfedges, by considering the source and target points, implicitly embed 2D oriented straight
-line segments (each halfedge per see does not embed a segment explicitly).
+line segments (each halfedge per se does not embed a segment explicitly).
 
 A face of the straight skeleton is represented as a face in the HDS. Both contour and skeleton edges
 are represented by pairs of opposite HDS halfedges, and both contour and skeleton vertices are
@@ -190,7 +182,7 @@ of the straight skeleton HDS, such border halfedges are oriented such that their
 outwards the polygon. Therefore, the opposite halfedge of any border halfedge is oriented such that
 its left side faces inward the polygon.
 
-This \cgal package requires the input polygon (with holes) to be non-degenerate, strictly-simple,
+This \cgal package requires the input polygon (with holes) to be non-degenerate, strictly simple,
 and oriented counter-clockwise.
 
 The skeleton halfedges are oriented such that their <I>left</I> side faces inward the region they bound.
@@ -212,7 +204,7 @@ halfedges and traces the vertices of the polygon's contours (in opposite order).
 
 Starting from any non-border but contour halfedge, circulating the structure walks counter-clockwise
 around the face corresponding to that contour halfedge. The vertices around a face always describe
-a non-convex non-degenerate strictly-simple polygon.
+a non-convex non-degenerate strictly simple polygon.
 
 A vertex is the intersection of contour and/or skeleton edges. Since a skeleton edge is defined
 by 2 contour edges, any vertex is itself defined by a unique set of contour edges. These are called the
@@ -363,7 +355,7 @@ To construct the straight skeleton of a polygon with holes the user must:
 
 (2) Enter one contour at a time, starting from the outer contour, via the method
 `Straight_skeleton_builder_2::enter_contour()`. The input polygon with holes must be non-degenerate,
-strictly-simple and counter-clockwise oriented (see the definitions at the beginning of this chapter).
+strictly simple and counter-clockwise oriented (see the definitions at the beginning of this chapter).
 Collinear edges are allowed. The insertion order of each hole is unimportant but the outer contour
 must be entered first.
 
