@@ -45,6 +45,7 @@
 
 #include <CGAL/license/Polygon_mesh_processing/geometric_repair.h>
 
+#include <CGAL/Polygon_mesh_processing/autorefinement.h>
 #include <CGAL/Polygon_mesh_processing/border.h>
 #include <CGAL/Polygon_mesh_processing/manifoldness.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
@@ -62,9 +63,11 @@
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
 
 #include <CGAL/cluster_point_set.h>
+#include <CGAL/Constrained_Delaunay_triangulation_3.h>
 
 #include <CGAL/Named_function_parameters.h>
 #include <CGAL/Real_timer.h>
+#include <CGAL/IO/polygon_soup_io.h>
 
 #include <iostream>
 #include <unordered_set>
@@ -138,6 +141,9 @@ std::size_t merge_close_points(PointRange& points,
   std::cout << nb_clusters << " clusters" << std::endl;
 #endif
 
+  if(nb_clusters == points.size())
+    return 0;
+
   // update the point positions to the average of the clusters
   std::vector<std::size_t> cluster_sizes(nb_clusters);
   for(std::size_t i=0; i<points.size(); ++i)
@@ -182,6 +188,36 @@ std::size_t merge_close_points(PointRange& points,
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+template <typename PointRange, typename PolygonRange,
+          typename NamedParameters = parameters::Default_named_parameters>
+std::size_t cull_interior_polygons(PointRange& points,
+                                   PolygonRange& polygons,
+                                   const NamedParameters& = parameters::default_values())
+{
+  // Do not orient
+
+  try
+  {
+    // Add faces in a CDT3 and flood fill the faces from the exterior
+    // everything that has only incident interior cells can be thrown away
+
+  }
+  catch(...) // Intersection_of_constraints_exception
+  {
+    // Identify volumes
+
+    // Remove all faces that are entirely contained within volumes
+
+  }
+
+  // Remove points that are now useless
+  return remove_isolated_points_in_polygon_soup(points, polygons);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename PolygonMesh,
           typename NamedParameters = parameters::Default_named_parameters>
 std::size_t fill_hole(typename boost::graph_traits<PolygonMesh>::halfedge_descriptor h,
@@ -191,18 +227,20 @@ std::size_t fill_hole(typename boost::graph_traits<PolygonMesh>::halfedge_descri
   namespace PMP = ::CGAL::Polygon_mesh_processing;
 
   using vertex_descriptor = typename boost::graph_traits<PolygonMesh>::vertex_descriptor;
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
   using halfedge_descriptor = typename boost::graph_traits<PolygonMesh>::halfedge_descriptor;
+#endif
   using face_descriptor = typename boost::graph_traits<PolygonMesh>::face_descriptor;
 
   std::vector<vertex_descriptor> hole_vertices;
   std::vector<face_descriptor> hole_faces;
 
   // Use naive hole filling for now to limit failures
-  PMP::triangulate_hole(pmesh, h, std::back_inserter(hole_faces));
+  PMP::triangulate_hole(pmesh, h, np.face_output_iterator(std::back_inserter(hole_faces)));
   if(hole_faces.empty())
   {
-    PMP::triangulate_hole(pmesh, h, std::back_inserter(hole_faces),
-                          CGAL::parameters::use_delaunay_triangulation(false));
+    PMP::triangulate_hole(pmesh, h, np.face_output_iterator(std::back_inserter(hole_faces))
+                                      .use_delaunay_triangulation(false));
     if(hole_faces.empty())
     {
 #ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
@@ -306,7 +344,78 @@ std::size_t fill_all_holes(PolygonMesh& pmesh,
     ++filled_hole_count;
   }
 
+  CGAL_postcondition(is_closed(pmesh));
+
   return filled_hole_count;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Collapse short edges on the boundary, regardless of the shape of the incident face
+template <typename TriangleMesh,
+          typename NamedParameters = parameters::Default_named_parameters>
+void collapse_small_edges(TriangleMesh& tmesh,
+                          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT& threshold,
+                          const NamedParameters& np = parameters::default_values())
+{
+  namespace PMP = ::CGAL::Polygon_mesh_processing;
+
+  using FT = typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT;
+
+  using edge_descriptor = typename boost::graph_traits<TriangleMesh>::edge_descriptor;
+  using halfedge_descriptor = typename boost::graph_traits<TriangleMesh>::halfedge_descriptor;
+  using face_descriptor = typename boost::graph_traits<TriangleMesh>::face_descriptor;
+
+  const FT squared_threshold = CGAL::square(threshold);
+  std::size_t removed = 0;
+
+  std::unordered_set<edge_descriptor> edges_to_remove;
+  std::unordered_set<face_descriptor> faces_to_remove;
+  for(edge_descriptor e : edges(tmesh))
+  {
+    if(!is_border(e, tmesh))
+      continue;
+
+    if(PMP::squared_edge_length(e, tmesh, np) < squared_threshold)
+    {
+      if(CGAL::Euler::does_satisfy_link_condition(e, tmesh))
+      {
+        edges_to_remove.insert(e);
+        ++removed;
+      }
+      else
+      {
+        halfedge_descriptor h = halfedge(e, tmesh);
+        if(!is_border(h, tmesh))
+          h = opposite(h, tmesh);
+
+        if(PMP::internal::border_size(h, tmesh) == 3) // lone face
+          faces_to_remove.insert(face(opposite(h, tmesh), tmesh)); // can't remove yet since we're looping edges
+#ifdef CGAL_PMP_DEBUG_SMALL_CC_REMOVAL
+        else
+          std::cerr << "Warning: collapse of small edge " << e << " is not allowed" << std::endl;
+#endif
+      }
+    }
+  }
+
+  for(face_descriptor f : faces_to_remove)
+  {
+    CGAL::Euler::remove_face(halfedge(f, tmesh), tmesh);
+    removed += 3;
+  }
+
+  for(edge_descriptor e : edges_to_remove)
+  {
+    CGAL::Euler::collapse_edge(e, tmesh);
+    ++removed;
+  }
+
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
+  std::cout << "Removed " << removed << " edges" << std::endl;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -569,16 +678,10 @@ std::size_t all_borders_snap(TriangleMesh& tmesh,
 template <typename TriangleMesh,
           typename NamedParameters = parameters::Default_named_parameters>
 std::size_t iterative_snap(TriangleMesh& tmesh,
-                          typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT tolerance,
-                          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT max_tolerance,
-                          const NamedParameters& np = parameters::default_values())
+                           typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT tolerance,
+                           const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT max_tolerance,
+                           const NamedParameters& np = parameters::default_values())
 {
-  using vertex_descriptor = typename boost::graph_traits<TriangleMesh>::vertex_descriptor;
-  using halfedge_descriptor = typename boost::graph_traits<TriangleMesh>::halfedge_descriptor;
-
-  using GeomTraits = typename GetGeomTraits<TriangleMesh, NamedParameters>::type;
-  using FT = typename GeomTraits::FT;
-
 #ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
   int snap_id = 0;
 #endif
@@ -619,85 +722,615 @@ std::size_t iterative_snap(TriangleMesh& tmesh,
   return snapped_n;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// Collapse short edges on the boundary, regardless of the shape of the incident face
 template <typename TriangleMesh,
           typename NamedParameters = parameters::Default_named_parameters>
-void collapse_small_edges(TriangleMesh& tmesh,
-                          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT& threshold,
-                          const NamedParameters& np = parameters::default_values())
+void snap(TriangleMesh& tmesh,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT min_snapping_threshold,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT max_snapping_threshold,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT negligible_cc_area_threshold,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT negligible_cc_volume_threshold,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT trivial_hole_halfedge_count_threshold,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT trivial_hole_border_length_threshold,
+          const typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT small_edge_threshold,
+          const std::size_t negligible_cc_face_count_threshold,
+          const NamedParameters& np = parameters::default_values())
 {
-  namespace PMP = ::CGAL::Polygon_mesh_processing;
+  namespace PMP = CGAL::Polygon_mesh_processing;
 
-  using FT = typename GetGeomTraits<TriangleMesh, NamedParameters>::type::FT;
-
-  using edge_descriptor = typename boost::graph_traits<TriangleMesh>::edge_descriptor;
-  using halfedge_descriptor = typename boost::graph_traits<TriangleMesh>::halfedge_descriptor;
-  using face_descriptor = typename boost::graph_traits<TriangleMesh>::face_descriptor;
-
-  const FT squared_threshold = CGAL::square(threshold);
-  std::size_t removed = 0;
-
-  std::unordered_set<edge_descriptor> edges_to_remove;
-  std::unordered_set<face_descriptor> faces_to_remove;
-  for(edge_descriptor e : edges(tmesh))
+  auto snapping_subpipeline = [&](const bool preprocess)
   {
-    if(!is_border(e, tmesh))
-      continue;
-
-    if(PMP::squared_edge_length(e, tmesh) < squared_threshold)
+    bool something_happened = false;
+    do
     {
-      if(CGAL::Euler::does_satisfy_link_condition(e, tmesh))
+      if(preprocess)
       {
-        edges_to_remove.insert(e);
-        ++removed;
+        // Fill trivial holes
+        internal::fill_trivial_holes(tmesh, trivial_hole_halfedge_count_threshold,
+                                     trivial_hole_border_length_threshold, np);
+
+        // Remove small CCs (that did not attach to something bigger during snap+stitch w/o preprocessing)
+        PMP::remove_connected_components_of_negligible_size(tmesh, np.area_threshold(negligible_cc_area_threshold)
+                                                                     .volume_threshold(negligible_cc_volume_threshold));
+        PMP::keep_large_connected_components(tmesh, negligible_cc_face_count_threshold); // at least X faces in a CC
+
+        // Remove almost degenerate elements (there should not be any real degenerate elements at this point)
+        internal::collapse_small_edges(tmesh, small_edge_threshold, np);
+        PMP::remove_almost_degenerate_faces(tmesh, np);
+
+        // Stitching might have refused to act because of non-manifoldness between CCs
+        PMP::stitch_borders(tmesh, np);
+        PMP::merge_reversible_connected_components(tmesh, np);
       }
-      else
-      {
-        halfedge_descriptor h = halfedge(e, tmesh);
-        if(!is_border(h, tmesh))
-          h = opposite(h, tmesh);
 
-        if(PMP::internal::border_size(h, tmesh) == 3) // lone face
-          faces_to_remove.insert(face(opposite(h, tmesh), tmesh)); // can't remove yet since we're looping edges
-#ifdef CGAL_PMP_DEBUG_SMALL_CC_REMOVAL
-        else
-          std::cerr << "Warning: collapse of small edge " << e << " is not allowed" << std::endl;
-#endif
-      }
-    }
-  }
+      // Snap matched border subsets, with increasing tolerance (zipping) within the min/max distances
+      std::size_t snapped_n = internal::iterative_snap(tmesh, min_snapping_threshold,
+                                                       max_snapping_threshold, np);
 
-  for(face_descriptor f : faces_to_remove)
-  {
-    CGAL::Euler::remove_face(halfedge(f, tmesh), tmesh);
-    removed += 3;
-  }
-
-  for(edge_descriptor e : edges_to_remove)
-  {
-    CGAL::Euler::collapse_edge(e, tmesh);
-    ++removed;
-  }
+      something_happened = (snapped_n > 0);
 
 #ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
-  std::cout << "Removed " << removed << " edges" << std::endl;
+      std::cout << "snapping pipeline (" << preprocess << "), snapped: " << snapped_n << std::endl;
 #endif
+    }
+    while(something_happened);
+  };
+
+  // once without too many harsh preprocessing (cleaning) steps, and once with
+  snapping_subpipeline(false /*preprocess*/);
+  snapping_subpipeline(true /*preprocess*/);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+template <typename PointRange, typename PolygonRange,
+          typename NamedParameters = parameters::Default_named_parameters>
+void clean_non_manifold_incidences(PointRange&,
+                                   PolygonRange&,
+                                   const NamedParameters& = parameters::default_values())
+{
+  // @todo Purge surface CCs incident to non-manifold edges if there is a volume
+
+  // @todo Purge small volumes incident non-manifold edges (winding number?)
+
+}
+
+template <typename TriangleMesh,
+          typename NamedParameters = parameters::Default_named_parameters>
+void keep_outer_volumes(TriangleMesh&,
+                        const NamedParameters& = parameters::default_values())
+{
+  // remove surfaces
+
+  // keep outer volumes
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template <typename PointRange, typename PolygonRange,
+          typename CT,
+          typename NamedParameters = parameters::Default_named_parameters>
+std::size_t construct_cdt3(PointRange& points,
+                           PolygonRange& polygons,
+                           CT& cdt,
+                           const NamedParameters& = parameters::default_values())
+{
+  using Point_3 = typename boost::range_value<PointRange>::type;
+
+  std::string output_filename = "cdt_dump.txt";
+
+  int exit_code = EXIT_SUCCESS;
+
+  auto finally = [&cdt,output_filename]() {
+    {
+      std::ofstream dump("dump.binary.cgal");
+      CGAL::IO::save_binary_file(dump, cdt);
+    }
+    {
+      std::ofstream dump(output_filename);
+      dump.precision(17);
+      cdt.write_facets(dump, cdt, std::views::filter(cdt.finite_facets(), [&](auto f) {
+          return cdt.is_constrained(f);
+      }));
+    }
+    {
+      std::ofstream missing_faces("dump_missing_faces.polylines.txt");
+      missing_faces.precision(17);
+      cdt.recheck_constrained_Delaunay();
+      if(cdt.write_missing_subfaces_file(missing_faces)) {
+        std::cerr << "ERROR: Missing subfaces!\n";
+      }
+    }
+    {
+      std::ofstream missing_edges("dump_missing_segments.polylines.txt");
+      missing_edges.precision(17);
+      if(cdt.write_missing_segments_file(missing_edges)) {
+        std::cerr << "ERROR: Missing segments!\n";
+      }
+    }
+  };
+
+  int poly_id = 0;
+  try
+  {
+    for(auto polygon : polygons)
+    {
+      std::vector<Point_3> point_polygon;
+      for(auto pi : polygon)
+        point_polygon.push_back(points[pi]);
+
+      std::cerr << "NEW POLYGON #" << poly_id << '\n';
+      const auto coplanar = point_polygon.size() < 3 ||
+          std::all_of(point_polygon.begin(), point_polygon.end(),
+                      [p1 = point_polygon[0], p2 = point_polygon[1], p3 = point_polygon[2]](auto p) {
+                        const auto coplanar =
+                            CGAL::orientation(p1, p2, p3, p) == CGAL::COPLANAR;
+                        if(!coplanar) {
+                          std::cerr << "Non coplanar points: " << p1 << ", " << p2
+                                    << ", " << p3 << ", " << p << '\n'
+                                    << "  volume: " << volume(p1, p2, p3, p) << '\n';
+
+                        }
+                        return coplanar;
+                      });
+      if(!coplanar)
+      {
+        std::ofstream out(std::string("dump_noncoplanar_polygon_") + std::to_string(poly_id) + ".off");
+        out.precision(17);
+        out << "OFF\n" << point_polygon.size() << " 1 0\n";
+        for(auto p : point_polygon)
+          out << p << '\n';
+
+        out << point_polygon.size() << ' ';
+        for(std::size_t i = 0u, end = point_polygon.size(); i < end; ++i)
+          out << ' ' << i;
+
+        out << '\n';
+        std::cerr << "Polygon is not coplanar\n";
+      }
+
+      try
+      {
+        auto id = cdt.insert_constrained_polygon(point_polygon);
+        assert(id == poly_id);
+        ++poly_id;
+      }
+      catch(int error)
+      {
+        exit_code = error;
+      }
+      // std::ofstream dump("dump.binary.cgal");
+      // CGAL::Mesh_3::save_binary_file(dump, cdt);
+    }
+
+    assert(cdt.is_conforming());
+
+    if(exit_code == EXIT_SUCCESS)
+    {
+      std::cout << "Restore constrained Delaunay" << std::endl;
+      try {
+        cdt.restore_constrained_Delaunay();
+      } catch(int error) {
+        exit_code = error;
+      }
+    }
+  }
+  catch(CGAL::Failure_exception&)
+  {
+    finally();
+    std::cout << "Failure in CDT3" << std::endl;
+    std::exit(1);
+  }
+
+  finally();
+  assert(cdt.is_conforming());
+
+  std::cout << "CDT: " << cdt.number_of_vertices() << " nv and " << cdt.number_of_cells() << " nc" << std::endl;
+
+  return exit_code;
+}
+
+template <typename CT, typename InDomainPmap>
+void mark_domain_in_triangulation(CT& ct,
+                                  Unique_hash_map<typename CT::Cell_handle, int>& nesting_level,
+                                  typename CT::Cell_handle start,
+                                  int index,
+                                  std::list<typename CT::Facet>& border,
+                                  InDomainPmap ipm)
+{
+  using Cell_handle = typename CT::Cell_handle;
+  using Facet = typename CT::Facet;
+
+  if(nesting_level[start] != -1)
+    return;
+
+  std::list<Cell_handle> queue;
+  queue.push_back(start);
+
+  while(!queue.empty())
+  {
+    Cell_handle ch = queue.front();
+    queue.pop_front();
+
+    if(nesting_level[ch] == -1)
+    {
+      nesting_level[ch] = index;
+
+      // for T2, it is index % 2 == 1, but here we want only the outside
+      // (@todo we could actually just break as soon as we have walked the outer layer)
+      if(index == 0)
+        put(ipm, ch, false);
+
+      for(int i=0; i<4; i++)
+      {
+        Facet f(ch,i);
+        Cell_handle cn = ch->neighbor(i);
+        if(nesting_level[cn] == -1)
+        {
+          if(ct.is_constrained(f))
+            border.push_back(f);
+          else
+            queue.push_back(cn);
+        }
+      }
+    }
+  }
+}
+
+template <typename CDT, typename NestingLevel>
+void dump_triangulation_faces(const std::string filename,
+                              const CDT& cdt,
+                              const NestingLevel& nesting_level,
+                              bool only_boundary_faces = false)
+{
+  using Vertex_handle = typename CDT::Vertex_handle;
+  using Cell_handle = typename CDT::Cell_handle;
+
+  std::stringstream vertices_ss;
+  vertices_ss.precision(17);
+
+  std::stringstream facets_ss;
+  facets_ss.precision(17);
+
+  std::unordered_map<Vertex_handle, std::size_t> vertex_to_id;
+  std::size_t nv = 0;
+  std::size_t nf = 0;
+
+  for(auto fit=cdt.finite_facets_begin(), fend=cdt.finite_facets_end(); fit!=fend; ++fit)
+  {
+    Cell_handle c = fit->first;
+    int s = fit->second;
+
+    Cell_handle nc = c->neighbor(s);
+    if(only_boundary_faces && (nesting_level[c] == nesting_level[nc]))
+      continue;
+
+    std::array<std::size_t, 3> ids;
+    for(std::size_t pos=0; pos<3; ++pos)
+    {
+      Vertex_handle v = c->vertex((s+pos+1)&3);
+      auto insertion_res = vertex_to_id.emplace(v, nv);
+      if(insertion_res.second)
+      {
+        vertices_ss << cdt.point(v) << "\n";
+        ++nv;
+      }
+
+      ids[pos] = insertion_res.first->second;
+    }
+
+    facets_ss << "3 " << ids[0] << " " << ids[1] << " " << ids[2] << "\n";
+    ++nf;
+  }
+
+  std::ofstream out(filename.c_str());
+  out << "OFF\n" << nv << " " << nf << " 0\n";
+  out << vertices_ss.str() << "\n" << facets_ss.str() << std::endl;
+}
+
+template <typename CT, typename InDomainPmap>
+void mark_domain_in_triangulation(CT& cdt,
+                                  InDomainPmap ipm)
+{
+  using Cell_handle = typename CT::Cell_handle;
+  using Facet = typename CT::Facet;
+
+  Unique_hash_map<Cell_handle, int> nesting_level(-1, cdt.number_of_cells());
+
+  for(Cell_handle c : cdt.all_cell_handles())
+    put(ipm, c, true);
+
+  std::list<Facet> border;
+  internal::mark_domain_in_triangulation(cdt, nesting_level, cdt.infinite_cell(), 0, border, ipm);
+  while(!border.empty())
+  {
+    Facet f = border.front();
+    border.pop_front();
+
+    Cell_handle cn = f.first->neighbor(f.second);
+    if(nesting_level[cn] == -1)
+      internal::mark_domain_in_triangulation(cdt, nesting_level, cn, nesting_level[f.first]+1, border, ipm);
+  }
+
+  dump_triangulation_faces("cdt_boundary.off", cdt, nesting_level, true /*only boundary*/);
+}
+
+// same as Alpha Wrap's
+template <typename CT, typename InDomainPmap>
+bool is_non_manifold(typename CT::Vertex_handle v,
+                     const CT& ct,
+                     InDomainPmap ipm)
+{
+  using Cell_handle = typename CT::Cell_handle;
+
+  CGAL_precondition(!ct.is_infinite(v));
+
+  bool is_non_manifold = false;
+
+  std::vector<Cell_handle> inc_cells;
+  inc_cells.reserve(64);
+  ct.incident_cells(v, std::back_inserter(inc_cells));
+
+  // Flood one inside and outside CC.
+  // Process both an inside and an outside CC to also detect edge pinching.
+  // If there are still unprocessed afterwards, there is a non-manifoldness issue.
+  //
+  // Squat the conflict cell data to mark visits
+  Cell_handle inside_start = Cell_handle();
+  Cell_handle outside_start = Cell_handle();
+
+  for(Cell_handle ic : inc_cells)
+  {
+    ic->tds_data().clear();
+    if(!get(ipm, ic))
+      outside_start = ic;
+    else if(inside_start == Cell_handle())
+      inside_start = ic;
+  }
+
+  // fully inside / outside
+  if(inside_start == Cell_handle() || outside_start == Cell_handle())
+    return false;
+
+  std::stack<Cell_handle> cells_to_visit;
+  cells_to_visit.push(inside_start);
+  cells_to_visit.push(outside_start);
+  while(!cells_to_visit.empty())
+  {
+    Cell_handle curr_c = cells_to_visit.top();
+    cells_to_visit.pop();
+
+    if(curr_c->tds_data().processed())
+      continue;
+    curr_c->tds_data().mark_processed();
+
+    int v_pos = -1;
+    CGAL_assertion_code(bool res = ) curr_c->has_vertex(v, v_pos);
+    CGAL_assertion(res);
+
+    for(int j=0; j<4; ++j)
+    {
+      if(j == v_pos)
+        continue;
+
+      Cell_handle neigh_c = curr_c->neighbor(j);
+      CGAL_assertion(neigh_c->has_vertex(v));
+
+      if(neigh_c->tds_data().processed() ||
+         get(ipm, neigh_c) != get(ipm, curr_c)) // do not cross the boundary
+        continue;
+
+      cells_to_visit.push(neigh_c);
+    }
+  }
+
+  for(Cell_handle ic : inc_cells)
+  {
+    if(ic->tds_data().is_clear()) // <=> unvisited cell
+    {
+      is_non_manifold = true;
+      break;
+    }
+  }
+
+  // reset the conflict flags
+  for(Cell_handle ic : inc_cells)
+    ic->tds_data().clear();
+
+  return is_non_manifold;
+}
+
+template <typename K, typename CT, typename InDomainPmap>
+void make_manifold_outer_surface(CT& ct,
+                                 InDomainPmap ipm)
+{
+  using FT = typename K::FT;
+  using Vertex_handle = typename CT::Vertex_handle;
+  using Cell_handle = typename CT::Cell_handle;
+
+  std::stack<Vertex_handle> non_manifold_vertices; // @todo sort somehow?
+  for(Vertex_handle v : ct.finite_vertex_handles())
+  {
+    if(is_non_manifold(v, ct, ipm))
+      non_manifold_vertices.push(v);
+  }
+
+  auto sq_longest_edge = [&](Cell_handle c) -> FT
+  {
+    return (std::max)({ squared_distance(ct.point(c, 0), ct.point(c, 1)),
+                        squared_distance(ct.point(c, 0), ct.point(c, 2)),
+                        squared_distance(ct.point(c, 0), ct.point(c, 3)),
+                        squared_distance(ct.point(c, 1), ct.point(c, 2)),
+                        squared_distance(ct.point(c, 1), ct.point(c, 3)),
+                        squared_distance(ct.point(c, 2), ct.point(c, 3)) });
+  };
+
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
+  std::cout << non_manifold_vertices.size() << " initial NMV" << std::endl;
+#endif
+
+  while(!non_manifold_vertices.empty())
+  {
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
+    std::cout << non_manifold_vertices.size() << " NMV in queue" << std::endl;
+#endif
+
+    Vertex_handle v = non_manifold_vertices.top();
+    non_manifold_vertices.pop();
+
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
+    std::cout << "·";
+#endif
+
+    if(!is_non_manifold(v, ct, ipm))
+      continue;
+
+    // Prioritize:
+    // - cells without bbox vertices
+    // - cells that already have a large number of boundary facets
+    // - small cells when equal number of boundary facets
+    // @todo give topmost priority to cells with > 1 non-manifold vertex?
+    auto comparer = [&](Cell_handle l, Cell_handle r) -> bool
+    {
+      return sq_longest_edge(l) < sq_longest_edge(r);
+    };
+
+    std::vector<Cell_handle> inc_cells;
+    inc_cells.reserve(64);
+    ct.finite_incident_cells(v, std::back_inserter(inc_cells));
+
+#define CGAL_PMP_REPAIR_MANIFOLD_VOLUME_USE_BRUTE_FORCE_MUTABLE_PRIORITY_QUEUE
+#ifndef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_USE_BRUTE_FORCE_MUTABLE_PRIORITY_QUEUE
+    std::sort(inc_cells.begin(), inc_cells.end(), comparer); // sort once
+#endif
+
+    for(auto cit=inc_cells.begin(), cend=inc_cells.end(); cit!=cend; ++cit)
+    {
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_USE_BRUTE_FORCE_MUTABLE_PRIORITY_QUEUE
+      // sort at every iteration since the number of boundary facets evolves
+      std::sort(cit, cend, comparer);
+#endif
+      Cell_handle ic = *cit;
+      CGAL_assertion(!ct.is_infinite(ic));
+
+      // This is where new material is added
+      put(ipm, ic, true);
+
+#ifdef CGAL_AW3_DEBUG_DUMP_EVERY_STEP
+      static int i = 0;
+      std::string step_name = "results/steps_manifold/step" + std::to_string(static_cast<int>(i++)) + ".off";
+      dump_triangulation_faces(step_name, true /*only_boundary_faces*/);
+#endif
+
+      // @speed could update the manifold status while tagging
+      if(!is_non_manifold(v, ct, ipm))
+        break;
+    }
+
+    CGAL_assertion(!is_non_manifold(v, ct, ipm));
+
+    std::vector<Vertex_handle> adj_vertices;
+    adj_vertices.reserve(64);
+    ct.finite_adjacent_vertices(v, std::back_inserter(adj_vertices));
+
+    for(Vertex_handle nv : adj_vertices)
+      if(is_non_manifold(nv, ct, ipm))
+        non_manifold_vertices.push(nv);
+  }
+
+  CGAL_assertion_code(for(Vertex_handle v : ct.finite_vertex_handles()))
+  CGAL_assertion(!is_non_manifold(v, ct, ipm));
+}
+
+template <typename CT, typename InDomainPmap,
+          typename PointRange, typename PolygonRange>
+void extract_surface(const CT& ct,
+                     InDomainPmap ipm,
+                     PointRange& points,
+                     PolygonRange& polygons)
+{
+  namespace PMP = Polygon_mesh_processing;
+
+  using Vertex_handle = typename CT::Vertex_handle;
+  using Facet = typename CT::Facet;
+  using Cell_handle = typename CT::Cell_handle;
+
+#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
+  std::cout << "> Extract CT's outer surface()" << std::endl;
+#endif
+
+  // CT's boundary faces to polygon soup
+  std::unordered_map<Vertex_handle, std::size_t> vertex_to_id;
+  std::size_t nv = 0;
+
+  for(auto fit=ct.finite_facets_begin(), fend=ct.finite_facets_end(); fit!=fend; ++fit)
+  {
+    Facet f = *fit;
+    if(get(ipm, f.first))
+      f = ct.mirror_facet(f);
+
+    const Cell_handle c = f.first;
+    const int s = f.second;
+    const Cell_handle nh = c->neighbor(s);
+    if(get(ipm, c) == get(ipm, nh))
+      continue;
+
+    std::array<std::size_t, 3> ids;
+    for(int pos=0; pos<3; ++pos)
+    {
+      Vertex_handle vh = c->vertex(CT::vertex_triple_index(s, pos));
+      auto insertion_res = vertex_to_id.emplace(vh, nv);
+      if(insertion_res.second) // successful insertion, never-seen-before vertex
+      {
+        points.push_back(ct.point(vh));
+        ++nv;
+      }
+
+      ids[pos] = insertion_res.first->second;
+    }
+
+    polygons.emplace_back(std::array<std::size_t, 3>{ids[0], ids[1], ids[2]});
+  }
+}
+
+template <typename PointRange, typename PolygonRange,
+          typename NamedParameters = parameters::Default_named_parameters>
+void make_mesh_manifold(PointRange& points,
+                        PolygonRange& polygons,
+                        const NamedParameters& np = parameters::default_values())
+{
+  using Point_3 = typename boost::range_value<PointRange>::type; // @todo np
+  using K = typename CGAL::Kernel_traits<Point_3>::type;
+  using Vb = CGAL::Base_with_time_stamp<CGAL::Constrained_Delaunay_triangulation_vertex_base_3<K>>;
+  using Cb = CGAL::Constrained_Delaunay_triangulation_cell_base_3<K>;
+  using Tds = CGAL::Triangulation_data_structure_3<Vb, Cb>;
+  using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds>;
+  using CDT = CGAL::Constrained_Delaunay_triangulation_3<Delaunay>;
+  using Cell_handle = typename CDT::Cell_handle;
+
+  CDT cdt;
+
+  std::size_t exit_code = internal::construct_cdt3(points, polygons, cdt, np);
+  std::cout << "CDT3 construction exit code: " << exit_code << std::endl;
+
+  std::unordered_map<Cell_handle, bool> is_in_domain;
+  auto ipm = boost::make_assoc_property_map(is_in_domain);
+  mark_domain_in_triangulation(cdt, ipm);
+
+  make_manifold_outer_surface<K>(cdt, ipm);
+
+  points.clear();
+  polygons.clear();
+  extract_surface(cdt, ipm, points, polygons);
+}
 
 } // namespace internal
 
 namespace experimental {
-
-// Note: pipelines already exist for: ESRI, nframes, Addup, ...
 
 // This function is a pipeline of PMP repair functions
 //
@@ -705,6 +1338,8 @@ namespace experimental {
 //
 // The output mesh is a *valid* polygon mesh in the sense that
 // it is a watertight manifold surface with no self-intersections
+
+// raw-est pipeline: fill, autoref, cdt3 outside, aw3 manifold
 template <typename PointRange, typename PolygonRange,
           typename PolygonMesh,
           typename NamedParametersIn = parameters::Default_named_parameters,
@@ -713,7 +1348,7 @@ bool repair_manifold_volume(PointRange& points,
                             PolygonRange& polygons,
                             PolygonMesh& pmesh,
                             const NamedParametersIn& np_in = parameters::default_values() ,
-                            const NamedParametersOut& np_out = parameters::default_values() )
+                            const NamedParametersOut& np_out = parameters::default_values())
 {
   namespace PMP = ::CGAL::Polygon_mesh_processing;
 
@@ -761,20 +1396,17 @@ bool repair_manifold_volume(PointRange& points,
   // Small edge threshold
   const FT small_edge_threshold = epsilon;
 
-  // Large CCs thresholds
-  const FT threshold_value = epsilon;
-
   // ###################################################################
   // ### Purge useless stuff
   // ###################################################################
 
-  internal::merge_close_points(points, polygons, close_point_merging_threshold, np_in);
+  /// @todo initial polygon soup culling, somehow?
 
-  /// @todo Purge useless (unreachable from infinity) faces
+  internal::merge_close_points(points, polygons, close_point_merging_threshold, np_in);
 
   PMP::repair_polygon_soup(points, polygons, np_in);
 
-  /// @todo Remove almost-coplanar sheets
+  PMP::triangulate_polygons(points, polygons, np_in);
 
   // ###################################################################
   // ### Start with local stuff | @todo loop until a certain criterion?
@@ -783,9 +1415,10 @@ bool repair_manifold_volume(PointRange& points,
   // Orient (this duplicates non-manifoldness occurrences)
   PMP::orient_polygon_soup(points, polygons, np_in);
 
-  PMP::polygon_soup_to_polygon_mesh(points, polygons, pmesh, np_in, np_out);
+  internal::cull_interior_polygons(points, polygons, np_in);
 
-  PMP::triangulate_faces(pmesh, np_out);
+  CGAL_assertion(PMP::is_polygon_soup_a_polygon_mesh(polygons));
+  PMP::polygon_soup_to_polygon_mesh(points, polygons, pmesh, np_in, np_out);
 
   PMP::remove_degenerate_faces(pmesh, np_out);
 
@@ -793,78 +1426,127 @@ bool repair_manifold_volume(PointRange& points,
   PMP::stitch_borders(pmesh, np_out);
   PMP::merge_reversible_connected_components(pmesh, np_out);
 
-  auto snapping_subpipeline = [&](const bool preprocess)
-  {
-    bool something_happened = false;
-    do
-    {
-      if(preprocess)
-      {
-        // Fill trivial holes
-        internal::fill_trivial_holes(pmesh, trivial_hole_halfedge_count_threshold,
-                                     trivial_hole_border_length_threshold, np_out);
+  /// @todo Remove almost-coplanar sheets
 
-        // Remove small CCs (that did not attach to something bigger during snap+stitch w/o preprocessing)
-        PMP::remove_connected_components_of_negligible_size(pmesh, np_out.area_threshold(negligible_cc_area_threshold)
-                                                                         .volume_threshold(negligible_cc_volume_threshold));
-        PMP::keep_large_connected_components(pmesh, negligible_cc_face_count_threshold); // at least X faces in a CC
+  internal::snap(pmesh,
+                 min_snapping_threshold, max_snapping_threshold,
+                 negligible_cc_area_threshold, negligible_cc_volume_threshold,
+                 trivial_hole_halfedge_count_threshold, trivial_hole_border_length_threshold,
+                 small_edge_threshold,
+                 negligible_cc_face_count_threshold,
+                 np_out);
 
-        // Remove almost degenerate elements (there should not be any real degenerate elements at this point)
-        internal::collapse_small_edges(pmesh, small_edge_threshold, np_out);
-        PMP::remove_almost_degenerate_faces(pmesh, np_out);
-
-        // Stitching might have refused to act because of non-manifoldness between CCs
-        PMP::stitch_borders(pmesh, np_out);
-        PMP::merge_reversible_connected_components(pmesh, np_out);
-      }
-
-      // Snap matched border subsets, with increasing tolerance (zipping) within the min/max distances
-      std::size_t snapped_n = internal::iterative_snap(pmesh, min_snapping_threshold,
-                                                       max_snapping_threshold, np_out);
-
-      something_happened = (snapped_n > 0);
-
-#ifdef CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
-      std::cout << "snapping pipeline (" << preprocess << "), snapped: " << snapped_n << std::endl;
-#endif
-    }
-    while(something_happened);
-  };
-
-  // once without too many harsh preprocessing (cleaning) steps, once with
-  snapping_subpipeline(false);
-  snapping_subpipeline(true);
-
-  // Self-intersections (local, i.e. within CC) | not sure about this being here
+  // Self-intersections (local, i.e. within CC)
+  // @fixme not sure about this being here
   PMP::experimental::remove_self_intersections(pmesh, np_out.apply_per_connected_component(true)
-                                                            .preserve_genus(true));
+                                                            .preserve_genus(true)
+                                                            .number_of_iterations(1));
 
   // ###################################################################
-  // ### Attempt global stuff | @todo loop until valid?
+  // ### Attempt global stuff
   // ###################################################################
 
-  /// @todo Untangle surfaces [how to detect / fix it? + this conflicts with coplanar patch removal]
+  // Loop because hole filling / non-manifold repair might create new self-intersections
+  while(!is_closed(pmesh) || PMP::does_self_intersect(pmesh, np_out))
+  {
+    /// @todo Untangle surfaces [how to detect / fix it? This also conflicts with coplanar patch removal]
 
-  // Back to polygon soup for autoref
-  // PMP::polygon_mesh_to_polygon_soup(pmesh, points, polygons, np_out); // @fixme this should be using in_np
+    // back to a polygon soup for autorefine and non-manifoldness treatment
+    points.clear();
+    polygons.clear();
+    PMP::polygon_mesh_to_polygon_soup(pmesh, points, polygons, np_out); // @fixme this function should use np_in
 
-  // PMP::autorefine(points, polygons, np_in);
+    PMP::autorefine_triangle_soup(points, polygons, np_in);
 
-  /// @todo Purge useless (unreachable from infinity) faces
+    internal::cull_interior_polygons(points, polygons, np_in);
 
-  /// @todo Purge surface CCs incident to non-manifold edges if there is a volume
-  /// @todo Purge smaller volumes incident non-manifold edges (winding number?)
-  // internal::make_manifold_soup();
+    PMP::orient_polygon_soup(points, polygons, np_in); // @fixme is this needed?
 
-  // Back to a polygon mesh
-  // PMP::polygon_soup_to_polygon_mesh(points, polygons, pmesh, np_in, np_out);
+    internal::clean_non_manifold_incidences(points, polygons, np_in);
 
-  internal::fill_all_holes(pmesh, np_out);
+    // back to a polygon mesh
+    clear(pmesh);
+    CGAL_assertion(PMP::is_polygon_soup_a_polygon_mesh(polygons));
+    PMP::polygon_soup_to_polygon_mesh(points, polygons, pmesh, np_in); // @fixme this function needs output named parameters
 
-  /// @todo non-manifoldness
-  // PMP::remove_geometric_non_manifold_vertices();
+    internal::fill_all_holes(pmesh, np_out);
+
+    /// Unpinch volumes
+    internal::make_mesh_manifold(pmesh, np_out);
+  }
 
   PMP::orient_to_bound_a_volume(pmesh, np_out);
+
+  return is_closed(pmesh) && !PMP::does_self_intersect(pmesh);
+}
+
+template <typename PointRange, typename PolygonRange,
+          typename PolygonMesh,
+          typename NamedParametersIn = parameters::Default_named_parameters,
+          typename NamedParametersOut = parameters::Default_named_parameters>
+bool repair_manifold_volume_mini(PointRange& points,
+                                 PolygonRange& polygons,
+                                 PolygonMesh& pmesh,
+                                 const NamedParametersIn& np_in = parameters::default_values() ,
+                                 const NamedParametersOut& np_out = parameters::default_values())
+{
+  namespace PMP = ::CGAL::Polygon_mesh_processing;
+
+  // ###################################################################
+  // ### Purge useless stuff
+  // ###################################################################
+
+  // @tmp
+  // PMP::repair_polygon_soup(points, polygons, np_in);
+
+  PMP::triangulate_polygons(points, polygons, np_in);
+
+  // ###################################################################
+  // ### Start with local stuff | @todo loop until a certain criterion?
+  // ###################################################################
+
+  // Orient (this duplicates non-manifoldness occurrences)
+  PMP::orient_polygon_soup(points, polygons, np_in);
+
+  CGAL_assertion(PMP::is_polygon_soup_a_polygon_mesh(polygons));
+  PMP::polygon_soup_to_polygon_mesh(points, polygons, pmesh, np_in, np_out);
+  CGAL_assertion(is_closed(pmesh));
+
+  PMP::remove_degenerate_faces(pmesh, np_out);
+  CGAL_assertion(is_closed(pmesh));
+
+  // ###################################################################
+  // ### Global stuff
+  // ###################################################################
+
+  internal::fill_all_holes(pmesh, np_out);
+  CGAL_assertion(is_closed(pmesh));
+
+  // back to a polygon soup for autorefine and non-manifoldness treatment
+  points.clear();
+  polygons.clear();
+  PMP::polygon_mesh_to_polygon_soup(pmesh, points, polygons, np_out); // @fixme this function should use np_in
+
+  CGAL::IO::write_OFF("before_autorefine.off", points, polygons, np_in.stream_precision(17));
+
+  PMP::autorefine_triangle_soup(points, polygons, np_in);
+
+  std::cout << "Soup post autoref: " << points.size() << " points and " << polygons.size() << " polygons" << std::endl;
+  std::cout << "Self-intersects post autoref: " << PMP::does_triangle_soup_self_intersect(points, polygons, np_in) << std::endl;
+
+  CGAL::IO::write_OFF("after_autorefine.off", points, polygons, np_in.stream_precision(17));
+
+  /// Unpinch volumes
+  internal::make_mesh_manifold(points, polygons, np_in);
+
+  // back to a polygon mesh
+  clear(pmesh);
+  CGAL_assertion(PMP::is_polygon_soup_a_polygon_mesh(polygons));
+  PMP::polygon_soup_to_polygon_mesh(points, polygons, pmesh, np_in); // @fixme this function needs output named parameters
+
+  PMP::orient_to_bound_a_volume(pmesh, np_out);
+
+  return is_closed(pmesh) && !PMP::does_self_intersect(pmesh);
 }
 
 } // namespace experimental
