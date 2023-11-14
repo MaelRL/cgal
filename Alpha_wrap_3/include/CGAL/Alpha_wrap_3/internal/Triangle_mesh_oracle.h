@@ -117,6 +117,10 @@ public:
  { }
 
 public:
+    auto get_m_dpm() {
+      return Splitter_base::get_m_dpm();
+  }
+
   template <typename TriangleMesh,
             typename CGAL_NP_TEMPLATE_PARAMETERS>
   void add_triangle_mesh(const TriangleMesh& tmesh,

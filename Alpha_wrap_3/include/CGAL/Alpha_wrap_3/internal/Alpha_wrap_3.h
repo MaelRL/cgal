@@ -60,6 +60,8 @@
 #include <CGAL/property_map.h>
 #include <CGAL/Real_timer.h>
 
+#include <Eigen/Dense>
+
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -87,25 +89,28 @@ struct Wrapping_default_visitor
   Wrapping_default_visitor() { }
 
   template <typename AlphaWrapper>
-  void on_alpha_wrapping_begin(const AlphaWrapper&) { }
+  void on_alpha_wrapping_begin(const AlphaWrapper&) const { }
 
   template <typename AlphaWrapper>
-  void on_flood_fill_begin(const AlphaWrapper&) { }
+  void on_flood_fill_begin(const AlphaWrapper&) const { }
+
+  template <typename AlphaWrapper, typename Facet>
+  bool consider_facet(const AlphaWrapper&, const Facet&) const { return true; }
 
   template <typename AlphaWrapper, typename Gate>
-  void before_facet_treatment(const AlphaWrapper&, const Gate&) { }
+  void before_facet_treatment(const AlphaWrapper&, const Gate&) const { }
 
-  template <typename Wrapper, typename Point>
-  void before_Steiner_point_insertion(const Wrapper&, const Point&) { }
+  template <typename AlphaWrapper, typename Point>
+  void before_Steiner_point_insertion(const AlphaWrapper&, const Point&) const { }
 
-  template <typename Wrapper, typename VertexHandle>
-  void after_Steiner_point_insertion(const Wrapper&, VertexHandle) { }
-
-  template <typename AlphaWrapper>
-  void on_flood_fill_end(const AlphaWrapper&) { }
+  template <typename AlphaWrapper, typename VertexHandle>
+  void after_Steiner_point_insertion(const AlphaWrapper&, VertexHandle) const { }
 
   template <typename AlphaWrapper>
-  void on_alpha_wrapping_end(const AlphaWrapper&) { };
+  void on_flood_fill_end(const AlphaWrapper&) const { }
+
+  template <typename AlphaWrapper>
+  void on_alpha_wrapping_end(const AlphaWrapper&) const { };
 };
 
 template <typename Oracle_,
@@ -138,10 +143,15 @@ class Alpha_wrap_3
   using Geom_traits = typename Triangulation::Geom_traits;
 
   using FT = typename Geom_traits::FT;
+  using RT = typename Geom_traits::RT;
   using Point_3 = typename Geom_traits::Point_3;
   using Vector_3 = typename Geom_traits::Vector_3;
+  using Plane_3 = typename Geom_traits::Plane_3;
   using Ball_3 = typename Geom_traits::Ball_3;
+  using Triangle_3 = typename Geom_traits::Triangle_3;
   using Iso_cuboid_3 = typename Geom_traits::Iso_cuboid_3;
+  using Segment_3 = typename Geom_traits::Segment_3;
+  using Sphere_3 = typename Geom_traits::Sphere_3;
 
   using SC = Simple_cartesian<double>;
   using SC_Point_3 = SC::Point_3;
@@ -149,13 +159,15 @@ class Alpha_wrap_3
   using SC_Iso_cuboid_3 = SC::Iso_cuboid_3;
   using SC2GT = Cartesian_converter<SC, Geom_traits>;
 
-
 protected:
-  const Oracle m_oracle;
+  mutable Oracle m_oracle;
   SC_Iso_cuboid_3 m_bbox;
 
   FT m_alpha, m_sq_alpha;
   FT m_offset, m_sq_offset;
+
+  bool m_parsimonious, m_dump;
+  FT m_parsimony_tolerance;
 
   Triangulation m_tr;
   Alpha_PQ m_queue;
@@ -178,6 +190,8 @@ public:
   const Geom_traits& geom_traits() const { return m_tr.geom_traits(); }
   Triangulation& triangulation() { return m_tr; }
   const Triangulation& triangulation() const { return m_tr; }
+  const Oracle& oracle() const { return m_oracle; }
+  FT offset() const { return m_offset; }
   const Alpha_PQ& queue() const { return m_queue; }
 
   double default_alpha() const
@@ -212,6 +226,9 @@ public:
             typename OutputNamedParameters = parameters::Default_named_parameters>
   void operator()(const double alpha, // = default_alpha()
                   const double offset, // = alpha / 30.
+                  const double tolerance, // = alpha/ 1000.
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& output_mesh,
                   const InputNamedParameters& in_np = parameters::default_values(),
                   const OutputNamedParameters& out_np = parameters::default_values())
@@ -232,6 +249,8 @@ public:
       Wrapping_default_visitor // default
     >::reference                                                                 Visitor;
 
+    static_assert(!(std::is_same<Visitor, Wrapping_default_visitor>::value));
+
     Wrapping_default_visitor default_visitor;
     Visitor visitor = choose_parameter(get_parameter_reference(in_np, internal_np::visitor), default_visitor);
 
@@ -249,7 +268,7 @@ public:
 
     visitor.on_alpha_wrapping_begin(*this);
 
-    if(!initialize(alpha, offset, seeds))
+    if(!initialize(alpha, offset, tolerance, parsimonious, dump, seeds))
       return;
 
 #ifdef CGAL_AW3_DEBUG_DUMP_EVERY_STEP
@@ -343,15 +362,32 @@ public:
   // Convenience overloads
   template <typename OutputMesh>
   void operator()(const double alpha,
+                  const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& output_mesh)
   {
-    return operator()(alpha, alpha / 30. /*offset*/, output_mesh);
+    return operator()(alpha, offset, tolerance, parsimonious, dump, output_mesh, parameters::default_values());
   }
 
   template <typename OutputMesh>
-  void operator()(OutputMesh& output_mesh)
+  void operator()(const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
+                  OutputMesh& output_mesh)
   {
-    return operator()(default_alpha(), output_mesh);
+    return operator()(alpha, alpha / 30. /*offset*/, tolerance, parsimonious, dump, output_mesh);
+  }
+
+  template <typename OutputMesh>
+  void operator()(const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
+                  OutputMesh& output_mesh)
+  {
+    return operator()(default_alpha(), tolerance, parsimonious, dump, output_mesh);
   }
 
   // This function is public only because it is used in the tests
@@ -798,7 +834,14 @@ private:
     return less_squared_radius_of_min_empty_sphere(m_sq_alpha, f, m_tr);
   }
 
-  bool compute_steiner_point(const Cell_handle ch,
+  enum Steiner_construction
+  {
+    NONE = 0,
+    R1,
+    R2
+  };
+
+  Steiner_construction compute_steiner_point(const Cell_handle ch,
                              const Cell_handle neighbor,
                              Point_3& steiner_point) const
   {
@@ -852,7 +895,7 @@ private:
 #ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
         std::cout << "Steiner found through first_intersection(): " << steiner_point << std::endl;
 #endif
-        return true;
+        return R1;
       }
     }
 
@@ -874,15 +917,875 @@ private:
       std::cout << "Closest point: " << closest_pt << std::endl;
       std::cout << "Direction: " << vector(closest_pt, neighbor_cc) << std::endl;
 #endif
-
-      return true;
+      return R2;
     }
 
 #ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
     std::cout << "No Steiner point" << std::endl;
 #endif
+    return NONE;
+  }
+
+  std::pair<bool, int> qem_compute_steiner_point(const Facet f,
+                                 Point_3& final_steiner_point,
+                                 const bool write_point) const
+  {
+    std::ofstream qemFile;
+    qemFile.open("add_points.txt", std::ios_base::app); // so it appends if already exists
+
+    if(write_point)
+    {
+      qemFile << "computing a new point \n";
+    }
+
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Cell_handle neighbor = ch->neighbor(id);
+
+    // get steiner point first
+    Point_3 steiner_point;
+    const Steiner_construction steiner_type = compute_steiner_point(ch, neighbor, steiner_point);
+    if(steiner_type == NONE)
+    {
+      if(write_point)
+        qemFile << "no steiner point found \n";
+      qemFile.close();
+      return std::make_pair(false, 2);
+    }
+
+    if(write_point)
+    {
+      qemFile << "\t original steiner point is: " << steiner_point << "\n";
+      qemFile << "\t\t found by: " << steiner_type << "\n";
+    }
+
+#ifdef CGAL_AW3_ORIGINAL_STEINER_CONSTRUCTION
+    return std::make_pair(true, 0);
+#endif
+
+    Point_3 ball_point = steiner_point;
+
+    const std::pair<bool, int> snapped =
+#if 0
+      dynamic_snap_point_by_ball(steiner_point,
+                                 ball_point,
+                                 f,
+                                 steiner_type,
+                                 write_point,
+                                 qemFile);
+#else
+      iterative_ball_method(steiner_point,
+                            ball_point,
+                            2,
+                            m_offset + 1.5 * m_alpha,
+                            f,
+                            steiner_type,
+                            write_point,
+                            qemFile);
+#endif
+
+    if(write_point) qemFile << "snapped.first is: " << snapped.first << std::endl;
+    if(snapped.first) final_steiner_point = ball_point;
+    else final_steiner_point = steiner_point;
+    if(write_point) qemFile << "DONE we used point: " << final_steiner_point << "\n\tvs original steiner: " << steiner_point << std::endl;
+    return std::make_pair(true, snapped.second);
+  }
+
+  std::pair<bool, int> iterative_ball_method(Point_3 og_point,
+                             Point_3& ball_point,
+                             const int num_iter,
+                             const FT radius,
+                             const Facet& f,
+                             const Steiner_construction steiner_type,
+                             const bool write_point,
+                             std::ofstream& qemFile) const
+  {
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Cell_handle neighbor = ch->neighbor(id);
+
+    Point_3 intermed_point = og_point;
+    for(int i=0; i<num_iter; ++i)
+    {
+      if(snap_point_by_ball(intermed_point, ball_point, write_point, qemFile, radius))
+      {
+        if(write_point)
+          qemFile <<"\tsnap ball point applied " << i+1 << " times gives new point: " << ball_point << std::endl;
+        // check if breaks the gate, depending on how the steiner point was constructed
+        if(check_did_break_gate(ball_point, og_point, f, steiner_type, write_point, qemFile))
+        {
+          intermed_point = ball_point;
+          if(write_point) qemFile << ball_point << " broke gate, updated to be new intermed steiner point\n";
+          if(write_point) qemFile << "intermed is: " << intermed_point << " while og is: " << og_point << std::endl;
+        }
+        else if(write_point)
+        {
+          qemFile << "point did not break gate\n";
+        }
+      }
+      else
+      {
+        if(write_point)
+          qemFile << "snap ball point applied " << i+1 << " times did not give new point" << std::endl;
+      }
+    }
+    ball_point = intermed_point;
+    return std::make_pair(ball_point != og_point, 2);
+  }
+
+  bool check_did_break_gate(const Point_3& query_point,
+                            const Point_3& center,
+                            const Facet& f,
+                            const Steiner_construction steiner_type,
+                            const bool write_point,
+                                  std::ofstream& qemFile) const
+  {
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Cell_handle neighbor = ch->neighbor(id);
+
+    typename Geom_traits::Construct_sphere_3 sphere = geom_traits().construct_sphere_3_object();
+    bool breaks_gate = false;
+
+#if 1
+    if((!m_tr.is_infinite(ch) &&
+          m_tr.side_of_sphere(ch, query_point, false /*perturb*/) == ON_BOUNDED_SIDE) ||
+        (!m_tr.is_infinite(neighbor) &&
+          m_tr.side_of_sphere(neighbor, query_point, false /*perturb*/) == ON_BOUNDED_SIDE))
+    {
+      breaks_gate = true;
+    }
+#else
+    if(steiner_type == R1)
+      {
+        // see if point is in the ball centered on steiner_point with gate vertices on the sphere
+        const Point_3& gate_a = ch->vertex((id + 1) % 4)->point();
+        const FT sq_r = Segment_3(center, gate_a).squared_length();
+        const Sphere_3 sphere_1 = sphere(center, sq_r);
+        if(write_point)
+        {
+          qemFile << "\tsphere by rule 1 has center: " << center << " and sq radius: " << sq_r << std::endl;
+          qemFile << "\tball snap to center sq distance is: " << Segment_3(center, query_point).squared_length() << std::endl;
+        }
+        if(sphere_1.has_on_bounded_side(query_point))
+          breaks_gate = true;
+      }
+    else
+      {
+        const Point_3& neighbor_a = neighbor->vertex(0)->point();
+        const Point_3& neighbor_b = neighbor->vertex(1)->point();
+        const Point_3& neighbor_c = neighbor->vertex(2)->point();
+        const Point_3& neighbor_d = neighbor->vertex(3)->point();
+
+        const Sphere_3 sphere_2 = Sphere_3(neighbor_a, neighbor_b, neighbor_c, neighbor_d);
+        if(write_point)
+        {
+          qemFile << "\tsphere by rule 2 has center: " << sphere_2.center() << " and sq radius: " << sphere_2.squared_radius() << std::endl;
+          qemFile << "\tqem snap to center sq distance is: " << Segment_3(sphere_2.center(), query_point).squared_length() << std::endl;
+        }
+        // rule 2: intersects with cell, take projection. use neighbor ball, so no infinite cell cases
+        const auto orientation = CGAL::side_of_oriented_sphere(neighbor_a, neighbor_b, neighbor_c, neighbor_d, query_point);
+        if(orientation == ON_POSITIVE_SIDE)
+          breaks_gate = true;
+      }
+#endif
+
+    // logging result
+    if(write_point)
+    {
+      if(breaks_gate)
+        qemFile << "\tin check did break gate, query point did break gate \n";
+      else
+        qemFile << "\tin check did break gate, query point did NOT break gate \n";
+    }
+
+    return breaks_gate;
+  }
+
+  std::vector<Point_3> get_neighbor_samples(const Point_3& og_point) const
+  {
+    // find the closest primitive of the og point
+    const auto closest_pair = m_oracle.tree().closest_point_and_primitive(og_point);
+    auto dpm = m_oracle.get_m_dpm();
+    const Triangle_3 p_tri = get(dpm, closest_pair.second);
+    Vector_3 axis = p_tri.supporting_plane().orthogonal_vector();
+
+    // find four vectors orthogonal to the normal, 90 degrees apart from each other
+    const FT mag = axis.squared_length();
+    if(mag != 0.0)
+      axis /= CGAL::sqrt(CGAL::to_double(mag));
+
+    const FT u_x = axis.x();
+    const FT u_y = axis.y();
+    const FT u_z = axis.z();
+    // vs SC = simple_Cartesion<double>? RT vs FT for args? will have type errors
+    CGAL::Aff_transformation_3<Geom_traits> rotate(
+      u_x*u_x      , u_x*u_y - u_z, u_x*u_z + u_y,
+      u_y*u_x + u_z, u_y*u_y      , u_y*u_z - u_x,
+      u_z*u_x - u_y, u_z*u_y + u_x, u_z*u_z
+    );
+
+    std::vector<Vector_3> samples;
+    Vector_3 sample = Vector_3(0, 1, 0);
+    if(u_y != 0.0)
+      sample = Vector_3(1, CGAL::to_double(u_x)/CGAL::to_double(u_y), 0); // perpendicular to axis
+
+    samples.push_back(sample);
+    std::cout << sample << std::endl;
+    for(int i=0; i<3; ++i)
+    {
+      sample = rotate.transform(sample);
+      samples.push_back(sample);
+      std::cout << sample << std::endl;
+    }
+
+    // resize vector magnitudes to be m_alpha
+    const double circumradius = CGAL::sqrt(geom_traits().compute_squared_radius_3_object()(p_tri.vertex(0), p_tri.vertex(1), p_tri.vertex(2)));
+    for(auto& sample : samples)
+    {
+      const FT sample_mag = sample.squared_length();
+      if(sample_mag != 0.0)
+      {
+        sample /= CGAL::sqrt(CGAL::to_double(sample_mag));
+        sample *= m_alpha;
+        // sample *= circumradius/5;
+      }
+    }
+
+    // add these vectors to original point to get new sample points
+    std::vector<Point_3> points;
+    for(auto& sample : samples)
+    {
+      const Point_3 new_point = og_point + sample;
+      points.push_back(new_point);
+      std::cout << new_point << std::endl;
+    }
+
+    return points;
+  }
+
+  // given a point on offset surface, probe its neighbors and refind another qem point
+  // returns true if a new point was found, false otherwise
+  // intended for use by project_vertex_back_by_sampling's qem point and the og steiner point
+  // very similar to ^; refactor at some point to be cleaner
+  bool snap_point_by_neighbors(const Point_3 og_point,
+                                     Point_3& snap_point,
+                               const bool write_point,
+                                     std::ofstream& qemFile) const
+  {
+    // find the samples
+    const std::vector<Point_3> samples = get_neighbor_samples(og_point);
+
+    std::vector<Point_3> p_proj;
+    std::vector<Vector_3> n_proj;
+    std::vector<FT> w;
+    std::vector<std::pair<int, int> > primitives;
+
+    // for each sample, find their closest primitive
+    for(int i=0; i<samples.size(); ++i)
+    {
+      const Point_3 sample = samples[i];
+      const auto closest_pair = m_oracle.tree().closest_point_and_primitive(sample);
+      const Point_3 closest_pt = closest_pair.first;
+      auto dpm = m_oracle.get_m_dpm();
+      Triangle_3 p_tri = get(dpm, closest_pair.second);
+      if(write_point)
+      {
+        qemFile << "\t\tnew snap primitive id: " << closest_pair.second.first << ", " << closest_pair.second.second << std::endl;
+      }
+
+      Vector_3 normal = p_tri.supporting_plane().orthogonal_vector(); // should always point outward?
+      const FT area = CGAL::sqrt(p_tri.squared_area());
+      FT mag_norm = normal.squared_length();
+      if(mag_norm != 0.0)
+        normal = normal/CGAL::sqrt(CGAL::to_double(mag_norm));
+
+      p_proj.push_back(closest_pt + normal*m_offset);
+      n_proj.push_back(normal);
+      w.push_back(area);
+      primitives.push_back(closest_pair.second);
+    }
+
+    // make sure there's more than one plane
+    bool is_same_sample = true;
+    for(int i=0; i<samples.size()-1; ++i)
+    {
+      is_same_sample &= (primitives[i] == primitives[i+1]);
+    }
+
+    if(is_same_sample)
+      return false;
+
+    if(!p_proj.empty())
+    {
+      const auto snap_point_pair = qem_weighted(og_point, p_proj, n_proj, w, write_point, qemFile);
+      snap_point = project_to_offset(snap_point_pair.first, 0, write_point);
+      return og_point != snap_point;
+    }
 
     return false;
+  }
+
+  // very similar to snap_point_by_neighbors, but acquiring the nearby primitives in a different way
+  // for now, assumes ball will intersect input when center is on offset (by choice of radius)
+  // og_point could be the original steiner point, or the snapped steiner, or the qem
+  bool snap_point_by_ball(const Point_3& og_point,
+                                Point_3& snap_point,
+                          const bool write_point,
+                                std::ofstream& qemFile,
+                          const FT radius) const
+  {
+    // construct the ball
+    typename Geom_traits::Construct_ball_3 ball = geom_traits().construct_ball_3_object();
+    const Ball_3 neighborhood_ball = ball(og_point, radius*radius);
+
+    // see where the ball intersects the input
+    std::list<std::pair<int, int> > primitives;
+    m_oracle.tree().all_intersected_primitives(neighborhood_ball, std::back_inserter(primitives));
+
+    // given those primitives, compute some qem points (for now, using all of them)
+    // determine which qem point to return, if any
+    std::vector<Point_3> p_proj;
+    std::vector<Vector_3> n_proj;
+    std::vector<FT> w;
+    std::vector<Plane_3> planes; // make sure it isn't just one plane.. (didn't check connectivity)
+
+    const auto dpm = m_oracle.get_m_dpm();
+    for(auto primitive : primitives)
+    {
+      if(write_point)
+        qemFile << "\t\tthe ball intersected primitives are: " << primitive.first << ", " << primitive.second << std::endl;
+      const Triangle_3 p_tri = get(dpm, primitive);
+      const Plane_3 plane = p_tri.supporting_plane();
+      Vector_3 normal = plane.orthogonal_vector();
+      const FT area = CGAL::sqrt(p_tri.squared_area());
+      FT mag_norm = normal.squared_length();
+      if(mag_norm != 0.0)
+      {
+        normal /= CGAL::sqrt(CGAL::to_double(mag_norm));
+      }
+      p_proj.push_back(p_tri.vertex(0) + normal*m_offset);
+      n_proj.push_back(normal);
+      w.push_back(area);
+      planes.push_back(plane);
+    }
+
+    if(!p_proj.empty())
+    {
+      const auto snap_point_pair = qem_weighted(og_point, p_proj, n_proj, w, write_point, qemFile);
+      snap_point = project_to_offset(snap_point_pair.first, 0, write_point);
+      return og_point != snap_point;
+    }
+    snap_point = og_point;
+    return false;
+  }
+
+  std::pair<bool, int> dynamic_snap_point_by_ball(const Point_3 og_point,
+                                                        Point_3& snap_point,
+                                                  const Facet f,
+                                                  const Steiner_construction steiner_type,
+                                                  const bool write_point,
+                                                        std::ofstream& qemFile) const
+  {
+    if(write_point) qemFile << "in dynamic, og opoint is: " << og_point << std::endl;
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Cell_handle neighbor = ch->neighbor(id);
+
+    const Point_3& neighbor_a = neighbor->vertex(0)->point();
+    const Point_3& neighbor_b = neighbor->vertex(1)->point();
+    const Point_3& neighbor_c = neighbor->vertex(2)->point();
+    const Point_3& neighbor_d = neighbor->vertex(3)->point();
+
+    const Sphere_3 delaunay_ball = Sphere_3(neighbor_a, neighbor_b, neighbor_c, neighbor_d);
+    const double max_radius = CGAL::approximate_sqrt(CGAL::to_double(delaunay_ball.squared_radius()));
+
+    FT radius = 0.25*m_alpha;
+    int degen = 3;
+    const auto dpm = m_oracle.get_m_dpm();
+    Point_3 intermed_point;
+    std::set<int> probed_primitives;
+    std::set<std::pair<int, int> > new_primitives;
+    std::set<std::pair<int, int> > old_primitives;
+    while (degen != 0 && radius < max_radius)
+    {
+      // same as snap_point_by_ball, but use the degen value returned from qem_weighted
+      // construct the ball -- center point is projection of og_point onto the input surface
+      typename Geom_traits::Construct_ball_3 ball = geom_traits().construct_ball_3_object();
+      const Ball_3 neighborhood_ball = ball(m_oracle.closest_point(og_point), radius*radius);
+
+      // see where the ball intersects the input
+      std::list<std::pair<int, int> > primitives;
+      m_oracle.tree().all_intersected_primitives(neighborhood_ball, std::back_inserter(primitives));
+
+      // given those primitives, compute some qem points
+      // determine which qem point to return, if any
+      std::vector<Point_3> p_proj;
+      std::vector<Vector_3> n_proj;
+      std::vector<FT> w;
+
+      bool found_new_primitives = false;
+      for(auto primitive : primitives)
+      {
+        if(probed_primitives.find(primitive.second) == probed_primitives.end())
+        {
+          found_new_primitives = true;
+          probed_primitives.emplace(primitive.second);
+          new_primitives.emplace(primitive);
+          if(write_point)
+            qemFile << "\t\tthe new ball intersected primitives are: " << primitive.second << std::endl;
+        }
+
+        const Triangle_3 p_tri = get(dpm, primitive);
+        Vector_3 normal = p_tri.supporting_plane().orthogonal_vector();
+        const FT area = CGAL::sqrt(p_tri.squared_area());
+        FT mag_norm = normal.squared_length();
+        if(mag_norm != 0.0)
+        {
+          normal /= CGAL::sqrt(CGAL::to_double(mag_norm));
+        }
+        p_proj.push_back(p_tri.vertex(0) + normal*m_offset);
+        n_proj.push_back(normal);
+        w.push_back(1); // used to be area
+      }
+
+      if(!p_proj.empty() && found_new_primitives)
+      {
+        const auto intermed_point_pair = qem_weighted(og_point, p_proj, n_proj, w, write_point, qemFile);
+        if(write_point) qemFile << "in loop of dynamic, after qem weighted, og point is: " << og_point << std::endl;
+        intermed_point = project_to_offset(intermed_point_pair.first, 0, write_point);
+        if(write_point)
+        {
+          qemFile << "\tnewly projected point is: " << intermed_point << std::endl;
+          qemFile << "\tsq distance from new point to input is: " << CGAL::approximate_sqrt(m_oracle.squared_distance(intermed_point)) << std::endl;
+          qemFile << "\thas degen: " << intermed_point_pair.second << std::endl;
+          qemFile << "\twith radius: " << radius << " vs radius: " << max_radius << std::endl;
+        }
+
+        if(intermed_point_pair.second == 0)
+        {
+          const bool found_true_corner = find_best_intermed_corner_point(old_primitives, new_primitives, intermed_point, snap_point, og_point, f, steiner_type, write_point, qemFile);
+          if(found_true_corner) degen = 0;
+          if(write_point) qemFile << "the final point used is: " << snap_point << " while the og point is: " << og_point << " and are they equal? " << (snap_point == og_point) << std::endl;
+          return std::make_pair(snap_point != og_point, degen);
+        }
+        else if(intermed_point_pair.second < degen && check_did_break_gate(intermed_point, og_point, f, steiner_type, write_point, qemFile))
+        {
+          if(write_point) qemFile << "decreased degen to: " << intermed_point_pair.second << " and updated point (which breaks gate) to: " << intermed_point << std::endl;
+          if(write_point) qemFile << "meanwhile og point is: " << og_point << std::endl;
+          degen = intermed_point_pair.second;
+          snap_point = intermed_point;
+        }
+        // else if((intermed_point_pair.second == degen) && (snap_point != intermed_point))
+        // {
+        //   if(write_point)
+        //     qemFile << "changed point but did not decrease rank -- changed to bad point, end. snap point: " << snap_point << " vs new intermed point: " << intermed_point << std::endl;
+        //   return std::make_pair(snap_point != og_point, degen);
+        // }
+      }
+      // updates for next while loop
+      old_primitives.insert(new_primitives.begin(), new_primitives.end());
+      new_primitives.clear();
+      radius += 0.25*m_alpha;
+    }
+
+    if(degen == 3)
+    {
+      if(write_point)
+        qemFile << "no radius was successful rip, don't expect this. degen must be < 3" << std::endl;
+        return std::make_pair(false, 3);
+    }
+    if(write_point)
+      qemFile << "did not reach corner but made improvement (interior or edge, expect this), with degen: " << std::endl;
+    return std::make_pair(snap_point != og_point, degen);
+  }
+
+  bool find_best_intermed_corner_point(const std::set<std::pair<int, int> > old_primitives,
+                                       const std::set<std::pair<int, int> > new_primitives,
+                                       const Point_3& all_point,
+                                             Point_3& snap_point,
+                                       const Point_3 og_point,
+                                       const Facet f,
+                                       const Steiner_construction steiner_type,
+                                       const bool write_point,
+                                             std::ofstream& qemFile) const
+  {
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Cell_handle neighbor = ch->neighbor(id);
+
+    std::cout << "in find best intermed corner point, new_primitives has size: " << new_primitives.size() << std::endl;
+    std::cout << "old primitives has size: " << old_primitives.size() << std::endl;
+    const auto dpm = m_oracle.get_m_dpm();
+    std::set<Point_3> corner_points;
+
+    const std::vector<std::pair<int, int> > new_prims_vector(new_primitives.begin(), new_primitives.end());
+    const auto all_new_subsets = get_all_subsets(new_prims_vector);
+    for(auto new_prim_subset : all_new_subsets)
+    {
+      std::vector<Point_3> p_proj;
+      std::vector<Vector_3> n_proj;
+      std::vector<FT> w;
+
+      std::set<std::pair<int, int> > primitives = old_primitives;
+      std::copy(new_prim_subset.begin(), new_prim_subset.end(), std::inserter(primitives, primitives.end()));
+
+      for(auto prim : primitives)
+      {
+        const Triangle_3 p_tri = get(dpm, prim);
+        Vector_3 normal = p_tri.supporting_plane().orthogonal_vector();
+        const FT area = CGAL::sqrt(p_tri.squared_area());
+        FT mag_norm = normal.squared_length();
+        if(mag_norm != 0.0)
+        {
+          normal /= CGAL::sqrt(CGAL::to_double(mag_norm));
+        }
+        p_proj.push_back(p_tri.vertex(0) + normal*m_offset);
+        n_proj.push_back(normal);
+        w.push_back(1);
+      }
+
+      if(!p_proj.empty())
+      {
+        const auto point_pair = qem_weighted(all_point, p_proj, n_proj, w, write_point, qemFile);
+        const Point_3& corner_candidate = project_to_offset(point_pair.first, 0, write_point);
+        if(point_pair.second == 0 && is_close_enough(point_pair.first) && check_did_break_gate(corner_candidate, og_point, f, steiner_type, write_point, qemFile))
+        {
+          if(write_point) qemFile << corner_candidate << " broke the gate related to og steiner point: " << og_point << std::endl;
+          corner_points.emplace(corner_candidate);
+        }
+      }
+    }
+    std::cout << "\tfound all the candidates, corner points has size: " << corner_points.size() << std::endl;
+    if(corner_points.size() == 0)
+    {
+      if(write_point) qemFile << "\tin find corner point, no intermed (including all_point)\n";
+      return false;
+    }
+
+    if(write_point) qemFile << "\tin find corner point, there are: " << corner_points.size() << " potential corners\n";
+    // given all potential points, return the "best" according to faithfulness
+    std::map<double, Point_3> evaluate_map; // could have same double values though
+    for(auto point : corner_points)
+    {
+      // from gate priority code
+      int li, lj = 0;
+      Locate_type lt;
+      const Cell_handle conflict_cell = m_tr.locate(point, lt, li, lj, neighbor);
+      // CGAL_assertion(lt != Triangulation::VERTEX);
+      if(lt == Triangulation::VERTEX)
+      {
+        continue;
+      }
+
+      std::vector<Facet> boundary_facets;
+      std::vector<Cell_handle> conflict_zone;
+      boundary_facets.reserve(32);
+      conflict_zone.reserve(32);
+      m_tr.find_conflicts(point, conflict_cell,
+                          std::back_inserter(boundary_facets),
+                          std::back_inserter(conflict_zone));
+
+      double max_faithful_facet = 0.;
+      for(const Facet& facet : boundary_facets)
+      {
+        const Cell_handle ch_facet = facet.first;
+        const int id_facet = facet.second;
+        for(int i=0; i<3; ++i)
+        {
+          const Point_3& first = m_tr.point(ch_facet, (id_facet + 1 + i)&3);
+          const Point_3& second = m_tr.point(ch_facet, (id_facet + 1 + (i+1)%3)&3);
+          CGAL_assertion(first != m_tr.point(ch_facet, id_facet));
+          CGAL_assertion(second != m_tr.point(ch_facet, id_facet));
+
+          const Triangle_3 triangle_facet(point, first , second);
+          std::queue<Triangle_3> triangles_queue;
+          triangles_queue.push(triangle_facet);
+          // cout_triangle(triangle_facet);
+          // std::cout << "about to start faithful queue\n";
+          if(is_faithful_triangles_queue(triangles_queue, m_parsimony_tolerance))
+          {
+            const double potential_gate_area = triangle_facet.squared_area();
+            max_faithful_facet += potential_gate_area;
+          }
+        }
+      }
+
+      if(write_point) qemFile << "\t\tpoint: " << point << " gives faithfulness: " << max_faithful_facet << std::endl;
+      evaluate_map.insert({max_faithful_facet, point});
+    }
+
+    if(evaluate_map.size() == 0)
+    {
+      if(is_close_enough(all_point))
+      {
+        snap_point = all_point;
+        if(write_point) qemFile << "\tin find corner point, no new intermed corners but og is close enough\n";
+        return true;
+      }
+      if(write_point) qemFile << "\tin find corner point, no new intermed and og not close enough\n";
+      return false;
+    }
+
+    const double max_value = evaluate_map.rbegin()->first;
+    snap_point = evaluate_map.find(max_value)->second;
+    if(write_point) qemFile << "\tfinal 'true' corner point is: " << snap_point << " with faithful value: " << max_value << std::endl;
+    return true;
+  }
+
+  std::vector<std::vector<std::pair<int, int> > > get_all_subsets(const std::vector<std::pair<int, int> > elements) const
+  {
+    std::vector<std::vector<std::pair<int, int> > > all_subsets;
+    std::vector<std::pair<int, int> > current_subset;
+    recurse_all_subsets(elements, current_subset, 0, all_subsets);
+    return all_subsets;
+  }
+
+  void recurse_all_subsets(const std::vector<std::pair<int, int> >& elements,
+                           std::vector<std::pair<int, int> >& current_subset,
+                           const int index,
+                           std::vector<std::vector<std::pair<int, int> > >& all_subsets) const
+  {
+    all_subsets.push_back(current_subset);
+
+    for(int i=index; i<elements.size(); ++i)
+    {
+      current_subset.push_back(elements[i]);
+      recurse_all_subsets(elements, current_subset, i+1, all_subsets);
+      current_subset.pop_back();
+    }
+  }
+
+  bool is_close_enough(const Point_3& q_point) const
+  {
+    const FT sq_dist = m_oracle.squared_distance(q_point);
+    return (sq_dist < 3 * m_sq_offset);
+  }
+
+  bool project_vertex_back_by_sampling(const Cell_handle& ch,
+                                       int id,
+                                       Point_3& qem_point,
+                                       const Point_3& sample_point,
+                                       const bool write_point,
+                                       std::ofstream& qemFile) const
+  {
+    namespace PMP = Polygon_mesh_processing;
+
+    if(write_point)
+      qemFile << "\t in project vertex back by sampling, sampled primitives are: \n";
+
+    // get the samples via barycentric points
+    const int NUM_SAMPLES = 4;
+    std::array<Point_3, NUM_SAMPLES> barycentric_coords = {Point_3(1/3.0, 1/3.0, 1/3.0), Point_3(4/5.0, 1/10.0, 1/10.0), Point_3(1/10.0, 4/5.0, 1/10.0), Point_3(1/10.0, 1/10.0, 4/5.0)};
+    const Point_3 a = ch->vertex((id + 1) % 4)->point();
+    const Point_3 b = ch->vertex((id + 2) % 4)->point();
+    const Point_3& c = ch->vertex((id + 3) % 4)->point();
+    const Vector_3 edge_1 = Vector_3(a, b);
+    const Vector_3 edge_2 = Vector_3(a, c);
+    const FT length_1 = CGAL::sqrt(CGAL::to_double(edge_1.squared_length()));
+    const FT length_2 = CGAL::sqrt(CGAL::to_double(edge_2.squared_length()));
+    std::array<Point_3, NUM_SAMPLES> samples;
+    for(int i=0; i<NUM_SAMPLES; ++i)
+    {
+      const Point_3 b_coords = barycentric_coords[i];
+      const FT mag_1 = length_1 * b_coords.x();
+      const FT mag_2 = length_2 * b_coords.y();
+      const Vector_3 vec_1 = mag_1 * edge_1/length_1;
+      const Vector_3 vec_2 = mag_2 * edge_2/length_2;
+      Point_3 sample = a;
+      sample += vec_1;
+      sample += vec_2;
+      samples[i] = sample;
+    }
+
+    std::vector<Point_3> p_proj;
+    std::vector<Vector_3> n_proj;
+    std::vector<FT> w;
+    std::vector<std::pair<int, int> > primitives;
+
+    // for each sample, find closest point on input and its normal, then lift to offset surface
+    for(int i=0; i<NUM_SAMPLES; ++i)
+    {
+      const Point_3 sample = samples[i];
+      const auto closest_pair = m_oracle.tree().closest_point_and_primitive(sample);
+      const Point_3 closest_pt = closest_pair.first;
+      // given primitive id, get the primitive so you can get the datum
+      if(write_point)
+      {
+        qemFile << "\t\t sample " << i << " has primitive id: " << closest_pair.second.first << ", " << closest_pair.second.second << "\n";
+      }
+
+      auto dpm = m_oracle.get_m_dpm();
+      Triangle_3 p_tri = get(dpm, closest_pair.second);
+      // if(write_point)
+      // {
+      //   qemFile << "\t\t primitive triangle is: " << p_tri.vertex(0) << " then " << p_tri.vertex(1) << " then " << p_tri.vertex(2) << std::endl;
+      // }
+      Vector_3 normal = p_tri.supporting_plane().orthogonal_vector();
+      const FT area = CGAL::sqrt(p_tri.squared_area());
+      // do not use samples that are oriented completely different than this face (from old code)
+//      if(CGAL::scalar_product(face_normal, fs.normals[i]) <= 0)
+//        continue;
+      FT mag_norm = normal.squared_length();
+      if(mag_norm != 0.0)
+      {
+        normal = normal/CGAL::sqrt(CGAL::to_double(mag_norm));
+      }
+      p_proj.push_back(closest_pt + normal*m_offset);
+      n_proj.push_back(normal);
+      w.push_back(area);
+      primitives.push_back(closest_pair.second);
+    }
+
+    // make sure there's more than one plane
+    bool is_same_sample = true;
+    for(int i=0; i<NUM_SAMPLES-1; ++i)
+    {
+      is_same_sample &= (primitives[i] == primitives[i+1]);
+    }
+
+    if(is_same_sample)
+    {
+      if(write_point)
+        qemFile << "all from same sample: " << primitives[0].first << ", " << primitives[0].second << "\n";
+      return false;
+    }
+
+    if(!p_proj.empty())
+    {
+      // // make sure this combo of primitives hasn't been used before when inserting
+      // std::multiset<std::pair<int, int> > current_combo(primitives.begin(), primitives.end());
+
+      // auto print_combo = [&](std::multiset<std::pair<int, int> > combo)
+      // {
+      //   for(auto itr : combo)
+      //   {
+      //     qemFile << "(" << itr.first << ", " << itr.second << "), ";
+      //   }
+      //   qemFile << "\n\t\t";
+      // };
+
+      // auto pos = primitive_combos.find(current_combo);
+      // if(pos != primitive_combos.end() && primitive_combos.size() != 0)
+      // {
+      //   if(write_point)
+      //   {
+      //     qemFile << "\tthis combo was used already: " << std::endl;
+      //     for_each(primitive_combos.begin(), primitive_combos.end(), print_combo);
+      //   }
+      //   return false;
+      // }
+      // if(write_point)
+      // {
+      //   qemFile << "about to insert: ";
+      //   print_combo(current_combo);
+      //   primitive_combos.insert(current_combo);
+      // }
+
+      const auto og_qem_pair = qem_weighted(sample_point, p_proj, n_proj, w, write_point, qemFile);
+      qem_point = project_to_offset(og_qem_pair.first, 0, write_point);
+      if(write_point)
+      {
+        qemFile << "\t original qem_point: " << og_qem_pair.first << "\n";
+        qemFile << "\t offset qem point: " << qem_point << "\n";
+        qemFile << "\t are they equal? " << (og_qem_pair.first == qem_point) << "\n";
+        qemFile << "\t is final equal to og steiner? " << (qem_point == sample_point) << "\n";
+      }
+      return qem_point != sample_point;
+    }
+
+    if(write_point)
+      qemFile << "\t no qem point found\n";
+
+    return false;
+  }
+
+  // given qem, move it so that it's offset away from closest input point
+  Point_3 project_to_offset(const Point_3& p,
+                            int i,
+                            const bool write_point) const
+  {
+    if(i > 10) // arbitrary stopping point, successful for noisy staircase input
+    {
+      std::ofstream offsetFile;
+      offsetFile.open("count_recursion.txt", std::ios_base::app);
+      offsetFile << "unable to find a good offset point in 10 iterations. last point ended on: " << p << std::endl;
+      offsetFile << "\t meanwhile closest point is: " << m_oracle.closest_point(p) << std::endl;
+      offsetFile.close();
+      return p;
+    }
+
+    const Point_3 closest_pt = m_oracle.closest_point(p);
+    Vector_3 normal = p - closest_pt;
+    const FT sqnorm = normal.squared_length();
+    if(sqnorm != 0.0)
+      normal /= CGAL::sqrt(CGAL::to_double(sqnorm));
+
+    const Point_3 offset_pt = closest_pt + normal*m_offset;
+    const Point_3 new_close_pt = m_oracle.closest_point(offset_pt);
+
+    if(closest_pt == new_close_pt)
+    {
+      if(write_point)
+      {
+        std::ofstream offsetFile;
+        offsetFile.open("count_recursion.txt", std::ios_base::app);
+        offsetFile << "found a good offset point in: " << i << " iterations. final point is: " << offset_pt << std::endl;
+        offsetFile << "\twhere the closest point is: " << new_close_pt << std::endl;
+        offsetFile.close();
+      }
+      return offset_pt;
+    }
+
+    return project_to_offset(offset_pt, i+1, write_point);
+  }
+
+  std::pair<Point_3, int> qem_weighted(const Point_3 p,
+                                       const std::vector<Point_3>& p_proj,
+                                       const std::vector<Vector_3>& n_proj,
+                                       const std::vector<FT>& w,
+                                       const bool write_point,
+                                       std::ofstream& qemFile) const
+  {
+    Eigen::Matrix3d A;
+    A.setZero();
+    Eigen::Vector3d b;
+    b.setZero();
+
+    for(int i=0; i<p_proj.size(); ++i)
+    {
+      Eigen::Vector3d n_k { n_proj[i].x(), n_proj[i].y(), n_proj[i].z() };
+      Eigen::Vector3d p_k { p_proj[i].x(), p_proj[i].y(), p_proj[i].z() };
+      double d_k = n_k.transpose() * p_k;
+
+      Eigen::Matrix3d A_k = n_k * n_k.transpose();
+      Eigen::Vector3d b_k = d_k * n_k;
+      A += w[i] * A_k;
+      b += w[i] * b_k;
+    }
+
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    svd.setThreshold(1e-2);
+
+    // Init x hat
+    Eigen::Vector3d x_hat;
+    x_hat << p.x(), p.y(), p.z();
+
+    // Lindstrom formula for QEM new position for singular matrices
+    Eigen::Vector3d v_svd = x_hat + svd.solve(b - A * x_hat);
+
+    const Point_3& p_new = Point_3(v_svd[0], v_svd[1], v_svd[2]);
+
+    // analyze the eigenvalues of matrix A to tell us the nature of the qem point
+    const auto eigenvals = A.eigenvalues();
+    int degen = 0;
+    for(int i=0; i<3; ++i)
+    {
+      // if(eigenvals(i).real() == 0 && eigenvals(i).imag() == 0)
+      if(eigenvals(i) == 0.0)
+        ++degen;
+    }
+    return std::make_pair(p_new, degen);
   }
 
 private:
@@ -911,8 +1814,6 @@ private:
     const Cell_handle ch = f.first;
     const int id = f.second;
     const Cell_handle nh = ch->neighbor(id);
-    if(m_tr.is_infinite(nh))
-      return TRAVERSABLE;
 
     if(nh->is_outside())
     {
@@ -922,12 +1823,20 @@ private:
       return IRRELEVANT;
     }
 
+    if(m_tr.is_infinite(nh))
+    {
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+      std::cout << "Neighbor is infinite" << std::endl;
+#endif
+      return TRAVERSABLE;
+    }
+
     // push if facet is connected to artificial vertices
     for(int i=0; i<3; ++i)
     {
       const Vertex_handle vh = ch->vertex(Triangulation::vertex_triple_index(id, i));
-      if(vh->type() == AW3i::Vertex_type:: BBOX_VERTEX ||
-         vh->type() == AW3i::Vertex_type:: SEED_VERTEX)
+      if(vh->type() == AW3i::Vertex_type::BBOX_VERTEX ||
+         vh->type() == AW3i::Vertex_type::SEED_VERTEX)
       {
 #ifdef CGAL_AW3_DEBUG_FACET_STATUS
         std::cout << "artificial facet due to artificial vertex #" << i << std::endl;
@@ -936,19 +1845,437 @@ private:
       }
     }
 
+    if(m_parsimonious)
+    {
+      if(is_faithful(f, m_parsimony_tolerance))
+      {
+#ifdef CGAL_AW3_DEBUG_FACET_STATUS
+        std::cout << "faithful facet" << std::endl;
+#endif
+        return IRRELEVANT;
+      }
+    }
+
     // skip if f min empty sphere radius is smaller than alpha
     if(is_traversable(f))
     {
 #ifdef CGAL_AW3_DEBUG_FACET_STATUS
-      std::cout << "traversable" << std::endl;
+      std::cout << "traversable facet" << std::endl;
 #endif
       return TRAVERSABLE;
     }
 
 #ifdef CGAL_AW3_DEBUG_FACET_STATUS
-    std::cout << "not traversable" << std::endl;
+    std::cout << "not traversable facet" << std::endl;
 #endif
     return IRRELEVANT;
+  }
+
+  double projected_distance_from_point(const Point_3& sample_point) const
+  {
+    const Point_3 closest_pt = m_oracle.closest_point(sample_point);
+    Vector_3 vec = sample_point - closest_pt;
+
+    const FT sqnorm = vec.squared_length();
+    if(sqnorm != 0.0)
+      vec /= CGAL::sqrt(CGAL::to_double(sqnorm));
+
+    const Point_3 proj_point = closest_pt + vec * m_offset;
+    const Vector_3 diff = proj_point - sample_point;
+    return CGAL::sqrt(CGAL::to_double(diff.squared_length()));
+  }
+
+  bool valid_sample_point(Point_3& sample_point,
+                          const double tolerance) const
+  {
+    const double dist = projected_distance_from_point(sample_point);
+    return dist <= tolerance;
+  }
+
+  // Older version.
+  // bool is_faithful_triangles_queue(std::queue<Triangle_3>& triangles,
+  //                                  const double tolerance) const
+  // {
+  //   while(!triangles.empty())
+  //   {
+  //     Triangle_3 current = triangles.front();
+  //     triangles.pop();
+  //
+  //     // Find longest edge with indices
+  //     int ind = 0;
+  //     double longest = 0.0;
+  //     for(int i = 0; i < 3; ++i)
+  //     {
+  //       const Point_3& a = current.vertex(i);
+  //       const Point_3& b = current.vertex((i + 1) % 3);
+  //       const double length = CGAL::squared_distance(a, b);
+  //       if(length > longest)
+  //       {
+  //         ind = i;
+  //         longest = length;
+  //       }
+  //     }
+  //
+  //     // If longest edge is too long, cut and add 2 new triangles to the queue
+  //     if(longest > max_len) // max_len now deprecated
+  //     {
+  //       const Point_3& a = current.vertex(ind);
+  //       const Point_3& b = current.vertex((ind + 1) % 3);
+  //       const Point_3& c = current.vertex((ind + 2) % 3);
+  //       const Point_3 p = CGAL::midpoint(a, b); // sampled using midpoints of triangle
+  //       const Triangle_3 t1(p, c, a);
+  //       const Triangle_3 t2(p, c, b);
+  //       triangles.push(t1);
+  //       triangles.push(t2);
+  //
+  //       if(!valid_sample_point(p, tolerance))
+  //         return false;
+  //     }
+  //   }
+  //   return true;
+  // }
+
+  void cout_triangle(const Triangle_3 triangle) const
+  {
+    const Point_3& a = triangle.vertex(0);
+    const Point_3& b = triangle.vertex(1);
+    const Point_3& c = triangle.vertex(2);
+    const Segment_3& ab = Segment_3(a, b);
+    const Segment_3& bc = Segment_3(b, c);
+    const Segment_3& ac = Segment_3(a, c);
+    std::cout << "triangle " << triangle << std::endl;
+    std::cout << "lengths: " << CGAL::sqrt(CGAL::to_double(ab.squared_length())) << "\n\t" << CGAL::sqrt(CGAL::to_double(bc.squared_length())) << "\n\t" << CGAL::sqrt(CGAL::to_double(ac.squared_length())) << std::endl;
+    std::cout << "is it degenerate? " << triangle.is_degenerate() << std::endl;
+    std::cout << "sq area: " << triangle.squared_area() << std::endl;
+  }
+
+  // Newer version.
+  bool is_faithful_triangles_queue(std::queue<Triangle_3>& triangles,
+                                   const FT tolerance) const
+  {
+    std::map<Point_3, FT> hausdorff_map;
+    while(!triangles.empty())
+    {
+      Triangle_3 current = triangles.front();
+      triangles.pop();
+      int ind = 0;
+      double longest = 0.;
+      for(int i = 0; i < 3; ++i)
+      {
+        const Point_3& a = current.vertex(i);
+        const Point_3& b = current.vertex((i + 1) % 3);
+        double length = CGAL::squared_distance(a, b);
+        if(length > longest)
+        {
+          ind = i;
+          longest = length;
+        }
+      }
+
+      const Point_3& a = current.vertex(ind);
+      const Point_3& b = current.vertex((ind + 1) % 3);
+      const Point_3& c = current.vertex((ind + 2) % 3);
+      Point_3 p = CGAL::midpoint(a, b); // sampled using midpoints of triangle
+
+      // second term needed due to find_best_intermed_corner_points finding very close to existing vertices
+      if((current.is_degenerate()) || (CGAL::to_double(current.squared_area()) < std::min(m_alpha*m_alpha, m_alpha*m_alpha*m_alpha*m_alpha)/20.))
+      {
+        continue;
+      }
+      // cout_triangle(current);
+      // std::cout << "m alpha: " << m_alpha << std::endl;
+
+      const double circumradius = CGAL::sqrt(geom_traits().compute_squared_radius_3_object()(a,b,c));
+      // std::cout << "circumradius: " << circumradius << std::endl;
+      // std::cout << "\t and able to compute circumradius\n";
+      if((circumradius < m_alpha))
+        continue;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool>  res_p = hausdorff_map.emplace(p, 0);
+      if(res_p.second) // successful insertion, the point wasn't in the map
+        res_p.first->second = projected_distance_from_point(p);
+      const double dist_p = res_p.first->second;
+
+      if(dist_p > tolerance)
+        return false;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool> res_a = hausdorff_map.emplace(a, 0);
+      if(res_a.second) // successful insertion, the point wasn't in the map
+        res_a.first->second = projected_distance_from_point(a);
+      const double dist_a = res_a.first->second;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool>  res_b = hausdorff_map.emplace(b, 0);
+      if(res_b.second) // successful insertion, the point wasn't in the map
+        res_b.first->second = projected_distance_from_point(b);
+      const double dist_b = res_b.first->second;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, FT> >, bool>  res_c = hausdorff_map.emplace(c, 0);
+      if(res_c.second) // successful insertion, the point wasn't in the map
+        res_c.first->second = projected_distance_from_point(c);
+      const double dist_c = res_c.first->second;
+
+      // Find longest edge with indices
+      if((dist_a+circumradius <= tolerance) &&
+         (dist_b+circumradius <= tolerance) &&
+         (dist_c+circumradius <= tolerance))
+      {
+        continue;
+      }
+
+      const Triangle_3 t1(p, c, a);
+      const Triangle_3 t2(p, c, b);
+      triangles.push(t1);
+      triangles.push(t2);
+      // std::cout << "\t\tadded t1: " << t1 << std::endl;
+      // cout_triangle(t1);
+      // std::cout << "\t\tadded t2: " << t2 << std::endl;
+      // cout_triangle(t2);
+    }
+
+    return true;
+  }
+
+  // Same function as before, but it takes the stringstream 'sampled_points'
+  // and adds some colour based on the clamped hausdorff distance
+  bool is_faithful_triangles_queue_dump(std::queue<Triangle_3>& triangles,
+                                        const double tolerance,
+                                        std::stringstream &sampled_points,
+                                        int& nv) const
+  {
+    std::map<Point_3, double> hausdorff_map;
+    while(!triangles.empty())
+    {
+      Triangle_3 current = triangles.front();
+      triangles.pop();
+
+      int ind = 0;
+      double longest = 0.0;
+      for(int i = 0; i < 3; ++i)
+      {
+        const Point_3& a = current.vertex(i);
+        const Point_3& b = current.vertex((i + 1) % 3);
+        double length = CGAL::squared_distance(a, b);
+        if(length > longest)
+        {
+          ind = i;
+          longest = length;
+        }
+      }
+
+      const Point_3& a = current.vertex(ind);
+      const Point_3& b = current.vertex((ind + 1) % 3);
+      const Point_3& c = current.vertex((ind + 2) % 3);
+      const Point_3 p = CGAL::midpoint(a, b); // sampled using midpoints of triangle
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool>  res_p = hausdorff_map.emplace(p, 0);
+      if(res_p.second) // successful insertion, the point wasn't in the map
+        res_p.first->second = projected_distance_from_point(p);
+
+      double dist_p = res_p.first->second;
+      if(dist_p > tolerance)
+      {
+        sampled_points<< p.x() << " " << p.y() << " " << p.z() << " " << 255 <<" " << 0 <<" " << 0 << "\n";
+        ++nv;
+        return false;
+      }
+
+      int val = (int) 255* (dist_p/tolerance);
+      sampled_points << p.x() << " " << p.y() << " " << p.z() << " " << val << " "<< 0 << " " << 0 << "\n";
+      ++nv;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool>  res_a = hausdorff_map.emplace(a, 0);
+      if(res_a.second) // successful insertion, the point wasn't in the map
+        res_a.first->second = projected_distance_from_point(a);
+      const double dist_a = res_a.first->second;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool>  res_b = hausdorff_map.emplace(b, 0);
+      if(res_b.second) // successful insertion, the point wasn't in the map
+        res_b.first->second = projected_distance_from_point(b);
+      const double dist_b = res_b.first->second;
+
+      std::pair<std::_Rb_tree_iterator<std::pair<const CGAL::Point_3<CGAL::Epick>, double> >, bool>  res_c = hausdorff_map.emplace(c, 0);
+      if(res_c.second) // successful insertion, the point wasn't in the map
+        res_c.first->second = projected_distance_from_point(c);
+      const double dist_c = res_c.first->second;
+
+      const double circumradius = CGAL::sqrt(geom_traits().compute_squared_radius_3_object()(a,b,c));
+      // Find longest edge with indices
+      if((dist_a + circumradius <= tolerance) &&
+         (dist_b + circumradius <= tolerance) &&
+         (dist_c + circumradius <= tolerance))
+      {
+        continue;
+      }
+
+      const Triangle_3 t1(p, c, a);
+      const Triangle_3 t2(p, c, b);
+      triangles.push(t1);
+      triangles.push(t2);
+    }
+
+    return true;
+  }
+
+  // used for debugging only
+  double hausdorff_distance(const Triangle_3 & triangle_facet) const
+  {
+    // checking for flatness of the triangle or it being close to the input
+    std::queue<Triangle_3> triangles_queue;
+    triangles_queue.push(triangle_facet);
+
+    double max_distance = 0.0;
+    while(!triangles_queue.empty())
+    {
+      Triangle_3 current = triangles_queue.front();
+      triangles_queue.pop();
+
+      // Find longest edge with indices
+      int index_longest = 0;
+      double longest = 0.0;
+      for(int i = 0; i < 3; ++i)
+      {
+        const Point_3& a = current.vertex(i);
+        const Point_3& b = current.vertex((i + 1) % 3);
+        const double length = CGAL::squared_distance(a, b);
+        if(length > longest)
+        {
+          index_longest = i;
+          longest = length;
+        }
+      }
+
+      const Point_3 a = current.vertex(index_longest);
+      const Point_3 b = current.vertex((index_longest + 1) % 3);
+      const Point_3 c = current.vertex((index_longest + 2) % 3);
+      const Point_3 p = CGAL::midpoint(a, b); // sampled using midpoint of edge
+
+      const double circumradius = CGAL::sqrt(geom_traits().compute_squared_radius_3_object()(a,b,c));
+      if(circumradius < m_alpha) {
+        continue;
+      }
+
+      const Triangle_3 t1(p, c, a);
+      const Triangle_3 t2(p, c, b);
+      triangles_queue.push(t1);
+      triangles_queue.push(t2);
+
+      const double dist = projected_distance_from_point(p);
+      if(dist > max_distance)
+        max_distance = dist;
+      }
+    return max_distance;
+  }
+
+  bool is_faithful(const Facet& f,
+                   const double tolerance) const
+  {
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+    const Point_3& p0 = m_tr.point(ch, (id+1)&3);
+    const Point_3& p1 = m_tr.point(ch, (id+2)&3);
+    const Point_3& p2 = m_tr.point(ch, (id+3)&3);
+    Triangle_3 triangle_facet(p0, p1, p2);
+
+    // checking for flatness of the triangle or it being close to the input
+    std::queue<Triangle_3> triangles_queue;
+    triangles_queue.push(triangle_facet);
+
+    // std::cout << "in is_faithful, which is used in facet status" << std::endl;
+    // cout_triangle(triangle_facet);
+    return is_faithful_triangles_queue(triangles_queue, tolerance);
+  }
+
+   // This function checks for the gate priority, before adding them to queue based
+   // on the 4 classes we proposed.
+  double gate_priority(const Facet& f) // const
+  {
+    CGAL_precondition(!m_tr.is_infinite(f));
+
+    const Cell_handle ch = f.first;
+    const int id = f.second;
+
+    const Cell_handle neighbor = ch->neighbor(id);
+    if(m_tr.is_infinite(neighbor))
+      return DBL_MAX;
+
+    // @tmp give absolute priority to gates involving an artificial vertex,
+    for(int i=1; i<4; ++i)
+    {
+      if(ch->vertex((id+i)%4)->type() == AW3i::Vertex_type::BBOX_VERTEX ||
+         ch->vertex((id+i)%4)->type() == AW3i::Vertex_type::SEED_VERTEX)
+      {
+        return DBL_MAX;
+      }
+    }
+
+    Point_3 steiner_point;
+    // std::cout << "in gate priority with facet f id: " << f.second << std::endl;
+    const auto snapped = qem_compute_steiner_point(f, steiner_point, false);
+    if(!snapped.first)
+      return DBL_MAX;
+
+    if(m_parsimonious)
+    {
+      // prioritize steiner points that are vertices
+      const Bbox_3& bbox = m_oracle.bbox();
+      const double bbox_term = square(square(bbox.xmax() - bbox.xmin()) +
+                                      square(bbox.ymax() - bbox.ymin()) +
+                                      square(bbox.zmax() - bbox.zmin()));
+      double max_faithful_facet = bbox_term*(2 - snapped.second); // TODO: point_type is 2 if vertex, 1 if edge, 0 if plane
+
+      // std::cout << "in gate priority, the steiner point is: " << steiner_point << std::endl;
+      // Simulating insertion of our steiner point
+      int li, lj = 0;
+      Locate_type lt;
+      const Cell_handle conflict_cell = m_tr.locate(steiner_point, lt, li, lj, neighbor);
+      CGAL_assertion(lt != Triangulation::VERTEX);
+
+      std::vector<Facet> boundary_facets;
+      std::vector<Cell_handle> conflict_zone;
+      boundary_facets.reserve(32);
+      conflict_zone.reserve(32);
+      m_tr.find_conflicts(steiner_point, conflict_cell,
+                          std::back_inserter(boundary_facets),
+                          std::back_inserter(conflict_zone));
+      // double max_faithful_facet = 0.;
+      // dump_triangulation_faces("gate_priority_triangle_dump.off", false);
+      for(const Facet& facet : boundary_facets)
+      {
+        // std::cout << "boundary facet: " << facet.first << ", " << facet.second << std::endl;
+        const Cell_handle ch_facet = facet.first;
+        const int id_facet = facet.second;
+        for(int i=0; i<3; ++i)
+        {
+          const Point_3& first = m_tr.point(ch_facet, (id_facet + 1 + i)&3);
+          const Point_3& second = m_tr.point(ch_facet, (id_facet + 1 + (i+1)%3)&3);
+          CGAL_assertion(first != m_tr.point(ch_facet, id_facet));
+          CGAL_assertion(second != m_tr.point(ch_facet, id_facet));
+
+          const Triangle_3 triangle_facet(steiner_point, first , second);
+          std::queue<Triangle_3> triangles_queue;
+          triangles_queue.push(triangle_facet);
+          // std::cout << "triangles queue in gate priority with facet" << std::endl;
+          // cout_triangle(triangle_facet);
+          if(is_faithful_triangles_queue(triangles_queue, m_parsimony_tolerance))
+          {
+            const double potential_gate_area = triangle_facet.squared_area();
+            max_faithful_facet += potential_gate_area;
+          }
+        }
+      }
+
+      if(max_faithful_facet != 0.)
+      {
+        return max_faithful_facet + bbox_term;
+      }
+    }
+
+    const Point_3& p0 = m_tr.point(ch, (id+1)&3);
+    const Point_3& p1 = m_tr.point(ch, (id+2)&3);
+    const Point_3& p2 = m_tr.point(ch, (id+3)&3);
+    if(Triangle_3(p0, p1, p2).is_degenerate() == 0)
+      return 0;
+    return geom_traits().compute_squared_radius_3_object()(p0, p1, p2);
   }
 
   bool push_facet(const Facet& f)
@@ -962,24 +2289,29 @@ private:
     const Facet_queue_status s = facet_status(f);
     if(s == IRRELEVANT)
       return false;
-
-    const Cell_handle ch = f.first;
-    const int id = f.second;
-    const Point_3& p0 = m_tr.point(ch, (id+1)&3);
-    const Point_3& p1 = m_tr.point(ch, (id+2)&3);
-    const Point_3& p2 = m_tr.point(ch, (id+3)&3);
-
     // @todo should prob be the real value we compare to alpha instead of squared_radius
-    const FT sqr = geom_traits().compute_squared_radius_3_object()(p0, p1, p2);
-    m_queue.resize_and_push(Gate(f, sqr, (s == ARTIFICIAL_FACET)));
-
+    const FT priority = gate_priority(f);
+    m_queue.resize_and_push(Gate(f, priority, (s == ARTIFICIAL_FACET)));
     return true;
+  }
+
+  template <typename Visitor>
+  bool push_facet(const Facet& f,
+                  Visitor& visitor)
+  {
+    if(!visitor.consider_facet(*this, f))
+      return false;
+
+    return push_facet(f);
   }
 
 private:
   template <typename SeedRange>
   bool initialize(const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   const SeedRange& seeds)
   {
 #ifdef CGAL_AW3_DEBUG
@@ -1000,7 +2332,9 @@ private:
     m_sq_alpha = square(m_alpha);
     m_offset = FT(offset);
     m_sq_offset = square(m_offset);
-
+    m_parsimonious = parsimonious;
+    m_parsimony_tolerance = FT(tolerance);
+    m_dump = dump;
     m_tr.clear();
     m_queue.clear();
 
@@ -1012,12 +2346,18 @@ private:
       return initialize_with_cavities(seeds);
   }
 
+  const std::string filename = "point_cloud.off";
+
   template <typename Visitor>
   void alpha_flood_fill(Visitor& visitor)
   {
 #ifdef CGAL_AW3_DEBUG
     std::cout << "> Flood fill..." << std::endl;
 #endif
+
+    std::cout << "Alpha " << m_alpha << std::endl;
+    std::cout << "Offset " << m_offset << std::endl;
+    std::cout << "Tolerance " << m_parsimony_tolerance << std::endl;
 
     visitor.on_flood_fill_begin(*this);
 
@@ -1045,6 +2385,7 @@ private:
                 << "c = " << &*ch << " (" << m_tr.is_infinite(ch) << "), n = " << &*neighbor << " (" << m_tr.is_infinite(neighbor) << ")" << "\n"
                 << m_tr.point(ch, (id+1)&3) << "\n" << m_tr.point(ch, (id+2)&3) << "\n" << m_tr.point(ch, (id+3)&3) << std::endl;
       std::cout << "Priority: " << gate.priority() << std::endl;
+      std::cout << "Should be considered? " << visitor.consider_facet(*this, f) << std::endl;
 #endif
 
       visitor.before_facet_treatment(*this, gate);
@@ -1070,10 +2411,12 @@ private:
       }
 
       Point_3 steiner_point;
-      if(compute_steiner_point(ch, neighbor, steiner_point))
+      const auto snapped = qem_compute_steiner_point(f, steiner_point, true);
+      if(snapped.first)
       {
-//        std::cout << CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset)
-//                  << " vs " << 1e-2 * m_offset << std::endl;
+      //   std::cout << "steiner_pt that is supposedly offset: " << steiner_point << std::endl;
+      //  std::cout << CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset)
+      //            << " vs " << 1e-2 * m_offset << std::endl;
         CGAL_assertion(CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset) <= 1e-2 * m_offset);
 
         // locate cells that are going to be destroyed and remove their facet from the queue
@@ -1349,8 +2692,8 @@ public:
     {
       for(int i=0; i<4; ++i)
       {
-        if(c->vertex(i)->type() == AW3i::Vertex_type:: BBOX_VERTEX ||
-           c->vertex(i)->type() == AW3i::Vertex_type:: SEED_VERTEX)
+        if(c->vertex(i)->type() == AW3i::Vertex_type::BBOX_VERTEX ||
+           c->vertex(i)->type() == AW3i::Vertex_type::SEED_VERTEX)
         {
           return true;
         }
@@ -1521,8 +2864,101 @@ private:
       m_queue.push(g); // no need for a resize here since the vector capacity is unchanged
   }
 
+   void dump_triangulation_faces_color(const std::string filename,
+                                       const bool only_boundary_faces = true)
+  {
+    std::stringstream vertices_ss;
+    vertices_ss.precision(17);
+
+    std::stringstream facets_ss;
+    facets_ss.precision(17);
+
+    std::unordered_map<Vertex_handle, std::size_t> vertex_to_id;
+    std::size_t nv = 0;
+    std::size_t nf = 0;
+
+    double max_distance = 0.0;
+    for(const Facet& f : m_tr.finite_facets())
+    {
+      const Cell_handle c = f.first;
+      const int id = f.second;
+      const Point_3& p0 = m_tr.point(c, (id+1)&3);
+      const Point_3& p1 = m_tr.point(c, (id+2)&3);
+      const Point_3& p2 = m_tr.point(c, (id+3)&3);
+      const Triangle_3 triangle_facet(p0, p1, p2);
+
+      double distance = hausdorff_distance(triangle_facet);
+      if(distance > max_distance)
+        max_distance = distance;
+    }
+
+    int index_boundary_facet = 0;
+    for(const Facet& f : m_tr.finite_facets())
+    {
+      const Cell_handle c = f.first;
+      const int s = f.second;
+      const Point_3& p0 = m_tr.point(c, (s+1)&3);
+      const Point_3& p1 = m_tr.point(c, (s+2)&3);
+      const Point_3& p2 = m_tr.point(c, (s+3)&3);
+      const Triangle_3 triangle_facet(p0, p1, p2);
+      const double distance = hausdorff_distance(triangle_facet);
+
+      unsigned char r = (unsigned char)(255.0 * distance / max_distance);
+      unsigned char g = 0;
+      unsigned char b = 0;
+
+      const Cell_handle nc = c->neighbor(s);
+      if(only_boundary_faces && (c->is_outside() == nc->is_outside()))
+        continue;
+
+      std::array<std::size_t, 3> ids;
+      for(std::size_t pos = 0; pos < 3; ++pos)
+      {
+        Vertex_handle v = c->vertex((s + pos + 1)&3);
+        auto insertion_res = vertex_to_id.emplace(v, nv);
+        if(insertion_res.second)
+        {
+          vertices_ss << m_tr.point(v) << "\n";
+          ++nv;
+        }
+
+        ids[pos] = insertion_res.first->second;
+      }
+
+      std::cout << "boundary facet no hausdorff distance" << index_boundary_facet << ":" << distance << std::endl;
+      ++index_boundary_facet;
+      if(distance < 0.001)
+      {
+        r = (unsigned char) 0;
+        g = (unsigned char) 0;
+        b = (unsigned char) 255;
+        // std::cout << "boundary facet very close" << index_boundary_facet << ":" << distance << std::endl;
+      }
+
+      facets_ss << "3 " << ids[0] << " " << ids[1] << " " << ids[2] << " "
+                << (int) r << " " << (int) g << " " << (int) b << "\n";
+      ++nf;
+    }
+
+    std::ofstream out(filename.c_str());
+    out << "ply\n";
+    out << "format ascii 1.0\n";
+    out << "element vertex " << nv << "\n";
+    out << "property float x\n";
+    out << "property float y\n";
+    out << "property float z\n";
+    out << "element face " << nf << "\n";
+    out << "property list uchar int vertex_indices\n";
+    out << "property uchar red\n";
+    out << "property uchar green\n";
+    out << "property uchar blue\n";
+    out << "end_header\n";
+    out << vertices_ss.str() << "\n";
+    out << facets_ss.str() << std::endl;
+  }
+
   void dump_triangulation_faces(const std::string filename,
-                                bool only_boundary_faces = false)
+                                bool only_boundary_faces = true)
   {
     std::stringstream vertices_ss;
     vertices_ss.precision(17);

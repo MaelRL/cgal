@@ -227,6 +227,7 @@ protected:
   RPPM m_rppm; // std::size_t (id) --> reference point
   DPMB m_dpmb; // std::size_t (datum pos) --> triangle datum
 
+public:
   DPM m_dpm; // std::size_t (id) --> triangle (datum)
 
   std::size_t fid = 0;
@@ -240,6 +241,9 @@ public:
   { }
 
 protected:
+    DPM get_m_dpm() {
+      return m_dpm;
+  }
   void initialize_tree_property_maps(const AABB_tree& tree) const
   {
     // Can't be set in the default constructed traits that are passed to the base

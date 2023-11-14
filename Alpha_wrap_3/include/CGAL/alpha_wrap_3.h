@@ -95,6 +95,9 @@ void alpha_wrap_3(const PointRange& points,
                   const FaceRange& faces,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const InputNamedParameters& in_np,
                   const OutputNamedParameters& out_np)
@@ -111,8 +114,9 @@ void alpha_wrap_3(const PointRange& points,
 
   Oracle oracle(alpha, gt);
   oracle.add_triangle_soup(points, faces, in_np);
+
   AW3 alpha_wrap_builder(oracle);
-  alpha_wrap_builder(alpha, offset, alpha_wrap, in_np, out_np);
+  alpha_wrap_builder(alpha, offset, tolerance, parsimonious, dump, alpha_wrap, in_np, out_np);
 }
 
 // Convenience overloads
@@ -122,10 +126,13 @@ void alpha_wrap_3(const PointRange& points,
                   const FaceRange& faces,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const CGAL_NP_CLASS& in_np)
 {
-  return alpha_wrap_3(points, faces, alpha, offset, alpha_wrap, in_np, CGAL::parameters::default_values());
+  return alpha_wrap_3(points, faces, alpha, offset, tolerance, parsimonious, dump, alpha_wrap, in_np, CGAL::parameters::default_values());
 }
 
 template <typename PointRange, typename FaceRange, typename OutputMesh>
@@ -133,9 +140,12 @@ void alpha_wrap_3(const PointRange& points,
                   const FaceRange& faces,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap)
 {
-  return alpha_wrap_3(points, faces, alpha, offset, alpha_wrap, CGAL::parameters::default_values());
+  return alpha_wrap_3(points, faces, alpha, offset, tolerance, parsimonious, dump, alpha_wrap, CGAL::parameters::default_values());
 }
 
 // without offset
@@ -145,12 +155,15 @@ template <typename PointRange, typename FaceRange, typename OutputMesh,
 void alpha_wrap_3(const PointRange& points,
                   const FaceRange& faces,
                   const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const CGAL::Named_function_parameters<T_I, Tag_I, Base_I>& in_np,
                   const CGAL::Named_function_parameters<T_O, Tag_O, Base_O>& out_np,
-                  std::enable_if_t<boost::has_range_const_iterator<FaceRange>::value>* = nullptr)
+                  typename std::enable_if<boost::has_range_const_iterator<FaceRange>::value>::type* = nullptr)
 {
-  return alpha_wrap_3(points, faces, alpha, alpha / 30., alpha_wrap, in_np, out_np);
+  return alpha_wrap_3(points, faces, alpha, alpha / 30., tolerance, parsimonious, dump, alpha_wrap, in_np, out_np);
 }
 
 template <typename PointRange, typename FaceRange, typename OutputMesh,
@@ -158,22 +171,27 @@ template <typename PointRange, typename FaceRange, typename OutputMesh,
 void alpha_wrap_3(const PointRange& points,
                   const FaceRange& faces,
                   const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const CGAL_NP_CLASS& in_np,
-                  std::enable_if_t<boost::has_range_const_iterator<FaceRange>::value>* = nullptr)
+                  typename std::enable_if<boost::has_range_const_iterator<FaceRange>::value>::type* = nullptr)
 {
-  return alpha_wrap_3(points, faces, alpha, alpha / 30., alpha_wrap, in_np,
-                      CGAL::parameters::default_values());
+  return alpha_wrap_3(points, faces, alpha, alpha / 30., tolerance, parsimonious, dump, alpha_wrap, in_np, CGAL::parameters::default_values());
 }
 
 template <typename PointRange, typename FaceRange, typename OutputMesh>
 void alpha_wrap_3(const PointRange& points,
                   const FaceRange& faces,
                   const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
-                  std::enable_if_t<boost::has_range_const_iterator<FaceRange>::value>* = nullptr)
+                  typename std::enable_if<boost::has_range_const_iterator<FaceRange>::value>::type* = nullptr)
 {
-  return alpha_wrap_3(points, faces, alpha, alpha / 30., alpha_wrap,
+  return alpha_wrap_3(points, faces, alpha, alpha / 30., tolerance, parsimonious, dump, alpha_wrap,
                       CGAL::parameters::default_values(), CGAL::parameters::default_values());
 }
 
@@ -241,11 +259,14 @@ template <typename TriangleMesh, typename OutputMesh,
 void alpha_wrap_3(const TriangleMesh& tmesh,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const InputNamedParameters& in_np,
                   const OutputNamedParameters& out_np
 #ifndef DOXYGEN_RUNNING
-                  , std::enable_if_t<! boost::has_range_const_iterator<TriangleMesh>::value>* = nullptr
+                  , typename std::enable_if<! boost::has_range_const_iterator<TriangleMesh>::value>::type* = nullptr
 #endif
                   )
 {
@@ -261,7 +282,7 @@ void alpha_wrap_3(const TriangleMesh& tmesh,
   Oracle oracle(alpha, gt);
   oracle.add_triangle_mesh(tmesh, in_np);
   AW3 alpha_wrap_builder(oracle);
-  alpha_wrap_builder(alpha, offset, alpha_wrap, in_np, out_np);
+  alpha_wrap_builder(alpha, offset, tolerance, parsimonious, dump, alpha_wrap, in_np, out_np);
 }
 
 // The convenience overloads are the same for triangle mesh & point set
@@ -331,6 +352,9 @@ template <typename PointRange, typename OutputMesh,
 void alpha_wrap_3(const PointRange& points,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
 #ifdef DOXYGEN_RUNNING
                   const InputNamedParameters& in_np,
@@ -338,7 +362,7 @@ void alpha_wrap_3(const PointRange& points,
 #else
                   const CGAL::Named_function_parameters<T_I, Tag_I, Base_I>& in_np,
                   const CGAL::Named_function_parameters<T_O, Tag_O, Base_O>& out_np,
-                  std::enable_if_t<boost::has_range_const_iterator<PointRange>::value>* = nullptr
+                  typename std::enable_if<boost::has_range_const_iterator<PointRange>::value>::type* = nullptr
 #endif
                   )
 {
@@ -357,7 +381,7 @@ void alpha_wrap_3(const PointRange& points,
   Oracle oracle(gt);
   oracle.add_point_set(points, in_np);
   AW3 alpha_wrap_builder(oracle);
-  alpha_wrap_builder(alpha, offset, alpha_wrap, in_np, out_np);
+  alpha_wrap_builder(alpha, offset, tolerance, parsimonious, dump, alpha_wrap, in_np, out_np);
 }
 
 // Convenience overloads, common to both mesh and point set
@@ -366,19 +390,25 @@ template <typename Input, typename OutputMesh,
 void alpha_wrap_3(const Input& input,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const CGAL_NP_CLASS& in_np)
 {
-  return alpha_wrap_3(input, alpha, offset, alpha_wrap, in_np, CGAL::parameters::default_values());
+  return alpha_wrap_3(input, alpha, offset, tolerance, parsimonious, dump, alpha_wrap, in_np, CGAL::parameters::default_values());
 }
 
 template <typename Input, typename OutputMesh>
 void alpha_wrap_3(const Input& input,
                   const double alpha,
                   const double offset,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap)
 {
-  return alpha_wrap_3(input, alpha, offset, alpha_wrap, CGAL::parameters::default_values());
+  return alpha_wrap_3(input, alpha, offset, tolerance, parsimonious, dump, alpha_wrap, CGAL::parameters::default_values());
 }
 
 // without offset
@@ -387,28 +417,37 @@ template <typename Input, typename OutputMesh,
           typename T_O, typename Tag_O, typename Base_O>
 void alpha_wrap_3(const Input& input,
                   const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const CGAL::Named_function_parameters<T_I, Tag_I, Base_I>& in_np,
                   const CGAL::Named_function_parameters<T_O, Tag_O, Base_O>& out_np)
 {
-  return alpha_wrap_3(input, alpha, alpha / 30., alpha_wrap, in_np, out_np);
+  return alpha_wrap_3(input, alpha, alpha / 30., tolerance, parsimonious, dump, alpha_wrap, in_np, out_np);
 }
 
 template <typename Input, typename OutputMesh, typename CGAL_NP_TEMPLATE_PARAMETERS>
 void alpha_wrap_3(const Input& input,
                   const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap,
                   const CGAL_NP_CLASS& in_np)
 {
-  return alpha_wrap_3(input, alpha, alpha / 30., alpha_wrap, in_np, CGAL::parameters::default_values());
+  return alpha_wrap_3(input, alpha, alpha / 30., tolerance, parsimonious, dump, alpha_wrap, in_np, CGAL::parameters::default_values());
 }
 
 template <typename Input, typename OutputMesh>
 void alpha_wrap_3(const Input& input,
                   const double alpha,
+                  const double tolerance,
+                  const bool parsimonious,
+                  const bool dump,
                   OutputMesh& alpha_wrap)
 {
-  return alpha_wrap_3(input, alpha, alpha / 30., alpha_wrap,
+  return alpha_wrap_3(input, alpha, alpha / 30., tolerance, parsimonious, dump, alpha_wrap,
                       CGAL::parameters::default_values(), CGAL::parameters::default_values());
 }
 
