@@ -257,6 +257,10 @@ public:
 
 }; // end Image_3
 
+- move eval code into Image_3
+- bounding box
+- is there other geometry using Image_3, like sharp lines detection or something? (probably not)
+
 template <typename Image_word_type,
           typename Target_type,
           typename Coord_type,
