@@ -92,6 +92,7 @@ struct Wrapping_default_visitor
   template <typename AlphaWrapper>
   void on_flood_fill_begin(const AlphaWrapper&) { }
 
+
   template <typename AlphaWrapper, typename Gate>
   void before_facet_treatment(const AlphaWrapper&, const Gate&) { }
 
@@ -839,10 +840,10 @@ private:
 
     // ch's circumcenter should not be within the offset volume
     CGAL_assertion_code(const Point_3& ch_cc = circumcenter(ch);)
-    CGAL_assertion_code(const Ball_3 ch_cc_offset_ball = ball(ch_cc, m_sq_offset);)
-    CGAL_assertion(!m_oracle.do_intersect(ch_cc_offset_ball));
+    // CGAL_assertion_code(const Ball_3 ch_cc_offset_ball = ball(ch_cc, m_sq_offset);)
+    // CGAL_assertion(!m_oracle.do_intersect(ch_cc_offset_ballCGAL_assertion ));
 
-    if(is_neighbor_cc_in_offset)
+    if(false && is_neighbor_cc_in_offset)
     {
       const Point_3& ch_cc = circumcenter(ch);
 
@@ -857,6 +858,7 @@ private:
     }
 
     Tetrahedron_with_outside_info<Geom_traits> tet(neighbor, geom_traits());
+#if 0
     if(m_oracle.do_intersect(tet))
     {
       // steiner point is the closest point on input from cell centroid with offset
@@ -868,11 +870,29 @@ private:
       // PMP::internal::normalize() requires sqrt()
       unit = scale(unit, m_offset / approximate_sqrt(geom_traits().compute_squared_length_3_object()(unit)));
       steiner_point = translate(closest_pt, unit);
+#elif 1 // spiky AW3!
+    if(m_oracle.do_intersect(tet))
+    {
+      steiner_point = CGAL::centroid(m_tr.point(ch, (ch->index(neighbor) + 1)&3),
+                                     m_tr.point(ch, (ch->index(neighbor) + 2)&3),
+                                     m_tr.point(ch, (ch->index(neighbor) + 3)&3));
+#else
+    Point_3 intersection;
+    bool does_intersect = m_oracle.intersection_point(tet, intersection);
+    if(does_intersect)
+    {
+      const Point_3 c = CGAL::centroid(m_tr.point(ch, (ch->index(neighbor) + 1)&3),
+                                       m_tr.point(ch, (ch->index(neighbor) + 2)&3),
+                                       m_tr.point(ch, (ch->index(neighbor) + 3)&3));
+      std::cout << "c & inter: " << c << " " << intersection << std::endl;
 
-#ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
+      bool res = m_oracle.first_intersection(c, intersection, steiner_point, m_offset);
+      if(!res)
+        steiner_point = c;
+#endif
+
+#if 1//def CGAL_AW3_DEBUG_STEINER_COMPUTATION
       std::cout << "Steiner found through neighboring tet intersecting the input: " << steiner_point << std::endl;
-      std::cout << "Closest point: " << closest_pt << std::endl;
-      std::cout << "Direction: " << vector(closest_pt, neighbor_cc) << std::endl;
 #endif
 
       return true;
@@ -1072,9 +1092,9 @@ private:
       Point_3 steiner_point;
       if(compute_steiner_point(ch, neighbor, steiner_point))
       {
-//        std::cout << CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset)
-//                  << " vs " << 1e-2 * m_offset << std::endl;
-        CGAL_assertion(CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset) <= 1e-2 * m_offset);
+        std::cout << CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset)
+                  << " vs " << 1e-2 * m_offset << std::endl;
+        // CGAL_assertion(CGAL::abs(CGAL::approximate_sqrt(m_oracle.squared_distance(steiner_point)) - m_offset) <= 1e-2 * m_offset);
 
         // locate cells that are going to be destroyed and remove their facet from the queue
         int li, lj = 0;

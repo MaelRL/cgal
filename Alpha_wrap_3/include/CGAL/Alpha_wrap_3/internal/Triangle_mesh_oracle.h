@@ -47,7 +47,7 @@ struct TM_oracle_traits
 // @speed could do a partial specialization 'subdivide = false' with simpler code for speed?
 template <typename GT_,
           typename BaseOracle = int,
-          bool subdivide = true>
+          bool subdivide = false>
 class Triangle_mesh_oracle
   : // this is the base that handles calls to the AABB tree
     public AABB_tree_oracle<typename TM_oracle_traits<GT_>::Geom_traits,

@@ -36,6 +36,9 @@ struct Default_traversal_traits
 
   template <typename Query>
   using First_intersection_traits = CGAL::internal::AABB_tree::First_intersection_traits<AABBTraits, Query>;
+
+  template <typename Query>
+  using First_primitive_traits = CGAL::internal::AABB_tree::First_primitive_traits<AABBTraits, Query>;
 };
 
 // Factorize the implementation of the functions calling the AABB tree
@@ -46,10 +49,14 @@ struct AABB_tree_oracle_helper
   using Self = AABB_tree_oracle_helper<AABBTree, AABBTraversalTraits>;
 
   using AABB_traits = typename AABBTree::AABB_traits;
+  using Primitive = typename AABB_traits::Primitive;
+
   using GT = typename AABB_traits::Geom_traits;
 
   using FT = typename AABB_traits::FT;
   using Point_3 = typename AABB_traits::Point_3;
+  using Segment_3 = typename GT::Segment_3;
+  using Triangle_3 = typename GT::Triangle_3;
 
   template <typename Query>
   static bool do_intersect(const Query& query,
@@ -100,6 +107,48 @@ struct AABB_tree_oracle_helper
     AABB_distance_oracle dist_oracle(tree);
     Offset_intersection offset_intersection(dist_oracle, offset_size, intersection_precision, 1 /*lip*/);
     return offset_intersection.first_intersection(p, q, o);
+  }
+
+  template <typename K>
+  static bool intersection_point(const Tetrahedron_with_outside_info<K>& tet,
+                                 Point_3& o,
+                                 const AABBTree& tree)
+  {
+    CGAL_precondition(!tree.empty());
+
+    using First_primitive_traits = typename AABBTraversalTraits::template First_primitive_traits<Tetrahedron_with_outside_info<K> >;
+
+    std::cout << "Seek intersection point" << std::endl;
+
+    First_primitive_traits traversal_traits(tree.traits());
+    tree.traversal(tet, traversal_traits);
+
+    CGAL_assertion(traversal_traits.is_intersection_found() ||
+                   traversal_traits.result() == std::nullopt);
+
+    if(!traversal_traits.is_intersection_found())
+      return false;
+
+    std::optional<Primitive> primitive = traversal_traits.result();
+    auto datum = tree.datum(*primitive);
+    std::cout << "datum & tet: " << datum << "\t" << tet.m_tet << std::endl;
+    CGAL_assertion(CGAL::do_intersect(datum, tet.m_tet));
+
+    auto iter = CGAL::intersection(tet.m_tet, datum);
+    CGAL_assertion(!!iter);
+
+    if(const Point_3* p = std::get_if<Point_3>(&*iter))
+      o = *p;
+    else if(const Segment_3* s = std::get_if<Segment_3>(&*iter))
+      o = s->source();
+    else if(const Triangle_3* t = std::get_if<Triangle_3>(&*iter))
+      o = t->vertex(0);
+    else if(const std::vector<Point_3>* pl = std::get_if<std::vector<Point_3> >(&*iter))
+      o = (*pl)[0];
+    else
+      CGAL_assertion(false);
+
+    return true;
   }
 };
 
@@ -274,6 +323,20 @@ public:
     return first_intersection(p, q, o, offset_size, 1e-2 * offset_size);
   }
 
+    bool intersection_point(const Tetrahedron_with_outside_info<GT>& tet,
+                            Point_3& intersection) const
+  {
+    CGAL_precondition(do_call());
+
+    if(base().do_call() && base().intersection_point(tet, intersection))
+      return true;
+
+    if(!empty())
+      return AABB_helper::intersection_point(tet, intersection, tree());
+
+    return false;
+  }
+
 protected:
   Geom_traits m_gt;
   AABB_tree_ptr m_tree_ptr;
@@ -355,6 +418,14 @@ public:
   {
     CGAL_precondition(!empty());
     return AABB_helper::first_intersection(p, q, o, offset_size, 1e-2 * offset_size, tree());
+  }
+
+  template <typename K>
+  bool intersection_point(const Tetrahedron_with_outside_info<K>& tet,
+                          Point_3& intersection) const
+  {
+    CGAL_precondition(!empty());
+    return AABB_helper::intersection_point(tet, intersection, tree());
   }
 
 private:
