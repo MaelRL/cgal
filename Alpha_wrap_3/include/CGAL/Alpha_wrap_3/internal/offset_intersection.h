@@ -45,7 +45,7 @@ struct AABB_distance_oracle
     return approximate_sqrt(AABB_helper::squared_distance(p, tree));
   }
 
-private:
+public:
   const AABBTree& tree;
 };
 
@@ -66,13 +66,19 @@ public:
                       const FT& off,
                       const FT& prec,
                       const FT& lip)
-    : dist_oracle(oracle), offset(off), precision(prec), lipschitz(lip)
-  { }
+    : dist_oracle(oracle), offset(off), precision(prec), lipschitz(lip),
+      sq_offset_minus_precision(CGAL::square(offset - precision)),
+      sq_offset_plus_precision(CGAL::square(offset + precision))
+  {
+    CGAL_assertion(offset > precision);
+  }
 
   bool first_intersection(const Point_3& s,
                           const Point_3& t,
                           Point_3& output_pt)
   {
+    return SQsphere_marching_search(s, t, output_pt);
+
     source = s;
     target = t;
     seg_length = approximate_sqrt(squared_distance(s, t));
@@ -92,6 +98,191 @@ private:
   FT offset;
   FT precision;
   FT lipschitz;
+
+  FT sq_offset_minus_precision;
+  FT sq_offset_plus_precision;
+
+  bool sphere_marching_search(const Point_3& s,
+                              const Point_3& t,
+                              Point_3& output_pt)
+  {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+    std::cout << "Sphere march between " << s << " and " << t << std::endl;
+#endif
+
+    const FT sq_seg_length = squared_distance(s, t);
+    const FT seg_length = approximate_sqrt(sq_seg_length);
+    const Vector_3 seg_unit_v = (t - s) / seg_length;
+
+    Point_3 current_pt = s;
+    Point_3 closest_point = dist_oracle.tree.closest_point(current_pt);
+    FT current_dist = approximate_sqrt(squared_distance(current_pt, closest_point)) - offset;
+
+    for(;;)
+    {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+      std::cout << "current point " << current_pt << std::endl;
+      std::cout << "current dist " << current_dist << std::endl;
+#endif
+
+      if(CGAL::abs(current_dist) < precision)
+      {
+        output_pt = current_pt;
+        return true;
+      }
+
+      // use the previous closest point as a hint: it's an upper bound
+      current_pt = current_pt + (current_dist * seg_unit_v);
+
+      if(squared_distance(s, current_pt) > sq_seg_length)
+        return false;
+
+      closest_point = dist_oracle.tree.closest_point(current_pt, closest_point /*hint*/);
+      current_dist = approximate_sqrt(squared_distance(current_pt, closest_point)) - offset;
+    }
+
+    return false;
+  }
+
+  bool SQsphere_marching_search(const Point_3& s,
+                                const Point_3& t,
+                                Point_3& output_pt)
+  {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+    std::cout << "Sphere march between " << s << " and " << t << std::endl;
+#endif
+
+    const FT sq_seg_length = squared_distance(s, t);
+    const FT seg_length = approximate_sqrt(sq_seg_length);
+    const Vector_3 seg_unit_v = (t - s) / seg_length;
+
+    Point_3 current_pt = s;
+    Point_3 closest_point = dist_oracle.tree.closest_point(current_pt);
+    FT sq_current_dist = squared_distance(current_pt, closest_point);
+    FT step = 0;
+
+    for(;;)
+    {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+      std::cout << "current point " << current_pt << std::endl;
+      std::cout << "current sq dist " << sq_current_dist << std::endl;
+      std::cout << "bounds: " << sq_offset_minus_precision << " " << sq_offset_plus_precision << std::endl;
+#endif
+
+      // abs(dist - offset) < epsilon
+      if((sq_current_dist > sq_offset_minus_precision) &&
+         (sq_current_dist < sq_offset_plus_precision))
+      {
+        output_pt = current_pt;
+        return true;
+      }
+
+      step += (std::max)(approximate_sqrt(sq_current_dist) - offset, 2 * precision);
+      CGAL_assertion(step > 0);
+      current_pt = s + (step * seg_unit_v);
+
+      if(squared_distance(s, current_pt) > sq_seg_length)
+        return false;
+
+      // the previous closest point gives an upper bound so it's a good hint
+      closest_point = dist_oracle.tree.closest_point(current_pt, closest_point /*hint*/);
+      sq_current_dist = squared_distance(current_pt, closest_point);
+    }
+
+    return false;
+  }
+
+  bool SQsphere_marching_search_pp(const Point_3& s,
+                                   const Point_3& t,
+                                   Point_3& output_pt)
+  {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+    std::cout << "Sphere march between " << s << " and " << t << std::endl;
+#endif
+
+    const FT seg_length = approximate_sqrt(squared_distance(s, t));
+    const Vector_3 seg_unit_v = (t - s) / seg_length;
+
+    Point_3 current_pt = s;
+    Point_3 closest_point = dist_oracle.tree.closest_point(current_pt);
+    FT sq_current_dist = squared_distance(current_pt, closest_point);
+    FT step = 0;
+
+    bool relaxing = true;
+    FT w = 1.8; // over-extending factor
+
+    for(;;)
+    {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+      std::cout << "current point " << current_pt << std::endl;
+      std::cout << "current sq dist " << sq_current_dist << std::endl;
+      std::cout << "bounds: " << sq_offset_minus_precision << " " << sq_offset_plus_precision << std::endl;
+#endif
+
+      // If abs(dist - offset) < precision, we're done
+      if((sq_current_dist > sq_offset_minus_precision) &&
+         (sq_current_dist < sq_offset_plus_precision))
+      {
+        output_pt = current_pt;
+        return true;
+      }
+
+      const Point_3 previous_pt = current_pt;
+      const Point_3 previous_hint = closest_point;
+      const FT previous_radius = approximate_sqrt(sq_current_dist) - offset;
+      const FT previous_step = step;
+
+      const FT local_step = (std::max)(previous_radius, 2 * precision);
+
+      if(relaxing)
+      {
+        step += w * local_step;
+        w = 1.1; // take bigger and bigger steps
+      }
+      else
+      {
+        step += local_step;
+      }
+
+      CGAL_assertion(step > 0);
+
+      // move to the next point on the segment
+      current_pt = s + (step * seg_unit_v);
+
+      // the previous closest point gives an upper bound so it's a good hint
+      closest_point = dist_oracle.tree.closest_point(current_pt, closest_point /*hint*/);
+      sq_current_dist = squared_distance(current_pt, closest_point);
+
+      // check if we have over-relaxed (the sphere are disjoint)
+      if(relaxing)
+      {
+        const FT centers_dist = approximate_sqrt(squared_distance(previous_pt, current_pt));
+        const FT current_radius = approximate_sqrt(sq_current_dist) - offset;
+        if(previous_radius + current_radius < centers_dist)
+        {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+          std::cout << "Over relaxed, reverting" << std::endl;
+#endif
+
+          // revert the last step, and no more relaxation
+          relaxing = false;
+
+          current_pt = previous_pt;
+          closest_point = previous_hint;
+          sq_current_dist = squared_distance(current_pt, closest_point);
+          step = previous_step;
+
+          continue;
+        }
+      }
+
+      // check if we ran out of segment to test
+      if(step > seg_length)
+        return false;
+    }
+
+    return false;
+  }
 
   template <class Point>
   bool recursive_dichotomic_search(const Point_2& s, const Point_2& t,

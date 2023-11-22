@@ -809,21 +809,19 @@ private:
     typename Geom_traits::Construct_translated_point_3 translate = geom_traits().construct_translated_point_3_object();
     typename Geom_traits::Construct_scaled_vector_3 scale = geom_traits().construct_scaled_vector_3_object();
 
+    const Point_3& ch_cc = circumcenter(ch);
     const Point_3& neighbor_cc = circumcenter(neighbor);
-    const Ball_3 neighbor_cc_offset_ball = ball(neighbor_cc, m_sq_offset);
-    const bool is_neighbor_cc_in_offset = m_oracle.do_intersect(neighbor_cc_offset_ball);
 
 #ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
     std::cout << "Compute_steiner_point(" << &*ch << ", " << &*neighbor << ")" << std::endl;
 
-    const Point_3& chc = circumcenter(ch);
     std::cout << "CH" << std::endl;
     std::cout << "\t" << ch->vertex(0)->point() << std::endl;
     std::cout << "\t" << ch->vertex(1)->point() << std::endl;
     std::cout << "\t" << ch->vertex(2)->point() << std::endl;
     std::cout << "\t" << ch->vertex(3)->point() << std::endl;
-    std::cout << "cc: " << chc << std::endl;
-    std::cout << "CC Distance to input: " << CGAL::squared_distance(chc, m_oracle.closest_point(chc)) << std::endl;
+    std::cout << "cc: " << cch_cchc << std::endl;
+    std::cout << "CC Distance to input: " << CGAL::squared_distance(ch_cc, m_oracle.closest_point(ch_cc)) << std::endl;
 
     std::cout << "NCH" << std::endl;
     std::cout << "\t" << neighbor->vertex(0)->point() << std::endl;
@@ -837,20 +835,35 @@ private:
     std::cout << "squared offset " << m_sq_offset << std::endl;
 #endif
 
-    // ch's circumcenter should not be within the offset volume
-    CGAL_assertion_code(const Point_3& ch_cc = circumcenter(ch);)
+    // ch's circumcenter should never be within the offset volume
     CGAL_assertion_code(const Ball_3 ch_cc_offset_ball = ball(ch_cc, m_sq_offset);)
     CGAL_assertion(!m_oracle.do_intersect(ch_cc_offset_ball));
 
-    if(is_neighbor_cc_in_offset)
-    {
-      const Point_3& ch_cc = circumcenter(ch);
+#if 0
+    const Ball_3 qb = ball(ch_cc, square(approximate_sqrt(squared_distance(ch_cc, neighbor_cc)) + m_offset));
+    const bool dual_might_intersect_offset = m_oracle.do_intersect(qb);
+#else
+    // take the diametral sphere of the segment "[ch_cc, neighbor_cc + offset]"
+    // as to cover the full segment + offset
+    Vector_3 dir(ch_cc, neighbor_cc);
+    const FT ccs_dist = approximate_sqrt(squared_distance(ch_cc, neighbor_cc));
+    if(ccs_dist != 0.)
+      dir = scale(dir, 1. / ccs_dist);
+    const FT diam = ccs_dist + m_offset;
+    const FT rad = 0.5 * diam;
 
+    const Point_3 mid_pt = ch_cc + rad * dir;
+    const Ball_3 query_ball = ball(mid_pt, square(rad));
+    const bool dual_might_intersect_offset = m_oracle.do_intersect(query_ball);
+#endif
+
+    if(dual_might_intersect_offset)
+    {
       // If the voronoi edge intersects the offset, the steiner point is the first intersection
       if(m_oracle.first_intersection(ch_cc, neighbor_cc, steiner_point, m_offset))
       {
 #ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
-        std::cout << "Steiner found through first_intersection(): " << steiner_point << std::endl;
+        std::cout << "R1 Steiner found through first_intersection(): " << steiner_point << std::endl;
 #endif
         return true;
       }
@@ -863,14 +876,13 @@ private:
       const Point_3 closest_pt = m_oracle.closest_point(neighbor_cc);
       CGAL_assertion(closest_pt != neighbor_cc);
 
-      Vector_3 unit = vector(closest_pt, neighbor_cc);
-
       // PMP::internal::normalize() requires sqrt()
+      Vector_3 unit = vector(closest_pt, neighbor_cc);
       unit = scale(unit, m_offset / approximate_sqrt(geom_traits().compute_squared_length_3_object()(unit)));
       steiner_point = translate(closest_pt, unit);
 
 #ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
-      std::cout << "Steiner found through neighboring tet intersecting the input: " << steiner_point << std::endl;
+      std::cout << "R2 Steiner found through neighboring tet intersecting the input: " << steiner_point << std::endl;
       std::cout << "Closest point: " << closest_pt << std::endl;
       std::cout << "Direction: " << vector(closest_pt, neighbor_cc) << std::endl;
 #endif
