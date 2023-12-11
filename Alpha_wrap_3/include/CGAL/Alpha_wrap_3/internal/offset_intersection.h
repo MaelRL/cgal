@@ -45,7 +45,7 @@ struct AABB_distance_oracle
     return approximate_sqrt(AABB_helper::squared_distance(p, tree));
   }
 
-private:
+public:
   const AABBTree& tree;
 };
 
@@ -66,13 +66,17 @@ public:
                       const FT& off,
                       const FT& prec,
                       const FT& lip)
-    : dist_oracle(oracle), offset(off), precision(prec), lipschitz(lip)
+    : dist_oracle(oracle), offset(off), precision(prec), lipschitz(lip),
+      sq_offset_minus_precision(CGAL::square(offset - precision)),
+      sq_offset_plus_precision(CGAL::square(offset + precision))
   { }
 
   bool first_intersection(const Point_3& s,
                           const Point_3& t,
                           Point_3& output_pt)
   {
+    return sphere_marching_search(s, t, output_pt);
+
     source = s;
     target = t;
     seg_length = approximate_sqrt(squared_distance(s, t));
@@ -92,6 +96,57 @@ private:
   FT offset;
   FT precision;
   FT lipschitz;
+
+  FT sq_offset_minus_precision;
+  FT sq_offset_plus_precision;
+
+  bool sphere_marching_search(const Point_3& s,
+                              const Point_3& t,
+                              Point_3& output_pt)
+  {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+    std::cout << "Sphere march between " << s << " and " << t << std::endl;
+#endif
+
+    const FT sq_seg_length = squared_distance(s, t);
+    const FT seg_length = approximate_sqrt(sq_seg_length);
+    const Vector_3 seg_unit_v = (t - s) / seg_length;
+
+    Point_3 current_pt = s;
+    Point_3 closest_point = dist_oracle.tree.closest_point(current_pt);
+    FT sq_current_dist = squared_distance(current_pt, closest_point);
+    FT step = 0;
+
+    for(;;)
+    {
+#ifdef CGAL_AW3_DEBUG_SPHERE_MARCHING
+      std::cout << "current point " << current_pt << std::endl;
+      std::cout << "current sq dist " << sq_current_dist << std::endl;
+      std::cout << "bounds: " << sq_offset_minus_precision << " " << sq_offset_plus_precision << std::endl;
+#endif
+
+      // abs(dist - offset) < epsilon
+      if((sq_current_dist > sq_offset_minus_precision) &&
+         (sq_current_dist < sq_offset_plus_precision))
+      {
+        output_pt = current_pt;
+        return true;
+      }
+
+      step += (std::max)(approximate_sqrt(sq_current_dist) - offset, 2 * precision);
+      CGAL_assertion(step > 0);
+      current_pt = s + (step * seg_unit_v);
+
+      if(squared_distance(s, current_pt) > sq_seg_length)
+        return false;
+
+      // the previous closest point gives an upper bound so it's a good hint
+      closest_point = dist_oracle.tree.closest_point(current_pt, closest_point /*hint*/);
+      sq_current_dist = squared_distance(current_pt, closest_point);
+    }
+
+    return false;
+  }
 
   template <class Point>
   bool recursive_dichotomic_search(const Point_2& s, const Point_2& t,

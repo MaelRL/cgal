@@ -1,5 +1,10 @@
 // #define CGAL_AW3_ORIGINAL_STEINER_CONSTRUCTION
 // #define CGAL_AW3_DEBUG_DUMP_EVERY_STEP
+// #define CGAL_AW3_DEBUG
+// #define CGAL_AW3_DEBUG_STEINER_COMPUTATION
+// #define CGAL_AW3_ORIGINAL_STEINER_CONSTRUCTION
+#define CGAL_AW3_DEBUG
+#define CGAL_AW3_DEBUG_STEINER_COMPUTATION
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>
