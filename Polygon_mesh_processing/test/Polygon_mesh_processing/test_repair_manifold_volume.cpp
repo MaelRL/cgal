@@ -1,3 +1,8 @@
+// #ifndef CGAL_DEBUG_CDT_3
+// #  define CGAL_DEBUG_CDT_3 0x03
+// #endif
+// #define CGAL_CDT_3_DEBUG_CONFORMING 1
+
 #define CGAL_PMP_REPAIR_MANIFOLD_VOLUME_DEBUG
 
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
@@ -23,6 +28,8 @@ namespace PMP = CGAL::Polygon_mesh_processing;
 
 int main(int argc, char* argv[])
 {
+  std::cout.precision(17);
+  std::cerr.precision(17);
   const std::string filename = (argc > 1) ? argv[1] : CGAL::data_file_path("meshes/blobby.off");
 
   Points points;

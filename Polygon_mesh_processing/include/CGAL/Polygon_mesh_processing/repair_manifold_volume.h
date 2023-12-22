@@ -819,6 +819,8 @@ std::size_t construct_cdt3(PointRange& points,
                            CT& cdt,
                            const NamedParameters& = parameters::default_values())
 {
+  cdt.set_segment_vertex_epsilon(0.);
+
   using Point_3 = typename boost::range_value<PointRange>::type;
 
   std::string output_filename = "cdt_dump.txt";
@@ -830,6 +832,7 @@ std::size_t construct_cdt3(PointRange& points,
       std::ofstream dump("dump.binary.cgal");
       CGAL::IO::save_binary_file(dump, cdt);
     }
+#if __cpp_lib_ranges >= 201911L
     {
       std::ofstream dump(output_filename);
       dump.precision(17);
@@ -837,6 +840,7 @@ std::size_t construct_cdt3(PointRange& points,
           return cdt.is_constrained(f);
       }));
     }
+#endif
     {
       std::ofstream missing_faces("dump_missing_faces.polylines.txt");
       missing_faces.precision(17);
@@ -854,6 +858,10 @@ std::size_t construct_cdt3(PointRange& points,
     }
   };
 
+  for(const auto&p: points) {
+    cdt.insert(p);
+  }
+
   int poly_id = 0;
   try
   {
@@ -863,39 +871,9 @@ std::size_t construct_cdt3(PointRange& points,
       for(auto pi : polygon)
         point_polygon.push_back(points[pi]);
 
-      std::cerr << "NEW POLYGON #" << poly_id << '\n';
-      const auto coplanar = point_polygon.size() < 3 ||
-          std::all_of(point_polygon.begin(), point_polygon.end(),
-                      [p1 = point_polygon[0], p2 = point_polygon[1], p3 = point_polygon[2]](auto p) {
-                        const auto coplanar =
-                            CGAL::orientation(p1, p2, p3, p) == CGAL::COPLANAR;
-                        if(!coplanar) {
-                          std::cerr << "Non coplanar points: " << p1 << ", " << p2
-                                    << ", " << p3 << ", " << p << '\n'
-                                    << "  volume: " << volume(p1, p2, p3, p) << '\n';
-
-                        }
-                        return coplanar;
-                      });
-      if(!coplanar)
-      {
-        std::ofstream out(std::string("dump_noncoplanar_polygon_") + std::to_string(poly_id) + ".off");
-        out.precision(17);
-        out << "OFF\n" << point_polygon.size() << " 1 0\n";
-        for(auto p : point_polygon)
-          out << p << '\n';
-
-        out << point_polygon.size() << ' ';
-        for(std::size_t i = 0u, end = point_polygon.size(); i < end; ++i)
-          out << ' ' << i;
-
-        out << '\n';
-        std::cerr << "Polygon is not coplanar\n";
-      }
-
       try
       {
-        auto id = cdt.insert_constrained_polygon(point_polygon);
+        auto id = cdt.insert_constrained_polygon(point_polygon, false);
         assert(id == poly_id);
         ++poly_id;
       }
@@ -906,7 +884,8 @@ std::size_t construct_cdt3(PointRange& points,
       // std::ofstream dump("dump.binary.cgal");
       // CGAL::Mesh_3::save_binary_file(dump, cdt);
     }
-
+    cdt.restore_Delaunay();
+    assert(cdt.is_valid(true));
     assert(cdt.is_conforming());
 
     if(exit_code == EXIT_SUCCESS)
@@ -919,10 +898,11 @@ std::size_t construct_cdt3(PointRange& points,
       }
     }
   }
-  catch(CGAL::Failure_exception&)
+  catch(CGAL::Failure_exception& e)
   {
     finally();
-    std::cout << "Failure in CDT3" << std::endl;
+    std::cout << "Failure in CDT3:" << std::endl
+              << e.what() << std::endl;
     std::exit(1);
   }
 
