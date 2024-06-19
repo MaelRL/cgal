@@ -17,11 +17,13 @@
 #define CGAL_ALPHA_WRAP_3_INTERNAL_ALPHA_WRAP_3_H
 
 // Problems:
-// - Complexity
+// - Still can't reliably detect optimal positions if there is a lot of stuff going on in the seeking spheres:
+//   either we take the QEM of everything and it can be all over the place, or you do subcombinations
+//   and who knows which ones you should keep (and the complexity is insane).
+// - Sometimes, you have to reject optimal vertices on a ridge, because they would be too close to a corner that was outside the Delaunay ball
+// - Even if all steiner points are at optimal positions, how to ensure sharp edges connecting optimal steiner points is in the T3?
 // - Carving through convex areas when the offset is large (check if the centroid is within the offset volume?)
-// - What happens on more complex models?
-// - What about non triangular inputs? Can we rephrase the problem as an optimization on the delta offset surface?
-// - todo: detect non sharp stuff and abort
+// - Complexity
 
 #ifdef CGAL_AW3_DEBUG_PP
  #ifndef CGAL_AW3_DEBUG
@@ -1044,6 +1046,167 @@ private:
     return false;
   }
 
+    // given qem, move it so that it is 'offset' away from the closest input point
+  bool project_to_offset(const Point_3& p,
+                         Point_3& offset_pt,
+                         Vector_3& normal) const
+  {
+    std::cout << "Projecting " << p << std::endl;
+
+    const Point_3 closest_pt = m_oracle.closest_point(p);
+
+    // @fixme this is not correct and can give points arbitrarily close to the input (concave zones)
+
+    // if(squared_distance(closest_pt, p) < m_sq_offset) // @todo give a bit of tolerance?
+    // {
+    //   std::cerr << "Warning: Projection of point within offset: " << p << std::endl;
+    //   return false;
+    // }
+
+    normal = p - closest_pt;
+    const FT sqnorm = normal.squared_length();
+    if(sqnorm != 0.0)
+      normal = normal / CGAL::approximate_sqrt(sqnorm);
+
+    offset_pt = closest_pt + m_offset * normal;
+    std::cout << " to " << offset_pt << std::endl;
+
+    return true;
+  }
+
+  bool project_to_offset(const Point_3& p,
+                         Point_3& offset_pt) const
+  {
+    Vector_3 unused_normal;
+    return project_to_offset(p, offset_pt, unused_normal);
+  }
+
+  std::pair<Point_3, Steiner_location> qem_error_minimizer(const std::vector<Point_3>& p_proj,
+                                                           const std::vector<Vector_3>& n_proj,
+                                                           const std::vector<FT>& w,
+                                                           const std::vector<Point_3>& candidates) const
+  {
+    Eigen::MatrixXd Q(4, 4);
+    Q.setZero();
+
+    for(int i=0; i<p_proj.size(); ++i)
+    {
+      const Vector_3& normal = n_proj[i];
+      double area = w[i];
+
+      double a = normal.x();
+      double b = normal.y();
+      double c = normal.z();
+      double d = CGAL::scalar_product(normal, (p_proj[i] - CGAL::ORIGIN));
+
+      Eigen::MatrixXd local_Q(4, 4);
+      local_Q << area * a * a, area * a * b, area * a * c, area * a * d,
+                 area * a * b, area * b * b, area * b * c, area * b * d,
+                 area * a * c, area * b * c, area * c * c, area * c * d,
+                 area * a * d, area * b * d, area * c * d, area * d * d;
+
+      Q += local_Q;
+    }
+
+    // returns the sample point that minimizes the QEM error among all samples
+    FT min_error = std::numeric_limits<FT>::max();
+    Point_3 p_min = candidates[0];
+    for(int i=0; i<candidates.size(); ++i)
+    {
+      Eigen::VectorXd p(4);
+      p << candidates[i].x(), candidates[i].y(), candidates[i].z(), 1.;
+      FT error = p.transpose() * Q * p;
+      if(error < min_error)
+      {
+        min_error = error;
+        p_min = candidates[i];
+      }
+    }
+
+    return std::make_pair(p_min, Steiner_location::MINIMIZER);
+  }
+
+  std::pair<Point_3, Steiner_location> qem_weighted(const Point_3& p,
+                                                    const std::vector<Point_3>& p_proj,
+                                                    const std::vector<Vector_3>& n_proj,
+                                                    const std::vector<FT>& w) const
+  {
+    Eigen::MatrixXd A(3, 3);
+    A.setZero();
+    Eigen::VectorXd B(3);
+    B.setZero();
+
+    for(int i=0; i<p_proj.size(); ++i)
+    {
+      const Vector_3& normal = n_proj[i];
+      double area = w[i];
+
+      double a = normal.x();
+      double b = normal.y();
+      double c = normal.z();
+      double d = CGAL::scalar_product(normal, (p_proj[i] - CGAL::ORIGIN));
+
+      Eigen::MatrixXd local_A(3, 3);
+      local_A << area * a * a, area * a * b, area * a * c,
+                 area * a * b, area * b * b, area * b * c,
+                 area * a * c, area * b * c, area * c * c;
+
+      Eigen::VectorXd local_B(3);
+      local_B << area * a * d, area * b * d, area * c * d;
+
+      A += local_A;
+      B += local_B;
+    }
+
+    // analyze the eigenvalues of matrix A to tell us the nature of the QEM point
+    const auto evs = A.eigenvalues();
+    const auto evsr = evs.real();
+    const double ev_min = std::min( { evsr[0], evsr[1], evsr[2] } );
+    const double ev_max = std::max( { evsr[0], evsr[1], evsr[2] } );
+    const double ev_mid = std::max( { std::min(evsr[0], evsr[1]),
+                                      std::min(evsr[0], evsr[2]),
+                                      std::min(evsr[1], evsr[2]) } );
+
+    const double min_over_max = ev_min / ev_max;
+    const double mid_over_max = ev_mid / ev_max;
+
+    Steiner_location type;
+    if(min_over_max > 0.1) // all eigenvalues roughly equal
+      type = Steiner_location::ON_CORNER;
+    else if(mid_over_max > 0.1) // max&mid are roughly equal
+      type = Steiner_location::ON_CREASE;
+    else
+      type = Steiner_location::ON_FACE;
+
+    std::cout << "EVS " << evsr[0] << " " << evsr[1] << " " << evsr[2] << std::endl;
+    std::cout << "type ==> " << static_cast<int>(type) << std::endl;
+
+    // check rank
+    Eigen::FullPivLU<Eigen::MatrixXd> solver(A);
+    solver.setThreshold(1e-5);
+
+    Eigen::VectorXd x_hat(3);
+    x_hat(0) = p.x();
+    x_hat(1) = p.y();
+    x_hat(2) = p.z();
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd_decomp(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    svd_decomp.setThreshold(1e-5);
+
+    const Eigen::VectorXd optim = x_hat + svd_decomp.solve(B - A * x_hat);
+    const Point_3& p_new = Point_3(optim(0), optim(1), optim(2));
+    return std::make_pair(p_new, type);
+  }
+
+  std::pair<Point_3, Steiner_location> qem_weighted(const Point_3& p,
+                                                    const std::vector<Triangle_3>& tris,
+                                                    const std::vector<FT>& ws) const
+  {
+    // noet yet implemented
+    CGAL_assertion(false);
+    return std::make_pair(Point_3(), Steiner_location::UNOPTIMIZED);
+  }
+
   bool compute_steiner_point_QEM(const Facet f,
                                  Point_3& steiner_point,
                                  Steiner_location& steiner_location) const
@@ -1068,16 +1231,22 @@ private:
 #endif
 
     Point_3 optimized_steiner_point;
+#ifdef CGAL_AW3_SHARPEN_WITH_SAMPLING
+    Sampling_optimization_status res =
+      optimize_with_sampling(f, steiner_point, steiner_rule,
+                             optimized_steiner_point, steiner_location);
+    bool successful_optimization = (res == Sampling_optimization_status::FOUND_OPTIMAL_POINT);
+#elif defined(CGAL_AW3_SHARPEN_WITH_ITERATIVE_SAMPLING)
     bool successful_optimization =
-#ifdef CGAL_AW3_SHARPEN_WITH_PROBING
-      compute_steiner_with_facet_probes(f, steiner_point, steiner_rule,
-                                        optimized_steiner_point, steiner_location);
-#elif defined(CGAL_AW3_SHARPEN_WITH_ITERATIVE_SNAPPING)
-      iterative_steiner_snapping(f, steiner_point, 2 /*iter*/,
-                                 m_offset + 1.5 * m_alpha /*radius*/, // @fixme silly for offset >>> alpha
-                                 optimized_steiner_point, steiner_location);
+      optimize_with_iterative_sampling(f, steiner_point, steiner_rule,
+                                       optimized_steiner_point, steiner_location);
+#elif defined(CGAL_AW3_SHARPEN_WITH_ITERATIVE_BALL_QUERIES)
+    bool successful_optimization =
+      optimize_with_iterative_ball_queries(f, steiner_point, 2 /*iter*/,
+                                           m_offset + 1.5 * m_alpha /*radius*/, // @fixme silly for offset >>> alpha
+                                           optimized_steiner_point, steiner_location);
 #else
-      dynamic_steiner_snapping(f, steiner_point, optimized_steiner_point, steiner_location);
+      optimize_with_dynamic_ball_queries(f, steiner_point, optimized_steiner_point, steiner_location);
 #endif
 
 #ifdef CGAL_AW3_DEBUG_STEINER_COMPUTATION
@@ -1086,29 +1255,6 @@ private:
 
     if(successful_optimization)
       steiner_point = optimized_steiner_point;
-
-    return true;
-  }
-
-  bool compute_steiner_with_facet_probes(const Facet f,
-                                         const Point_3& steiner_point,
-                                         const Steiner_construction_rule steiner_rule,
-                                         Point_3& optimized_steiner_point,
-                                         Steiner_location& steiner_location) const
-  {
-    bool successful = project_vertex_back_by_sampling(f, steiner_point, steiner_rule,
-                                                      optimized_steiner_point, steiner_location);
-
-    if(!successful)
-      return false;
-
-    std::cout << "Succesful probe opti" << std::endl;
-
-    if(!check_does_break_gate(f, optimized_steiner_point) &&
-       seek_closer_existing_vertex(optimized_steiner_point, m_sq_alpha))
-      return false;
-
-    std::cout << "Gate broken" << std::endl;
 
     return true;
   }
@@ -1126,12 +1272,12 @@ private:
     return false;
   }
 
-  bool iterative_steiner_snapping(const Facet& f,
-                                  const Point_3& steiner_point,
-                                  const int num_iter,
-                                  const FT radius,
-                                  Point_3& optimized_steiner_point,
-                                  Steiner_location& steiner_location) const
+  bool optimize_with_iterative_ball_queries(const Facet& f,
+                                            const Point_3& steiner_point,
+                                            const int num_iter,
+                                            const FT radius,
+                                            Point_3& optimized_steiner_point,
+                                            Steiner_location& steiner_location) const
   {
     const Cell_handle ch = f.first;
     const int id = f.second;
@@ -1389,175 +1535,6 @@ private:
     return (initial_point != optimized_point);
   }
 
-// very similar to snap_point_by_ball(), but at a given iteration, keep the best QEM point
-  // from all QEM points obtained by combinaisons of 2 or 3 primitives.
-  // initial_point could be the original steiner point, or the snapped steiner, or the qem point
-  bool old_snap_point_by_ball_all_combinations(const Facet& f,
-                                           const Point_3& initial_point,
-                                           const FT radius,
-                                           Point_3& optimized_point,
-                                           Steiner_location& optimized_point_location)  const
-  {
-    std::cout << "  Snap point " << initial_point << std::endl;
-
-    // construct the ball
-    typename Geom_traits::Construct_ball_3 ball = geom_traits().construct_ball_3_object();
-
-    const Ball_3 neighborhood_ball = ball(initial_point, square(radius));
-
-    std::cout << "query ball: " << initial_point << " radius " << radius << std::endl;
-
-    // see where the ball intersects the input
-    using PID = std::pair<int, int>;
-    std::vector<PID> primitives;
-    m_oracle.tree().all_intersected_primitives(neighborhood_ball, std::back_inserter(primitives));
-
-    std::cout << primitives.size() << " intersected primitives" << std::endl;
-
-    // get all combinations of 2 or 3 primitives within the vector
-    std::vector<std::vector<PID> > primitive_combinations;
-    for(int i=0; i<primitives.size(); ++i)
-      for(int j=i+1; j<primitives.size(); ++j)
-        primitive_combinations.push_back({primitives[i], primitives[j]});
-
-    for(int i=0; i<primitives.size(); ++i)
-      for(int j=i+1; j<primitives.size(); ++j)
-        for(int k=j+1; k<primitives.size(); ++k)
-          primitive_combinations.push_back({primitives[i], primitives[j], primitives[k]});
-
-    // @todo don't stop at 2 and 3...
-
-    std::cout << primitive_combinations.size() << " combinations" << std::endl;
-
-    const auto dpm = m_oracle.get_m_dpm();
-
-    // now for all combinations, compute some QEM points
-    std::vector<std::pair<Point_3, Steiner_location> > candidate_QEM_points;
-    for(const std::vector<PID>& combination : primitive_combinations)
-    {
-      // given those primitives, compute some qem points (for now, using all of them)
-      std::vector<Point_3> p_proj;
-      std::vector<Vector_3> n_proj;
-      std::vector<FT> w;
-      std::vector<Plane_3> planes; // @todo make sure it isn't a single plane?
-
-      // @todo how to select meaningful combinations? E.g. discard a set of parallel planes
-      std::cout << "-- new combination" << std::endl;
-
-      for(auto primitive : combination)
-      {
-        const Triangle_3 p_tri = get(dpm, primitive);
-
-        std::cout << "\t\tintersected primitive: " << primitive.first << ", " << primitive.second << std::endl;
-        std::cout << "\t\tdatum: " << p_tri << std::endl;
-
-        const Plane_3 plane = p_tri.supporting_plane();
-        Vector_3 normal = plane.orthogonal_vector();
-        const FT area = 1; // CGAL::approximate_sqrt(p_tri.squared_area()); // @tmp
-        FT mag_norm = normal.squared_length();
-        if(mag_norm != 0.)
-          normal /= CGAL::approximate_sqrt(mag_norm);
-
-        p_proj.push_back(p_tri.vertex(0) + normal * m_offset);
-        n_proj.push_back(normal);
-        w.push_back(area);
-        planes.push_back(plane);
-      }
-
-      if(!p_proj.empty())
-      {
-        Point_3 qem_point;
-        Steiner_location qem_type;
-        std::tie(qem_point, qem_type) = qem_weighted(initial_point, p_proj, n_proj, w);
-
-        std::cout << "QEM point: " << qem_point << " type " << static_cast<int>(qem_type) << std::endl;
-
-        // Ignore QEM giving us an optimal on a face: we only care to snap to something sharp
-        if(qem_type == Steiner_location::ON_FACE)
-          continue;
-
-        // Reject if the optimal point is too far from the planes
-        bool reject_candidate = false;
-        for(int i=0; i<planes.size(); ++i)
-        {
-          const Plane_3& plane = planes[i];
-
-          // Try to avoid points being on the wrong offset surface
-          // if(plane.oriented_side(qem_point) != CGAL::ON_POSITIVE_SIDE) // @todo too harsh?
-          // {
-          //   reject_candidate = true;
-          //   break;
-          // }
-
-          // The idea is that at a convex corner, the intersection of the offset planes is
-          // at distance (sqrt(2) - 1) * offset ~= 0.5 * offset of the offset surface,
-          // and it shouldn't be rejected.
-          const FT sq_dist = squared_distance(qem_point, plane);
-          if(sq_dist > 2.25 * m_sq_offset)
-          {
-            reject_candidate = true;
-            break;
-          }
-        }
-
-        if(reject_candidate)
-          continue;
-
-        Point_3 projected_qem_point;
-        bool successful_projection = project_to_offset(qem_point, projected_qem_point);
-        if(!successful_projection)
-          return false;
-
-        const FT sq_near_radius = square(0.5 * m_alpha);
-        if(check_does_break_gate(f, projected_qem_point) &&
-           !seek_closer_existing_vertex(projected_qem_point, sq_near_radius))
-        {
-          candidate_QEM_points.emplace_back(projected_qem_point, qem_type);
-        }
-      }
-    }
-
-    std::cout << candidate_QEM_points.size() << " QEM candidates" << std::endl;
-    for(const auto& cp : candidate_QEM_points)
-      std::cout << "\t" << cp.first << " " << static_cast<int>(cp.second) << std::endl;
-
-    if(candidate_QEM_points.empty())
-      return false;
-
-    // Out of the QEM points that break the gate, get the best QEM point available:
-    // for now arbitraly defined as the farthest from the CC of the inside cell
-    const Point_3& ncc = circumcenter(f.first->neighbor(f.second));
-    FT sq_dist = 0;
-
-    for(const auto& candidate : candidate_QEM_points)
-    {
-      // This is just saying: "we should prioritize QEM types that have the lowest dimension:
-      // corners ideally, or creases otherwise"
-      if(candidate.second != optimized_point_location)
-      {
-        if(candidate.second < optimized_point_location)
-        {
-          optimized_point = candidate.first;
-          optimized_point_location = candidate.second;
-        }
-
-        continue;
-      }
-
-      const FT candidate_sq_dist = squared_distance(ncc, candidate.first);
-      if(candidate_sq_dist > sq_dist)
-      {
-        optimized_point = candidate.first;
-        optimized_point_location = candidate.second;
-        sq_dist = candidate_sq_dist;
-      }
-    }
-
-    std::cout << "Best QEM candidate: " << optimized_point << " type " << static_cast<int>(optimized_point_location) << std::endl;
-
-    return (initial_point != optimized_point);
-  }
-
   // very similar to snap_point_by_ball(), but at a given iteration, keep the best QEM point
   // from all QEM points obtained by combinaisons of 2 or 3 primitives.
   // initial_point could be the original steiner point, or the snapped steiner, or the qem point
@@ -1663,7 +1640,7 @@ private:
           // at distance (sqrt(2) - 1) * offset ~= 0.5 * offset of the offset surface,
           // and it shouldn't be rejected.
           const FT sq_dist = squared_distance(qem_point, plane);
-          if(sq_dist > 2.25 * m_sq_offset)
+          if(sq_dist > 2.25 * m_sq_offset) // @tmp 2.25; 0.25 ?
           {
             reject_candidate = true;
             break;
@@ -1694,7 +1671,6 @@ private:
     if(candidate_QEM_points.empty())
       return false;
 
-    const Point_3& ncc = circumcenter(f.first->neighbor(f.second));
     for(const auto& candidate : candidate_QEM_points)
     {
       // This is just saying: "we should prioritize QEM types that have the lowest dimension:
@@ -1711,8 +1687,9 @@ private:
       }
 
       // Out of the QEM points that break the gate, get the best QEM point available:
-      // for now arbitraly defined as the closest from the CC of the inside cell
-      if(squared_distance(ncc, candidate.first) < squared_distance(ncc, optimized_point))
+      // for now arbitraly defined as the closest from the CC of the outside cell
+      const Point_3& cc = circumcenter(f.first);
+      if(squared_distance(cc, candidate.first) < squared_distance(cc, optimized_point))
       {
         optimized_point = candidate.first;
         optimized_point_location = candidate.second;
@@ -1724,10 +1701,10 @@ private:
     return (initial_point != optimized_point);
   }
 
-  std::pair<bool, int> dynamic_steiner_snapping(const Facet& f,
-                                                const Point_3& initial_point,
-                                                const Steiner_construction_rule steiner_rule,
-                                                Point_3& optimized_point) const
+  std::pair<bool, int> optimize_with_dynamic_ball_queries(const Facet& f,
+                                                          const Point_3& initial_point,
+                                                          const Steiner_construction_rule steiner_rule,
+                                                          Point_3& optimized_point) const
   {
     std::cout << "Dynamic snapping, og opoint is: " << initial_point << std::endl;
 
@@ -2022,20 +1999,20 @@ private:
     return (sq_dist < 3 * m_sq_offset);
   }
 
+  // Explore the neighborhood using random walks around the original Steiner point
   template <std::size_t n>
   void get_random_walk_samples(const Facet& f,
                                const Point_3& steiner_point,
                                const Steiner_construction_rule steiner_rule,
+                               const FT seeking_radius,
                                std::array<Point_3,n>& samples) const
   {
-    // Use a random walk around the original Steiner point
-    // to explore the neighborhood within an alpha radius
-
     const Cell_handle ch = f.first;
     const int id = f.second;
-    const Point_3& cc = circumcenter(ch); // @fixme inf cell...
+    const Point_3& cc = circumcenter(ch); // @fixme handle inf cells
     const FT ball_sq_radius = squared_distance(cc, m_tr.point(ch, 0));
     const FT scaled_ball_sq_radius = FT(1.25) * ball_sq_radius;
+
     const Cell_handle nc = f.first->neighbor(id);
     const Point_3& ncc = circumcenter(nc);
     const FT neighbor_ball_sq_radius = squared_distance(ncc, m_tr.point(nc, 0));
@@ -2045,16 +2022,18 @@ private:
     const FT sq_offset_minus_precision = CGAL::square(m_offset - precision);
     const FT sq_offset_plus_precision = CGAL::square(m_offset + precision);
 
-    const FT seeking_radius = m_alpha;
     const FT seeking_sq_radius = CGAL::square(seeking_radius);
 
     Vector_3 dir; // points away from steiner_point
 
     if(steiner_rule == Steiner_construction_rule::R1)
     {
-      const Point_3& a = ch->vertex((id + 1) % 4)->point();
-      const Point_3& b = ch->vertex((id + 2) % 4)->point();
-      const Point_3& c = ch->vertex((id + 3) % 4)->point();
+      // not dir = { steiner_point, cc } because ch might be infinite, in which case
+      // cc is (awkwardly) set to the center of the diametral ball of the facet,
+      // and if we use this, the dual might be inverted.
+      const Point_3& a = m_tr.point(ch, Triangulation::vertex_triple_index(id, 0));
+      const Point_3& b = m_tr.point(ch, Triangulation::vertex_triple_index(id, 1));
+      const Point_3& c = m_tr.point(ch, Triangulation::vertex_triple_index(id, 2));
       const Vector_3 edge_1 {a, b};
       const Vector_3 edge_2 {a, c};
       dir = CGAL::cross_product(edge_1, edge_2);
@@ -2066,6 +2045,7 @@ private:
 
     CGAL_assertion(dir != CGAL::NULL_VECTOR);
     dir = dir / CGAL::approximate_sqrt(dir.squared_length());
+
     const Point_3 source = steiner_point + 0.5 * seeking_radius * dir;
 
     std::cout << "c:\n"
@@ -2088,7 +2068,7 @@ private:
     std::cout << "steiner point: " << steiner_point << std::endl;
     std::cout << "source: " << source << std::endl;
 
-    CGAL::Random rng;
+    CGAL::Random rng(0);
     Random_points_on_sphere_3<Point_3> random_point_on_sphere(1., rng);
 
     for(int i=0; i<n; ++i)
@@ -2122,7 +2102,7 @@ private:
         FT radius = CGAL::approximate_sqrt(sq_current_dist) - m_offset;
 #elif defined(CGAL_AW3_RANDOM_WALK_USE_FIXED_STEP)
         // check if there is an intersection between the previous point and the current point
-        todo
+        #error // not yet implemented
 
         const FT min_step = 0.1 * m_alpha;
 #else
@@ -2168,15 +2148,15 @@ private:
                        const Point_3& steiner_point,
                        const Point_3& source,
                        const Vector_3& dir,
+                       const FT seeking_radius,
                        const std::size_t n,
                        std::vector<Point_3>& samples,
                        const bool can_spawn = true) const
   {
-    static CGAL::Random rng;
+    static CGAL::Random rng(0);
     Random_points_on_sphere_3<Point_3> random_point_on_sphere(1., rng);
 
     // don't change this without changing it in the other functions
-    const FT seeking_radius = m_alpha;
     const FT seeking_sq_radius = CGAL::square(seeking_radius);
 
     const FT precision = 0.01 * m_offset;
@@ -2225,14 +2205,15 @@ private:
         std::cout << "current_pt = " << current_pt << " traveled " << distance_traveled << std::endl;
 
 #ifndef CGAL_AW3_RANDOM_FOUNTAIN_STREAMS
-        if(distance_traveled > CGAL_PI * seeking_radius)
+        if(distance_traveled > 2 * CGAL_PI * seeking_radius) // could maybe avoid the 2 if n is even?
         {
           std::cout << "No intersection found along this great circle" << std::endl;
           break;
         }
 #endif
 
-        if(distance_traveled > 0.5 * seeking_radius)
+#ifdef CGAL_AW3_SAMPLE_WITH_FOUNTAINS_RECURSIVE
+        if(distance_traveled > 0.5 * seeking_radius) // sub fountain
         {
           if(!has_spawned && can_spawn)
           {
@@ -2240,6 +2221,7 @@ private:
             has_spawned = true;
           }
         }
+#endif
 
         // if the current point is close enough to the offset, we are done
         FT sq_current_dist = squared_distance(current_pt, closest_point);
@@ -2302,8 +2284,8 @@ private:
     for(const Point_3& sub_source : sub_sources)
     {
       Vector_3 sub_dir = sub_source - steiner_point;
-      spanwn_fountain(f, steiner_point, sub_source, sub_dir,
-                      5, samples, false /*no recursive spawning*/); // n -> 5 @tmp
+      spanwn_fountain(f, steiner_point, sub_source, sub_dir, seeking_radius,
+                      n, samples, false /*no recursive spawning*/); // n -> 2 @tmp
     }
 #endif
   }
@@ -2311,6 +2293,7 @@ private:
   void get_fountain_samples(const Facet& f,
                             const Point_3& steiner_point,
                             const Steiner_construction_rule steiner_rule,
+                            const FT seeking_radius,
                             const std::size_t n,
                             std::vector<Point_3>& samples) const
   {
@@ -2318,23 +2301,23 @@ private:
     const int id = f.second;
     const Point_3& cc = circumcenter(ch); // @fixme inf cell...
     const FT ball_sq_radius = squared_distance(cc, m_tr.point(ch, 0));
-    const FT scaled_ball_sq_radius = FT(1.25) * ball_sq_radius;
+
     const Cell_handle nc = f.first->neighbor(id);
     const Point_3& ncc = circumcenter(nc);
     const FT neighbor_ball_sq_radius = squared_distance(ncc, m_tr.point(nc, 0));
-    const FT scaled_neighbor_ball_sq_radius = FT(1.25) * neighbor_ball_sq_radius;
 
-    // don't change this without changing it in the other functions
-    const FT seeking_radius = m_alpha;
     const FT seeking_sq_radius = CGAL::square(seeking_radius);
 
     Vector_3 dir; // points away from steiner_point
 
     if(steiner_rule == Steiner_construction_rule::R1)
     {
-      const Point_3& a = ch->vertex((id + 1) % 4)->point();
-      const Point_3& b = ch->vertex((id + 2) % 4)->point();
-      const Point_3& c = ch->vertex((id + 3) % 4)->point();
+      // not dir = { steiner_point, cc } because ch might be infinite, in which case
+      // cc is (awkwardly) set to the center of the diametral ball of the facet,
+      // and if we use this, the dual might be inverted.
+      const Point_3& a = m_tr.point(ch, Triangulation::vertex_triple_index(id, 0));
+      const Point_3& b = m_tr.point(ch, Triangulation::vertex_triple_index(id, 1));
+      const Point_3& c = m_tr.point(ch, Triangulation::vertex_triple_index(id, 2));
       const Vector_3 edge_1 {a, b};
       const Vector_3 edge_2 {a, c};
       dir = CGAL::cross_product(edge_1, edge_2);
@@ -2361,16 +2344,16 @@ private:
               << "\t" << nc->vertex(2)->point() << "\n"
               << "\t" << nc->vertex(3)->point() << std::endl;
     std::cout << "ncc: " << ncc << std::endl;
+    std::cout << "ball_radius: " << CGAL::approximate_sqrt(ball_sq_radius) << std::endl;
     std::cout << "ball_sq_radius: " << ball_sq_radius << std::endl;
+    std::cout << "neighbor_ball_radius: " << CGAL::approximate_sqrt(neighbor_ball_sq_radius) << std::endl;
     std::cout << "neighbor_ball_sq_radius: " << neighbor_ball_sq_radius << std::endl;
-    std::cout << "scaled_ball_sq_radius: " << scaled_ball_sq_radius << std::endl;
-    std::cout << "scaled_neighbor_ball_sq_radius: " << scaled_neighbor_ball_sq_radius << std::endl;
     std::cout << "seeking_radius: " << seeking_radius << std::endl;
     std::cout << "steiner point: " << steiner_point << std::endl;
     std::cout << "seeking sphere center: " << steiner_point << std::endl;
     std::cout << "source: " << source << std::endl;
 
-    spanwn_fountain(f, steiner_point, source, dir, n, samples);
+    spanwn_fountain(f, steiner_point, source, dir, seeking_radius, n, samples);
   }
 
   template <std::size_t n>
@@ -2384,9 +2367,10 @@ private:
 
     const Cell_handle ch = f.first;
     const int id = f.second;
-    const Point_3& a = ch->vertex((id + 1) % 4)->point();
-    const Point_3& b = ch->vertex((id + 2) % 4)->point();
-    const Point_3& c = ch->vertex((id + 3) % 4)->point();
+
+    const Point_3& a = m_tr.point(ch, Triangulation::vertex_triple_index(id, 0));
+    const Point_3& b = m_tr.point(ch, Triangulation::vertex_triple_index(id, 1));
+    const Point_3& c = m_tr.point(ch, Triangulation::vertex_triple_index(id, 2));
     const Vector_3 edge_1 {a, b};
     const Vector_3 edge_2 {a, c};
     const FT length_1 = CGAL::approximate_sqrt(edge_1.squared_length());
@@ -2406,11 +2390,28 @@ private:
     }
   }
 
-  bool project_vertex_back_by_sampling(const Facet& f,
-                                       const Point_3& steiner_point,
-                                       const Steiner_construction_rule steiner_rule,
-                                       Point_3& optimized_point,
-                                       Steiner_location& optimized_point_location) const
+  // This removes samples that are redundant: if two samples (point + normal) represent
+  // roughly the same plane, then only one of them is kept
+  void filter_QEM_samples(std::vector<Point_3>& p_proj_subset,
+                          std::vector<Vector_3>& n_proj_subset,
+                          std::vector<FT>& w_subset)
+  {
+
+  }
+
+  enum class Sampling_optimization_status
+  {
+    COULD_NOT_FIND_OPTIMAL_POINT = 0,
+    OPTIMAL_POINT_IS_NOT_IN_CONFLICT,
+    FOUND_OPTIMAL_POINT
+  };
+
+  Sampling_optimization_status optimize_with_sampling(const Facet& f,
+                                                      const Point_3& steiner_point,
+                                                      const Steiner_construction_rule steiner_rule,
+                                                      const FT seeking_radius,
+                                                      Point_3& optimized_point,
+                                                      Steiner_location& optimized_point_location) const
   {
     namespace PMP = Polygon_mesh_processing;
 
@@ -2419,11 +2420,11 @@ private:
 #ifdef CGAL_AW3_SAMPLE_WITH_RANDOM_WALKS
     const int NUM_SAMPLES = 20;
     std::array<Point_3, NUM_SAMPLES> samples;
-    get_random_walk_samples(f, steiner_point, steiner_rule, samples);
+    get_random_walk_samples(f, steiner_point, steiner_rule, seeking_radius, samples);
 #elif defined(CGAL_AW3_SAMPLE_WITH_FOUNTAINS)
     const int NUM_SAMPLES = 10;
     std::vector<Point_3> samples;
-    get_fountain_samples(f, steiner_point, steiner_rule, NUM_SAMPLES, samples);
+    get_fountain_samples(f, steiner_point, steiner_rule, seeking_radius, NUM_SAMPLES, samples);
 #elif defined(CGAL_AW3_SAMPLE_WITH_BARYCENTRIC_SEEDS)
     // get the samples via barycentric points
     const int NUM_SAMPLES = 4;
@@ -2482,9 +2483,9 @@ private:
       // @todo doesn't depend on the sample, so it could be outside the loop
       const Cell_handle ch = f.first;
       const int id = f.second;
-      const Point_3& a = ch->vertex((id + 1) % 4)->point();
-      const Point_3& b = ch->vertex((id + 2) % 4)->point();
-      const Point_3& c = ch->vertex((id + 3) % 4)->point();
+      const Point_3& a = m_tr.point(Triangulation::vertex_triple_index(id, 0));
+      const Point_3& b = m_tr.point(Triangulation::vertex_triple_index(id, 1));
+      const Point_3& c = m_tr.point(Triangulation::vertex_triple_index(id, 2));
       const Vector_3 edge_1 {a, b};
       const Vector_3 edge_2 {a, c};
       const Vector_3 shooting_dir = CGAL::cross_product(edge_1, edge_2);
@@ -2509,10 +2510,6 @@ private:
 # error
 #endif
 
-      // do not use samples that are oriented completely different than this face (from old code)
-//      if(CGAL::scalar_product(face_normal, fs.normals[i]) <= 0)
-//        continue;
-
       FT mag_norm = normal.squared_length();
       if(mag_norm != 0.)
         normal = normal / CGAL::approximate_sqrt(mag_norm);
@@ -2529,7 +2526,7 @@ private:
     if(p_proj.empty())
     {
       std::cerr << "Warning: No Samples?" << std::endl;
-      return false;
+      return Sampling_optimization_status::COULD_NOT_FIND_OPTIMAL_POINT;
     }
 
     std::cout << "Initial samples[" << m_tr.number_of_vertices() << "]:" << p_proj.size() << "\n";
@@ -2541,7 +2538,7 @@ private:
       samples_out << p_proj[i] << " " << n_proj[i] << "\n";
     }
 
-#ifdef CGAL_AW3_ADD_ENHANCE_SAMPLES_WITH_QEM_POINTS
+#ifdef CGAL_AW3_ENHANCE_SAMPLES_WITH_QEM_POINTS
     std::vector<Point_3> additional_p_proj;
     std::vector<Vector_3> additional_n_proj;
     std::vector<FT> additional_w;
@@ -2572,7 +2569,7 @@ private:
         // at distance (sqrt(2) - 1) * offset ~= 0.5 * offset of the offset surface,
         // and it shouldn't be rejected.
         const FT sq_dist = squared_distance(qem_point, pl);
-        if(sq_dist > 2.25 * m_sq_offset)
+        if(sq_dist > 0.25 * m_sq_offset)
           return false;
       }
 
@@ -2642,11 +2639,13 @@ private:
       all_samples_out << p_proj[i] << " " << n_proj[i] << "\n";
     }
 
+    // Samples and candidates have been computed; find the optimal point
+
 #ifdef CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_MINIMIZER
     std::tie(optimized_point, optimized_point_location) = qem_error_minimizer(p_proj, n_proj, w, p_proj);
-#elif defined(CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_CANDIDATE_FARTHEST_FROM_NCC)
+#elif defined(CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_CANDIDATE_CLOSEST_TO_CC)
     if(candidate_QEM_points.empty())
-      return false;
+      return Sampling_optimization_status::COULD_NOT_FIND_OPTIMAL_POINT;
 
     std::cout << "Total candidates[" << m_tr.number_of_vertices() << "]:" << candidate_QEM_points.size() << "\n";
     std::ofstream all_candidates_out("results/all_candidates_" + std::to_string(m_tr.number_of_vertices()) + ".xyz");
@@ -2657,10 +2656,6 @@ private:
       std::cout << "\t" << p_proj[gi] << "\n";
       all_candidates_out << p_proj[gi] << " " << n_proj[gi] << "\n";
     }
-
-    // Out of the QEM points that break the gate, get the best QEM point available:
-    // for now arbitraly defined as the farthest from the CC of the inside cell
-    const Point_3& ncc = circumcenter(f.first->neighbor(f.second));
 
     for(const auto& candidate : candidate_QEM_points)
     {
@@ -2677,20 +2672,22 @@ private:
         continue;
       }
 
-      // prioritize candidates depending on the distance to NCC
-      FT sq_dist = -1;
-      const FT candidate_sq_dist = squared_distance(ncc, candidate.first);
-      if(candidate_sq_dist < sq_dist)
+      // Out of the QEM points that break the gate, get the best QEM point available:
+      // for now arbitraly defined as the closest from the CC of the outside cell
+      const Point_3& cc = circumcenter(f.first);
+      if(squared_distance(cc, candidate.first) < squared_distance(cc, optimized_point))
       {
         optimized_point = candidate.first;
         optimized_point_location = candidate.second;
-        sq_dist = candidate_sq_dist;
       }
     }
 
     std::cout << "Best QEM candidate: " << optimized_point << " type " << static_cast<int>(optimized_point_location) << std::endl;
 
-    return (steiner_point != optimized_point);
+    if(steiner_point == optimized_point)
+      return Sampling_optimization_status::COULD_NOT_FIND_OPTIMAL_POINT;
+    return Sampling_optimization_status::FOUND_OPTIMAL_POINT;
+
 #elif defined(CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_OPTIMAL_POINT)
     Point_3 qem_point;
     std::tie(qem_point, optimized_point_location) = qem_weighted(steiner_point, p_proj, n_proj, w);
@@ -2698,7 +2695,7 @@ private:
 
     bool successful_projection = project_to_offset(qem_point, optimized_point);
     if(!successful_projection)
-      return false;
+      return Sampling_optimization_status::COULD_NOT_FIND_OPTIMAL_POINT;
 #endif
 
     std::cout << "\t offset qem point: " << optimized_point << "\n";
@@ -2708,173 +2705,64 @@ private:
     if(!check_does_break_gate(f, optimized_point) ||
        seek_closer_existing_vertex(optimized_point, sq_near_radius))
     {
-      return false;
+      return Sampling_optimization_status::OPTIMAL_POINT_IS_NOT_IN_CONFLICT;
     }
 
-    return (steiner_point != optimized_point);
+    if(steiner_point == optimized_point)
+      return Sampling_optimization_status::COULD_NOT_FIND_OPTIMAL_POINT;
+    return Sampling_optimization_status::FOUND_OPTIMAL_POINT;
   }
 
-  // given qem, move it so that it is 'offset' away from the closest input point
-  bool project_to_offset(const Point_3& p,
-                         Point_3& offset_pt,
-                         Vector_3& normal) const
+  Sampling_optimization_status optimize_with_sampling(const Facet& f,
+                                                      const Point_3& steiner_point,
+                                                      const Steiner_construction_rule steiner_rule,
+                                                      Point_3& optimized_point,
+                                                      Steiner_location& optimized_point_location) const
   {
-    std::cout << "Projecting " << p << std::endl;
-
-    const Point_3 closest_pt = m_oracle.closest_point(p);
-
-    // @tmp
-    // if(squared_distance(closest_pt, p) < m_sq_offset) // @todo give a bit of tolerance?
-    // {
-    //   std::cerr << "Warning: Projection of point within offset: " << p << std::endl;
-    //   return false;
-    // }
-
-    normal = p - closest_pt;
-    const FT sqnorm = normal.squared_length();
-    if(sqnorm != 0.0)
-      normal = normal / CGAL::approximate_sqrt(sqnorm);
-
-    offset_pt = closest_pt + m_offset * normal;
-    std::cout << " to " << offset_pt << std::endl;
-
-    return true;
+    const FT seeking_radius = FT(1.25) * m_alpha;
+    return optimize_with_sampling(f, steiner_point, steiner_rule, seeking_radius,
+                                  optimized_point, optimized_point_location);
   }
 
-  bool project_to_offset(const Point_3& p,
-                         Point_3& offset_pt) const
+  bool optimize_with_iterative_sampling(const Facet& f,
+                                        const Point_3& steiner_point,
+                                        const Steiner_construction_rule steiner_rule,
+                                        Point_3& optimized_point,
+                                        Steiner_location& optimized_point_location) const
   {
-    Vector_3 unused_normal;
-    return project_to_offset(p, offset_pt, unused_normal);
-  }
+    // The idea is to first try with a larger seeking radius:
+    // - If we find a good point, we can use it.
+    // - If we find a good point but it's not in conflict, it tells us not to get too close
+    // - If we don't find a good point, carry on with a smaller seeking radius
+    FT seeking_radius = FT(1.5) * m_alpha;
+    Sampling_optimization_status res = optimize_with_sampling(f, steiner_point, steiner_rule,
+                                                              optimized_point, optimized_point_location);
 
-  std::pair<Point_3, Steiner_location>
-    qem_error_minimizer(const std::vector<Point_3>& p_proj,
-                        const std::vector<Vector_3>& n_proj,
-                        const std::vector<FT>& w,
-                        const std::vector<Point_3>& candidates) const
-  {
-    Eigen::MatrixXd Q(4, 4);
-    Q.setZero();
+    if(res == Sampling_optimization_status::FOUND_OPTIMAL_POINT)
+      return true;
 
-    for(int i=0; i<p_proj.size(); ++i)
+    seeking_radius = m_alpha;
+
+    if(res == Sampling_optimization_status::OPTIMAL_POINT_IS_NOT_IN_CONFLICT)
     {
-      const Vector_3& normal = n_proj[i];
-      double area = w[i];
+      Point_3 rejected_optimized_position = optimized_point;
 
-      double a = normal.x();
-      double b = normal.y();
-      double c = normal.z();
-      double d = CGAL::scalar_product(normal, (p_proj[i] - CGAL::ORIGIN));
+      res = optimize_with_sampling(f, steiner_point, steiner_rule, seeking_radius,
+                                   optimized_point, optimized_point_location);
 
-      Eigen::MatrixXd local_Q(4, 4);
-      local_Q << area * a * a, area * a * b, area * a * c, area * a * d,
-                 area * a * b, area * b * b, area * b * c, area * b * d,
-                 area * a * c, area * b * c, area * c * c, area * c * d,
-                 area * a * d, area * b * d, area * c * d, area * d * d;
+      if(res != Sampling_optimization_status::FOUND_OPTIMAL_POINT)
+        return false;
 
-      Q += local_Q;
+      if(squared_distance(optimized_point, rejected_optimized_position) < 0.25 * m_sq_alpha)
+        return false;
+
+      return true;
     }
 
-    // returns the sample point that minimizes the QEM error among all samples
-    FT min_error = std::numeric_limits<FT>::max();
-    Point_3 p_min = candidates[0];
-    for(int i=0; i<candidates.size(); ++i)
-    {
-      Eigen::VectorXd p(4);
-      p << candidates[i].x(), candidates[i].y(), candidates[i].z(), 1.;
-      FT error = p.transpose() * Q * p;
-      if(error < min_error)
-      {
-        min_error = error;
-        p_min = candidates[i];
-      }
-    }
+    res = optimize_with_sampling(f, steiner_point, steiner_rule, seeking_radius,
+                                 optimized_point, optimized_point_location);
 
-    return std::make_pair(p_min, Steiner_location::MINIMIZER);
-  }
-
-  std::pair<Point_3, Steiner_location>
-    qem_weighted(const Point_3& p,
-                 const std::vector<Point_3>& p_proj,
-                 const std::vector<Vector_3>& n_proj,
-                 const std::vector<FT>& w) const
-  {
-    Eigen::MatrixXd A(3, 3);
-    A.setZero();
-    Eigen::VectorXd B(3);
-    B.setZero();
-
-    for(int i=0; i<p_proj.size(); ++i)
-    {
-      const Vector_3& normal = n_proj[i];
-      double area = w[i];
-
-      double a = normal.x();
-      double b = normal.y();
-      double c = normal.z();
-      double d = CGAL::scalar_product(normal, (p_proj[i] - CGAL::ORIGIN));
-
-      Eigen::MatrixXd local_A(3, 3);
-      local_A << area * a * a, area * a * b, area * a * c,
-                 area * a * b, area * b * b, area * b * c,
-                 area * a * c, area * b * c, area * c * c;
-
-      Eigen::VectorXd local_B(3);
-      local_B << area * a * d, area * b * d, area * c * d;
-
-      A += local_A;
-      B += local_B;
-    }
-
-    // analyze the eigenvalues of matrix A to tell us the nature of the QEM point
-    const auto evs = A.eigenvalues();
-    const auto evsr = evs.real();
-    const double ev_min = std::min( { evsr[0], evsr[1], evsr[2] } );
-    const double ev_max = std::max( { evsr[0], evsr[1], evsr[2] } );
-    const double ev_mid = std::max( { std::min(evsr[0], evsr[1]),
-                                      std::min(evsr[0], evsr[2]),
-                                      std::min(evsr[1], evsr[2]) } );
-
-    const double min_over_max = ev_min / ev_max;
-    const double mid_over_max = ev_mid / ev_max;
-
-    Steiner_location type;
-    if(min_over_max > 0.1) // all eigenvalues roughly equal
-      type = Steiner_location::ON_CORNER;
-    else if(mid_over_max > 0.1) // max&mid are roughly equal
-      type = Steiner_location::ON_CREASE;
-    else
-      type = Steiner_location::ON_FACE;
-
-    std::cout << "EVS " << evsr[0] << " " << evsr[1] << " " << evsr[2] << std::endl;
-    std::cout << "type ==> " << static_cast<int>(type) << std::endl;
-
-    // check rank
-    Eigen::FullPivLU<Eigen::MatrixXd> solver(A);
-    solver.setThreshold(1e-5);
-
-    Eigen::VectorXd x_hat(3);
-    x_hat(0) = p.x();
-    x_hat(1) = p.y();
-    x_hat(2) = p.z();
-
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd_decomp(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    svd_decomp.setThreshold(1e-5);
-
-    const Eigen::VectorXd optim = x_hat + svd_decomp.solve(B - A * x_hat);
-    const Point_3& p_new = Point_3(optim(0), optim(1), optim(2));
-    return std::make_pair(p_new, type);
-  }
-
-  std::pair<Point_3, Steiner_location>
-    qem_weighted(const Point_3& p,
-                 const std::vector<Triangle_3>& tris,
-                 const std::vector<FT>& ws) const
-  {
-    // noet yet implemented
-    CGAL_assertion(false);
-    return std::make_pair(Point_3(), Steiner_location::UNOPTIMIZED);
+    return (res == Sampling_optimization_status::FOUND_OPTIMAL_POINT);
   }
 
 private:
