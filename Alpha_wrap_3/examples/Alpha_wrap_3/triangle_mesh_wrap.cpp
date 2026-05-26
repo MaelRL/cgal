@@ -9,27 +9,33 @@
 // OR
 // {
     // main strategy for sharpening
-    // #define CGAL_AW3_SHARPEN_WITH_PROBING
-    #define CGAL_AW3_SHARPEN_WITH_ITERATIVE_SNAPPING
+    #define CGAL_AW3_SHARPEN_WITH_SAMPLING
+    // #define CGAL_AW3_SHARPEN_WITH_ITERATIVE_SAMPLING
+    // #define CGAL_AW3_SHARPEN_WITH_ITERATIVE_BALL_QUERIES
+    // #define CGAL_AW3_SHARPEN_WITH_DYNAMIC_BALL_QUERIES
+
+    // suboptions for sampling strategies
+    // #define CGAL_AW3_SAMPLE_WITH_RANDOM_WALKS
+    // #define CGAL_AW3_SAMPLE_WITH_FOUNTAINS
+    // #define CGAL_AW3_SAMPLE_WITH_BARYCENTRIC_SEEDS
+    #define CGAL_AW3_SAMPLE_WITH_RAY_INTERSECTIONS
+
+    // suboptions for random walks (pick one)
+    #define CGAL_AW3_RANDOM_WALK_USE_WALK_ON_SPHERES
+    // #define CGAL_AW3_RANDOM_WALK_USE_FIXED_STEP // not yet implemented
+
+    // sub options for fountain sampling
+    // #define CGAL_AW3_RANDOM_FOUNTAIN_STREAMS
+    // #define CGAL_AW3_SAMPLE_WITH_FOUNTAINS_RECURSIVE
+
+    // #define CGAL_AW3_ENHANCE_SAMPLES_WITH_QEM_POINTS
 
     // pick one of these
-    // #define CGAL_AW3_SAMPLE_WITH_RANDOM_WALKS
-    #define CGAL_AW3_SAMPLE_WITH_FOUNTAINS
-    // #define CGAL_AW3_SAMPLE_WITH_BARYCENTRIC_SEEDS
-
-    #define CGAL_AW3_SAMPLE_WITH_FOUNTAINS_RECURSIVE
-    // #define CGAL_AW3_RANDOM_FOUNTAIN_STREAMS
-
-    // pick one of these (meaningful only when using random walks)
-    #define CGAL_AW3_RANDOM_WALK_USE_WALK_ON_SPHERES
-    // #define CGAL_AW3_RANDOM_WALK_USE_FIXED_STEP
-
-    #define CGAL_AW3_ADD_ENHANCE_SAMPLES_WITH_QEM_POINTS
-
-    // pick one of these (ordered in good to bad)
-    #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_CANDIDATE_FARTHEST_FROM_NCC
+    #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_OPTIMAL_POINT
     // #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_MINIMIZER
-    // #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_OPTIMAL_POINT
+    // #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_CANDIDATE_CLOSEST_TO_CC
+
+    #define CGAL_AW3_USE_WEIGHTED_INSERTION_FOR_STEINER_POINTS_ON_FEATURES
 // }
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
