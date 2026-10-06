@@ -61,7 +61,6 @@
 // @todo
 // - User manual (doc figures)
 // - Reject non-manifold inputs, non-triangulated inputs (clarify doc)
-// - Always build the skeleton
 
 // @todo later:
 // - Do not duplicate time/point for both events and nodes? (node keeps only a shared ptr to the event?)
@@ -76,10 +75,7 @@
 
 // ----
 
-/*
-  As to not waste energy building the skeleton if we do not care about it.
-*/
-#define CGAL_SS3_NO_SKELETON_DS
+// #define CGAL_SS3_NO_SKELETON_DS
 
 /*
   Some events can be detected from multiple elements. Reduce that to a single "canonical" element.
