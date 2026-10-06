@@ -547,7 +547,6 @@ public:
     */
     const Vector_3& direction() const
     {
-      CGAL_SS3_DEBUG_SPTR(this->direction_->has_value());
       return *(this->direction_);
     }
 

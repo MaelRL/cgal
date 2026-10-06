@@ -55,7 +55,6 @@
 // - lighter & faster polyhedron data structures
 
 // @todo: cleaning
-// - document `OBJ::save(skeleton)`
 // - clean up all the code related to local queue updates (horrible variable names, duplicates, etc.)
 
 // @todo
@@ -65,8 +64,7 @@
 // @todo later:
 // - Do not duplicate time/point for both events and nodes? (node keeps only a shared ptr to the event?)
 // - Check for overly shared objects, redundant function calls (plane normalization, for example)
-// - Get rid of all the shared ptr stuff, we only need to zombie the elements and use IDs
-// - Move polyhedron_ if the skeleton is not being built
+// - Get rid of all the shared ptr stuff: we only need to zombie the elements and use IDs
 // - Do not triangulate outputs, use the code from remesh_planar_faces() for not simply connected faces
 
 // @todo latest:

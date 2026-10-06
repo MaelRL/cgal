@@ -279,8 +279,8 @@ bool write_OBJ(const std::string& filename,
  *
  * writes a `CGAL::Straight_skeleton_3` to a Wavefront OBJ file.
  *
- * This function outputs only the complete sheets (i.e., no sheet that has partial arcs)
- * of the straight skeleton.
+ * The skeleton may be incomplete, in which case an incomplete sheet is drawn using
+ * the latest time at any of the its nodes. If a sheet has fewer than 3 nodes, it is skipped.
  *
  * \tparam GeomTraits must be a model of `Kernel`
  * \tparam NamedParameters a sequence of \ref bgl_namedparameters "Named Parameters"
@@ -301,9 +301,10 @@ bool write_OBJ(const std::string& filename,
 template <typename GeomTraits,
           typename CGAL_NP_TEMPLATE_PARAMETERS>
 bool write_OBJ(const std::string& filename,
-               std::shared_ptr<Straight_skeleton_3<GeomTraits> > skeleton,
+               const std::shared_ptr<Straight_skeleton_3<GeomTraits> >& skeleton,
                const CGAL_NP_CLASS& np = parameters::default_values())
 {
+  using FT = typename GeomTraits::FT;
   using Point_3 = typename GeomTraits::Point_3;
   using Vector_3 = typename GeomTraits::Vector_3;
 
@@ -315,12 +316,10 @@ bool write_OBJ(const std::string& filename,
   // For triangulation
   using Itag = CGAL::Exact_intersections_tag;
   using PK = CGAL::Projection_traits_3<GeomTraits>;
-  using PVbb = CGAL::Triangulation_vertex_base_with_info_2<NodeSPtr, PK>;
-  using PVb = CGAL::Triangulation_vertex_base_2<PK, PVbb>;
+  using PVb = CGAL::Triangulation_vertex_base_2<PK>;
   using PFb = CGAL::Constrained_triangulation_face_base_2<PK>;
   using PTDS = CGAL::Triangulation_data_structure_2<PVb, PFb>;
   using PCDT = CGAL::Constrained_Delaunay_triangulation_2<PK, PTDS, Itag>;
-  using PCDT_VH = typename PCDT::Vertex_handle;
   using PCDT_FH = typename PCDT::Face_handle;
 
   CGAL_SS3_IO_TRACE_V(8, "-- OBJ::Save(Skeleton) to " << filename << " --");
@@ -330,24 +329,30 @@ bool write_OBJ(const std::string& filename,
   set_stream_precision_from_NP(oss, np);
 
   // Map for unique nodes and their indices
-  std::map<NodeSPtr, int> node_to_index;
+  std::map<Point_3, int> pos_to_index;
   int next_index = 1;
 
   // Collect all unique nodes from all sheets
-  for (const NodeSPtr& node : skeleton->nodes()) {
-    node_to_index[node] = next_index++;
-  }
+  FT latest_time = 0;
 
   // Write vertices
   for (const NodeSPtr& node : skeleton->nodes()) {
     const Point_3& point = node->point();
+    pos_to_index[point] = next_index++;
     CGAL_SS3_IO_TRACE_V(16, "Node's #arcs " << node->degree());
     CGAL_SS3_IO_TRACE_V(16, "Node's #sheets " << node->sheets().size());
 
     oss << "v " << CGAL::to_double(point.x()) << " "
                 << CGAL::to_double(point.y()) << " "
                 << CGAL::to_double(point.z()) << "\n";
+
+    if (node->time() < latest_time) {
+      latest_time = node->time();
+    }
   }
+
+  // incomplete arcs get an interpolated point at the latest time
+  CGAL::unordered_flat_map<ArcSPtr, Point_3> incomplete_arc_to_point;
 
   // Write sheets as faces, triangulating if requested
   for (const SheetSPtr& sheet : skeleton->sheets()) {
@@ -356,93 +361,125 @@ bool write_OBJ(const std::string& filename,
     CGAL_SS3_IO_TRACE_V(16, "  Sheet #nodes " << nodes.size());
     CGAL_SS3_IO_TRACE_V(16, "  Sheet #arcs " << sheet->arcs().size());
 
-    if (nodes.size() < 3) {
-      CGAL_SS3_IO_TRACE_V(16, "Sheet with fewer than 3 nodes found. Skipping.");
-      continue;
+    // Grab all the 3D positions to insert in the CDT
+    std::set<Point_3> unique_points;
+    for (const NodeSPtr& node : nodes) {
+      CGAL_SS3_IO_TRACE_V(64, " Add point from node " << node->id() << " " << node->point());
+      auto res = unique_points.insert(node->point());
+      CGAL_warning_msg(res.second, "Node should not be found twice in the sheet's nodes");
     }
 
-    // ignore if the sheet has incomplete arcs
-    bool is_complete = true;
+    // If there are incomplete arcs, also add them (if the arc has left the source node, i.e. the source node's time is less than the latest time)
+    Vector_3 n = sheet->get_plane().orthogonal_vector();
+    CGAL_assertion(n != CGAL::NULL_VECTOR);
+
+    PK traits(n);
+    PCDT pcdt(traits);
+
+    std::optional<Point_3> ip0, ip1;
+
     for (const ArcSPtr& arc : sheet->arcs()) {
+      Point_3 ap0, ap1;
+
+      // if the arc has no target (i.e., it's an incomplete arc), then we might need to add a partial arc.
       if (!arc->has_target()) {
-        is_complete = false;
-        break;
-      }
-    }
+        CGAL_assertion(!ip0.has_value() || !ip1.has_value()); // no more than two incomplete arcs
+        NodeSPtr node_src = arc->source();
+        CGAL_assertion(node_src->time() >= latest_time);
+        if (node_src->time() == latest_time) { // time goes backward
+          ip0.has_value() ? ip1 = node_src->point() : ip0 = node_src->point();
+          continue;
+        } else {
+          Point_3 interpolated_point;
+          auto it = incomplete_arc_to_point.find(arc);
+          if (it == incomplete_arc_to_point.end()) {
+            interpolated_point = node_src->point() + (node_src->time() - latest_time) * arc->direction();
 
-    if (!is_complete) {
-      CGAL_SS3_IO_TRACE_V(16, "  Incomplete sheet found. Skipping.");
-      continue;
-    }
+            CGAL_assertion_code(auto res_1 =)
+              incomplete_arc_to_point.emplace(arc, interpolated_point);
+            CGAL_assertion(res_1.second);
 
-    if (nodes.size() == 3) {
-      oss << "f ";
-      for (const NodeSPtr& node : nodes) {
-        oss << node_to_index.at(node) << " ";
-      }
-      oss << "\n";
-    } else {
-      Vector_3 n = sheet->get_plane().orthogonal_vector();
-      CGAL_assertion(n != CGAL::NULL_VECTOR);
+            CGAL_assertion_code(auto res_2 =)
+              pos_to_index.emplace(interpolated_point, next_index++);
+            CGAL_assertion(res_2.second);
 
-      PK traits(n);
-      PCDT pcdt(traits);
+            oss << "v " << CGAL::to_double(interpolated_point.x()) << " "
+                        << CGAL::to_double(interpolated_point.y()) << " "
+                        << CGAL::to_double(interpolated_point.z()) << "\n";
+          } else {
+            interpolated_point = it->second;
+          }
 
-      std::map<NodeSPtr, PCDT_VH> face_vhs;
-      for (const NodeSPtr& node : nodes) {
-        CGAL_SS3_IO_TRACE_V(64, " CDT add node " << node->id());
-        auto res = face_vhs.emplace(node, PCDT_VH());
-        CGAL_warning_msg(res.second, "Node should not be found twice in the sheet's nodes");
-        if (res.second) {
-          PCDT_VH vh = pcdt.insert(node->point());
-          vh->info() = node;
-          res.first->second = vh;
+          CGAL_SS3_IO_TRACE_V(64, " Add interpolated point from incomplete arc "<< arc->id() << " @ " << interpolated_point);
+          ip0.has_value() ? ip1 = interpolated_point : ip0 = interpolated_point;
+          ap0 = node_src->point();
+          ap1 = interpolated_point;
         }
-      }
-
-      // Insert constraints along the boundary
-      for (const ArcSPtr& arc : sheet->arcs()) {
+      } else {
         NodeSPtr node_src = arc->source();
         NodeSPtr node_tgt = arc->target();
-        CGAL_SS3_IO_TRACE_V(32, " CDT arc between " << node_src->id() << " and " << node_tgt->id());
-        CGAL_SS3_DEBUG_SPTR(node_src);
-        CGAL_SS3_DEBUG_SPTR(node_tgt);
-        PCDT_VH vh0 = face_vhs.at(node_src);
-        PCDT_VH vh1 = face_vhs.at(node_tgt);
-        try {
-          pcdt.insert_constraint(vh0, vh1);
-        } catch(const typename PCDT::Intersection_of_constraints_exception&) {
-          CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
-          CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
-          return false;
-        }
+        ap0 = node_src->point();
+        ap1 = node_tgt->point();
       }
 
-      for (const ArcSPtr& contour : sheet->contours()) {
-        NodeSPtr v_src = contour->source();
-        NodeSPtr v_tgt = contour->target();
-        try {
-          pcdt.insert_constraint(v_src->point(), v_tgt->point());
-        } catch(const typename PCDT::Intersection_of_constraints_exception&) {
-          CGAL_SS3_IO_TRACE_V(1, "Error: Intersection of constraints in sheet triangulation");
-          CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
-          return false;
-        }
-      }
+      CGAL_assertion(ap0 != ap1);
 
-      // Mark domain and output triangles
-      std::unordered_map<PCDT_FH, bool> in_domain_map;
-      boost::associative_property_map<std::unordered_map<PCDT_FH, bool>> in_domain(in_domain_map);
-      CGAL::mark_domain_in_triangulation(pcdt, in_domain);
-
-      for (auto fh : pcdt.finite_face_handles()) {
-        if (!get(in_domain, fh)) {
-          continue;
-        }
-        oss << "f " << node_to_index.at(fh->vertex(0)->info()) << " "
-                    << node_to_index.at(fh->vertex(1)->info()) << " "
-                    << node_to_index.at(fh->vertex(2)->info()) << "\n";
+      try {
+        CGAL_SS3_IO_TRACE_V(64, " Try to add arc segment between " << ap0 << " and " << ap1);
+        pcdt.insert_constraint(ap0, ap1);
+      } catch(const typename PCDT::Intersection_of_constraints_exception&) {
+        CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
+        CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
+        return false;
       }
+    }
+
+    CGAL_assertion(ip0.has_value() == ip1.has_value());
+
+    // Add the closing arc if there are incomplete arcs
+    if (ip0.has_value() && ip1.has_value()) {
+      CGAL_SS3_IO_TRACE_V(64, " Add closing arc between " << *ip0 << " and " << *ip1);
+      CGAL_assertion(ip0.value() != ip1.value());
+      try {
+        pcdt.insert_constraint(*ip0, *ip1);
+      } catch(const typename PCDT::Intersection_of_constraints_exception&) {
+        CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
+        CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
+        return false;
+      }
+    }
+
+    for (const ArcSPtr& contour : sheet->contours()) {
+      NodeSPtr v_src = contour->source();
+      NodeSPtr v_tgt = contour->target();
+      try {
+        CGAL_SS3_IO_TRACE_V(64, " Try to add contour segment between " << v_src->point() << " and " << v_tgt->point());
+        pcdt.insert_constraint(v_src->point(), v_tgt->point());
+      } catch(const typename PCDT::Intersection_of_constraints_exception&) {
+        CGAL_SS3_IO_TRACE_V(1, "Error: Intersection of constraints in sheet triangulation");
+        CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
+        return false;
+      }
+    }
+
+    if (pcdt.dimension() != 2) {
+      CGAL_SS3_IO_TRACE_V(16, "Triangulation of sheet is not 2D");
+      CGAL_SS3_IO_TRACE_V(16, sheet->to_string());
+      continue;
+    }
+
+    // Mark domain and output triangles
+    std::unordered_map<PCDT_FH, bool> in_domain_map;
+    boost::associative_property_map<std::unordered_map<PCDT_FH, bool>> in_domain(in_domain_map);
+    CGAL::mark_domain_in_triangulation(pcdt, in_domain);
+
+    for (auto fh : pcdt.finite_face_handles()) {
+      if (!get(in_domain, fh)) {
+        continue;
+      }
+      oss << "f " << pos_to_index.at(fh->vertex(0)->point()) << " "
+                  << pos_to_index.at(fh->vertex(1)->point()) << " "
+                  << pos_to_index.at(fh->vertex(2)->point()) << "\n";
     }
   }
 
