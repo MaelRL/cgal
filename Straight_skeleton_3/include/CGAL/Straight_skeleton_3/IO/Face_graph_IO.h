@@ -133,6 +133,7 @@ public:
   template <typename TriangleMesh,
             typename NamedParameters = CGAL::parameters::Default_named_parameters>
   static PolyhedronSPtr load(const TriangleMesh& tmesh,
+                             CGAL::unordered_flat_map<typename boost::graph_traits<TriangleMesh>::vertex_descriptor, VertexSPtr>& v2v,
                              CGAL::unordered_flat_map<typename boost::graph_traits<TriangleMesh>::edge_descriptor, EdgeWPtr>& e2e,
                              CGAL::unordered_flat_map<typename boost::graph_traits<TriangleMesh>::face_descriptor, FacetWPtr>& f2f,
                              const NamedParameters& np = CGAL::parameters::default_values())
@@ -161,6 +162,7 @@ public:
       decltype(auto) point = get(vpm, vd);
       VertexSPtr vertex = Vertex::create(point);
       vertex->set_id(vertex_id_new);
+      v2v[vd] = vertex;
       result->add_vertex(vertex);
     }
 
@@ -177,23 +179,10 @@ public:
       CGAL_SS3_IO_TRACE_V(16, "new: F" << facet_id_new << " with " << num_vertices << " vertices");
       CGAL_assertion(num_vertices > 2);
 
-      std::vector<VertexSPtr> poly_vertices(num_vertices);
-      for (unsigned int i = 0; i < num_vertices; ++i) {
-        poly_vertices[i] = VertexSPtr();
-      }
-
-      unsigned int pos = 0;
+      std::vector<VertexSPtr> poly_vertices;
+      poly_vertices.reserve(num_vertices);
       for (halfedge_descriptor h : halfedges_around_face(halfedge(fd, tmesh), tmesh)) {
-        unsigned int vertex_id = source(h, tmesh);
-        if (vertex_id < vertices.size()) {
-          poly_vertices[pos++] = vertices[vertex_id];
-          CGAL_SS3_IO_TRACE_V(32, "  V" << vertices[vertex_id]->id() << "; "
-                                        << vertices[vertex_id]->point());
-        } else {
-          std::stringstream whatstream;
-          whatstream << "Vertex with id=" << vertex_id << " does not exist.";
-          throw std::runtime_error(whatstream.str());
-        }
+        poly_vertices.push_back(v2v.at(source(h, tmesh)));
       }
 
       if (outward_offsetting)
@@ -203,25 +192,20 @@ public:
       facet->set_id(facet_id_new);
       f2f[fd] = facet;
 
-      // let's not assume anything on the edge order...
-      std::map<std::pair<Point_3, Point_3>, EdgeWPtr> p2e;
-      for (const EdgeSPtr& e : facet->edges()) {
-        const Point_3& p0 = e->source()->point();
-        const Point_3& p1 = e->target()->point();
-        p2e.emplace((p0 < p1 ? std::make_pair(p0, p1) : std::make_pair(p1, p0)), e);
-      }
-
       // Correspondence between the edges of the input mesh and the new edges in the polyhedron.
       // 'poly_vertices' is filled, starting at source() of the first edge, and
       // Facet::create() creates the i-th edge between vertices[i] and vertices[i+1]
-      halfedge_descriptor h = halfedge(fd, tmesh), start_h = halfedge(fd, tmesh);
+      halfedge_descriptor hd = halfedge(fd, tmesh), start_hd = halfedge(fd, tmesh);
       do {
-        const Point_3& p0 = get(CGAL::vertex_point, tmesh, source(h, tmesh));
-        const Point_3& p1 = get(CGAL::vertex_point, tmesh, target(h, tmesh));
-        EdgeWPtr ew = p2e.at((p0 < p1 ? std::make_pair(p0, p1) : std::make_pair(p1, p0)));
-        e2e[edge(h, tmesh)] = ew;
-        h = next(h, tmesh);
-      } while (h != start_h);
+        const vertex_descriptor vd0 = source(hd, tmesh);
+        const vertex_descriptor vd1 = target(hd, tmesh);
+        const VertexSPtr& v0 = v2v.at(vd0);
+        const VertexSPtr& v1 = v2v.at(vd1);
+        EdgeSPtr e = v0->find_edge(v1);
+        CGAL_assertion(e != nullptr);
+        e2e[edge(hd, tmesh)] = e;
+        hd = next(hd, tmesh);
+      } while (hd != start_hd);
 
       Vector_3 n = Polygon_mesh_processing::compute_face_normal(fd, tmesh);
       if (outward_offsetting)
@@ -259,11 +243,13 @@ public:
   static PolyhedronSPtr load(const TriangleMesh& tmesh,
                              const NamedParameters& np = CGAL::parameters::default_values())
   {
+    using vertex_descriptor = typename boost::graph_traits<TriangleMesh>::vertex_descriptor;
     using edge_descriptor = typename boost::graph_traits<TriangleMesh>::edge_descriptor;
     using face_descriptor = typename boost::graph_traits<TriangleMesh>::face_descriptor;
+    CGAL::unordered_flat_map<vertex_descriptor, VertexSPtr> unused_v2v;
     CGAL::unordered_flat_map<edge_descriptor, EdgeWPtr> unused_e2e;
     CGAL::unordered_flat_map<face_descriptor, FacetWPtr> unused_f2f;
-    return load(tmesh, unused_e2e, unused_f2f, np);
+    return load(tmesh, unused_v2v, unused_e2e, unused_f2f, np);
   }
 
   template <typename TriangleMesh,
@@ -276,6 +262,7 @@ public:
 
     CGAL_SS3_IO_TRACE_V(4, "Converting mesh...");
 
+    using vertex_descriptor = typename boost::graph_traits<TriangleMesh>::vertex_descriptor;
     using edge_descriptor = typename boost::graph_traits<TriangleMesh>::edge_descriptor;
     using face_descriptor = typename boost::graph_traits<TriangleMesh>::face_descriptor;
 
@@ -285,10 +272,11 @@ public:
     const bool merge_faces = config->get_Boolean("Preprocessing", "merge_coplanar_faces");
     const double epsilon = config->get_double("Preprocessing", "coplanarity_epsilon");
 
+    CGAL::unordered_flat_map<vertex_descriptor, VertexSPtr> v2v;
     CGAL::unordered_flat_map<edge_descriptor, EdgeWPtr> e2e;
     CGAL::unordered_flat_map<face_descriptor, FacetWPtr> f2f;
 
-    PolyhedronSPtr polyhedron = load(tmesh, e2e, f2f, np);
+    PolyhedronSPtr polyhedron = load(tmesh, v2v, e2e, f2f, np);
     if (!merge_faces)
       return polyhedron;
 
