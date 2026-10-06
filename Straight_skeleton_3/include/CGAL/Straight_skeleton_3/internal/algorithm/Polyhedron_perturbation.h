@@ -1143,12 +1143,12 @@ public:
           break;
         }
 
+        CGAL_postcondition(polyhedron->is_consistent());
+      }
+
 #ifdef CGAL_SS3_DUMP_FILES
         IO::write_OBJ("results/v4_preprocessed.obj", polyhedron, parameters::do_not_triangulate_faces(true));
 #endif
-
-        CGAL_postcondition(polyhedron->is_consistent());
-      }
 
       // Freezing and anchoring
       {
@@ -1707,21 +1707,10 @@ public:
         IO::write_OBJ("results/V4_general_position.obj", polyhedron, parameters::do_not_triangulate_faces(true));
         IO::write_OBJ("results/V4_general_position-triangulated.obj", polyhedron, parameters::do_not_triangulate_faces(false));
 #endif
-
-        CGAL_SS3_TRANSF_TRACE_CODE(for (const VertexSPtr& v : polyhedron->vertices()))
-        CGAL_SS3_TRANSF_TRACE_V(32, "V" << v->id() << " has length " << Size_shenanigans::length(v->point()));
-
-        CGAL_SS3_TRANSF_TRACE_CODE(for (const FacetSPtr& f : polyhedron->facets()) )
-        CGAL_SS3_TRANSF_TRACE_V(32, "F" << f->id() << " has length " << Size_shenanigans::length(f->get_plane()));
-
-        CGAL_postcondition_code(for (const VertexSPtr& v : polyhedron->vertices()) {)
-        CGAL_postcondition(is_stable(v));
-        CGAL_postcondition_code(})
-
-        CGAL_SS3_TRANSF_TRACE_CODE(for (const FacetSPtr& f : polyhedron->facets()) )
-        CGAL_SS3_TRANSF_TRACE_V(32, "F" << f->id() << " has final plane " << f->get_plane());
-
         CGAL_postcondition(are_planes_in_general_position(polyhedron));
+
+        CGAL_postcondition_code(for (const VertexSPtr& v : polyhedron->vertices()))
+        CGAL_postcondition(is_stable(v));
       }
 
       CGAL_SS3_TRANSF_TRACE_V(8, "Shift facets incident to high-degree vertices");
@@ -1840,11 +1829,14 @@ public:
         IO::write_OBJ("results/V4_anchored.obj", polyhedron, parameters::do_not_triangulate_faces(true));
 #endif
 
-      for (const FacetSPtr& f : polyhedron->facets()) {
-        CGAL_SS3_TRANSF_TRACE_V(32, "  Facet #" << f->id() << " ["
-                              << f->get_plane().a() << " " << f->get_plane().b() << " "
-                              << f->get_plane().c() << " " << f->get_plane().d() << "]");
-      }
+      CGAL_SS3_TRANSF_TRACE_CODE(for (const VertexSPtr& v : polyhedron->vertices()))
+      CGAL_SS3_TRANSF_TRACE_V(32, "V" << v->id() << " has length " << Size_shenanigans::length(v->point()));
+
+      CGAL_SS3_TRANSF_TRACE_CODE(for (const FacetSPtr& f : polyhedron->facets()) )
+      CGAL_SS3_TRANSF_TRACE_V(32, "F" << f->id() << " has length " << Size_shenanigans::length(f->get_plane()));
+
+      CGAL_SS3_TRANSF_TRACE_CODE(for (const FacetSPtr& f : polyhedron->facets()) )
+      CGAL_SS3_TRANSF_TRACE_V(32, "F" << f->id() << " has final plane " << f->get_plane());
 
       CGAL_postcondition(polyhedron->is_consistent());
 
