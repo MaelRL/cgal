@@ -605,13 +605,23 @@ struct Filter_wrapper_for_cap_needle_removal<TriangleMesh, VPM, Traits, Identity
 
 template <typename TriangleMesh,
           typename NamedParameters = CGAL::parameters::Default_named_parameters>
+bool has_degenerate_edges(const TriangleMesh& mesh,
+                          const NamedParameters& np = CGAL::parameters::default_values())
+{
+  for(auto e : edges(mesh))
+    if(is_degenerate_edge(e, mesh, np))
+      return true;
+
+  return false;
+}
+
+template <typename TriangleMesh,
+          typename NamedParameters = CGAL::parameters::Default_named_parameters>
 bool has_degenerate_faces(const TriangleMesh& mesh,
                           const NamedParameters& np = CGAL::parameters::default_values())
 {
-  namespace PMP = CGAL::Polygon_mesh_processing;
-
   for(auto f : faces(mesh))
-    if(CGAL::Polygon_mesh_processing::is_degenerate_triangle_face(f, mesh, np))
+    if(is_degenerate_triangle_face(f, mesh, np))
       return true;
 
   return false;
