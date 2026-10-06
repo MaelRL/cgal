@@ -130,13 +130,10 @@ bool preprocess_input(const std::filesystem::path& mesh_filename,
     return false;
   }
 
+  std::cout << "Input mesh: " << vertices(sm).size() << " NV " << faces(sm).size() << " NF" << std::endl;
+
   if (CGAL::is_empty(sm)) {
     std::cerr << "Error: empty input " << mesh_filename << std::endl;
-    return false;
-  }
-
-  if (!CGAL::is_closed(sm)) {
-    std::cerr << "Error: open input " << mesh_filename << std::endl;
     return false;
   }
 
@@ -145,7 +142,15 @@ bool preprocess_input(const std::filesystem::path& mesh_filename,
     return false;
   }
 
-  std::cout << "Input mesh: " << vertices(sm).size() << " NV " << faces(sm).size() << " NF" << std::endl;
+  if (PMP::has_degenerate_edges(sm)) {
+    std::cerr << "Error: invalid input " << mesh_filename << std::endl;
+    return false;
+  }
+
+  if (!CGAL::is_closed(sm)) {
+    std::cerr << "Error: open input " << mesh_filename << std::endl;
+    return false;
+  }
 
   // let's tolerate untriangulated inputs
   if (!CGAL::is_triangle_mesh(sm)) {
@@ -210,6 +215,17 @@ bool run(const Mesh& sm,
       std::cerr << "Error: broken output" << std::endl;
       return false;
     }
+
+    std::stringstream out_ss;
+    out_ss << save_path.string() << "/result_" << save_time << ".obj";
+
+    // this writes 'double', not FT (aka EPECK::FT), but this is what we want
+    if (!CGAL::IO::write_polygon_mesh(out_ss.str(), sm,
+                                      CGAL::parameters::stream_precision(17))) {
+      std::cerr << "Error: failed to write result " << out_ss.str() << std::endl;
+      return false;
+    }
+
     if (!CGAL::is_closed(sm)) {
       std::cerr << "open output" << std::endl;
       return false;
@@ -222,20 +238,19 @@ bool run(const Mesh& sm,
       std::cerr << "Error: degenerate faces in output" << std::endl;
       return false;
     }
+
+    CGAL::Real_timer si_timer;
+    si_timer.start();
+
     if (PMP::does_self_intersect(sm)) {
       std::cerr << "Error: output self-intersects" << std::endl;
       return false;
     }
 
-    std::stringstream out_ss;
-    out_ss << save_path.string() << "/result_" << save_time << ".obj";
-
-    // this writes 'double', not FT (aka EPECK::FT), but this is what we want
-    if (!CGAL::IO::write_polygon_mesh(out_ss.str(), sm,
-                                      CGAL::parameters::stream_precision(17))) {
-      std::cerr << "Error: failed to write result " << out_ss.str() << std::endl;
-      return false;
-    }
+    si_timer.stop();
+    std::cout << "Self-intersection test: " << si_timer.time() << std::endl;
+    std::cout << num_vertices(sm) << " NV " << num_faces(sm) << " NF" << std::endl;
+    std::cout << "kernel is " << (std::is_same<FT, CGAL::Epeck::FT>::value ? "EPECK" : "unknown") << std::endl;
   }
 
   return true;

@@ -38,8 +38,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  // ---
-
   Mesh sm;
   if (!SS3::utils::preprocess_input(mesh_filename, sm)) {
     return EXIT_FAILURE;
