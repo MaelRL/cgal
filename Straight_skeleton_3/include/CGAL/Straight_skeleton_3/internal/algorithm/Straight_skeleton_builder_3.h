@@ -20,15 +20,13 @@
 #include <CGAL/license/Straight_skeleton_3.h>
 
 // @next:
-// - fix polyhedron_ / polyhedron
-// - change CGAL_SS3_NO_SKELETON_DS into a NP + const member boolean
 
 // @fixme now:
 
 // @fixme later:
 // - test save time at an event time
-// - re-using items in event handlers goes against detecting obsolete events with expired pointers,
-//   erase counter would be better.
+// - re-using items in event handlers goes against detecting obsolete events with expired pointers;
+//   erase counters would be better.
 
 // @fixme latest:
 // - Fix simultaneous events still happening sometimes (likely the same event multiple times
@@ -61,21 +59,20 @@
 // - clean up all the code related to local queue updates (horrible variable names, duplicates, etc.)
 
 // @todo
-// - Add tests; doc figures
-// - Do not accept non-manifold inputs, non-triangulated inputs (clarify doc)
-// - Do not triangulate outputs, use the code from remesh_planar_faces() for not simply connected faces
+// - User manual (doc figures)
+// - Reject non-manifold inputs, non-triangulated inputs (clarify doc)
+// - Always build the skeleton
 
 // @todo later:
-// - Perform facet merging using CGAL's region growing and remesh_planar_faces()
-// - Open inputs
 // - Do not duplicate time/point for both events and nodes? (node keeps only a shared ptr to the event?)
 // - Check for overly shared objects, redundant function calls (plane normalization, for example)
 // - Get rid of all the shared ptr stuff, we only need to zombie the elements and use IDs
 // - Move polyhedron_ if the skeleton is not being built
-// - Re-enable the option to translate and scale
+// - Do not triangulate outputs, use the code from remesh_planar_faces() for not simply connected faces
 
 // @todo latest:
-// - Use traits' functors
+// - Use traits' functors everywhere
+// - Handle open inputs
 
 // ----
 
