@@ -73,6 +73,9 @@
 
 // ----
 
+/*
+  Define to not spend (negligible) time and memory building the skeleton when only interested in offsets.
+*/
 // #define CGAL_SS3_NO_SKELETON_DS
 
 /*
@@ -88,7 +91,7 @@
 #define CGAL_SS3_DETECT_EDGE_SPLIT_EVENTS_WITH_BOX_D
 
 // use v2 (faster) is_inside
-#define CGAL_SLS3_NEW_IS_INSIDE
+#define CGAL_SPS3_NEW_IS_INSIDE
 
 // ----
 
@@ -676,25 +679,25 @@ public:
     }
     CGAL_assertion(i == 3);
 
-    const Plane_3& p0 = facets[0]->get_plane();
-    const Plane_3& p1 = facets[1]->get_plane();
-    const Plane_3& p2 = facets[2]->get_plane();
+    const Plane_3& pl0 = facets[0]->get_plane();
+    const Plane_3& pl1 = facets[1]->get_plane();
+    const Plane_3& pl2 = facets[2]->get_plane();
     const FT& w0 = Hds_utils::get_speed(facets[0]);
     const FT& w1 = Hds_utils::get_speed(facets[1]);
     const FT& w2 = Hds_utils::get_speed(facets[2]);
 
-    FT det = p0.a() * (p1.b() * p2.c() - p1.c() * p2.b())
-               - p0.b() * (p1.a() * p2.c() - p1.c() * p2.a())
-               + p0.c() * (p1.a() * p2.b() - p1.b() * p2.a());
-    FT dir_x = w0 * (p1.b() * p2.c() - p1.c() * p2.b())
-                 - p0.b() * (w1 * p2.c() - p1.c() * w2)
-                 + p0.c() * (w1 * p2.b() - p1.b() * w2);
-    FT dir_y = p0.a() * (w1 * p2.c() - p1.c() * w2)
-                 - w0 * (p1.a() * p2.c() - p1.c() * p2.a())
-                 + p0.c() * (p1.a() * w2 - w1 * p2.a());
-    FT dir_z = p0.a() * (p1.b() * w2 - w1 * p2.b())
-                 - p0.b() * (p1.a() * w2 - w1 * p2.a())
-                 + w0 * (p1.a() * p2.b() - p1.b() * p2.a());
+    FT det = pl0.a() * (pl1.b() * pl2.c() - pl1.c() * pl2.b())
+               - pl0.b() * (pl1.a() * pl2.c() - pl1.c() * pl2.a())
+               + pl0.c() * (pl1.a() * pl2.b() - pl1.b() * pl2.a());
+    FT dir_x = w0 * (pl1.b() * pl2.c() - pl1.c() * pl2.b())
+                 - pl0.b() * (w1 * pl2.c() - pl1.c() * w2)
+                 + pl0.c() * (w1 * pl2.b() - pl1.b() * w2);
+    FT dir_y = pl0.a() * (w1 * pl2.c() - pl1.c() * w2)
+                 - w0 * (pl1.a() * pl2.c() - pl1.c() * pl2.a())
+                 + pl0.c() * (pl1.a() * w2 - w1 * pl2.a());
+    FT dir_z = pl0.a() * (pl1.b() * w2 - w1 * pl2.b())
+                 - pl0.b() * (pl1.a() * w2 - w1 * pl2.a())
+                 + w0 * (pl1.a() * pl2.b() - pl1.b() * pl2.a());
 
     // above is the result of solving the system at t=0 and t=1, but we shift inwards
     Vector_3 direction { - dir_x / det, - dir_y / det, - dir_z / det };
@@ -815,11 +818,13 @@ public:
     */
   void cache_base_planes(const PolyhedronSPtr& polyhedron)
   {
+    CGAL_SS3_CORE_TRACE_V(8, "Cache base planes...");
     CGAL_SS3_DEBUG_SPTR(polyhedron);
     for (const FacetSPtr& facet : polyhedron->facets()) {
       const Plane_3& plane = facet->get_plane();
       CGAL_assertion(Kernel_wrapper::has_normalized_plane(plane));
       Hds_utils::set_base_plane(facet, plane);
+      CGAL_postcondition(Hds_utils::get_base_plane(facet) == plane);
     }
   }
 
@@ -1700,7 +1705,7 @@ public:
       offset_vertex->set_point(point_offset);
     }
 
-#ifdef CGAL_SLS3_NEW_IS_INSIDE
+#ifdef CGAL_SPS3_NEW_IS_INSIDE
     if (!Self_intersection::is_inside_using_ray_shooting_V2(point, facet_clone)) {
       CGAL_SS3_CORE_TRACE_V(8, "Pierce event rejected at pop time (c)");
       return false;

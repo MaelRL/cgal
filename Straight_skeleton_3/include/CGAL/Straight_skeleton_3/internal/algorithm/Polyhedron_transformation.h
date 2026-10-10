@@ -1188,7 +1188,7 @@ public:
 
     typename std::list<FacetSPtr>::iterator it_f = polyhedron->facets().begin();
     while (it_f != polyhedron->facets().end()) {
-      FacetSPtr facet = *it_f++;
+      const FacetSPtr& facet = *it_f++;
       Plane_3 offset_plane = offset_plane_from_base(facet, time);
       facet->set_plane(offset_plane);
     }
@@ -1468,7 +1468,7 @@ public:
     const FT& a = facet->get_plane().a();
     const FT& b = facet->get_plane().b();
     const FT& c = facet->get_plane().c();
-    return (a*a + b*b + c*c - 1) <= 1e-5; // @fixme hardcoded bound
+    return (square(a) + square(b) + square(c) - 1) <= 1e-5; // @fixme hardcoded bound
   }
 
   template <typename Pl>

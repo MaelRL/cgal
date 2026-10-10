@@ -121,6 +121,7 @@ public:
     const FT& a = plane.a();
     const FT& b = plane.b();
     const FT& c = plane.c();
+    CGAL_precondition(is_valid(a) && is_valid(b) && is_valid(c));
 
     // inaccuracies during normalization since the sqrt is (usually) not exact
     return (square(a) + square(b) + square(c) - FT(1)) <= 1e-5;

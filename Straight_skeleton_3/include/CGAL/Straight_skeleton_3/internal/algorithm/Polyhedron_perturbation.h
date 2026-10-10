@@ -486,7 +486,9 @@ public:
     // recompute planes with the new point coordinates
     polyhedron->init_planes();
 
-    // @fixme with this normalization, planes no longer go through points...
+    // @fixme with this normalization, planes no longer go exactly through points, which can be
+    // an issue during high-degree splitting. A solution would be to have the whole algorithm
+    // have predicates that are either point-based or plane-based.
     Transformation::normalize_facet_planes(polyhedron);
 
 #ifdef CGAL_SS3_DUMP_FILES

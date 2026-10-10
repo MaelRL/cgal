@@ -101,7 +101,7 @@ construct_skeleton(const TriangleMesh& tmesh,
     }
   }
 
-  // Convert the suface mesh into the SLS3-specific data structure that allows faces with multiple
+  // Convert the suface mesh into the SPS3-specific data structure that allows faces with multiple
   // borders and disconnected facet connected components
   PolyhedronSPtr p = FaceGraphIO::convert(tmesh, np.outward_offsetting(outwards));
   CGAL_SS3_DEBUG_SPTR(p);
