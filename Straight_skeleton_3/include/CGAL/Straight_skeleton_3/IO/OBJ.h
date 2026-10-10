@@ -20,6 +20,8 @@
 #include <CGAL/license/Straight_skeleton_3.h>
 
 #include <CGAL/Straight_skeleton_3/internal/debug.h>
+#include <CGAL/Straight_skeleton_3/internal/kernel/Kernel_wrapper.h>
+#include <CGAL/Straight_skeleton_3/internal/algorithm/Polyhedron_transformation.h>
 
 #include <CGAL/boost/graph/named_params_helper.h>
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
@@ -41,7 +43,6 @@ template <typename GeomTraits>
 class Straight_skeleton_3;
 
 namespace Straight_skeletons_3 {
-
 namespace internal {
 namespace HDS {
 
@@ -49,6 +50,12 @@ template <typename GeomTraits>
 class Polyhedron;
 
 } // namespace HDS
+namespace algorithm {
+
+template <typename GeomTraits>
+class Polyhedron_transformation;
+
+} // namespace algorithm
 } // namespace internal
 
 namespace IO {
@@ -81,7 +88,7 @@ bool write_OBJ(const std::string& filename,
   // CGAL_SS3_IO_TRACE_V(8, "Saving to OBJ:\n" << polyhedron->to_string());
   CGAL_SS3_IO_TRACE_V(8, polyhedron->vertices().size() << " NV, " << polyhedron->facets().size() << " NF");
 
-  // If we want to tolerate intersections for OBJ::save() during debugging
+  // If we want to tolerate intersections for debugging
   // using Itag = CGAL::Exact_intersections_tag;
   // using Itag = CGAL::No_constraint_intersection_requiring_constructions_tag;
   using Itag = CGAL::No_constraint_intersection_requiring_constructions_tag;
@@ -307,14 +314,25 @@ bool write_OBJ(const std::string& filename,
   using FT = typename GeomTraits::FT;
   using Point_3 = typename GeomTraits::Point_3;
   using Vector_3 = typename GeomTraits::Vector_3;
+  using Plane_3 = typename GeomTraits::Plane_3;
+
+  using Polyhedron = internal::HDS::Polyhedron<GeomTraits>;
+  using FacetSPtr = typename Polyhedron::FacetSPtr;
 
   using Skeleton = Straight_skeleton_3<GeomTraits>;
   using NodeSPtr = typename Skeleton::NodeSPtr;
   using ArcSPtr = typename Skeleton::ArcSPtr;
+  using SheetWPtr = typename Skeleton::SheetWPtr;
   using SheetSPtr = typename Skeleton::SheetSPtr;
 
-  // For triangulation
-  using Itag = CGAL::Exact_intersections_tag;
+  using Kernel_wrapper = internal::kernel::Kernel_wrapper<GeomTraits>;
+  using Transformation = internal::algorithm::Polyhedron_transformation<GeomTraits>;
+
+  // If we want to tolerate intersections for debugging
+  // using Itag = CGAL::Exact_intersections_tag;
+  // using Itag = CGAL::No_constraint_intersection_requiring_constructions_tag;
+  using Itag = CGAL::No_constraint_intersection_requiring_constructions_tag;
+
   using PK = CGAL::Projection_traits_3<GeomTraits>;
   using PVb = CGAL::Triangulation_vertex_base_2<PK>;
   using PFb = CGAL::Constrained_triangulation_face_base_2<PK>;
@@ -376,6 +394,19 @@ bool write_OBJ(const std::string& filename,
     PK traits(n);
     PCDT pcdt(traits);
 
+    for (const ArcSPtr& contour : sheet->contours()) {
+      NodeSPtr v_src = contour->source();
+      NodeSPtr v_tgt = contour->target();
+      try {
+        CGAL_SS3_IO_TRACE_V(64, " Try to add contour segment between " << v_src->point() << " and " << v_tgt->point());
+        pcdt.insert_constraint(v_src->point(), v_tgt->point());
+      } catch(const typename PCDT::Intersection_of_constraints_exception&) {
+        CGAL_SS3_IO_TRACE_V(1, "Error: Intersection of constraints in sheet triangulation");
+        CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
+        return false;
+      }
+    }
+
     std::optional<Point_3> ip0, ip1;
 
     for (const ArcSPtr& arc : sheet->arcs()) {
@@ -393,7 +424,29 @@ bool write_OBJ(const std::string& filename,
           Point_3 interpolated_point;
           auto it = incomplete_arc_to_point.find(arc);
           if (it == incomplete_arc_to_point.end()) {
-            interpolated_point = node_src->point() + (node_src->time() - latest_time) * arc->direction();
+            std::vector<Plane_3> shifted_planes;
+            shifted_planes.reserve(3);
+
+            // these faces are from the static polyhedron!!
+            // @fixme really ought to fix this static stuff, or distinguish very clearly...
+            CGAL::unordered_flat_set<FacetSPtr> ifs;
+            for (const SheetWPtr& sheet_wptr : arc->sheets()) {
+              if (const SheetSPtr sheet = sheet_wptr.lock()) {
+                ifs.insert(sheet->get_facet_F());
+                ifs.insert(sheet->get_facet_B());
+              }
+            }
+            CGAL_assertion(ifs.size() == 3);
+
+            for (const FacetSPtr& f : ifs) {
+              CGAL_SS3_DEBUG_SPTR(f);
+              shifted_planes.emplace_back(Transformation::shift_plane(f, latest_time));
+            }
+
+            CGAL_assertion(shifted_planes.size() == 3);
+            const std::optional<Point_3> point = Kernel_wrapper::intersection(shifted_planes[0], shifted_planes[1], shifted_planes[2]);
+            CGAL_assertion(point.has_value());
+            interpolated_point = point.value();
 
             CGAL_assertion_code(auto res_1 =)
               incomplete_arc_to_point.emplace(arc, interpolated_point);
@@ -438,25 +491,12 @@ bool write_OBJ(const std::string& filename,
 
     // Add the closing arc if there are incomplete arcs
     if (ip0.has_value() && ip1.has_value()) {
-      CGAL_SS3_IO_TRACE_V(64, " Add closing arc between " << *ip0 << " and " << *ip1);
+      CGAL_SS3_IO_TRACE_V(64, " Try to add closing arc between " << *ip0 << " and " << *ip1);
       CGAL_assertion(ip0.value() != ip1.value());
       try {
         pcdt.insert_constraint(*ip0, *ip1);
       } catch(const typename PCDT::Intersection_of_constraints_exception&) {
         CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
-        CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
-        return false;
-      }
-    }
-
-    for (const ArcSPtr& contour : sheet->contours()) {
-      NodeSPtr v_src = contour->source();
-      NodeSPtr v_tgt = contour->target();
-      try {
-        CGAL_SS3_IO_TRACE_V(64, " Try to add contour segment between " << v_src->point() << " and " << v_tgt->point());
-        pcdt.insert_constraint(v_src->point(), v_tgt->point());
-      } catch(const typename PCDT::Intersection_of_constraints_exception&) {
-        CGAL_SS3_IO_TRACE_V(1, "Error: Intersection of constraints in sheet triangulation");
         CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
         return false;
       }
