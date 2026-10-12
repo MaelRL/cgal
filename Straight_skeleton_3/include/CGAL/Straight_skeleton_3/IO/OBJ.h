@@ -369,6 +369,8 @@ bool write_OBJ(const std::string& filename,
     }
   }
 
+  CGAL_SS3_IO_TRACE_V(8, "latest_time = " << latest_time);
+
   // incomplete arcs get an interpolated point at the latest time
   CGAL::unordered_flat_map<ArcSPtr, Point_3> incomplete_arc_to_point;
 
@@ -376,13 +378,14 @@ bool write_OBJ(const std::string& filename,
   for (const SheetSPtr& sheet : skeleton->sheets()) {
     const auto& nodes = sheet->nodes();
 
+    CGAL_SS3_IO_TRACE_V(16, "  Sheet # " << sheet->id());
     CGAL_SS3_IO_TRACE_V(16, "  Sheet #nodes " << nodes.size());
     CGAL_SS3_IO_TRACE_V(16, "  Sheet #arcs " << sheet->arcs().size());
 
     // Grab all the 3D positions to insert in the CDT
     std::set<Point_3> unique_points;
     for (const NodeSPtr& node : nodes) {
-      CGAL_SS3_IO_TRACE_V(64, " Add point from node " << node->id() << " " << node->point());
+      CGAL_SS3_IO_TRACE_V(64, " Add point from node " << node->id() << " " << node->point() << " @ " << node->time());
       auto res = unique_points.insert(node->point());
       CGAL_warning_msg(res.second, "Node should not be found twice in the sheet's nodes");
     }
@@ -464,6 +467,7 @@ bool write_OBJ(const std::string& filename,
           }
 
           CGAL_SS3_IO_TRACE_V(64, " Add interpolated point from incomplete arc "<< arc->id() << " @ " << interpolated_point);
+          CGAL_SS3_IO_TRACE_V(64, " using direction: " << arc->direction());
           ip0.has_value() ? ip1 = interpolated_point : ip0 = interpolated_point;
           ap0 = node_src->point();
           ap1 = interpolated_point;
@@ -491,14 +495,18 @@ bool write_OBJ(const std::string& filename,
 
     // Add the closing arc if there are incomplete arcs
     if (ip0.has_value() && ip1.has_value()) {
-      CGAL_SS3_IO_TRACE_V(64, " Try to add closing arc between " << *ip0 << " and " << *ip1);
-      CGAL_assertion(ip0.value() != ip1.value());
-      try {
-        pcdt.insert_constraint(*ip0, *ip1);
-      } catch(const typename PCDT::Intersection_of_constraints_exception&) {
-        CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
-        CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
-        return false;
+      if (*ip0 != *ip1) {
+        try {
+          CGAL_SS3_IO_TRACE_V(64, " Try to add closing arc between " << *ip0 << " and " << *ip1);
+          pcdt.insert_constraint(*ip0, *ip1);
+        } catch(const typename PCDT::Intersection_of_constraints_exception&) {
+          CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
+          CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
+          return false;
+        }
+      } else {
+        // degenerate sheet, nothing to add
+        CGAL_assertion(sheet->nodes().size() == 1 && sheet->nodes().front()->time() == latest_time);
       }
     }
 
