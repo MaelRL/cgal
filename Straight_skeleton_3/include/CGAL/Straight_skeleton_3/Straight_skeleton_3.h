@@ -23,6 +23,7 @@
 #include <CGAL/Straight_skeleton_3/internal/HDS/Polyhedron.h>
 #include <CGAL/Straight_skeleton_3/internal/algorithm/Geom_utils.h>
 #include <CGAL/Straight_skeleton_3/internal/algorithm/HDS_utils.h>
+#include <CGAL/Straight_skeleton_3/internal/algorithm/Polyhedron_transformation.h>
 #include <CGAL/Straight_skeleton_3/internal/weak_find.h>
 #include <CGAL/Straight_skeleton_3/IO/String_factory.h>
 
@@ -42,6 +43,9 @@ namespace algorithm {
 
 template <typename GeomTraits>
 class Hds_utils;
+
+template <typename GeomTraits>
+class Polyhedron_transformation;
 
 } // namespace algorithm
 } // namespace internal
@@ -95,6 +99,7 @@ private:
   using Kernel_wrapper = Straight_skeletons_3::internal::kernel::Kernel_wrapper<Geom_traits>;
   using Geom_utils = Straight_skeletons_3::internal::algorithm::Geom_utils<Geom_traits>;
   using Hds_utils = Straight_skeletons_3::internal::algorithm::Hds_utils<Geom_traits>;
+  using Transformation = Straight_skeletons_3::internal::algorithm::Polyhedron_transformation<GeomTraits>;
 
 public:
   class Node;
@@ -1602,7 +1607,7 @@ public:
       if (arc->has_target()) {
         arcs_out << arc->target()->point() << "\n";
       } else {
-        std::set<FacetSPtr> incident_faces;
+        CGAL::unordered_flat_set<FacetSPtr> incident_faces;
         CGAL_assertion(arc->sheets().size() == 3);
         for (SheetWPtr sheet_wptr : arc->sheets()) {
           if (SheetSPtr sheet = sheet_wptr.lock()) {
@@ -1616,8 +1621,7 @@ public:
         std::array<Plane_3, 3> offset_planes;
         unsigned int i = 0;
         for (FacetSPtr inc_f : incident_faces) {
-          offset_planes[i++] = Geom_utils::offset_plane(inc_f->get_plane(), // static polyhedron's
-                                                        Hds_utils::get_speed(inc_f) * time);
+          offset_planes[i++] = Transformation::shift_plane(inc_f, time);
         }
         CGAL_postcondition(i == 3);
 
