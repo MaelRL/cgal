@@ -8,7 +8,12 @@ include_directories(BEFORE include)
 
 find_package(CGAL REQUIRED)
 
-find_package(ortools CONFIG REQUIRED)
+find_package(ortools CONFIG)
+
+if (NOT TARGET ortools::ortools)
+  message(STATUS "NOTICE: The OR-Tools library is not found, and the tests will not be compiled.")
+  return()
+endif()
 
 # create a target per cppfile
 file(

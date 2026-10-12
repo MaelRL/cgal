@@ -6,7 +6,12 @@ project(Straight_skeleton_3_Examples)
 
 find_package(CGAL REQUIRED)
 
-find_package(ortools CONFIG REQUIRED)
+find_package(ortools CONFIG)
+
+if (NOT TARGET ortools::ortools)
+  message(STATUS "NOTICE: The OR-Tools library is not found, and the examples will not be compiled.")
+  return()
+endif()
 
 create_single_source_cgal_program("create_offset_of_non_triangle_polyhedron.cpp")
 target_link_libraries(create_offset_of_non_triangle_polyhedron PRIVATE ortools::ortools)
@@ -17,12 +22,5 @@ target_link_libraries(create_offset_polyhedra PRIVATE ortools::ortools)
 create_single_source_cgal_program("create_straight_skeleton_3.cpp")
 target_link_libraries(create_straight_skeleton_3 PRIVATE ortools::ortools)
 
-find_package(Eigen3 QUIET)
-include(CGAL_Eigen3_support)
-
-if(TARGET CGAL::Eigen3_support)
-  create_single_source_cgal_program("create_offset_and_remesh.cpp")
-  target_link_libraries(create_offset_and_remesh PRIVATE CGAL::Eigen3_support ortools::ortools)
-else()
-  message(STATUS "NOTICE: Several examples require the Eigen library, and will not be compiled.")
-endif()
+create_single_source_cgal_program("create_offset_and_remesh.cpp")
+target_link_libraries(create_offset_and_remesh PRIVATE ortools::ortools)

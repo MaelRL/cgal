@@ -1592,7 +1592,7 @@ public:
 
   // Dump skeleton arcs in a CGAL polylines format
   void dump_arcs(const std::string& filename,
-                 const FT& time = FT(0)) const
+                 const FT& time) const
   {
     std::ofstream arcs_out(filename);
     arcs_out.precision(17);
