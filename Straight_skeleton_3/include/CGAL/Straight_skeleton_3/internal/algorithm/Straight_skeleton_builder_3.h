@@ -632,11 +632,16 @@ public:
 
     CGAL_SS3_CORE_TRACE_V(2, events_summary());
 
-    CGAL_postcondition(!is_emptiness_expected || polyhedron->empty());
-
 #ifndef CGAL_SS3_NO_SKELETON_DS
+# ifdef CGAL_SS3_DUMP_FILES
+    skeleton_->dump_nodes("final_nodes.xyz");
+    skeleton_->dump_arcs("final_arcs.polylines.txt", current_time);
+    IO::write_OBJ("final_skeleton.obj", skeleton_);
+# endif
     CGAL_postcondition(skeleton_->is_consistent(is_emptiness_expected));
 #endif
+
+    CGAL_postcondition(!is_emptiness_expected || polyhedron->empty());
 
     return true;
   }

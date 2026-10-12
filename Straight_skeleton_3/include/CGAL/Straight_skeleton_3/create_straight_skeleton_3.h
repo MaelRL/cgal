@@ -128,12 +128,6 @@ construct_skeleton(const TriangleMesh& tmesh,
     return { };
   }
 
-#ifdef CGAL_SS3_DUMP_FILES
-    skel_builder->get_skeleton()->dump_nodes("final_nodes.xyz");
-    skel_builder->get_skeleton()->dump_arcs("final_arcs.polylines.txt");
-    IO::write_OBJ("final_skeleton.obj", skel_builder->get_skeleton());
-#endif
-
   return skel_builder->get_skeleton();
 }
 
