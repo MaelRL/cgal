@@ -1599,7 +1599,7 @@ private:
     FacetSPtr clone() const
     {
       FacetSPtr result = Facet::create();
-      std::map<VertexSPtr, VertexSPtr> old_to_new;
+      CGAL::unordered_flat_map<VertexSPtr, VertexSPtr> old_to_new;
       typename std::list<VertexSPtr>::const_iterator it_v = vertices_.begin();
       while (it_v != vertices_.end()) {
         VertexSPtr vertex = *it_v++;
@@ -2267,8 +2267,8 @@ public:
 
   PolyhedronSPtr clone() const
   {
-    std::map<VertexSPtr, VertexSPtr> vertices_c;
-    std::map<EdgeSPtr, EdgeSPtr> edges_c;
+    CGAL::unordered_flat_map<VertexSPtr, VertexSPtr> vertices_c;
+    CGAL::unordered_flat_map<EdgeSPtr, EdgeSPtr> edges_c;
     PolyhedronSPtr result = Polyhedron::create();
     typename std::list<VertexSPtr>::const_iterator it_v = vertices_.begin();
     while (it_v != vertices_.end()) {

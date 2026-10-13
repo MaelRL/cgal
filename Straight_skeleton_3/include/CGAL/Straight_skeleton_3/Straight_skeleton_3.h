@@ -1182,7 +1182,7 @@ public:
 
     // Check for duplicate elements
     {
-      std::unordered_set<NodeSPtr> node_set;
+      CGAL::unordered_flat_set<NodeSPtr> node_set;
       for (const NodeSPtr& node : nodes_) {
         if (!node_set.insert(node).second) {
           CGAL_SS3_SKEL_DS_TRACE("Error: duplicate node in nodes_ list");
@@ -1191,7 +1191,7 @@ public:
           break;
         }
       }
-      std::unordered_set<ArcSPtr> arc_set;
+      CGAL::unordered_flat_set<ArcSPtr> arc_set;
       for (const ArcSPtr& arc : arcs_) {
         if (!arc_set.insert(arc).second) {
           CGAL_SS3_SKEL_DS_TRACE("Error: duplicate arc in arcs_ list");
@@ -1200,7 +1200,7 @@ public:
           break;
         }
       }
-      std::unordered_set<SheetSPtr> sheet_set;
+      CGAL::unordered_flat_set<SheetSPtr> sheet_set;
       for (const SheetSPtr& sheet : sheets_) {
         if (!sheet_set.insert(sheet).second) {
           CGAL_SS3_SKEL_DS_TRACE("Error: duplicate sheet in sheets_ list");
@@ -1213,7 +1213,7 @@ public:
 
     // Check uniqueness of Node IDs
     {
-      std::unordered_set<int> node_ids;
+      CGAL::unordered_flat_set<int> node_ids;
       for (const NodeSPtr& node : nodes_) {
         int id = node->id();
         if (!node_ids.insert(id).second) {
@@ -1226,7 +1226,7 @@ public:
     }
     // Check uniqueness of Arc IDs
     {
-      std::unordered_set<int> arc_ids;
+      CGAL::unordered_flat_set<int> arc_ids;
       for (const ArcSPtr& arc : arcs_) {
         int id = arc->id();
         if (!arc_ids.insert(id).second) {
@@ -1239,7 +1239,7 @@ public:
     }
     // Check uniqueness of Sheet IDs
     {
-      std::unordered_set<int> sheet_ids;
+      CGAL::unordered_flat_set<int> sheet_ids;
       for (const SheetSPtr& sheet : sheets_) {
         int id = sheet->id();
         if (!sheet_ids.insert(id).second) {

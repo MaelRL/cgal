@@ -63,7 +63,7 @@ struct Output_processor
 
     auto do_triangulate = choose_parameter(get_parameter(np_out, internal_np::do_not_triangulate_faces), false);
 
-    std::unordered_map<face_descriptor_out, std::size_t> of2fi;
+    CGAL::unordered_flat_map<face_descriptor_out, std::size_t> of2fi;
     auto of2fi_pm = boost::make_assoc_property_map(of2fi);
 
     CGAL_SS3_TRACE_V(2, "Post processing of result @ time: " << save_time)
@@ -83,7 +83,7 @@ struct Output_processor
       return false;
     }
 
-    std::unordered_map<face_descriptor_out, face_descriptor_in> def_f2f;
+    CGAL::unordered_flat_map<face_descriptor_out, face_descriptor_in> def_f2f;
     auto def_f2f_pm = boost::make_assoc_property_map(def_f2f);
     auto f2f = choose_parameter(get_parameter(np_out, internal_np::face_to_face_map), def_f2f_pm);
 

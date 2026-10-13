@@ -200,8 +200,8 @@ bool write_OBJ(const std::string& filename,
       }
 
       if (do_triangulate_facet) {
-        std::unordered_map<PCDT_FH, bool> in_domain_map;
-        boost::associative_property_map<std::unordered_map<PCDT_FH, bool>> in_domain(in_domain_map);
+        CGAL::unordered_flat_map<PCDT_FH, bool> in_domain_map;
+        boost::associative_property_map<CGAL::unordered_flat_map<PCDT_FH, bool>> in_domain(in_domain_map);
 
         CGAL::mark_domain_in_triangulation(pcdt, in_domain);
 
@@ -517,8 +517,8 @@ bool write_OBJ(const std::string& filename,
     }
 
     // Mark domain and output triangles
-    std::unordered_map<PCDT_FH, bool> in_domain_map;
-    boost::associative_property_map<std::unordered_map<PCDT_FH, bool>> in_domain(in_domain_map);
+    CGAL::unordered_flat_map<PCDT_FH, bool> in_domain_map;
+    boost::associative_property_map<CGAL::unordered_flat_map<PCDT_FH, bool>> in_domain(in_domain_map);
     CGAL::mark_domain_in_triangulation(pcdt, in_domain);
 
     for (auto fh : pcdt.finite_face_handles()) {

@@ -475,7 +475,7 @@ public:
         }
       }
 
-      std::unordered_map<std::size_t, std::size_t> root_to_sector;
+      CGAL::unordered_flat_map<std::size_t, std::size_t> root_to_sector;
       for (std::size_t k = 0; k < in.size(); ++k) {
         const std::size_t r = find(k);
         auto it = root_to_sector.find(r);
@@ -1396,8 +1396,8 @@ public:
     using PCDT = decltype(pcdt);
     using PCDT_FH = typename PCDT::Face_handle;
 
-    std::unordered_map<PCDT_FH, bool> in_domain_map;
-    boost::associative_property_map<std::unordered_map<PCDT_FH, bool> > in_domain(in_domain_map);
+    CGAL::unordered_flat_map<PCDT_FH, bool> in_domain_map;
+    boost::associative_property_map<CGAL::unordered_flat_map<PCDT_FH, bool> > in_domain(in_domain_map);
     CGAL::mark_domain_in_triangulation(pcdt, in_domain);
 
     // Speed of the subdivided facet is applied to all the subfacets

@@ -1016,15 +1016,6 @@ public:
       return true;
     };
 
-     // Deterministic ordering comparators for pointer-like shared_ptr wrappers
-      struct FacetSPtrLess {
-        bool operator()(const FacetSPtr& a, const FacetSPtr& b) const { return a->id() < b->id(); }
-      };
-
-      struct VertexSPtrLess {
-        bool operator()(const VertexSPtr& a, const VertexSPtr& b) const { return a->id() < b->id(); }
-      };
-
 #ifndef NDEBUG
     CGAL_SS3_TRANSF_TRACE_CODE(std::vector<Stability_failure> failures;)
     CGAL_SS3_TRANSF_TRACE_V(32, "Is input in general position?\n" << are_planes_in_general_position(polyhedron, &failures));
@@ -1082,7 +1073,7 @@ public:
 
             CGAL::unordered_flat_set<FacetSPtr> sv_facets;
             CGAL::unordered_flat_set<FacetSPtr> tv_facets;
-            std::set<FacetSPtr, FacetSPtrLess> common_facets;
+            ID_set<FacetSPtr> common_facets;
 
             for (FacetWPtr wf : sv->facets()) {
               if (FacetSPtr fptr = wf.lock()) {
@@ -1747,7 +1738,7 @@ public:
         pre_nudge_planes[f] = f->get_plane();
       }
 
-      std::set<FacetSPtr, FacetSPtrLess> active_facets(facets_to_translate.begin(), facets_to_translate.end());
+      ID_set<FacetSPtr> active_facets(facets_to_translate.begin(), facets_to_translate.end());
       for (;;) {
         if (active_facets.empty()) {
           CGAL_SS3_TRANSF_TRACE_V(16, "  No facet needs translation reduction; stopping");
@@ -1786,7 +1777,7 @@ public:
         // Now, facets have updated with nudged planes -> check stability of the vertices affected
         // by those facets to ensure the nudge was small enough.
         bool all_stable = true;
-        std::set<FacetSPtr, FacetSPtrLess> next_active_facets;
+        ID_set<FacetSPtr> next_active_facets;
         for (const VertexSPtr& v : vertices_to_check) {
           if (is_stable(v)) {
             CGAL_SS3_TRANSF_TRACE_V(32, "V" << v->id() << " is stable => no longer checked");
@@ -2918,7 +2909,7 @@ public:
       //  CONSTRAINT — Global Euler characteristic (V_b − E_b + F_b = 1)
       // =====================================================================
 
-      CGAL::unordered_flat_map<PID, std::unordered_set<FID> > vertex_incident_facets;
+      CGAL::unordered_flat_map<PID, CGAL::unordered_flat_set<FID> > vertex_incident_facets;
       for (FID fid=0; fid<polygons.size(); ++fid) {
         const std::size_t s = polygons[fid].size();
         for (int j=0; j<s; ++j) {
@@ -2952,7 +2943,7 @@ public:
       std::vector<BoolVar> v_b(points.size());
       for (int v=0; v<points.size(); ++v) {
         v_b[v] = model.NewBoolVar();
-        std::unordered_set<FID>& inc_polygons = vertex_incident_facets[v];
+        CGAL::unordered_flat_set<FID>& inc_polygons = vertex_incident_facets[v];
         CGAL_assertion(!inc_polygons.empty());
         std::vector<IntVar> inc;
         inc.reserve(inc_polygons.size());
@@ -3011,7 +3002,7 @@ public:
 
           for (int v=0; v<points.size(); ++v) {
             std::vector<IntVar> inc;
-            std::unordered_set<FID>& inc_polygons = vertex_incident_facets[v];
+            CGAL::unordered_flat_set<FID>& inc_polygons = vertex_incident_facets[v];
             for (const FID fid : inc_polygons) {
               if (polygon_to_facet[fid] == f) {
                 inc.emplace_back(b[fid]);

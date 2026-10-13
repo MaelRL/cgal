@@ -104,6 +104,7 @@
 // ----
 
 #include <CGAL/Straight_skeleton_3/internal/debug.h>
+#include <CGAL/Straight_skeleton_3/internal/helpers.h>
 #include <CGAL/Straight_skeleton_3/internal/kernel/Kernel_wrapper.h>
 #include <CGAL/Straight_skeleton_3/internal/HDS/Polyhedron.h>
 #include <CGAL/Straight_skeleton_3/Straight_skeleton_3.h>
@@ -1864,7 +1865,7 @@ public:
         continue;
       }
 
-      std::set<VertexSPtr> vertices_2;
+      ID_set<VertexSPtr> vertices_2;
       for (FacetWPtr facet_wptr : vertex_1->facets()) {
         if (FacetSPtr facet = facet_wptr.lock()) {
           vertices_2.insert(facet->vertices().begin(), facet->vertices().end());
@@ -2031,7 +2032,7 @@ public:
         continue;
       }
 
-      std::set<VertexSPtr> vertices_2;
+      ID_set<VertexSPtr> vertices_2;
       for (FacetWPtr facet_wptr : vertex_1->facets()) {
         if (FacetSPtr facet = facet_wptr.lock()) {
           vertices_2.insert(facet->vertices().begin(), facet->vertices().end());
@@ -2225,7 +2226,7 @@ public:
         continue;
       }
 
-      std::set<VertexSPtr> vertices_2;
+      ID_set<VertexSPtr> vertices_2;
       for (FacetWPtr facet_wptr : vertex_1->facets()) {
         if (FacetSPtr facet = facet_wptr.lock()) {
           vertices_2.insert(facet->vertices().begin(), facet->vertices().end());
@@ -2780,7 +2781,7 @@ public:
         continue;
       }
 
-      std::set<VertexSPtr> vertices_2;
+      ID_set<VertexSPtr> vertices_2;
       for (FacetWPtr facet_wptr : vertex_1->facets()) {
         if (FacetSPtr facet = facet_wptr.lock()) {
           vertices_2.insert(facet->vertices().begin(), facet->vertices().end());
@@ -3542,7 +3543,7 @@ public:
       // since we know that for a polyhedron split event, edge_2's LR facets
       // are the src and tgt of edge_1, we can build a subset of all edges for edge_1s
       for (const EdgeSPtr& edge_2 : local_edges_EE) {
-        std::set<EdgeSPtr> edges_1;
+        ID_set<EdgeSPtr> edges_1;
         for (const FacetSPtr& facet_2 : {edge_2->get_facet_L(), edge_2->get_facet_R()}) {
           for (const VertexSPtr& vertex_1 : facet_2->vertices()) {
             // keep the edge incident to 'vertex_1' which is not incident to 'facet_2'
@@ -3622,7 +3623,7 @@ public:
 
       // this is the modified edges as 'edge_2'
       for (const EdgeSPtr& edge_2 : local_edges_EE) {
-        std::set<EdgeSPtr> edges_1;
+        ID_set<EdgeSPtr> edges_1;
         for (const FacetSPtr& facet_2 : {edge_2->get_facet_L(), edge_2->get_facet_R()}) {
           for (const VertexSPtr& vertex_1 : facet_2->vertices()) {
             // keep the edge incident to 'vertex_1' which is not incident to 'facet_2'
@@ -6910,12 +6911,12 @@ private:
 
   int step_id_;
 
-  CGAL::unordered_flat_set<VertexSPtr> post_op_vertices_;
-  CGAL::unordered_flat_set<EdgeSPtr> post_op_edges_;
-  CGAL::unordered_flat_set<FacetSPtr> post_op_facets_;
-  CGAL::unordered_flat_set<VertexSPtr> post_op_vertices_VV_;
-  CGAL::unordered_flat_set<VertexSPtr> post_op_vertices_pierce_;
-  CGAL::unordered_flat_set<EdgeSPtr> post_op_edges_edgesplit_;
+  ID_set<VertexSPtr> post_op_vertices_;
+  ID_set<EdgeSPtr> post_op_edges_;
+  ID_set<FacetSPtr> post_op_facets_;
+  ID_set<VertexSPtr> post_op_vertices_VV_;
+  ID_set<VertexSPtr> post_op_vertices_pierce_;
+  ID_set<EdgeSPtr> post_op_edges_edgesplit_;
 };
 
 } // namespace algorithm
