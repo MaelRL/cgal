@@ -1584,7 +1584,7 @@ public:
     return sstr.str();
   }
 
-  // Dump skeleton nodes in an .xyz format
+  // dumps skeleton nodes in an .xyz format
   void dump_nodes(const std::string& filename) const
   {
     std::ofstream nodes_out(filename);
@@ -1595,16 +1595,17 @@ public:
     nodes_out.close();
   }
 
-  // Dump skeleton arcs in a CGAL polylines format
+  // dumps skeleton arcs in a CGAL polylines format
   void dump_arcs(const std::string& filename,
                  const FT& time) const
   {
     std::ofstream arcs_out(filename);
     arcs_out.precision(17);
-    for (ArcSPtr arc : arcs_) {
+    for (const ArcSPtr& arc : arcs_) {
       arcs_out << "2 ";
       arcs_out << arc->source()->point() << " ";
       if (arc->has_target()) {
+        CGAL_assertion(arc->target()->time() >= time);
         arcs_out << arc->target()->point() << "\n";
       } else {
         CGAL::unordered_flat_set<FacetSPtr> incident_faces;

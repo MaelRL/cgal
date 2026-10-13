@@ -3281,7 +3281,7 @@ public:
 
 #ifdef CGAL_SS3_RUN_TIMERS
     timer.stop();
-    CGAL_SS3_CORE_TRACE_V(4, "  Sought Edge Split Events in: " << timer.time());
+    CGAL_SS3_CORE_TRACE_V(4, "  Sought Edge Split Events (BoxD) in: " << timer.time());
 #endif
   }
 
@@ -3827,7 +3827,7 @@ public:
         if (!event->is_valid() ||
             is_event_in_the_past(event, current_time) ||
             is_event_obsolete(event) ||
-            !is_actual_event(event, current_time, time_future_bound)) {
+            !is_actual_event(event, time_future_bound)) {
           q.pop();
         } else {
           break;

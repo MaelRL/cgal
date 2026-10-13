@@ -141,11 +141,15 @@ public:
       const Point_3& p = vertex->point();
       for (unsigned int i = 0; i < 3; ++i) {
         if (!(p_box_min[i] <= p[i] && p[i] <= p_box_max[i])) {
+          CGAL_SS3_TRANSF_TRACE_V(1, "Warning: " << p << " is not within the box delimited by " << p_box_min << " and " << p_box_max);
           result = false;
           break;
         }
       }
       if (!result) {
+#ifdef CGAL_SS3_DUMP_FILES
+        IO::write_OBJ("results/overgrown.obj", polyhedron, parameters::do_not_triangulate_faces(true));
+#endif
         break;
       }
     }
@@ -325,11 +329,9 @@ public:
     return merge_facets(edge, edge->get_facet_L(), edge->get_facet_R(), polyhedron);
   }
 
-  /**
-    * removes as many edges of 'edges' as possible, merging incident facets, while keeping
-    * every resulting facet representable: no vertex may be visited twice by its boundary.
-    * Facets with holes are allowed, so several boundary cycles are fine.
-    */
+  // removes as many edges of 'edges' as possible, merging incident facets, while keeping
+  // every resulting facet representable: no vertex may be visited twice by its boundary.
+  // Facets with holes are allowed, so several boundary cycles are fine.
   template <typename EdgeWPtrRange>
   static int merge_facet_pairs(const EdgeWPtrRange& edges,
                                const PolyhedronSPtr& polyhedron)

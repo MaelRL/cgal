@@ -357,8 +357,6 @@ bool write_OBJ(const std::string& filename,
   for (const NodeSPtr& node : skeleton->nodes()) {
     const Point_3& point = node->point();
     pos_to_index[point] = next_index++;
-    CGAL_SS3_IO_TRACE_V(16, "Node's #arcs " << node->degree());
-    CGAL_SS3_IO_TRACE_V(16, "Node's #sheets " << node->sheets().size());
 
     oss << "v " << CGAL::to_double(point.x()) << " "
                 << CGAL::to_double(point.y()) << " "
@@ -485,7 +483,7 @@ bool write_OBJ(const std::string& filename,
         CGAL_SS3_IO_TRACE_V(64, " Try to add arc segment between " << ap0 << " and " << ap1);
         pcdt.insert_constraint(ap0, ap1);
       } catch(const typename PCDT::Intersection_of_constraints_exception&) {
-        CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
+        CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation (a)");
         CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
         return false;
       }
@@ -500,7 +498,7 @@ bool write_OBJ(const std::string& filename,
           CGAL_SS3_IO_TRACE_V(64, " Try to add closing arc between " << *ip0 << " and " << *ip1);
           pcdt.insert_constraint(*ip0, *ip1);
         } catch(const typename PCDT::Intersection_of_constraints_exception&) {
-          CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation");
+          CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation (b)");
           CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
           return false;
         }

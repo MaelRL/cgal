@@ -869,19 +869,6 @@ public:
     CGAL_postcondition(Transformation::has_normalized_plane(facet));
   }
 
-  static void perturbPlaneCoefficientsHighDegrees(const FacetSPtr& facet,
-                                                  const double range)
-  {
-    std::set<VertexSPtr> high_degree_vertices;
-    for (const VertexSPtr& v : facet->vertices()) {
-      if (v->degree() > 3) {
-        high_degree_vertices.insert(v);
-      }
-    }
-
-    return perturbPlaneCoefficientsFixedPoints(facet, range, high_degree_vertices);
-  }
-
   // Modify the polyhedron to enforce the following properties in the output:
   // - The polyhedron is in general position: no triplet of facets' supporting planes
   //   intersect in something else than a point.
@@ -1019,24 +1006,18 @@ public:
 #ifndef NDEBUG
     CGAL_SS3_TRANSF_TRACE_CODE(std::vector<Stability_failure> failures;)
     CGAL_SS3_TRANSF_TRACE_V(32, "Is input in general position?\n" << are_planes_in_general_position(polyhedron, &failures));
+#endif // NDEBUG
 
 #ifdef CGAL_SS3_DUMP_FILES
     std::ofstream out_unstable_before("results/input_unstable_vertices.xyz");
     out_unstable_before.precision(17);
-#endif
-
-    CGAL_SS3_TRANSF_TRACE_CODE(for (const VertexSPtr& v : polyhedron->vertices()))
-    CGAL_SS3_TRANSF_TRACE_CODE(if (!is_stable(v)) {);
-#ifdef CGAL_SS3_DUMP_FILES
-    CGAL_SS3_TRANSF_TRACE_CODE(out_unstable_before << v->point() << "\n");
-#endif
-    CGAL_SS3_TRANSF_TRACE_CODE(})
-
-#ifdef CGAL_SS3_DUMP_FILES
+    for (const VertexSPtr& v : polyhedron->vertices()) {
+      if (!is_stable(v)) {
+        out_unstable_before << v->point() << "\n";
+      }
+    }
     out_unstable_before.close();
 #endif
-
-#endif // NDEBUG
 
     {
       // Some preprocessing: identify edges of the polyhedron whose vertices have three or more
@@ -1863,9 +1844,10 @@ public:
     }
 
     CGAL_SS3_TRANSF_TRACE_V(8, vertices_to_split.size() << " vertices to split");
+    CGAL_SS3_TRANSF_TRACE_CODE(unsigned int vtsc = 0;)
 
     for (const VertexSPtr& vertex : vertices_to_split) {
-      CGAL_SS3_TRANSF_TRACE_V(8, "Splitting " << vertex->to_string());
+      CGAL_SS3_TRANSF_TRACE_V(8, ++vtsc << " / " << vertices_to_split.size() << " Splitting " << vertex->to_string());
 
       vertex->sort();
 
@@ -2349,7 +2331,7 @@ public:
           cc_polygons.push_back(polygons[fid]);
         }
 
-#ifdef CGAL_SS3_DUMP_FILES
+#ifdef CGAL_SS3_DUMP_FILES_PP
         std::ostringstream oss;
         oss << "results/volume_cc_" << i << ".off";
         CGAL::IO::write_OFF(oss.str(), cc_points, cc_polygons, CGAL::parameters::stream_precision(17));
@@ -2379,7 +2361,7 @@ public:
         CGAL_assertion(!(in_out_flags[top_vid] == CC_in_out_flag::INSIDE && in_out_flags[bot_vid] == CC_in_out_flag::OUTSIDE));
       }
 
-#ifdef CGAL_SS3_DUMP_FILES
+#ifdef CGAL_SS3_DUMP_FILES_PP
       // base info dump
       {
         unsigned int undetermined_n = 0;
@@ -2715,7 +2697,7 @@ public:
 
       CGAL_SS3_TRANSF_TRACE_V(32, "Known cells marked from star link walk");
 
-#ifdef CGAL_SS3_DUMP_FILES
+#ifdef CGAL_SS3_DUMP_FILES_PP
       // intermediate info dump
       {
         unsigned int undetermined_n = 0;
@@ -3135,7 +3117,7 @@ public:
 #endif
           return false;
         }
-#ifdef CGAL_SS3_DUMP_FILES
+#ifdef CGAL_SS3_DUMP_FILES_PP
         // Tentative dump
         {
           unsigned int undetermined_n = 0;
@@ -3285,7 +3267,7 @@ public:
 
       CGAL_assertion(iteration < max_iterations);
 
-#ifdef CGAL_SS3_DUMP_FILES
+#ifdef CGAL_SS3_DUMP_FILES_PP
       // Final dump
       {
         unsigned int undetermined_n = 0;
@@ -3328,7 +3310,7 @@ public:
           }
         }
       }
-#endif // CGAL_SS3_DUMP_FILES
+#endif // CGAL_SS3_DUMP_FILES_PP
 
       // a valid partition has:
       // - C1) all cells are either inside or outside
