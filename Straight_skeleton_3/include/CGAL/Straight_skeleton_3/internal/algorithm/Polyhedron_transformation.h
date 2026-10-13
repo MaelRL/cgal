@@ -297,11 +297,11 @@ public:
                            const PolyhedronSPtr& polyhedron)
   {
     CGAL_SS3_DEBUG_SPTR(edge);
-    CGAL_SS3_IO_TRACE_V(16, "Merging " << edge->to_string());
+    CGAL_SS3_TRANSF_TRACE_V(16, "Merging " << edge->to_string());
 
     CGAL_SS3_DEBUG_SPTR(facet_into);
     CGAL_SS3_DEBUG_SPTR(facet_from);
-    CGAL_SS3_IO_TRACE_V(16, "From F" << facet_from->id() << " into F" << facet_into->id());
+    CGAL_SS3_TRANSF_TRACE_V(16, "From F" << facet_from->id() << " into F" << facet_into->id());
 
     CGAL_precondition(facet_into != facet_from);
     CGAL_precondition(edge->get_facet_L() == facet_from || edge->get_facet_R() == facet_from);
