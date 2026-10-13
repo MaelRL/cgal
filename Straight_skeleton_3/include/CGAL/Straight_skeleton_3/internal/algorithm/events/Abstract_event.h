@@ -42,7 +42,7 @@ class Abstract_event
 public:
   Abstract_event(int type = -2)
     : type_(type),
-      id_(next_id_++)
+      id_(next_event_id_++)
   { }
 
   virtual ~Abstract_event() { /*intentionally does nothing*/ }
@@ -210,11 +210,11 @@ protected:
   FT time_;
 
 private:
-  static int next_id_;
+  static int next_event_id_;
 };
 
 template <typename GeomTraits>
-int Abstract_event<GeomTraits>::next_id_ = 0;
+int Abstract_event<GeomTraits>::next_event_id_ = 0;
 
 template <typename GeomTraits>
 class Abstract_event_compare

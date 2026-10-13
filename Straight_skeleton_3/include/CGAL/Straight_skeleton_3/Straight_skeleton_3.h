@@ -142,7 +142,7 @@ public:
 
   public:
     Node() {
-      id_ = next_id_++;
+      id_ = next_node_id_++;
     }
 
     static NodeSPtr create()
@@ -383,7 +383,7 @@ public:
     typename std::list<NodeSPtr>::iterator list_it_;
 
   private:
-    static int next_id_;
+    static int next_node_id_;
   };
 
 public:
@@ -424,14 +424,14 @@ public:
     {
       node_src_ = node_src;
       direction_ = direction;
-      id_ = next_id_++;
+      id_ = next_arc_id_++;
     }
 
     Arc(const NodeSPtr& node_src, const NodeSPtr& node_tgt)
     {
       node_src_ = node_src;
       node_tgt_ = node_tgt;
-      id_ = next_id_++;
+      id_ = next_arc_id_++;
     }
 
     ~Arc() {
@@ -729,7 +729,7 @@ public:
     int id_;
 
   private:
-    static int next_id_;
+    static int next_arc_id_;
   };
 
 public:
@@ -767,7 +767,7 @@ public:
 
   public:
     Sheet() {
-      id_ = next_id_++;
+      id_ = next_sheet_id_++;
     }
 
     ~Sheet()
@@ -1024,7 +1024,7 @@ public:
     Plane_3 plane_;
 
   private:
-    static int next_id_;
+    static int next_sheet_id_;
   };
 
 public:
@@ -1645,12 +1645,12 @@ protected:
 } // namespace CGAL
 
 template <typename GeomTraits>
-int CGAL::Straight_skeleton_3<GeomTraits>::Node::next_id_ = 0;
+int CGAL::Straight_skeleton_3<GeomTraits>::Node::next_node_id_ = 0;
 
 template <typename GeomTraits>
-int CGAL::Straight_skeleton_3<GeomTraits>::Arc::next_id_ = 0;
+int CGAL::Straight_skeleton_3<GeomTraits>::Arc::next_arc_id_ = 0;
 
 template <typename GeomTraits>
-int CGAL::Straight_skeleton_3<GeomTraits>::Sheet::next_id_ = 0;
+int CGAL::Straight_skeleton_3<GeomTraits>::Sheet::next_sheet_id_ = 0;
 
 #endif /* CGAL_STRAIGHT_SKELETON_3_SDS_STRAIGHT_SKELETON_3_H */
