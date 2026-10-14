@@ -3889,8 +3889,8 @@ public:
           return *tetrahedron_event_1 == *tetrahedron_event_2;
         }
         case Abstract_event::GENERIC_VERTEX_EVENT: {
-          auto generic_vertex_event_1 = std::dynamic_pointer_cast<Vertex_event>(event_1);
-          auto generic_vertex_event_2 = std::dynamic_pointer_cast<Vertex_event>(event_2);
+          auto generic_vertex_event_1 = std::dynamic_pointer_cast<Generic_vertex_event>(event_1);
+          auto generic_vertex_event_2 = std::dynamic_pointer_cast<Generic_vertex_event>(event_2);
           return *generic_vertex_event_1 == *generic_vertex_event_2;
         }
         case Abstract_event::VERTEX_EVENT: {
