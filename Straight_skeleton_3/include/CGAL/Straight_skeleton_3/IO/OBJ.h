@@ -408,21 +408,21 @@ bool write_OBJ(const std::string& filename,
       }
     }
 
-    std::optional<Point_3> ip0, ip1;
+    std::vector<Point_3> incomplete_points;
 
     for (const ArcSPtr& arc : sheet->arcs()) {
       Point_3 ap0, ap1;
 
       // if the arc has no target (i.e., it's an incomplete arc), then we might need to add a partial arc.
       if (!arc->has_target()) {
-        CGAL_assertion(!ip0.has_value() || !ip1.has_value()); // no more than two incomplete arcs
+        CGAL_SS3_IO_TRACE_V(64, " Arc from " << arc->source()->point() << " has no target");
         NodeSPtr node_src = arc->source();
         CGAL_assertion(node_src->time() >= latest_time);
-        if (node_src->time() == latest_time) { // time goes backward
-          ip0.has_value() ? ip1 = node_src->point() : ip0 = node_src->point();
-          continue;
+
+        Point_3 interpolated_point;
+        if (node_src->time() == latest_time) { // detached node: several arcs may share the same final point
+          interpolated_point = node_src->point();
         } else {
-          Point_3 interpolated_point;
           auto it = incomplete_arc_to_point.find(arc);
           if (it == incomplete_arc_to_point.end()) {
             std::vector<Plane_3> shifted_planes;
@@ -463,21 +463,26 @@ bool write_OBJ(const std::string& filename,
           } else {
             interpolated_point = it->second;
           }
-
-          CGAL_SS3_IO_TRACE_V(64, " Add interpolated point from incomplete arc "<< arc->id() << " @ " << interpolated_point);
-          CGAL_SS3_IO_TRACE_V(64, " using direction: " << arc->direction());
-          ip0.has_value() ? ip1 = interpolated_point : ip0 = interpolated_point;
-          ap0 = node_src->point();
-          ap1 = interpolated_point;
         }
+
+        CGAL_SS3_IO_TRACE_V(64, " Add interpolated point from incomplete arc "<< arc->id() << " @ " << interpolated_point);
+        CGAL_SS3_IO_TRACE_V(64, " using direction: " << arc->direction());
+
+        incomplete_points.push_back(interpolated_point);
+        ap0 = node_src->point();
+        ap1 = interpolated_point;
       } else {
         NodeSPtr node_src = arc->source();
         NodeSPtr node_tgt = arc->target();
         ap0 = node_src->point();
         ap1 = node_tgt->point();
+        CGAL_assertion(ap0 != ap1);
       }
 
-      CGAL_assertion(ap0 != ap1);
+      if (ap0 == ap1) {
+        CGAL_SS3_IO_TRACE_V(64, " Ignoring degenerate arc segment at " << ap0);
+        continue;
+      }
 
       try {
         CGAL_SS3_IO_TRACE_V(64, " Try to add arc segment between " << ap0 << " and " << ap1);
@@ -489,22 +494,37 @@ bool write_OBJ(const std::string& filename,
       }
     }
 
-    CGAL_assertion(ip0.has_value() == ip1.has_value());
+    if (!incomplete_points.empty()) {
+      const auto line = Kernel_wrapper::intersection(sheet->get_facet_B()->get_plane(),
+                                                     sheet->get_facet_F()->get_plane());
+      CGAL_assertion(line.has_value());
+      const Point_3 line_origin = line->point();
+      const Vector_3 line_direction = line->to_vector();
+      CGAL_assertion(line_direction != CGAL::NULL_VECTOR);
 
-    // Add the closing arc if there are incomplete arcs
-    if (ip0.has_value() && ip1.has_value()) {
-      if (*ip0 != *ip1) {
+      std::sort(incomplete_points.begin(), incomplete_points.end(),
+                [&](const Point_3& lhs, const Point_3& rhs) {
+                  const FT lhs_coord = CGAL::scalar_product(lhs - line_origin, line_direction);
+                  const FT rhs_coord = CGAL::scalar_product(rhs - line_origin, line_direction);
+                  return lhs_coord < rhs_coord;
+                });
+
+      for (std::size_t i = 0; i + 1 < incomplete_points.size(); i += 2) {
+        const Point_3& p0 = incomplete_points[i];
+        const Point_3& p1 = incomplete_points[i + 1];
+        if (p0 == p1) {
+          CGAL_SS3_IO_TRACE_V(64, " Ignoring degenerate closing arc at " << p0);
+          continue;
+        }
+
         try {
-          CGAL_SS3_IO_TRACE_V(64, " Try to add closing arc between " << *ip0 << " and " << *ip1);
-          pcdt.insert_constraint(*ip0, *ip1);
+          CGAL_SS3_IO_TRACE_V(64, " Try to add closing arc between " << p0 << " and " << p1);
+          pcdt.insert_constraint(p0, p1);
         } catch(const typename PCDT::Intersection_of_constraints_exception&) {
           CGAL_SS3_IO_TRACE_V(1, "Warning: Intersection of constraints in sheet triangulation (b)");
           CGAL_warning_msg(false, "Intersections in CDT2 are not allowed");
           return false;
         }
-      } else {
-        // degenerate sheet, nothing to add
-        CGAL_assertion(sheet->nodes().size() == 1 && sheet->nodes().front()->time() == latest_time);
       }
     }
 
