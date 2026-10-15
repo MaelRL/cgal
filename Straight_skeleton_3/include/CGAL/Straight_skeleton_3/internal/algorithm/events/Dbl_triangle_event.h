@@ -55,7 +55,7 @@ private:
 
 public:
   Dbl_triangle_event()
-    : Base(Base::DBL_TRIANGLE_EVENT)
+    : Base(Event_type::DBL_TRIANGLE_EVENT)
   { }
 
   virtual ~Dbl_triangle_event()

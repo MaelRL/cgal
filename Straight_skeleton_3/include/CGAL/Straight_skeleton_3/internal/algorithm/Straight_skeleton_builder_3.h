@@ -601,8 +601,8 @@ public:
         CGAL_assertion(Transformation::is_inside_bbox(polyhedron, p_box_min, p_box_max));
       }
 
-      // If we are only interested in specific times, there is no point going further
-      if (event->getType() == Abstract_event::SAVE_EVENT && save_times_.empty()) {
+      // If we are only interested in specific offset times, there is no point going further
+      if (event->getType() == Event_type::SAVE_EVENT && save_times_.empty()) {
         ConfigurationSPtr config = Configuration::get_instance();
         if (config->get_Boolean("Algorithm", "stop_after_last_save_event")) {
 #ifdef CGAL_SS3_HANDLE_NEAR_FUTURE_EVENTS
@@ -999,7 +999,7 @@ public:
                                                        plane_2, speed_2, plane_3, speed_3);
   }
 
-  Point_3 vanish_point(const EdgeSPtr& edge)
+  static Point_3 vanish_point(const EdgeSPtr& edge)
   {
     CGAL_SS3_CORE_TRACE_V(16, "Computing vanish point of " << edge->to_string());
 
@@ -1024,9 +1024,9 @@ public:
   /**
     * returns the time at which the edge will vanish.
     */
-  std::optional<FT> vanish_time(const EdgeSPtr& edge,
-                                const std::optional<FT>& time_past_bound = std::nullopt,
-                                const std::optional<FT>& time_future_bound = std::nullopt)
+  static std::optional<FT> vanish_time(const EdgeSPtr& edge,
+                                       const std::optional<FT>& time_past_bound = std::nullopt,
+                                       const std::optional<FT>& time_future_bound = std::nullopt)
   {
     CGAL_SS3_CORE_TRACE_V(16, "Computing vanish time of " << edge->to_string());
 
@@ -1072,9 +1072,9 @@ public:
   }
 
   // for pierce events only
-  std::optional<FT> crash_time(const VertexSPtr& vertex, const FacetSPtr& facet,
-                               const std::optional<FT>& time_past_bound = std::nullopt,
-                               const std::optional<FT>& time_future_bound = std::nullopt)
+  static std::optional<FT> crash_time(const VertexSPtr& vertex, const FacetSPtr& facet,
+                                      const std::optional<FT>& time_past_bound = std::nullopt,
+                                      const std::optional<FT>& time_future_bound = std::nullopt)
   {
     CGAL_SS3_CORE_TRACE_V(16, "-- Crash At Time (Pierce event)\n  " << vertex->to_string() << "\n  " << facet->to_string());
 
@@ -1107,9 +1107,9 @@ public:
     return event_time;
   }
 
-  std::optional<FT> crash_time(const EdgeSPtr& edge_1, const EdgeSPtr& edge_2,
-                               const std::optional<FT>& time_past_bound = std::nullopt,
-                               const std::optional<FT>& time_future_bound = std::nullopt)
+  static std::optional<FT> crash_time(const EdgeSPtr& edge_1, const EdgeSPtr& edge_2,
+                                      const std::optional<FT>& time_past_bound = std::nullopt,
+                                      const std::optional<FT>& time_future_bound = std::nullopt)
   {
     CGAL_SS3_CORE_TRACE_V(16, "-- Crash At Time\n  " << edge_1->to_string() << "\n  " << edge_2->to_string());
 
@@ -1219,7 +1219,387 @@ public:
     CGAL_postcondition(edge_merge && edge_on_facet_1 && edge_on_facet_2);
   }
 
-  static bool is_actual_generic_vertex_event(const Generic_vertex_event_sptr& event)
+  static Abstract_event_sptr is_actual_vanish_event(const Vanish_event_sptr& event)
+  {
+    CGAL_SS3_CORE_TRACE_V(8, "########################################");
+    CGAL_SS3_CORE_TRACE_V(8, "####### Tentative Vanish Event  ########");
+    CGAL_SS3_CORE_TRACE_V(8, "########################################");
+
+    CGAL_SS3_DEBUG_SPTR(event);
+    CGAL_SS3_CORE_TRACE_V(4, event->to_string());
+
+    EdgeSPtr edge = event->get_edge();
+    const FT& event_time = event->time();
+    event->set_point(vanish_point(edge));
+    const Point_3& point = event->point();
+
+    // @todo would nice:
+    // - to avoid redundant checks (e.g. is_triangle multiple times)
+    // - to avoid code duplication with collectXYZEvents()
+    //
+    // To avoid redundant code, it could be re-ordered by descending amount of collapsing edges (6 --> 1)?
+    // Might not speed things up if majority of events are a small number of edge collapses.
+    // Anyway, vanish events are cheap to collect, and cheap to process.
+
+    // The fake "for (;;)"" infinite loops are only there as to be able to keep the 'break's
+    // such that the code is exactly identical to that of the respective collectXYZEvent() functions
+
+    // Edge Event
+    for (;;)
+    {
+      FacetSPtr facet_l = edge->get_facet_L();
+      FacetSPtr facet_r = edge->get_facet_R();
+      if (Hds_utils::is_triangle(facet_l, edge) ||
+          Hds_utils::is_triangle(facet_r, edge)) {
+        // triangle event
+        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (one incident facet is a triangle)");
+        break;
+      }
+
+      FacetSPtr facet_src = edge->get_facet_src();
+      FacetSPtr facet_tgt = edge->get_facet_tgt();
+
+      // This does not work when there is more than one edge between both facets.
+      // EdgeSPtr edge_2 = facet_src->find_edge(facet_tgt);
+      // @fixme shouldn't this check also happen in other events?...
+      std::list<EdgeSPtr> edges_2 = facet_src->find_edges(facet_tgt);
+
+      bool split_event = false;
+      for (const EdgeSPtr& edge_2 : edges_2) {
+        FacetSPtr facet_l2 = edge_2->get_facet_L();
+        FacetSPtr facet_r2 = edge_2->get_facet_R();
+        FacetSPtr facet_2_src = edge_2->get_facet_src();
+        FacetSPtr facet_2_tgt = edge_2->get_facet_tgt();
+
+        CGAL_assertion_code(const Plane_3& plane_l2 = facet_l2->get_plane();)
+        CGAL_assertion_code(const FT& l2a = plane_l2.a();)
+        CGAL_assertion_code(const FT& l2b = plane_l2.b();)
+        CGAL_assertion_code(const FT& l2c = plane_l2.c();)
+        CGAL_assertion_code(const FT& l2d = plane_l2.d();)
+        CGAL_assertion_code(const FT& speed_l2 = Hds_utils::get_speed(facet_l2);)
+        CGAL_assertion_code(FT lt2 = (l2a * point.x() + l2b * point.y() + l2c * point.z() + l2d) / speed_l2);
+
+        CGAL_assertion_code(const Plane_3& plane_r2 = facet_r2->get_plane();)
+        CGAL_assertion_code(const FT& r2a = plane_r2.a();)
+        CGAL_assertion_code(const FT& r2b = plane_r2.b();)
+        CGAL_assertion_code(const FT& r2c = plane_r2.c();)
+        CGAL_assertion_code(const FT& r2d = plane_r2.d();)
+        CGAL_assertion_code(const FT& speed_r2 = Hds_utils::get_speed(facet_r2);)
+        CGAL_assertion_code(FT rt2 = (r2a * point.x() + r2b * point.y() + r2c * point.z() + r2d) / speed_r2);
+
+        CGAL_assertion(lt2 == rt2);
+        CGAL_assertion(!is_positive(lt2));
+
+        if (!check_bisectors(edge_2, point, event_time)) {
+          continue;
+        }
+
+        split_event = true;
+        break;
+      }
+
+      if (split_event) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Split)");
+        break;
+      }
+
+      // edge merge event
+      EdgeSPtr edge_prev = edge->prev(facet_l);
+      EdgeSPtr edge_next = edge->next(facet_l)->next(facet_l);
+      if (edge_prev->has_same_facets(edge_next)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #1)");
+        break;
+      }
+      edge_prev = edge->prev(facet_l)->prev(facet_l);
+      edge_next = edge->next(facet_l);
+      if (edge_prev->has_same_facets(edge_next)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #2)");
+        break;
+      }
+      edge_prev = edge->prev(facet_r);
+      edge_next = edge->next(facet_r)->next(facet_r);
+      if (edge_prev->has_same_facets(edge_next)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #3)");
+        break;
+      }
+      edge_prev = edge->prev(facet_r)->prev(facet_r);
+      edge_next = edge->next(facet_r);
+      if (edge_prev->has_same_facets(edge_next)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #4)");
+        break;
+      }
+
+      // if here, it's an edge event
+      Edge_event_sptr edge_event = Edge_event::create();
+      edge_event->set_time(event_time);
+      edge_event->set_point(point);
+      edge_event->set_edge(edge);
+      return edge_event;
+    }
+
+    // Edge_merge_event
+    for (;;)
+    {
+      FacetSPtr facet_l = edge->get_facet_L();
+      FacetSPtr facet_r = edge->get_facet_R();
+      if (Hds_utils::is_triangle(facet_l, edge) ||
+          Hds_utils::is_triangle(facet_r, edge)) {
+        // triangle event
+        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (one incident facet is a triangle)");
+        break;
+      }
+
+      FacetSPtr facet_other = edge->get_facet_L();
+      EdgeSPtr edge_next = edge->next(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->prev(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->next(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->prev(facet_other);
+      if (edge_next == edge) {
+        // dbl edge merge event
+        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (Dbl #1)");
+        break;
+      }
+
+      facet_other = edge->get_facet_R();
+      edge_next = edge->prev(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->next(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->prev(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->next(facet_other);
+      if (edge_next == edge) {
+        // dbl edge merge event
+        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (Dbl #2)");
+        break;
+      }
+
+      FacetSPtr facet = FacetSPtr();
+      EdgeSPtr edge_1 = EdgeSPtr();
+      EdgeSPtr edge_2 = EdgeSPtr();
+
+      // @todo do we still need to test other combinations if a previous one matched?
+      EdgeSPtr edge_prev = edge->prev(facet_l);
+      edge_next = edge->next(facet_l)->next(facet_l);
+      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
+        facet = facet_l;
+        edge_1 = edge_prev;
+        edge_2 = edge_next;
+      }
+
+      edge_prev = edge->prev(facet_l)->prev(facet_l);
+      edge_next = edge->next(facet_l);
+      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
+        facet = facet_l;
+        edge_1 = edge_prev;
+        edge_2 = edge_next;
+      }
+
+      edge_prev = edge->prev(facet_r);
+      edge_next = edge->next(facet_r)->next(facet_r);
+      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
+        facet = facet_r;
+        edge_1 = edge_prev;
+        edge_2 = edge_next;
+      }
+
+      edge_prev = edge->prev(facet_r)->prev(facet_r);
+      edge_next = edge->next(facet_r);
+      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
+        facet = facet_r;
+        edge_1 = edge_prev;
+        edge_2 = edge_next;
+      }
+
+      if (!(facet && edge_1 && edge_2)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (Neighborhood)");
+        break;
+      }
+
+      // if here, it's an edge merge event
+      Edge_merge_event_sptr edge_merge_event = Edge_merge_event::create();
+      edge_merge_event->set_time(event_time);
+      edge_merge_event->set_point(point);
+      edge_merge_event->set_facet(facet);
+      edge_merge_event->set_edge_1(edge_1);
+      edge_merge_event->set_edge_2(edge_2);
+      return edge_merge_event;
+    }
+
+    // Triangle_event
+    for (;;)
+    {
+      if (Hds_utils::is_tetrahedron(edge)) {
+        // tetrahedron event
+        CGAL_SS3_CORE_TRACE_V(8, "Not a Triangle Event (Tetrahedron)");
+        break;
+      }
+
+      FacetSPtr facet;
+      if (Hds_utils::is_triangle(edge->get_facet_L(), edge)) {
+        facet = edge->get_facet_L();
+      } else if (Hds_utils::is_triangle(edge->get_facet_R(), edge)) {
+        facet = edge->get_facet_R();
+      } else {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a Triangle Event (not triangle)");
+        break;
+      }
+
+      bool dbl_triangle_event = false;
+      EdgeSPtr edge_tmp = edge;
+      for (unsigned int i = 0; i < 3; ++i) {
+        FacetSPtr facet_tmp_l = edge_tmp->get_facet_L();
+        FacetSPtr facet_tmp_r = edge_tmp->get_facet_R();
+        if (facet_tmp_l && facet_tmp_r) {
+          if (Hds_utils::is_triangle(facet_tmp_l, edge_tmp) &&
+              Hds_utils::is_triangle(facet_tmp_r, edge_tmp)) {
+            dbl_triangle_event = true;
+            break;
+          }
+        }
+        edge_tmp = edge_tmp->next(facet);
+      }
+      if (dbl_triangle_event) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a Triangle Event (2 triangles)");
+        break;
+      }
+
+      // if here, it's a triangle evnet
+      Triangle_event_sptr triangle_event = Triangle_event::create();
+      triangle_event->set_time(event_time);
+      triangle_event->set_point(point);
+      triangle_event->set_facet(facet);
+      triangle_event->set_edge_begin(edge);
+      return triangle_event;
+    }
+
+    // Dbl_edge_merge_event
+    for (;;)
+    {
+      // At pop time, the edge is degenerate, but by default is_reflex() does a symbolic
+      // shift into the future. However, here we want to know if the edge was reflex
+      // **BEFORE** it became degenerate.
+      if (!Hds_utils::is_reflex(edge, false /*shift into the past*/)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a DblEdgeMerge Event (not reflex)");
+        break;
+      }
+
+      bool is_dbl_edge_merge_event = false;
+      FacetSPtr facet_1 = FacetSPtr();
+      EdgeSPtr edge_11 = EdgeSPtr();
+      EdgeSPtr edge_12 = EdgeSPtr();
+      FacetSPtr facet_2 = FacetSPtr();
+      EdgeSPtr edge_21 = EdgeSPtr();
+      EdgeSPtr edge_22 = EdgeSPtr();
+      FacetSPtr facet_other = edge->get_facet_L();
+      EdgeSPtr edge_next = edge->next(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->prev(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->next(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->prev(facet_other);
+      if (edge_next == edge) {
+        is_dbl_edge_merge_event = true;
+        facet_1 = edge->get_facet_L();
+        edge_11 = edge->prev(facet_1);
+        edge_12 = edge->next(facet_1)->next(facet_1);
+        facet_2 = edge->get_facet_R();
+        edge_21 = edge->prev(facet_2);
+        edge_22 = edge->next(facet_2)->next(facet_2);
+      }
+
+      facet_other = edge->get_facet_R();
+      edge_next = edge->prev(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->next(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->prev(facet_other);
+      facet_other = edge_next->other(facet_other);
+      edge_next = edge_next->next(facet_other);
+      if (edge_next == edge) {
+        is_dbl_edge_merge_event = true;
+        facet_1 = edge->get_facet_R();
+        edge_11 = edge->prev(facet_1)->prev(facet_1);
+        edge_12 = edge->next(facet_1);
+        facet_2 = edge->get_facet_L();
+        edge_21 = edge->prev(facet_2)->prev(facet_2);
+        edge_22 = edge->next(facet_2);
+      }
+
+      if (edge_11 == edge_12 || edge_21 == edge_22) {
+        // double triangle event
+        CGAL_SS3_CORE_TRACE_V(8, "Not a DblEdgeMerge Event (DblTriangle)");
+        break;
+      }
+
+      if (!is_dbl_edge_merge_event) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a DblEdgeMerge Event");
+        break;
+      }
+
+      // if here, it's a double edge merge event
+      Dbl_edge_merge_event_sptr dbl_edge_merge_event = Dbl_edge_merge_event::create();
+      dbl_edge_merge_event->set_time(event_time);
+      dbl_edge_merge_event->set_point(point);
+      dbl_edge_merge_event->set_facet_1(facet_1);
+      dbl_edge_merge_event->set_edge_11(edge_11);
+      dbl_edge_merge_event->set_edge_12(edge_12);
+      dbl_edge_merge_event->set_facet_2(facet_2);
+      dbl_edge_merge_event->set_edge_21(edge_21);
+      dbl_edge_merge_event->set_edge_22(edge_22);
+      return dbl_edge_merge_event;
+    }
+
+    // Dbl_triangle_event
+    for (;;)
+    {
+      if (Hds_utils::is_tetrahedron(edge)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a DblTriangleMerge Event (Tetrahedron)");
+        break;
+      }
+      FacetSPtr facet_l = edge->get_facet_L();
+      FacetSPtr facet_r = edge->get_facet_R();
+      if (!facet_l || !facet_r) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a DblTriangleMerge Event (neighborhood)");
+        break;
+      }
+      if (!(Hds_utils::is_triangle(facet_l, edge) && Hds_utils::is_triangle(facet_r, edge))) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a DblTriangleMerge Event (not triangles)");
+        break;
+      }
+
+      // if here, it's a double triangle event
+      Dbl_triangle_event_sptr dbl_triangle_event = Dbl_triangle_event::create();
+      dbl_triangle_event->set_time(event_time);
+      dbl_triangle_event->set_point(point);
+      dbl_triangle_event->set_edge(edge);
+      return dbl_triangle_event;
+    }
+
+    // Tetrahedron_event
+    for (;;)
+    {
+      if (!Hds_utils::is_tetrahedron(edge)) {
+        CGAL_SS3_CORE_TRACE_V(8, "Not a Tetrahedron Event");
+        break;
+      }
+
+      // if here, it's a tetrahedron event
+      Tetrahedron_event_sptr tetrahedron_event = Tetrahedron_event::create();
+      tetrahedron_event->set_time(event_time);
+      tetrahedron_event->set_point(point);
+      tetrahedron_event->set_edge_begin(edge);
+      return tetrahedron_event;
+    }
+
+    return Abstract_event_sptr();
+  }
+
+  static Abstract_event_sptr is_actual_generic_vertex_event(const Generic_vertex_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "###  Tentative Generic Vertex Event  ###");
@@ -1248,17 +1628,17 @@ public:
     if (!check_bisectors(edge_11, point, event_time) ||
         !check_bisectors(edge_22, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Generic vertex event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
 
     CGAL_SS3_CORE_TRACE_V(8, "Generic vertex event: accepted");
-    return true;
+    return event;
   }
 
   // @todo avoid all this duplication between vertex event types...
-  static bool is_actual_vertex_event(const Vertex_event_sptr& event)
+  static Abstract_event_sptr is_actual_vertex_event(const Vertex_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "#######  Tentative Vertex Event  #######");
@@ -1312,7 +1692,7 @@ public:
 
     if (conv_split_event) {
       CGAL_SS3_CORE_TRACE_V(8, "Vertex event: convex split detected");
-      return false;
+      return Abstract_event_sptr();
     }
 
     // Bisector check
@@ -1324,16 +1704,16 @@ public:
     if (!check_bisectors(edge_11, point, event_time) ||
         !check_bisectors(edge_22, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Vertex event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
 
     CGAL_SS3_CORE_TRACE_V(8, "Vertex event: accepted");
-    return true;
+    return event;
   }
 
-  static bool is_actual_flip_vertex_event(const Flip_vertex_event_sptr& event)
+  static Abstract_event_sptr is_actual_flip_vertex_event(const Flip_vertex_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "#####  Tentative Flip Vertex Event  ####");
@@ -1387,7 +1767,7 @@ public:
 
     if (conv_split_event) {
       CGAL_SS3_CORE_TRACE_V(8, "Flip vertex event: convex split detected");
-      return false;
+      return Abstract_event_sptr();
     }
 
     // Bisector check
@@ -1399,16 +1779,16 @@ public:
     if (!check_bisectors(edge_11, point, event_time) ||
         !check_bisectors(edge_22, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Flip Vertex event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
 
     CGAL_SS3_CORE_TRACE_V(8, "Flip vertex event: accepted");
-    return true;
+    return event;
   }
 
-  static bool is_actual_surface_event(const Surface_event_sptr& event)
+  static Abstract_event_sptr is_actual_surface_event(const Surface_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "######  Tentative Surface Event  #######");
@@ -1450,7 +1830,7 @@ public:
 
     if (conv_split_event) {
       CGAL_SS3_CORE_TRACE_V(8, "Surface event: convex split detected");
-      return false;
+      return Abstract_event_sptr();
     }
 
     // Bisector check
@@ -1462,16 +1842,16 @@ public:
     if (!check_bisectors(edge_1, point, event_time) ||
         !check_bisectors(edge_2, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Surface event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
 
     CGAL_SS3_CORE_TRACE_V(8, "Surface event: accepted");
-    return true;
+    return event;
   }
 
-  static bool is_actual_polyhedron_split_event(const Polyhedron_split_event_sptr& event)
+  static Abstract_event_sptr is_actual_polyhedron_split_event(const Polyhedron_split_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "##  Tentative Polyhedron Split Event  ##");
@@ -1493,7 +1873,7 @@ public:
     if (!check_bisectors(edge_1, point, event_time) ||
         !check_bisectors(edge_2, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Polyhedron split event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
@@ -1502,14 +1882,14 @@ public:
     Segment_3 e1o = Transformation::offset_edge_from_base(event->get_edge_1(), event_time);
     if (!e1o.is_degenerate()) {
       CGAL_SS3_CORE_TRACE_V(8, "Polyhedron split event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     CGAL_SS3_CORE_TRACE_V(8, "Polyhedron split event accepted");
-    return true;
+    return event;
   }
 
-  static bool is_actual_split_merge_event(const Split_merge_event_sptr& event)
+  static Abstract_event_sptr is_actual_split_merge_event(const Split_merge_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "####  Tentative Split Merge Event  #####");
@@ -1567,7 +1947,7 @@ public:
 
     if (!conv_split_event) {
       CGAL_SS3_CORE_TRACE_V(8, "Split merge event: non-convex split event detected");
-      return false;
+      return Abstract_event_sptr();
     }
 
     // Bisector check
@@ -1579,16 +1959,16 @@ public:
     if (!check_bisectors(edge_11, point, event_time) ||
         !check_bisectors(edge_22, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Split merge event: bisector check failure");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
 
     CGAL_SS3_CORE_TRACE_V(8, "Split merge event accepted");
-    return true;
+    return event;
   }
 
-  static bool is_actual_edge_split_event(const Edge_split_event_sptr& event)
+  static Abstract_event_sptr is_actual_edge_split_event(const Edge_split_event_sptr& event)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "#####  Tentative Edge Split Event  #####");
@@ -1609,17 +1989,17 @@ public:
     if (!check_bisectors(edge_1, point, event_time) ||
         !check_bisectors(edge_2, point, event_time)) {
       CGAL_SS3_CORE_TRACE_V(8, "Edge split rejected at pop time");
-      return false;
+      return Abstract_event_sptr();
     }
 
     event->set_point(point);
 
     CGAL_SS3_CORE_TRACE_V(8, "Edge split event accepted");
-    return true;
+    return event;
   }
 
-  static bool is_actual_pierce_event(const Pierce_event_sptr& event,
-                                     const std::optional<FT>& time_future_bound)
+  static Abstract_event_sptr is_actual_pierce_event(const Pierce_event_sptr& event,
+                                                    const std::optional<FT>& time_future_bound)
   {
     CGAL_SS3_CORE_TRACE_V(8, "########################################");
     CGAL_SS3_CORE_TRACE_V(8, "######  Tentative Pierce Event  ########");
@@ -1653,7 +2033,7 @@ public:
     }
     if (has_edge_to_facet) {
       CGAL_SS3_CORE_TRACE_V(8, "Pierce event rejected at pop time (a)");
-      return false;
+      return Abstract_event_sptr();
     }
 
     // Filter #2
@@ -1675,7 +2055,7 @@ public:
 
       if (!CGAL::do_overlap(b1, b2)) {
         CGAL_SS3_CORE_TRACE_V(8, "Pierce event rejected at pop time (b)");
-        return false;
+        return Abstract_event_sptr();
       }
     }
 
@@ -1714,12 +2094,12 @@ public:
 #ifdef CGAL_SPS3_NEW_IS_INSIDE
     if (!Self_intersection::is_inside_using_ray_shooting_V2(point, facet_clone)) {
       CGAL_SS3_CORE_TRACE_V(8, "Pierce event rejected at pop time (c)");
-      return false;
+      return Abstract_event_sptr();
     }
 #else
     if (!Self_intersection::is_inside_using_ray_shooting(point, facet_clone)) {
       CGAL_SS3_CORE_TRACE_V(8, "Pierce event rejected at pop time (c)");
-      return false;
+      return Abstract_event_sptr();
     }
 
     bool boundary_rejection = false;
@@ -1738,12 +2118,12 @@ public:
 
     if (boundary_rejection) {
       CGAL_SS3_CORE_TRACE_V(8, "Pierce event rejected at pop time (d)");
-      return false;
+      return Abstract_event_sptr();
     }
 #endif
 
     CGAL_SS3_CORE_TRACE_V(8, "Pierce event accepted");
-    return true;
+    return event;
   }
 
   /**
@@ -1752,33 +2132,34 @@ public:
     * The gain is that the event can be invalidated combinatorially by the time
     * it gets popped.
     */
-  static bool is_actual_event(const Abstract_event_sptr& event,
-                              const std::optional<FT>& time_future_bound)
+  static Abstract_event_sptr is_actual_event(const Abstract_event_sptr& event,
+                                            const std::optional<FT>& time_future_bound)
   {
     CGAL_SS3_DEBUG_SPTR(event);
     CGAL_precondition(event->is_valid());
 
-    bool result = true;
-
-    if (event->getType() == Abstract_event::GENERIC_VERTEX_EVENT) {
-      result = is_actual_generic_vertex_event(std::dynamic_pointer_cast<Generic_vertex_event>(event));
-    } else if (event->getType() == Abstract_event::VERTEX_EVENT) {
-      result = is_actual_vertex_event(std::dynamic_pointer_cast<Vertex_event>(event));
-    } else if (event->getType() == Abstract_event::FLIP_VERTEX_EVENT) {
-      result = is_actual_flip_vertex_event(std::dynamic_pointer_cast<Flip_vertex_event>(event));
-    } else if (event->getType() == Abstract_event::SURFACE_EVENT) {
-      result = is_actual_surface_event(std::dynamic_pointer_cast<Surface_event>(event));
-    } else if (event->getType() == Abstract_event::POLYHEDRON_SPLIT_EVENT) {
-      result = is_actual_polyhedron_split_event(std::dynamic_pointer_cast<Polyhedron_split_event>(event));
-    } else if (event->getType() == Abstract_event::SPLIT_MERGE_EVENT) {
-      result = is_actual_split_merge_event(std::dynamic_pointer_cast<Split_merge_event>(event));
-    } else if (event->getType() == Abstract_event::EDGE_SPLIT_EVENT) {
-      result = is_actual_edge_split_event(std::dynamic_pointer_cast<Edge_split_event>(event));
-    } else if (event->getType() == Abstract_event::PIERCE_EVENT) {
-      result = is_actual_pierce_event(std::dynamic_pointer_cast<Pierce_event>(event), time_future_bound);
+    if (event->getType() == Event_type::VANISH_EVENT) {
+      return is_actual_vanish_event(std::dynamic_pointer_cast<Vanish_event>(event));
+    } else if (event->getType() == Event_type::GENERIC_VERTEX_EVENT) {
+      return is_actual_generic_vertex_event(std::dynamic_pointer_cast<Generic_vertex_event>(event));
+    } else if (event->getType() == Event_type::VERTEX_EVENT) {
+      return is_actual_vertex_event(std::dynamic_pointer_cast<Vertex_event>(event));
+    } else if (event->getType() == Event_type::FLIP_VERTEX_EVENT) {
+      return is_actual_flip_vertex_event(std::dynamic_pointer_cast<Flip_vertex_event>(event));
+    } else if (event->getType() == Event_type::SURFACE_EVENT) {
+      return is_actual_surface_event(std::dynamic_pointer_cast<Surface_event>(event));
+    } else if (event->getType() == Event_type::POLYHEDRON_SPLIT_EVENT) {
+      return is_actual_polyhedron_split_event(std::dynamic_pointer_cast<Polyhedron_split_event>(event));
+    } else if (event->getType() == Event_type::SPLIT_MERGE_EVENT) {
+      return is_actual_split_merge_event(std::dynamic_pointer_cast<Split_merge_event>(event));
+    } else if (event->getType() == Event_type::EDGE_SPLIT_EVENT) {
+      return is_actual_edge_split_event(std::dynamic_pointer_cast<Edge_split_event>(event));
+    } else if (event->getType() == Event_type::PIERCE_EVENT) {
+      return is_actual_pierce_event(std::dynamic_pointer_cast<Pierce_event>(event), time_future_bound);
     }
 
-    return result;
+    // save event, const event, ...
+    return event;
   }
 
   /**
@@ -3843,87 +4224,87 @@ public:
       }
 
       switch (event_1->getType()) {
-        case Abstract_event::SAVE_EVENT: {
+        case Event_type::SAVE_EVENT: {
           auto save_event_1 = std::dynamic_pointer_cast<Save_event>(event_1);
           auto save_event_2 = std::dynamic_pointer_cast<Save_event>(event_2);
           return *save_event_1 == *save_event_2;
         }
-        case Abstract_event::CONST_TIME_EVENT: {
+        case Event_type::CONST_TIME_EVENT: {
           auto const_event_1 = std::dynamic_pointer_cast<Const_time_event>(event_1);
           auto const_event_2 = std::dynamic_pointer_cast<Const_time_event>(event_2);
           return *const_event_1 == *const_event_2;
         }
-        case Abstract_event::VANISH_EVENT: {
+        case Event_type::VANISH_EVENT: {
           auto vanish_event_1 = std::dynamic_pointer_cast<Vanish_event>(event_1);
           auto vanish_event_2 = std::dynamic_pointer_cast<Vanish_event>(event_2);
           return *vanish_event_1 == *vanish_event_2;
         }
-        case Abstract_event::EDGE_EVENT: {
+        case Event_type::EDGE_EVENT: {
           auto edge_event_1 = std::dynamic_pointer_cast<Edge_event>(event_1);
           auto edge_event_2 = std::dynamic_pointer_cast<Edge_event>(event_2);
           return *edge_event_1 == *edge_event_2;
         }
-        case Abstract_event::EDGE_MERGE_EVENT: {
+        case Event_type::EDGE_MERGE_EVENT: {
           auto edge_merge_event_1 = std::dynamic_pointer_cast<Edge_merge_event>(event_1);
           auto edge_merge_event_2 = std::dynamic_pointer_cast<Edge_merge_event>(event_2);
           return *edge_merge_event_1 == *edge_merge_event_2;
         }
-        case Abstract_event::TRIANGLE_EVENT: {
+        case Event_type::TRIANGLE_EVENT: {
           auto triangle_event_1 = std::dynamic_pointer_cast<Triangle_event>(event_1);
           auto triangle_event_2 = std::dynamic_pointer_cast<Triangle_event>(event_2);
           return *triangle_event_1 == *triangle_event_2;
         }
-        case Abstract_event::DBL_EDGE_MERGE_EVENT: {
+        case Event_type::DBL_EDGE_MERGE_EVENT: {
           auto dbl_edge_merge_event_1 = std::dynamic_pointer_cast<Dbl_edge_merge_event>(event_1);
           auto dbl_edge_merge_event_2 = std::dynamic_pointer_cast<Dbl_edge_merge_event>(event_2);
           return *dbl_edge_merge_event_1 == *dbl_edge_merge_event_2;
         }
-        case Abstract_event::DBL_TRIANGLE_EVENT: {
+        case Event_type::DBL_TRIANGLE_EVENT: {
           auto dbl_triangle_event_1 = std::dynamic_pointer_cast<Dbl_triangle_event>(event_1);
           auto dbl_triangle_event_2 = std::dynamic_pointer_cast<Dbl_triangle_event>(event_2);
           return *dbl_triangle_event_1 == *dbl_triangle_event_2;
         }
-        case Abstract_event::TETRAHEDRON_EVENT: {
+        case Event_type::TETRAHEDRON_EVENT: {
           auto tetrahedron_event_1 = std::dynamic_pointer_cast<Tetrahedron_event>(event_1);
           auto tetrahedron_event_2 = std::dynamic_pointer_cast<Tetrahedron_event>(event_2);
           return *tetrahedron_event_1 == *tetrahedron_event_2;
         }
-        case Abstract_event::GENERIC_VERTEX_EVENT: {
+        case Event_type::GENERIC_VERTEX_EVENT: {
           auto generic_vertex_event_1 = std::dynamic_pointer_cast<Generic_vertex_event>(event_1);
           auto generic_vertex_event_2 = std::dynamic_pointer_cast<Generic_vertex_event>(event_2);
           return *generic_vertex_event_1 == *generic_vertex_event_2;
         }
-        case Abstract_event::VERTEX_EVENT: {
+        case Event_type::VERTEX_EVENT: {
           auto vertex_event_1 = std::dynamic_pointer_cast<Vertex_event>(event_1);
           auto vertex_event_2 = std::dynamic_pointer_cast<Vertex_event>(event_2);
           return *vertex_event_1 == *vertex_event_2;
         }
-        case Abstract_event::FLIP_VERTEX_EVENT: {
+        case Event_type::FLIP_VERTEX_EVENT: {
           auto flip_vertex_event_1 = std::dynamic_pointer_cast<Flip_vertex_event>(event_1);
           auto flip_vertex_event_2 = std::dynamic_pointer_cast<Flip_vertex_event>(event_2);
           return *flip_vertex_event_1 == *flip_vertex_event_2;
         }
-        case Abstract_event::SURFACE_EVENT: {
+        case Event_type::SURFACE_EVENT: {
           auto surface_event_1 = std::dynamic_pointer_cast<Surface_event>(event_1);
           auto surface_event_2 = std::dynamic_pointer_cast<Surface_event>(event_2);
           return *surface_event_1 == *surface_event_2;
         }
-        case Abstract_event::POLYHEDRON_SPLIT_EVENT: {
+        case Event_type::POLYHEDRON_SPLIT_EVENT: {
           auto polyhedron_split_event_1 = std::dynamic_pointer_cast<Polyhedron_split_event>(event_1);
           auto polyhedron_split_event_2 = std::dynamic_pointer_cast<Polyhedron_split_event>(event_2);
           return *polyhedron_split_event_1 == *polyhedron_split_event_2;
         }
-        case Abstract_event::EDGE_SPLIT_EVENT: {
+        case Event_type::EDGE_SPLIT_EVENT: {
           auto edge_event_1 = std::dynamic_pointer_cast<Edge_split_event>(event_1);
           auto edge_event_2 = std::dynamic_pointer_cast<Edge_split_event>(event_2);
           return *edge_event_1 == *edge_event_2;
         }
-        case Abstract_event::SPLIT_MERGE_EVENT: {
+        case Event_type::SPLIT_MERGE_EVENT: {
           auto split_merge_event_1 = std::dynamic_pointer_cast<Split_merge_event>(event_1);
           auto split_merge_event_2 = std::dynamic_pointer_cast<Split_merge_event>(event_2);
           return *split_merge_event_1 == *split_merge_event_2;
         }
-        case Abstract_event::PIERCE_EVENT: {
+        case Event_type::PIERCE_EVENT: {
           auto pierce_event_1 = std::dynamic_pointer_cast<Pierce_event>(event_1);
           auto pierce_event_2 = std::dynamic_pointer_cast<Pierce_event>(event_2);
           return *pierce_event_1 == *pierce_event_2;
@@ -4220,401 +4601,6 @@ public:
     add_event(event);
 
     return Event_status::EVENT_HANDLED;
-  }
-
-  // This 'handle' is in fact more akin to a collect, but the interesting point
-  // is that it happens after pop time.
-  // This function does NOT shift the polyhedron, it is for the "real" handler
-  // to deal with it.
-  // This function might not do anything, for example if the vanish event is in fact
-  // escalated as a contact event.
-  Event_status handle_vanish_event(const Vanish_event_sptr& event,
-                                   const std::optional<FT>& time_future_bound,
-                                   const PolyhedronSPtr& polyhedron)
-  {
-    CGAL_SS3_CORE_TRACE_V(8, "########################################");
-    CGAL_SS3_CORE_TRACE_V(8, "####### Tentative Vanish Event  ########");
-    CGAL_SS3_CORE_TRACE_V(8, "########################################");
-
-    CGAL_SS3_DEBUG_SPTR(event);
-
-    CGAL_SS3_CORE_TRACE_V(4, event->to_string());
-
-    EdgeSPtr edge = event->get_edge();
-    const FT& event_time = event->time();
-
-    event->set_point(vanish_point(edge));
-    const Point_3& point = event->point();
-
-    // @todo would nice:
-    // - to avoid redundant checks (e.g. is_triangle multiple times)
-    // - to avoid code duplication with collectXYZEvents()
-    //
-    // To avoid redundant code, it could be re-ordered by descending amount of collapsing edges (6 --> 1)?
-    // Might not speed things up if majority of events are a small number of edge collapses.
-    // Anyway, vanish events are cheap to collect, and cheap to process.
-
-    // The fake "for (;;)"" infinite loops are only there as to be able to keep the 'break's
-    // such that the code is exactly identical to that of the respective collectXYZEvent() functions
-
-    // Edge Event
-    for (;;)
-    {
-      FacetSPtr facet_l = edge->get_facet_L();
-      FacetSPtr facet_r = edge->get_facet_R();
-      if (Hds_utils::is_triangle(facet_l, edge) ||
-          Hds_utils::is_triangle(facet_r, edge)) {
-        // triangle event
-        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (one incident facet is a triangle)");
-        break;
-      }
-
-      FacetSPtr facet_src = edge->get_facet_src();
-      FacetSPtr facet_tgt = edge->get_facet_tgt();
-
-      // This does not work when there is more than one edge between both facets.
-      // EdgeSPtr edge_2 = facet_src->find_edge(facet_tgt);
-      std::list<EdgeSPtr> edges_2 = facet_src->find_edges(facet_tgt); // @todo shouldn't this check also happen in other events?...
-
-      bool split_event = false;
-      for (const EdgeSPtr& edge_2 : edges_2) {
-        FacetSPtr facet_l2 = edge_2->get_facet_L();
-        FacetSPtr facet_r2 = edge_2->get_facet_R();
-        FacetSPtr facet_2_src = edge_2->get_facet_src();
-        FacetSPtr facet_2_tgt = edge_2->get_facet_tgt();
-
-        CGAL_assertion_code(const Plane_3& plane_l2 = facet_l2->get_plane();)
-        CGAL_assertion_code(const FT& l2a = plane_l2.a();)
-        CGAL_assertion_code(const FT& l2b = plane_l2.b();)
-        CGAL_assertion_code(const FT& l2c = plane_l2.c();)
-        CGAL_assertion_code(const FT& l2d = plane_l2.d();)
-        CGAL_assertion_code(const FT& speed_l2 = Hds_utils::get_speed(facet_l2);)
-        CGAL_assertion_code(FT lt2 = (l2a * point.x() + l2b * point.y() + l2c * point.z() + l2d) / speed_l2);
-
-        CGAL_assertion_code(const Plane_3& plane_r2 = facet_r2->get_plane();)
-        CGAL_assertion_code(const FT& r2a = plane_r2.a();)
-        CGAL_assertion_code(const FT& r2b = plane_r2.b();)
-        CGAL_assertion_code(const FT& r2c = plane_r2.c();)
-        CGAL_assertion_code(const FT& r2d = plane_r2.d();)
-        CGAL_assertion_code(const FT& speed_r2 = Hds_utils::get_speed(facet_r2);)
-        CGAL_assertion_code(FT rt2 = (r2a * point.x() + r2b * point.y() + r2c * point.z() + r2d) / speed_r2);
-
-        CGAL_assertion(lt2 == rt2);
-        CGAL_assertion(!is_positive(lt2));
-
-        if (!check_bisectors(edge_2, point, event_time)) {
-          continue;
-        }
-
-        split_event = true;
-        break;
-      }
-
-      if (split_event) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Split)");
-        break;
-      }
-
-      // edge merge event
-      EdgeSPtr edge_prev = edge->prev(facet_l);
-      EdgeSPtr edge_next = edge->next(facet_l)->next(facet_l);
-      if (edge_prev->has_same_facets(edge_next)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #1)");
-        break;
-      }
-      edge_prev = edge->prev(facet_l)->prev(facet_l);
-      edge_next = edge->next(facet_l);
-      if (edge_prev->has_same_facets(edge_next)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #2)");
-        break;
-      }
-      edge_prev = edge->prev(facet_r);
-      edge_next = edge->next(facet_r)->next(facet_r);
-      if (edge_prev->has_same_facets(edge_next)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #3)");
-        break;
-      }
-      edge_prev = edge->prev(facet_r)->prev(facet_r);
-      edge_next = edge->next(facet_r);
-      if (edge_prev->has_same_facets(edge_next)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not an Edge Event (Edge Merge #4)");
-        break;
-      }
-
-      // if here, it's an edge event
-      Edge_event_sptr edge_event = Edge_event::create();
-      edge_event->set_time(event_time);
-      edge_event->set_point(point);
-      edge_event->set_edge(edge);
-
-      return handle_edge_event(edge_event, time_future_bound, polyhedron);
-    }
-
-    // Edge_merge_event
-    for (;;)
-    {
-      FacetSPtr facet_l = edge->get_facet_L();
-      FacetSPtr facet_r = edge->get_facet_R();
-      if (Hds_utils::is_triangle(facet_l, edge) ||
-          Hds_utils::is_triangle(facet_r, edge)) {
-        // triangle event
-        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (one incident facet is a triangle)");
-        break;
-      }
-
-      FacetSPtr facet_other = edge->get_facet_L();
-      EdgeSPtr edge_next = edge->next(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->prev(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->next(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->prev(facet_other);
-      if (edge_next == edge) {
-        // dbl edge merge event
-        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (Dbl #1)");
-        break;
-      }
-
-      facet_other = edge->get_facet_R();
-      edge_next = edge->prev(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->next(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->prev(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->next(facet_other);
-      if (edge_next == edge) {
-        // dbl edge merge event
-        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (Dbl #2)");
-        break;
-      }
-
-      FacetSPtr facet = FacetSPtr();
-      EdgeSPtr edge_1 = EdgeSPtr();
-      EdgeSPtr edge_2 = EdgeSPtr();
-
-      // @todo do we still need to test other combinations if a previous one matched?
-      EdgeSPtr edge_prev = edge->prev(facet_l);
-      edge_next = edge->next(facet_l)->next(facet_l);
-      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
-        facet = facet_l;
-        edge_1 = edge_prev;
-        edge_2 = edge_next;
-      }
-
-      edge_prev = edge->prev(facet_l)->prev(facet_l);
-      edge_next = edge->next(facet_l);
-      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
-        facet = facet_l;
-        edge_1 = edge_prev;
-        edge_2 = edge_next;
-      }
-
-      edge_prev = edge->prev(facet_r);
-      edge_next = edge->next(facet_r)->next(facet_r);
-      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
-        facet = facet_r;
-        edge_1 = edge_prev;
-        edge_2 = edge_next;
-      }
-
-      edge_prev = edge->prev(facet_r)->prev(facet_r);
-      edge_next = edge->next(facet_r);
-      if (edge_prev->has_same_facets(edge_next) && edge_prev != edge_next) {
-        facet = facet_r;
-        edge_1 = edge_prev;
-        edge_2 = edge_next;
-      }
-
-      if (!(facet && edge_1 && edge_2)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not an EdgeMerge Event (Neighborhood)");
-        break;
-      }
-
-      // if here, it's an edge merge event
-      Edge_merge_event_sptr edge_merge_event = Edge_merge_event::create();
-      edge_merge_event->set_time(event_time);
-      edge_merge_event->set_point(point);
-      edge_merge_event->set_facet(facet);
-      edge_merge_event->set_edge_1(edge_1);
-      edge_merge_event->set_edge_2(edge_2);
-
-      return handle_edge_merge_event(edge_merge_event, time_future_bound, polyhedron);
-    }
-
-    // Triangle_event
-    for (;;)
-    {
-      if (Hds_utils::is_tetrahedron(edge)) {
-        // tetrahedron event
-        CGAL_SS3_CORE_TRACE_V(8, "Not a Triangle Event (Tetrahedron)");
-        break;
-      }
-
-      FacetSPtr facet;
-      if (Hds_utils::is_triangle(edge->get_facet_L(), edge)) {
-        facet = edge->get_facet_L();
-      } else if (Hds_utils::is_triangle(edge->get_facet_R(), edge)) {
-        facet = edge->get_facet_R();
-      } else {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a Triangle Event (not triangle)");
-        break;
-      }
-
-      bool dbl_triangle_event = false;
-      EdgeSPtr edge_tmp = edge;
-      for (unsigned int i = 0; i < 3; ++i) {
-        FacetSPtr facet_tmp_l = edge_tmp->get_facet_L();
-        FacetSPtr facet_tmp_r = edge_tmp->get_facet_R();
-        if (facet_tmp_l && facet_tmp_r) {
-          if (Hds_utils::is_triangle(facet_tmp_l, edge_tmp) &&
-              Hds_utils::is_triangle(facet_tmp_r, edge_tmp)) {
-            dbl_triangle_event = true;
-            break;
-          }
-        }
-        edge_tmp = edge_tmp->next(facet);
-      }
-      if (dbl_triangle_event) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a Triangle Event (2 triangles)");
-        break;
-      }
-
-      // if here, it's a triangle event
-      Triangle_event_sptr triangle_event = Triangle_event::create();
-      triangle_event->set_time(event_time);
-      triangle_event->set_point(point);
-      triangle_event->set_facet(facet);
-      triangle_event->set_edge_begin(edge);
-
-      return handle_triangle_event(triangle_event, time_future_bound, polyhedron);
-    }
-
-    // Dbl_edge_merge_event
-    for (;;)
-    {
-      // At pop time, edge is degenerate, but by default is_reflex() does a symbolic
-      // shift into the future. However, here we want to know if the edge was reflex
-      // BEFORE it became degenerate.
-      if (!Hds_utils::is_reflex(edge, false /*shift into the past*/)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a DblEdgeMerge Event (not reflex)");
-        break;
-      }
-
-      bool is_dbl_edge_merge_event = false;
-      FacetSPtr facet_1 = FacetSPtr();
-      EdgeSPtr edge_11 = EdgeSPtr();
-      EdgeSPtr edge_12 = EdgeSPtr();
-      FacetSPtr facet_2 = FacetSPtr();
-      EdgeSPtr edge_21 = EdgeSPtr();
-      EdgeSPtr edge_22 = EdgeSPtr();
-      FacetSPtr facet_other = edge->get_facet_L();
-      EdgeSPtr edge_next = edge->next(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->prev(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->next(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->prev(facet_other);
-      if (edge_next == edge) {
-        is_dbl_edge_merge_event = true;
-        facet_1 = edge->get_facet_L();
-        edge_11 = edge->prev(facet_1);
-        edge_12 = edge->next(facet_1)->next(facet_1);
-        facet_2 = edge->get_facet_R();
-        edge_21 = edge->prev(facet_2);
-        edge_22 = edge->next(facet_2)->next(facet_2);
-      }
-
-      facet_other = edge->get_facet_R();
-      edge_next = edge->prev(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->next(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->prev(facet_other);
-      facet_other = edge_next->other(facet_other);
-      edge_next = edge_next->next(facet_other);
-      if (edge_next == edge) {
-        is_dbl_edge_merge_event = true;
-        facet_1 = edge->get_facet_R();
-        edge_11 = edge->prev(facet_1)->prev(facet_1);
-        edge_12 = edge->next(facet_1);
-        facet_2 = edge->get_facet_L();
-        edge_21 = edge->prev(facet_2)->prev(facet_2);
-        edge_22 = edge->next(facet_2);
-      }
-
-      if (edge_11 == edge_12 || edge_21 == edge_22) {
-        // double triangle event
-        CGAL_SS3_CORE_TRACE_V(8, "Not a DblEdgeMerge Event (DblTriangle)");
-        break;
-      }
-
-      if (!is_dbl_edge_merge_event) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a DblEdgeMerge Event");
-        break;
-      }
-
-      // if here, it's a double edge merge event
-      Dbl_edge_merge_event_sptr dbl_edge_merge_event = Dbl_edge_merge_event::create();
-      dbl_edge_merge_event->set_time(event_time);
-      dbl_edge_merge_event->set_point(point);
-      dbl_edge_merge_event->set_facet_1(facet_1);
-      dbl_edge_merge_event->set_edge_11(edge_11);
-      dbl_edge_merge_event->set_edge_12(edge_12);
-      dbl_edge_merge_event->set_facet_2(facet_2);
-      dbl_edge_merge_event->set_edge_21(edge_21);
-      dbl_edge_merge_event->set_edge_22(edge_22);
-
-      return handle_dbl_edge_merge_event(dbl_edge_merge_event, time_future_bound, polyhedron);
-    }
-
-    // Dbl_triangle_event
-    for (;;)
-    {
-      if (Hds_utils::is_tetrahedron(edge)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a DblTriangleMerge Event (Tetrahedron)");
-        break;
-      }
-      FacetSPtr facet_l = edge->get_facet_L();
-      FacetSPtr facet_r = edge->get_facet_R();
-      if (!facet_l || !facet_r) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a DblTriangleMerge Event (neighborhood)");
-        break;
-      }
-      if (!(Hds_utils::is_triangle(facet_l, edge) && Hds_utils::is_triangle(facet_r, edge))) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a DblTriangleMerge Event (not triangles)");
-        break;
-      }
-
-      // if here, it's a double triangle event
-      Dbl_triangle_event_sptr dbl_triangle_event = Dbl_triangle_event::create();
-      dbl_triangle_event->set_time(event_time);
-      dbl_triangle_event->set_point(point);
-      dbl_triangle_event->set_edge(edge);
-
-      return handle_dbl_triangle_event(dbl_triangle_event, time_future_bound, polyhedron);
-    }
-
-    // Tetrahedron_event
-    for (;;)
-    {
-      if (!Hds_utils::is_tetrahedron(edge)) {
-        CGAL_SS3_CORE_TRACE_V(8, "Not a Tetrahedron Event");
-        break;
-      }
-
-      // if here, it's a tetrahedron event
-      Tetrahedron_event_sptr tetrahedron_event = Tetrahedron_event::create();
-      tetrahedron_event->set_time(event_time);
-      tetrahedron_event->set_point(point);
-      tetrahedron_event->set_edge_begin(edge);
-
-      return handle_tetrahedron_event(tetrahedron_event, time_future_bound, polyhedron);
-    }
-
-    return Event_status::NON_EVENT;
   }
 
   Event_status handle_edge_event(const Edge_event_sptr& event,
@@ -6762,7 +6748,7 @@ public:
     return Event_status::EVENT_HANDLED;
   }
 
-  Event_status handle_event(const Abstract_event_sptr& event,
+  Event_status handle_event(Abstract_event_sptr event,
                             const std::optional<FT>& time_future_bound,
                             const PolyhedronSPtr& polyhedron)
   {
@@ -6774,44 +6760,62 @@ public:
     //   if we do have a pierce event, we need to check if the vertex and the facet do not share
     //   an edge. But combinatorial information can evolve with events between the moment
     //   we first try to collect (locally) the event, and the moment where we pop it.
-    //   We often waste a lot of time performing checks at collect time.
     // - Some events become irrelevant by the time they pop, and performing the checks at collect
-    //   time can be a significant waste of time. Taking the same pierce event type, we need
-    //   to check if the movement of the vertex would actually touch the polygon facet.
-    //   Thus, it's cheaper to delay the check, even if that means computing the event time.
-    if (!is_actual_event(event, time_future_bound)) {
+    //   time can be a significant waste of time. Taking the same pierce event example: we need
+    //   to check if the movement of the vertex would actually touch the polygon facet, which
+    //   is costly. Thus, it's cheaper to delay the check, even if that means computing the event time.
+    Abstract_event_sptr validated_event = is_actual_event(event, time_future_bound);
+    if (!validated_event) {
       return result;
     }
+    event = validated_event;
 
-    if (event->getType() == Abstract_event::SAVE_EVENT) {
+    CGAL_assertion(event->getType() != Event_type::VANISH_EVENT);
+
+    if (event->getType() == Event_type::SAVE_EVENT) {
       result = handle_save_event(std::dynamic_pointer_cast<Save_event>(event), polyhedron);
-    } else if (event->getType() == Abstract_event::CONST_TIME_EVENT) {
+    } else if (event->getType() == Event_type::CONST_TIME_EVENT) {
       result = handle_const_time_event(std::dynamic_pointer_cast<Const_time_event>(event), polyhedron);
-    } else if (event->getType() == Abstract_event::GENERIC_VERTEX_EVENT) {
+    } else if (event->getType() == Event_type::EDGE_EVENT) {
+      result = handle_edge_event(std::dynamic_pointer_cast<Edge_event>(event),
+                                 time_future_bound, polyhedron);
+    } else if (event->getType() == Event_type::EDGE_MERGE_EVENT) {
+      result = handle_edge_merge_event(std::dynamic_pointer_cast<Edge_merge_event>(event),
+                                       time_future_bound, polyhedron);
+    } else if (event->getType() == Event_type::TRIANGLE_EVENT) {
+      result = handle_triangle_event(std::dynamic_pointer_cast<Triangle_event>(event),
+                                     time_future_bound, polyhedron);
+    } else if (event->getType() == Event_type::DBL_EDGE_MERGE_EVENT) {
+      result = handle_dbl_edge_merge_event(std::dynamic_pointer_cast<Dbl_edge_merge_event>(event),
+                                           time_future_bound, polyhedron);
+    } else if (event->getType() == Event_type::DBL_TRIANGLE_EVENT) {
+      result = handle_dbl_triangle_event(std::dynamic_pointer_cast<Dbl_triangle_event>(event),
+                                         time_future_bound, polyhedron);
+    } else if (event->getType() == Event_type::TETRAHEDRON_EVENT) {
+      result = handle_tetrahedron_event(std::dynamic_pointer_cast<Tetrahedron_event>(event),
+                                       time_future_bound, polyhedron);
+    } else if (event->getType() == Event_type::GENERIC_VERTEX_EVENT) {
       result = handle_generic_vertex_event(std::dynamic_pointer_cast<Generic_vertex_event>(event),
                                            time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::VANISH_EVENT) {
-      result = handle_vanish_event(std::dynamic_pointer_cast<Vanish_event>(event),
-                                   time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::VERTEX_EVENT) {
+    } else if (event->getType() == Event_type::VERTEX_EVENT) {
       result = handle_vertex_event(std::dynamic_pointer_cast<Vertex_event>(event),
                                    time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::FLIP_VERTEX_EVENT) {
+    } else if (event->getType() == Event_type::FLIP_VERTEX_EVENT) {
       result = handle_flip_vertex_event(std::dynamic_pointer_cast<Flip_vertex_event>(event),
                                         time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::SURFACE_EVENT) {
+    } else if (event->getType() == Event_type::SURFACE_EVENT) {
       result = handle_surface_event(std::dynamic_pointer_cast<Surface_event>(event),
                                     time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::POLYHEDRON_SPLIT_EVENT) {
+    } else if (event->getType() == Event_type::POLYHEDRON_SPLIT_EVENT) {
       result = handle_polyhedron_split_event(std::dynamic_pointer_cast<Polyhedron_split_event>(event),
                                              time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::SPLIT_MERGE_EVENT) {
+    } else if (event->getType() == Event_type::SPLIT_MERGE_EVENT) {
       result = handle_split_merge_event(std::dynamic_pointer_cast<Split_merge_event>(event),
                                         time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::EDGE_SPLIT_EVENT) {
+    } else if (event->getType() == Event_type::EDGE_SPLIT_EVENT) {
       result = handle_edge_split_event(std::dynamic_pointer_cast<Edge_split_event>(event),
                                        time_future_bound, polyhedron);
-    } else if (event->getType() == Abstract_event::PIERCE_EVENT) {
+    } else if (event->getType() == Event_type::PIERCE_EVENT) {
       result = handle_pierce_event(std::dynamic_pointer_cast<Pierce_event>(event),
                                    time_future_bound, polyhedron);
     } else {
@@ -6854,7 +6858,7 @@ public:
     return this->events_;
   }
 
-  int count_events(int type) const
+  int count_events(Event_type type) const
   {
     int result = 0;
     typename std::list<Abstract_event_sptr>::const_iterator it_e = events_.begin();
@@ -6871,25 +6875,25 @@ public:
   {
     std::stringstream sstr;
     sstr << "Events: " << events_.size() << std::endl;
-    sstr << "    ConstTimeEvents:       " << count_events(Abstract_event::CONST_TIME_EVENT) << std::endl;
-    sstr << "    SaveEvents:            " << count_events(Abstract_event::SAVE_EVENT) << std::endl;
+    sstr << "    ConstTimeEvents:       " << count_events(Event_type::CONST_TIME_EVENT) << std::endl;
+    sstr << "    SaveEvents:            " << count_events(Event_type::SAVE_EVENT) << std::endl;
     sstr << "  VanishEvents:" << std::endl;
-    sstr << "    GenericVanishEvents:   " << count_events(Abstract_event::VANISH_EVENT) << std::endl;
-    sstr << "    EdgeEvents:            " << count_events(Abstract_event::EDGE_EVENT) << std::endl;
-    sstr << "    EdgeMergeEvents:       " << count_events(Abstract_event::EDGE_MERGE_EVENT) << std::endl;
-    sstr << "    TriangleEvents:        " << count_events(Abstract_event::TRIANGLE_EVENT) << std::endl;
-    sstr << "    DblEdgeMergeEvents:    " << count_events(Abstract_event::DBL_EDGE_MERGE_EVENT) << std::endl;
-    sstr << "    DblTriangleEvents:     " << count_events(Abstract_event::DBL_TRIANGLE_EVENT) << std::endl;
-    sstr << "    TetrahedronEvents:     " << count_events(Abstract_event::TETRAHEDRON_EVENT) << std::endl;
+    sstr << "    GenericVanishEvents:   " << count_events(Event_type::VANISH_EVENT) << std::endl;
+    sstr << "    EdgeEvents:            " << count_events(Event_type::EDGE_EVENT) << std::endl;
+    sstr << "    EdgeMergeEvents:       " << count_events(Event_type::EDGE_MERGE_EVENT) << std::endl;
+    sstr << "    TriangleEvents:        " << count_events(Event_type::TRIANGLE_EVENT) << std::endl;
+    sstr << "    DblEdgeMergeEvents:    " << count_events(Event_type::DBL_EDGE_MERGE_EVENT) << std::endl;
+    sstr << "    DblTriangleEvents:     " << count_events(Event_type::DBL_TRIANGLE_EVENT) << std::endl;
+    sstr << "    TetrahedronEvents:     " << count_events(Event_type::TETRAHEDRON_EVENT) << std::endl;
     sstr << "  ContactEvents:" << std::endl;
-    sstr << "    GenericVertexEvents:   " << count_events(Abstract_event::GENERIC_VERTEX_EVENT) << std::endl;
-    sstr << "    VertexEvents:          " << count_events(Abstract_event::VERTEX_EVENT) << std::endl;
-    sstr << "    FlipVertexEvents:      " << count_events(Abstract_event::FLIP_VERTEX_EVENT) << std::endl;
-    sstr << "    SurfaceEvents:         " << count_events(Abstract_event::SURFACE_EVENT) << std::endl;
-    sstr << "    PolyhedronSplitEvents: " << count_events(Abstract_event::POLYHEDRON_SPLIT_EVENT) << std::endl;
-    sstr << "    SplitMergeEvents:      " << count_events(Abstract_event::SPLIT_MERGE_EVENT) << std::endl;
-    sstr << "    EdgeSplitEvents:       " << count_events(Abstract_event::EDGE_SPLIT_EVENT) << std::endl;
-    sstr << "    PierceEvents:          " << count_events(Abstract_event::PIERCE_EVENT) << std::endl;
+    sstr << "    GenericVertexEvents:   " << count_events(Event_type::GENERIC_VERTEX_EVENT) << std::endl;
+    sstr << "    VertexEvents:          " << count_events(Event_type::VERTEX_EVENT) << std::endl;
+    sstr << "    FlipVertexEvents:      " << count_events(Event_type::FLIP_VERTEX_EVENT) << std::endl;
+    sstr << "    SurfaceEvents:         " << count_events(Event_type::SURFACE_EVENT) << std::endl;
+    sstr << "    PolyhedronSplitEvents: " << count_events(Event_type::POLYHEDRON_SPLIT_EVENT) << std::endl;
+    sstr << "    SplitMergeEvents:      " << count_events(Event_type::SPLIT_MERGE_EVENT) << std::endl;
+    sstr << "    EdgeSplitEvents:       " << count_events(Event_type::EDGE_SPLIT_EVENT) << std::endl;
+    sstr << "    PierceEvents:          " << count_events(Event_type::PIERCE_EVENT) << std::endl;
     sstr << ")" << std::endl;
     return sstr.str();
 

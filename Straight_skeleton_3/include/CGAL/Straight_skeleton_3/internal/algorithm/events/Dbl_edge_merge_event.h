@@ -56,7 +56,7 @@ private:
 
 public:
   Dbl_edge_merge_event()
-    : Base(Base::DBL_EDGE_MERGE_EVENT)
+    : Base(Event_type::DBL_EDGE_MERGE_EVENT)
   { }
 
   virtual ~Dbl_edge_merge_event()

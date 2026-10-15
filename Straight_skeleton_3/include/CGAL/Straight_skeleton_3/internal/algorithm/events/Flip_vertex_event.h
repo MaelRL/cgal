@@ -55,7 +55,7 @@ private:
 
 public:
   Flip_vertex_event()
-    : Base(Base::FLIP_VERTEX_EVENT)
+    : Base(Event_type::FLIP_VERTEX_EVENT)
   { }
 
   virtual ~Flip_vertex_event()

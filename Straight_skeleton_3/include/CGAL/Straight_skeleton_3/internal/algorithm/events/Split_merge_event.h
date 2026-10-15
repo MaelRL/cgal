@@ -56,7 +56,7 @@ private:
 
 public:
   Split_merge_event()
-    : Base(Base::SPLIT_MERGE_EVENT)
+    : Base(Event_type::SPLIT_MERGE_EVENT)
   { }
 
   virtual ~Split_merge_event()

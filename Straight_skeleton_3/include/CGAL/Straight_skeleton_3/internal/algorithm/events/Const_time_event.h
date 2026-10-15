@@ -37,7 +37,7 @@ class Const_time_event
 
 public:
   Const_time_event()
-    : Base(Base::CONST_TIME_EVENT)
+    : Base(Event_type::CONST_TIME_EVENT)
   { }
 
   static Const_time_event_sptr create()

@@ -37,7 +37,7 @@ class Save_event
 
 public:
   Save_event()
-    : Base(Abstract_event<GeomTraits>::SAVE_EVENT)
+    : Base(Event_type::SAVE_EVENT)
   { }
 
   static Save_event_sptr create()

@@ -56,7 +56,7 @@ private:
 
 public:
   Vertex_event()
-    : Base(Base::VERTEX_EVENT)
+    : Base(Event_type::VERTEX_EVENT)
   { }
 
   virtual ~Vertex_event()

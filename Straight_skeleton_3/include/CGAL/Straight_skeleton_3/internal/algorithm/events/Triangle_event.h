@@ -58,7 +58,7 @@ private:
 
 public:
   Triangle_event()
-    : Base(Base::TRIANGLE_EVENT)
+    : Base(Event_type::TRIANGLE_EVENT)
   { }
 
   virtual ~Triangle_event()

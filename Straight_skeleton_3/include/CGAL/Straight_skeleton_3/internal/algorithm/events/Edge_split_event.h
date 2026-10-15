@@ -54,7 +54,7 @@ private:
 
 public:
   Edge_split_event()
-    : Base(Base::EDGE_SPLIT_EVENT)
+    : Base(Event_type::EDGE_SPLIT_EVENT)
   { }
 
   virtual ~Edge_split_event()

@@ -53,7 +53,7 @@ private:
 
 public:
   Edge_event()
-    : Base(Base::EDGE_EVENT)
+    : Base(Event_type::EDGE_EVENT)
   { }
 
   virtual ~Edge_event()

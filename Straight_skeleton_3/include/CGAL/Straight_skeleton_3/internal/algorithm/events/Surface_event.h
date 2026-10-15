@@ -56,7 +56,7 @@ private:
 
 public:
   Surface_event()
-    : Base(Base::SURFACE_EVENT)
+    : Base(Event_type::SURFACE_EVENT)
   { }
 
   virtual ~Surface_event()

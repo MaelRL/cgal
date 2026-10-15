@@ -48,7 +48,7 @@ private:
 
 public:
   Vanish_event()
-    : Base(Base::VANISH_EVENT)
+    : Base(Event_type::VANISH_EVENT)
   { }
 
   virtual ~Vanish_event()

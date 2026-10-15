@@ -50,7 +50,7 @@ private:
 
 public:
   Generic_vertex_event()
-    : Base(Base::GENERIC_VERTEX_EVENT)
+    : Base(Event_type::GENERIC_VERTEX_EVENT)
   { }
 
   virtual ~Generic_vertex_event()

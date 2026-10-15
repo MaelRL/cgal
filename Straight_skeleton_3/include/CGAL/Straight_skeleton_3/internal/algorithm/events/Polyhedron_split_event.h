@@ -54,7 +54,7 @@ private:
 
 public:
   Polyhedron_split_event()
-    : Base(Base::POLYHEDRON_SPLIT_EVENT)
+    : Base(Event_type::POLYHEDRON_SPLIT_EVENT)
   { }
 
   virtual ~Polyhedron_split_event()

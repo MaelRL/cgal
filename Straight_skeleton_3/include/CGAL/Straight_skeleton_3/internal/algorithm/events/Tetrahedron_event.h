@@ -58,7 +58,7 @@ private:
 
 public:
   Tetrahedron_event()
-    : Base(Base::TETRAHEDRON_EVENT)
+    : Base(Event_type::TETRAHEDRON_EVENT)
   { }
 
   virtual ~Tetrahedron_event()

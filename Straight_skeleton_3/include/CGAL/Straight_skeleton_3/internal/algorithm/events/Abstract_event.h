@@ -32,6 +32,58 @@ namespace Straight_skeletons_3 {
 namespace internal {
 namespace algorithm {
 
+enum class Event_type : int {
+  NON_EVENT = -1,
+  SAVE_EVENT = 0,
+  CONST_TIME_EVENT = 1,
+  VANISH_EVENT = 2,
+  EDGE_EVENT = 3,
+  EDGE_MERGE_EVENT = 4,
+  TRIANGLE_EVENT = 5,
+  DBL_EDGE_MERGE_EVENT = 6,
+  DBL_TRIANGLE_EVENT = 7,
+  TETRAHEDRON_EVENT = 8,
+  GENERIC_VERTEX_EVENT = 9,
+  VERTEX_EVENT = 10,
+  FLIP_VERTEX_EVENT = 11,
+  SURFACE_EVENT = 12,
+  POLYHEDRON_SPLIT_EVENT = 13,
+  SPLIT_MERGE_EVENT = 14,
+  EDGE_SPLIT_EVENT = 15,
+  PIERCE_EVENT = 16
+};
+
+inline std::string event_type_to_string(const Event_type type)
+{
+  switch (type) {
+    case Event_type::CONST_TIME_EVENT: return "Const_time_event";
+    case Event_type::SAVE_EVENT: return "Save_event";
+    case Event_type::VANISH_EVENT: return "Vanish_event";
+    case Event_type::EDGE_EVENT: return "Edge_event";
+    case Event_type::EDGE_MERGE_EVENT: return "Edge_merge_event";
+    case Event_type::TRIANGLE_EVENT: return "Triangle_event";
+    case Event_type::DBL_EDGE_MERGE_EVENT: return "Dbl_edge_merge_event";
+    case Event_type::DBL_TRIANGLE_EVENT: return "Dbl_triangle_event";
+    case Event_type::TETRAHEDRON_EVENT: return "Tetrahedron_event";
+    case Event_type::GENERIC_VERTEX_EVENT: return "Generic_vanish_event";
+    case Event_type::VERTEX_EVENT: return "Vertex_event";
+    case Event_type::FLIP_VERTEX_EVENT: return "Flip_vertex_event";
+    case Event_type::SURFACE_EVENT: return "Surface_event";
+    case Event_type::POLYHEDRON_SPLIT_EVENT: return "Polyhedron_split_event";
+    case Event_type::SPLIT_MERGE_EVENT: return "Split_merge_event";
+    case Event_type::EDGE_SPLIT_EVENT: return "Edge_split_event";
+    case Event_type::PIERCE_EVENT: return "Pierce_event";
+    case Event_type::NON_EVENT: return "Non_event";
+    default: return "Abstract_event";
+  }
+}
+
+inline std::ostream& operator<<(std::ostream& out, const Event_type type)
+{
+  out << event_type_to_string(type);
+  return out;
+}
+
 template <typename GeomTraits>
 class Abstract_event
 {
@@ -40,7 +92,7 @@ class Abstract_event
   using FT = typename GeomTraits::FT;
 
 public:
-  Abstract_event(int type = -2)
+  Abstract_event(Event_type type = Event_type::NON_EVENT)
     : type_(type),
       id_(next_event_id_++)
   { }
@@ -77,56 +129,7 @@ public:
     this->time_ = time;
   }
 
-  static const int SAVE_EVENT = 0;
-
-  static const int CONST_TIME_EVENT = 1;
-
-  /** generic vanish event */
-  static const int VANISH_EVENT = 2;
-
-  /** 1 edge vanish event */
-  static const int EDGE_EVENT = 3;
-
-  /** 2 edge vanish event */
-  static const int EDGE_MERGE_EVENT = 4;
-
-  /** 3 edge vanish event */
-  static const int TRIANGLE_EVENT = 5;
-
-  /** 4 edge vanish event */
-  static const int DBL_EDGE_MERGE_EVENT = 6;
-
-  /** 5 edge vanish event */
-  static const int DBL_TRIANGLE_EVENT = 7;
-
-  /** 6 edge vanish event */
-  static const int TETRAHEDRON_EVENT = 8;
-
-  /** generic vertex event */
-  static const int GENERIC_VERTEX_EVENT = 9;
-
-  /** vertex-vertex contact event I */
-  static const int VERTEX_EVENT = 10;
-
-  /** vertex-vertex contact event II */
-  static const int FLIP_VERTEX_EVENT = 11;
-
-  /** vertex-edge contact event */
-  static const int SURFACE_EVENT = 12;
-
-  /** vertex-vertex-edge contact event I */
-  static const int POLYHEDRON_SPLIT_EVENT = 13;
-
-  /** vertex-vertex-edge contact event II */
-  static const int SPLIT_MERGE_EVENT = 14;
-
-  /** edge-edge contact event */
-  static const int EDGE_SPLIT_EVENT = 15;
-
-  /** vertex-facet contact event */
-  static const int PIERCE_EVENT = 16;
-
-  int getType() const {
+  Event_type getType() const {
     return this->type_;
   }
 
@@ -143,61 +146,7 @@ public:
   virtual std::string to_string() const
   {
     std::stringstream sstr;
-    switch (getType()) {
-      case CONST_TIME_EVENT:
-        sstr << "Const_time_event";
-        break;
-      case SAVE_EVENT:
-        sstr << "Save_event";
-        break;
-      case GENERIC_VERTEX_EVENT:
-        sstr << "Generic_vanish_event";
-        break;
-      case VANISH_EVENT:
-        sstr << "Vanish_event";
-        break;
-      case EDGE_EVENT:
-        sstr << "Edge_event";
-        break;
-      case EDGE_MERGE_EVENT:
-        sstr << "Edge_merge_event";
-        break;
-      case TRIANGLE_EVENT:
-        sstr << "Triangle_event";
-        break;
-      case DBL_EDGE_MERGE_EVENT:
-        sstr << "Dbl_edge_merge_event";
-        break;
-      case DBL_TRIANGLE_EVENT:
-        sstr << "Dbl_triangle_event";
-        break;
-      case TETRAHEDRON_EVENT:
-        sstr << "Tetrahedron_event";
-        break;
-      case VERTEX_EVENT:
-        sstr << "Vertex_event";
-        break;
-      case FLIP_VERTEX_EVENT:
-        sstr << "Flip_vertex_event";
-        break;
-      case SURFACE_EVENT:
-        sstr << "Surface_event";
-        break;
-      case POLYHEDRON_SPLIT_EVENT:
-        sstr << "Polyhedron_split_event";
-        break;
-      case SPLIT_MERGE_EVENT:
-        sstr << "Split_merge_event";
-        break;
-      case EDGE_SPLIT_EVENT:
-        sstr << "Edge_split_event";
-        break;
-      case PIERCE_EVENT:
-        sstr << "Pierce_event";
-        break;
-      default:
-        sstr << "Abstract_event";
-    }
+    sstr << event_type_to_string(getType());
     sstr << "(offset=" << IO::String_factory::fromDouble(CGAL::to_double(time())) << ")";
     return sstr.str();
   }
@@ -205,7 +154,7 @@ public:
 protected:
   typename std::list<Abstract_event_sptr>::iterator list_it_;
 
-  int type_;
+  Event_type type_;
   int id_; // id of the event
   FT time_;
 

@@ -56,7 +56,7 @@ private:
 
 public:
   Pierce_event()
-    : Base(Base::PIERCE_EVENT)
+    : Base(Event_type::PIERCE_EVENT)
   { }
 
   virtual ~Pierce_event()

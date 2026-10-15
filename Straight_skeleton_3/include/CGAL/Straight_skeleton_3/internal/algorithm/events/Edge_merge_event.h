@@ -52,7 +52,7 @@ private:
 
 public:
   Edge_merge_event()
-    : Base(Base::EDGE_MERGE_EVENT)
+    : Base(Event_type::EDGE_MERGE_EVENT)
   { }
 
   virtual ~Edge_merge_event()
