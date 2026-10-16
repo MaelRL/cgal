@@ -4190,7 +4190,7 @@ public:
                                const FT& current_time,
                                const std::optional<FT>& time_future_bound)
   {
-    CGAL_SS3_CORE_TRACE("Checking queue correctness...");
+    CGAL_SS3_CORE_TRACE_V(8, "Checking queue correctness @ " << current_time);
     CGAL_SS3_DEBUG_SPTR(polyhedron);
 
     // Compute a queue from scratch using collect_events()
@@ -4321,14 +4321,17 @@ public:
     if (!queue_from_scratch.empty() && !duplicate_queue.empty()) {
       Abstract_event_sptr event_scratch = queue_from_scratch.top();
       Abstract_event_sptr event_duplicate = duplicate_queue.top();
-      CGAL_SS3_CORE_TRACE("First event from scratch: " << event_scratch->to_string());
-      CGAL_SS3_CORE_TRACE("First event from duplicate: " << event_duplicate->to_string());
+      CGAL_SS3_CORE_TRACE_V(1, "First event from scratch: " << event_scratch->to_string());
+      CGAL_SS3_CORE_TRACE_V(1, "First event from duplicate: " << event_duplicate->to_string());
 
       if (!is_same_event(event_scratch, event_duplicate)) {
         CGAL_SS3_CORE_TRACE_V(1, "Error: top events differ");
         CGAL_SS3_CORE_TRACE_V(1, "Event (scratch): " << event_scratch->to_string());
         CGAL_SS3_CORE_TRACE_V(1, "Event (duplicate): " << event_duplicate->to_string());
+        CGAL_SS3_CORE_TRACE_V(1, "Different times? " << (event_scratch->time() != event_duplicate->time()));
         return false;
+      } else {
+        CGAL_SS3_CORE_TRACE_V(1, "First events match");
       }
     }
 
@@ -4339,43 +4342,72 @@ public:
         break;
       }
 
+
       Abstract_event_sptr event_scratch = queue_from_scratch.top();
       queue_from_scratch.pop();
 
-      CGAL_SS3_CORE_TRACE("Seek E" << event_scratch->id()
-                          << " T" << event_scratch->getType()
-                          << " @ " << event_scratch->time());
+      CGAL_SS3_CORE_TRACE_V(16, "Seek\n" << event_scratch->to_string());
       CGAL_assertion(event_scratch->is_valid() && !is_event_obsolete(event_scratch));
 
-      // Find the event in the duplicate queue
       bool found = false;
+
+      // awkward, but in the current design multiple events at a given time can be in different orders
+      // since they will be sorted by ID.
+      // @fixme could pop and keep a list of all events at the same time, then check that all of them
+      // etc. etc. but the underlying issue is that the event queue is not a set (in fact, there may
+      // even be multiple events with different types at the same time).
       duplicate_queue = queue;
+
       while (!duplicate_queue.empty()) {
         Abstract_event_sptr event_duplicate = duplicate_queue.top();
-        if (event_duplicate->is_valid() &&
-            !is_event_obsolete(event_duplicate)) {
-          // CGAL_SS3_CORE_TRACE("Maybe event @ " << event_duplicate->to_string() << "?");
-          if (is_actual_event(event_duplicate, current_time, time_future_bound) &&
-              is_same_event(event_scratch, event_duplicate)) {
-            found = true;
-            break;
-          }
+        duplicate_queue.pop();
+
+        if (event_duplicate->time() > event_scratch->time()) {
+          CGAL_SS3_CORE_TRACE_V(64, "Ignoring past event @ " << event_duplicate->time());
+          continue;
         }
 
+        if (event_duplicate->time() < event_scratch->time()) {
+          // events are sorted by decreasing (negative) time, so it means we missed the 'from scratch' event...
+          CGAL_SS3_CORE_TRACE_V(64, "Next event is E" << event_duplicate->id() << " @ " << event_duplicate->time() << "; Breaking.");
+          break;
+        }
 
-        duplicate_queue.pop();
+        if (event_duplicate->getType() != event_scratch->getType()) {
+          CGAL_SS3_CORE_TRACE_V(64, "Ignoring event E" << event_duplicate->id() << " of type T" << event_duplicate->getType());
+          continue;
+        }
+
+        if (!event_duplicate->is_valid()) {
+          CGAL_SS3_CORE_TRACE_V(64, "Ignoring invalid event E" << event_duplicate->id());
+          continue;
+        }
+
+        if (is_event_obsolete(event_duplicate)) {
+          CGAL_SS3_CORE_TRACE_V(64, "Ignoring obsolete event E" << event_duplicate->id());
+          continue;
+        }
+
+        CGAL_SS3_CORE_TRACE_V(32, "Maybe this event?\n" << event_duplicate->to_string());
+
+        if (is_actual_event(event_duplicate, time_future_bound) &&
+            is_same_event(event_scratch, event_duplicate)) {
+          CGAL_SS3_CORE_TRACE_V(32, event_duplicate->id() << " is the event we seek.\n");
+          found = true;
+          break;
+        }
+
+        CGAL_SS3_CORE_TRACE_V(32, event_duplicate->id() << " is *NOT* the event we seek.\n");
       }
 
       if (!found) {
-          CGAL_SS3_CORE_TRACE_V(1, "Error: could not find event in duplicate queue");
-          CGAL_SS3_CORE_TRACE_V(1, "Event: " << event_scratch->to_string());
-          print_queue(queue);
-          return false;
+        CGAL_SS3_CORE_TRACE_V(1, "Error: could not find event in duplicate queue");
+        CGAL_SS3_CORE_TRACE_V(1, "Event: " << event_scratch->to_string());
+        return false;
       }
     }
 
-    CGAL_SS3_CORE_TRACE("OK: found all 'from-scratch' events!");
-
+    CGAL_SS3_CORE_TRACE_V(16, "OK: found all 'from-scratch' events!");
     return true;
   }
 
