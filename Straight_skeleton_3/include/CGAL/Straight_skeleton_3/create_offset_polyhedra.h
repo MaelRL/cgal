@@ -172,7 +172,7 @@ struct Output_processor
  * must always be positive.
  *
  * \warning An epsilon geometric perturbation is always applied to the input mesh as to avoid
- * degenerate configurations, See \ref Straight_skeleton_3Limitations for more information.
+ * degenerate configurations, See \ref Straight_skeleton_3GeneralPosition for more information.
  *
  * \tparam TriangleMeshIn must be a model of `FaceListGraph`, `HalfedgeListGraph`
  * \tparam PolygonMeshOut must be a model of `MutableFaceGraph`, `FaceListGraph`, `HalfedgeListGraph`

@@ -30,7 +30,7 @@
 \cgalPkgManuals{Chapter_3D_Straight_Skeleton_and_Polyhedron_Offsetting,PkgStraightSkeleton3Ref}
 \cgalPkgSummaryEnd
 \cgalPkgShortInfoBegin
-\cgalPkgSince{6.2}
+\cgalPkgSince{6.4}
 \cgalPkgDependsOn{ }
 \cgalPkgBib{cgal:c-sspo3}
 \cgalPkgLicense{\ref licensesGPL  "GPL"}

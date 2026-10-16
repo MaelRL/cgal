@@ -149,7 +149,7 @@ construct_skeleton(const TriangleMesh& tmesh,
  * in the presence of unbounded arcs and sheets in the straight skeleton.
  *
  * \warning An epsilon geometric perturbation is always applied to the input mesh as to avoid
- * degenerate configurations, See \ref Straight_skeleton_3Limitations for more information.
+ * degenerate configurations, See \ref Straight_skeleton_3GeneralPosition for more information.
  *
  * \tparam TriangleMesh must be a model of `FaceListGraph`, `HalfedgeListGraph`
  * \tparam FT must be a model of `FieldNumberType` compatible with the type of `geom_traits`
