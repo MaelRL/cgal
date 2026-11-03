@@ -1,7 +1,8 @@
 #define CGAL_AW3_TIMER
 #define CGAL_AW3_DEBUG
 #define CGAL_AW3_DEBUG_MANIFOLDNESS
-// #define CGAL_AW3_DEBUG_INITIALIZATION
+#define CGAL_AW3_DEBUG_INITIALIZATION
+#define CGAL_AW3_DEBUG_MANIFOLDNESS_PP
 
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -36,6 +37,32 @@ void generate_random_seeds(const Oracle& oracle,
     const Point_3 seed (bbox.xmin() + r.get_double(0., 1.) * (bbox.xmax() - bbox.xmin()),
                         bbox.ymin() + r.get_double(0., 1.) * (bbox.ymax() - bbox.ymin()),
                         bbox.zmin() + r.get_double(0., 1.) * (bbox.zmax() - bbox.zmin()));
+
+    const FT sqd = oracle.squared_distance(seed);
+#ifdef CGAL_AW3_DEBUG
+    std::cout << "Generate " << seed << " at squared distance " << sqd << " (sqo: " << sq_offset << ")" << std::endl;
+#endif
+
+    if(sqd > sq_offset)
+      seeds.push_back(seed);
+  }
+}
+
+template <typename Oracle>
+void generate_random_seeds_0(const Oracle& oracle,
+                                                const double offset,
+                                                Seeds& seeds,
+                                                CGAL::Random& r)
+{
+  const auto bbox = CGAL::Alpha_wraps_3::internal::Alpha_wrapper_3<Oracle>(oracle).construct_bbox(offset);
+  const double sq_offset = CGAL::square(offset);
+
+  while(seeds.size() < 3)
+  {
+    const double x = bbox.xmin() + r.get_double(0., 1.) * (bbox.xmax() - bbox.xmin());
+    const double y = bbox.ymin() + r.get_double(0., 1.) * (bbox.ymax() - bbox.ymin());
+    const double z = bbox.zmin() + r.get_double(0., 1.) * (bbox.zmax() - bbox.zmin());
+    const Point_3 seed(x, y, z);
 
     const FT sqd = oracle.squared_distance(seed);
 #ifdef CGAL_AW3_DEBUG
@@ -129,54 +156,39 @@ void alpha_wrap_triangle_mesh(const std::string& filename)
                                 Point_3(bbox.xmin(), bbox.ymin(), bbox.zmin());
   double longest_diag_length = CGAL::to_double(CGAL::approximate_sqrt(longest_diag.squared_length()));
 
-  for(int i=0; i<2; ++i)
-  {
-    CGAL::Random r;
+  CGAL::Random r(1793714188);
 
-    const double alpha_expo = r.get_double(0., 6); // to have alpha_rel between 1 and 64
-    const double offset_expo = r.get_double(0., 6);
-    const double alpha_rel = std::pow(2, alpha_expo);
-    const double offset_rel = std::pow(2, offset_expo);
-    const double alpha = longest_diag_length / alpha_rel;
-    const double offset = longest_diag_length / offset_rel;
+  const double alpha_expo = r.get_double(0., 6); // to have alpha_rel between 1 and 64
+  const double offset_expo = r.get_double(0., 6);
+  const double alpha_rel = std::pow(2, alpha_expo);
+  const double offset_rel = std::pow(2, offset_expo);
+  const double alpha = longest_diag_length / alpha_rel;
+  const double offset = longest_diag_length / offset_rel;
 
-    std::cout << "===================================================" << std::endl;
-    std::cout << filename << " " << alpha << " (rel " << alpha_rel << ")"
-                          << " " << offset << " (rel " << offset_rel << ")" << std::endl;
-    std::cout << "Random seed = " << r.get_seed() << std::endl;
+  std::cout << "===================================================" << std::endl;
+  std::cout << filename << " " << alpha << " (rel " << alpha_rel << ")"
+                        << " " << offset << " (rel " << offset_rel << ")" << std::endl;
+  std::cout << "Random seed = " << r.get_seed() << std::endl;
 
-    alpha_wrap_triangle_mesh(input_mesh, alpha, offset, r);
-  }
-}
+  namespace AW3 = CGAL::Alpha_wraps_3;
+  using Geom_traits = typename CGAL::GetGeomTraits<Mesh>::type;
+  using Oracle = AW3::internal::Triangle_mesh_oracle<Geom_traits>;
 
-void alpha_wrap_triangle_mesh(const std::string& filename,
-                              Seeds& seeds)
-{
-  CGAL::Random r;
+  CGAL::Random other_r = r;
 
-  Mesh input_mesh;
-  bool res = CGAL::Polygon_mesh_processing::IO::read_polygon_mesh(filename, input_mesh);
-  assert(res);
-  assert(!is_empty(input_mesh) && is_triangle_mesh(input_mesh));
+  Mesh ordered_input_mesh = input_mesh;
+  Oracle oracle;
+  oracle.add_triangle_mesh(ordered_input_mesh);
+  Seeds ordered_seeds;
+  generate_random_seeds_0(oracle, offset, ordered_seeds, r);
 
-  CGAL::Bbox_3 bbox = CGAL::Polygon_mesh_processing::bbox(input_mesh);
-  const Vector_3 longest_diag = Point_3(bbox.xmax(), bbox.ymax(), bbox.zmax()) -
-                                Point_3(bbox.xmin(), bbox.ymin(), bbox.zmin());
-  double longest_diag_length = CGAL::to_double(CGAL::approximate_sqrt(longest_diag.squared_length()));
+  std::cout << "Wrap #0:" << std::endl;
+  alpha_wrap_triangle_mesh(ordered_input_mesh, alpha, offset, ordered_seeds, r);
 
-  for(int i=0; i<2; ++i)
-  {
-    const double alpha_expo = r.get_double(-3., 3.);
-    const double offset_expo = r.get_double(-3., 3.);
-    const double alpha = longest_diag_length / std::pow(2, alpha_expo);
-    const double offset = longest_diag_length / std::pow(2, offset_expo);
-
-    std::cout << "===================================================" << std::endl;
-    std::cout << filename << " " << alpha << " " << offset << std::endl;
-    std::cout << "Random seed = " << r.get_seed() << std::endl;
-
-    alpha_wrap_triangle_mesh(input_mesh, alpha, offset, seeds, r);
-  }
+  Mesh current_input_mesh = input_mesh;
+  Seeds current_seeds;
+  std::cout << "Wrap #1:" << std::endl;
+  alpha_wrap_triangle_mesh(current_input_mesh, alpha, offset, current_seeds, other_r);
 }
 
 int main(int argc, char** argv)
@@ -184,29 +196,7 @@ int main(int argc, char** argv)
   std::cout.precision(17);
   std::cerr.precision(17);
 
-  if(argc > 1)
-  {
-    alpha_wrap_triangle_mesh(argv[1]);
-    return EXIT_SUCCESS;
-  }
-
-  alpha_wrap_triangle_mesh("data/tetrahedron.off");
-  alpha_wrap_triangle_mesh("data/plane.off");
-  alpha_wrap_triangle_mesh("data/open_tetrahedron.off");
-  alpha_wrap_triangle_mesh("data/tetrahedron_open_tip.off");
-  alpha_wrap_triangle_mesh("data/sphere_one_hole.off");
-  alpha_wrap_triangle_mesh("data/tetrahedron_duplicates.off");
-  alpha_wrap_triangle_mesh("data/tetrahedron_degenerencies.off");
-  alpha_wrap_triangle_mesh("data/non_manifold.off");
-  alpha_wrap_triangle_mesh("data/combinatorial_manifold.off");
-  alpha_wrap_triangle_mesh("data/combinatorial_manifold_multiple_components.off");
-  alpha_wrap_triangle_mesh("data/tetrahedron_self_intersection_tip.off");
   alpha_wrap_triangle_mesh("data/tetrahedron_twisted_tip.off");
-  alpha_wrap_triangle_mesh("data/tetrahedron_random_perturbation.off");
-  alpha_wrap_triangle_mesh("data/overlay_triangulation.off");
-  alpha_wrap_triangle_mesh("data/two_knives.off");
-  alpha_wrap_triangle_mesh("data/three_knives.off");
-  alpha_wrap_triangle_mesh("data/bunny_random_perturbation.off");
 
   std::cout << "Done!" << std::endl;
   return EXIT_SUCCESS;

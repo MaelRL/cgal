@@ -1542,6 +1542,10 @@ private:
   {
     CGAL_precondition(!m_tr.is_infinite(v));
 
+#ifdef CGAL_AW3_DEBUG_MANIFOLDNESS_PP
+    std::cout << "Checking non-manifoldness of vertex " << &*v << std::endl;
+#endif
+
     bool is_non_manifold = false;
 
     std::vector<Cell_handle> inc_cells;
@@ -1572,10 +1576,19 @@ private:
     std::stack<Cell_handle> cells_to_visit;
     cells_to_visit.push(inside_start);
     cells_to_visit.push(outside_start);
+
+#ifdef CGAL_AW3_DEBUG_MANIFOLDNESS_PP
+    std::cout << "Flooding incident cells of vertex " << &*v << std::endl;
+#endif
+
     while(!cells_to_visit.empty())
     {
       Cell_handle curr_c = cells_to_visit.top();
       cells_to_visit.pop();
+
+#ifdef CGAL_AW3_DEBUG_MANIFOLDNESS_PP
+      std::cout << "Visiting cell " << &*curr_c << " (label: " << curr_c->label() << ")" << std::endl;
+#endif
 
       if(curr_c->tds_data().processed())
         continue;
@@ -1603,6 +1616,10 @@ private:
       }
     }
 
+#ifdef CGAL_AW3_DEBUG_MANIFOLDNESS_PP
+    std::cout << "Flooding done, checking for unvisited incident cells..." << std::endl;
+#endif
+
     for(Cell_handle ic : inc_cells)
     {
       if(ic->tds_data().is_clear()) // <=> unvisited cell
@@ -1612,9 +1629,18 @@ private:
       }
     }
 
+#ifdef CGAL_AW3_DEBUG_MANIFOLDNESS_PP
+    std::cout << "Reseting conflict flags for incident cells of vertex " << &*v << std::endl;
+#endif
+
     // reset the conflict flags
     for(Cell_handle ic : inc_cells)
       ic->tds_data().clear();
+
+
+#ifdef CGAL_AW3_DEBUG_MANIFOLDNESS_PP
+    std::cout << "Vertex " << &*v << " is " << (is_non_manifold ? "non-manifold" : "manifold") << std::endl;
+#endif
 
     return is_non_manifold;
   }
