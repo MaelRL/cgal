@@ -1,3 +1,43 @@
+// #define CGAL_AW3_DEBUG_DUMP_EVERY_STEP
+#define CGAL_AW3_DEBUG
+#define CGAL_AW3_DEBUG_QUEUE
+#define CGAL_AW3_DEBUG_STEINER_COMPUTATION
+
+// {
+     // #define CGAL_AW3_ORIGINAL_STEINER_CONSTRUCTION
+// }
+// OR
+// {
+    // main strategy for sharpening
+    #define CGAL_AW3_SHARPEN_WITH_SAMPLING
+    // #define CGAL_AW3_SHARPEN_WITH_ITERATIVE_SAMPLING
+    // #define CGAL_AW3_SHARPEN_WITH_ITERATIVE_BALL_QUERIES
+    // #define CGAL_AW3_SHARPEN_WITH_DYNAMIC_BALL_QUERIES
+
+    // suboptions for sampling strategies
+    // #define CGAL_AW3_SAMPLE_WITH_RANDOM_WALKS
+    // #define CGAL_AW3_SAMPLE_WITH_FOUNTAINS
+    // #define CGAL_AW3_SAMPLE_WITH_BARYCENTRIC_SEEDS
+    #define CGAL_AW3_SAMPLE_WITH_RAY_INTERSECTIONS
+
+    // suboptions for random walks (pick one)
+    #define CGAL_AW3_RANDOM_WALK_USE_WALK_ON_SPHERES
+    // #define CGAL_AW3_RANDOM_WALK_USE_FIXED_STEP // not yet implemented
+
+    // sub options for fountain sampling
+    // #define CGAL_AW3_RANDOM_FOUNTAIN_STREAMS
+    // #define CGAL_AW3_SAMPLE_WITH_FOUNTAINS_RECURSIVE
+
+    // #define CGAL_AW3_ENHANCE_SAMPLES_WITH_QEM_POINTS
+
+    // pick one of these
+    #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_OPTIMAL_POINT
+    // #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_QEM_MINIMIZER
+    // #define CGAL_AW3_STEINER_OPTIMIZATION_RETURNS_CANDIDATE_CLOSEST_TO_CC
+
+    #define CGAL_AW3_USE_WEIGHTED_INSERTION_FOR_STEINER_POINTS_ON_FEATURES
+// }
+
 #include "output_helper.h"
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -37,7 +77,7 @@ int main(int argc, char** argv)
   const double relative_alpha = (argc > 2) ? std::stod(argv[2]) : 20.;
   const double relative_offset = (argc > 3) ? std::stod(argv[3]) : 600.;
 
-  CGAL::Bbox_3 bbox = CGAL::Polygon_mesh_processing::bbox(mesh);
+  const CGAL::Bbox_3 bbox = CGAL::Polygon_mesh_processing::bbox(mesh);
   const double diag_length = std::sqrt(CGAL::square(bbox.xmax() - bbox.xmin()) +
                                        CGAL::square(bbox.ymax() - bbox.ymin()) +
                                        CGAL::square(bbox.zmax() - bbox.zmin()));

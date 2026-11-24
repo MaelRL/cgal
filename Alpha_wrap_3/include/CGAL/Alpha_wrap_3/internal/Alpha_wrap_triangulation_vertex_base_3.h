@@ -24,7 +24,9 @@ enum class Vertex_type
 {
   DEFAULT = 0,
   BBOX_VERTEX,
-  SEED_VERTEX
+  SEED_VERTEX,
+  CREASE_VERTEX,
+  CORNER_VERTEX
 };
 
 template <typename GT,
